@@ -89,9 +89,9 @@ function guideModeCopy(guideConfig?: GuideConfig): {
 } {
   if (guideConfig?.mode === "commerce") {
     return {
-      statusLabel: "Commerce guide ready",
+      statusLabel: "Commerce self-drive ready",
       greeting:
-        "Hi — I’m TourBot. Tell me what you need, and I’ll walk you through the best-fit rooms and packages, then preload your booking summary from what you share.",
+        "Hi — I’m TourBot. Activate me when you want this commerce playground to self-drive through best-fit rooms, packages, and booking context from what you share.",
       placeholder: "Describe your trip, preferences, dates, guests, or budget...",
       quickStarts: [
         {
@@ -112,9 +112,9 @@ function guideModeCopy(guideConfig?: GuideConfig): {
   }
 
   return {
-    statusLabel: "Discovery guide ready",
+    statusLabel: "Discovery self-drive ready",
     greeting:
-      "Hi — I’m TourBot. Ask me what you’re looking for, and I’ll guide you to the right part of the site.",
+      "Hi — I’m TourBot. Activate me when you want this discovery playground to self-drive through the right site sections from what you ask for.",
     placeholder: "Ask a question or describe what you want to explore...",
     quickStarts: [
       {
@@ -2442,11 +2442,11 @@ export function GuideShellStatic({
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-100">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Autonomous AI
+                  Self-drive mode
                 </span>
                 <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-100">
                   <MessageSquare className="h-3.5 w-3.5" />
-                  Conversational shell
+                  Playground guide
                 </span>
               </div>
             </div>
@@ -2458,7 +2458,7 @@ export function GuideShellStatic({
                   onClick={openPanel}
                   className="flex w-full items-center justify-between rounded-2xl bg-slate-900 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-slate-800"
                 >
-                  Open chat shell
+                  Activate TourBot
                   <MessageSquare className="h-4 w-4" />
                 </button>
 
@@ -2470,7 +2470,7 @@ export function GuideShellStatic({
                   }}
                   className="flex w-full items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-left text-sm font-medium text-slate-900 transition hover:bg-slate-50"
                 >
-                  Keep guide minimized
+                  Browse playground first
                   <Minus className="h-4 w-4" />
                 </button>
               </div>
@@ -2529,7 +2529,7 @@ export function GuideShellStatic({
 
               <div className="shrink-0 border-b border-slate-200 px-5 py-3">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Quick starts
+                  Self-drive starters
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -2569,7 +2569,7 @@ export function GuideShellStatic({
                           }}
                           className="w-full bg-slate-100 px-4 py-3 text-sm text-slate-400"
                         >
-                          Guide waking up…
+                          TourBot warming up…
                         </motion.div>
                       ) : (
                         thread.map((item) =>

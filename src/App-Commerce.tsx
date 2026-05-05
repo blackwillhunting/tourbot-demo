@@ -575,7 +575,7 @@ function Header({
                 onClick={onStartDemo}
                 className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
-                Start commerce demo
+                Self-Drive Tour
               </button>
             )}
             {demoStatus === "running" && (
