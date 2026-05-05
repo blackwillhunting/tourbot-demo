@@ -25,8 +25,9 @@ const toastPosition = {
   zIndex: 9999,
 };
 
-const MIN_TEXTAREA_HEIGHT = 72;
-const MAX_TEXTAREA_HEIGHT = 220;
+const MIN_TEXTAREA_HEIGHT = 64;
+const KEYBOARD_TEXTAREA_HEIGHT = 52;
+const MAX_TEXTAREA_HEIGHT = 160;
 const MESSAGE_FADE_DURATION = 0.2;
 const THREAD_REVEAL_SCROLL_MS = 900;
 const BOT_REPLY_DELAY_MS = 3000;
@@ -1398,7 +1399,7 @@ function DraftRow({
             (disabled ? "cursor-not-allowed opacity-70" : "")
           }
           style={{
-            minHeight: `${MIN_TEXTAREA_HEIGHT}px`,
+            minHeight: `${isCoarsePointer() && hasFocus ? KEYBOARD_TEXTAREA_HEIGHT : MIN_TEXTAREA_HEIGHT}px`,
             boxShadow: hasFocus ? "inset 0 0 0 0 rgba(0,0,0,0)" : "none",
           }}
         />
@@ -1477,18 +1478,32 @@ export function GuideShellStatic({
     if (typeof window === "undefined") return 760;
     return Math.round(window.visualViewport?.height || window.innerHeight || 760);
   });
+  const [visualViewportOffsetTop, setVisualViewportOffsetTop] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    return Math.round(window.visualViewport?.offsetTop || 0);
+  });
   const [keyboardCompressed, setKeyboardCompressed] = useState(false);
 
-  const constrainedViewportHeight = Math.max(320, visualViewportHeight);
-  const floatingCardMaxHeight = `${Math.max(300, constrainedViewportHeight - 32)}px`;
+  const constrainedViewportHeight = Math.max(300, visualViewportHeight);
+  const floatingCardMaxHeight = `${Math.max(280, constrainedViewportHeight - 32)}px`;
+  const keyboardPanelMaxHeight = Math.max(240, constrainedViewportHeight - 20);
   const panelHeight = keyboardCompressed
-    ? `min(420px, ${Math.max(300, constrainedViewportHeight - 12)}px)`
+    ? `min(300px, ${keyboardPanelMaxHeight}px)`
     : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
-  const panelToastStyle = {
-    ...toastPosition,
-    bottom: keyboardCompressed ? "8px" : toastPosition.bottom,
-    width: "min(calc(100vw - 32px), 480px)",
-  };
+  const panelToastStyle = keyboardCompressed
+    ? {
+        position: "fixed" as const,
+        left: "12px",
+        right: "12px",
+        top: `${Math.max(8, visualViewportOffsetTop + 8)}px`,
+        bottom: "auto",
+        width: "auto",
+        zIndex: 9999,
+      }
+    : {
+        ...toastPosition,
+        width: "min(calc(100vw - 32px), 480px)",
+      };
 
   const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -1718,7 +1733,9 @@ export function GuideShellStatic({
       const viewportHeight = Math.round(
         window.visualViewport?.height || window.innerHeight || 760,
       );
+      const viewportOffsetTop = Math.round(window.visualViewport?.offsetTop || 0);
       setVisualViewportHeight(viewportHeight);
+      setVisualViewportOffsetTop(viewportOffsetTop);
 
       const layoutHeight = window.innerHeight || viewportHeight;
       const textareaActive = document.activeElement === textareaRef.current;
@@ -2564,10 +2581,13 @@ export function GuideShellStatic({
           onMouseEnter={clearMinimizeTimer}
           onMouseLeave={startMinimizeTimer}
         >
-          <div data-demo-target="guide-shell" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:rounded-[30px]"
-            style={{ height: panelHeight, maxHeight: floatingCardMaxHeight }}>
+          <div
+            data-demo-target="guide-shell"
+            className={`overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
+            style={{ height: panelHeight, maxHeight: keyboardCompressed ? `${keyboardPanelMaxHeight}px` : floatingCardMaxHeight }}
+          >
             <div className="flex h-full min-h-0 flex-col">
-              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+              <div className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}>
                 <div className="flex items-center gap-3">
                   <span className="inline-flex rounded-2xl bg-slate-900 p-2 text-white">
                     <Compass className="h-4 w-4" />
@@ -2609,7 +2629,7 @@ export function GuideShellStatic({
                 </div>
               </div>
 
-              <div className="shrink-0 border-b border-slate-200 px-4 py-2.5 sm:px-5 sm:py-3">
+              <div className={keyboardCompressed ? "hidden" : "shrink-0 border-b border-slate-200 px-4 py-2.5 sm:px-5 sm:py-3"}>
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   Self-drive starters
                 </div>
@@ -2629,7 +2649,7 @@ export function GuideShellStatic({
 
               <motion.div
                 ref={laneRef}
-                className="min-h-0 flex-1 overflow-y-auto bg-slate-50 px-3 py-3 sm:px-5 sm:py-4"
+                className={`min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}` }
                 style={{ overflowAnchor: "none" }}
               >
                 <div
@@ -2686,7 +2706,7 @@ export function GuideShellStatic({
                     ? "0 -1px 0 rgba(148,163,184,0.22)"
                     : "0 -1px 0 rgba(226,232,240,1)",
                 }}
-                className="shrink-0 bg-white px-3 py-3 sm:px-5 sm:py-4"
+                className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}` }
               >
                 {(spotlightActive || hasGuideSteps) && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -2987,8 +3007,14 @@ export function GuideShellStatic({
                   onChange={setDraftValue}
                   onSubmit={submitDraft}
                   onKeyDown={handleDraftKeyDown}
-                  onFocus={() => setDraftFocus(true)}
-                  onBlur={() => setDraftFocus(false)}
+                  onFocus={() => {
+                    setDraftFocus(true);
+                    if (isCoarsePointer()) setKeyboardCompressed(true);
+                  }}
+                  onBlur={() => {
+                    setDraftFocus(false);
+                    window.setTimeout(() => setKeyboardCompressed(false), 120);
+                  }}
                   disabled={isBotTyping}
                   hasFocus={draftFocus}
                   textareaRef={textareaRef}
