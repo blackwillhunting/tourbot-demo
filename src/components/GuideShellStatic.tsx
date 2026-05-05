@@ -1473,6 +1473,22 @@ export function GuideShellStatic({
   const forceWelcomeVisibleRef = useRef(false);
   const autoMinimizeDisabledRef = useRef(false);
   const modeCopy = guideModeCopy(guideConfig);
+  const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
+    if (typeof window === "undefined") return 760;
+    return Math.round(window.visualViewport?.height || window.innerHeight || 760);
+  });
+  const [keyboardCompressed, setKeyboardCompressed] = useState(false);
+
+  const constrainedViewportHeight = Math.max(320, visualViewportHeight);
+  const floatingCardMaxHeight = `${Math.max(300, constrainedViewportHeight - 32)}px`;
+  const panelHeight = keyboardCompressed
+    ? `min(420px, ${Math.max(300, constrainedViewportHeight - 12)}px)`
+    : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
+  const panelToastStyle = {
+    ...toastPosition,
+    bottom: keyboardCompressed ? "8px" : toastPosition.bottom,
+    width: "min(calc(100vw - 32px), 480px)",
+  };
 
   const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -1654,6 +1670,8 @@ export function GuideShellStatic({
   };
 
   const resetShellToWelcome = () => {
+    textareaRef.current?.blur();
+    setKeyboardCompressed(false);
     clearMinimizeTimer();
     clearGreetingTimer();
     clearReplyTimer();
@@ -1694,6 +1712,41 @@ export function GuideShellStatic({
     setShowWelcome(true);
     setShellState("welcome");
   };
+
+  useEffect(() => {
+    const updateViewportState = () => {
+      const viewportHeight = Math.round(
+        window.visualViewport?.height || window.innerHeight || 760,
+      );
+      setVisualViewportHeight(viewportHeight);
+
+      const layoutHeight = window.innerHeight || viewportHeight;
+      const textareaActive = document.activeElement === textareaRef.current;
+      setKeyboardCompressed(
+        Boolean(
+          isCoarsePointer() &&
+            textareaActive &&
+            (viewportHeight < layoutHeight - 80 || viewportHeight < 620),
+        ),
+      );
+    };
+
+    updateViewportState();
+
+    window.visualViewport?.addEventListener("resize", updateViewportState);
+    window.visualViewport?.addEventListener("scroll", updateViewportState);
+    window.addEventListener("resize", updateViewportState);
+    window.addEventListener("focusin", updateViewportState);
+    window.addEventListener("focusout", updateViewportState);
+
+    return () => {
+      window.visualViewport?.removeEventListener("resize", updateViewportState);
+      window.visualViewport?.removeEventListener("scroll", updateViewportState);
+      window.removeEventListener("resize", updateViewportState);
+      window.removeEventListener("focusin", updateViewportState);
+      window.removeEventListener("focusout", updateViewportState);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1968,6 +2021,7 @@ export function GuideShellStatic({
     // On phones, leaving the textarea focused keeps the soft keyboard open,
     // shrinking the viewport and hiding the page navigation/spotlight behind the shell.
     textareaRef.current?.blur();
+    window.setTimeout(() => setKeyboardCompressed(false), 80);
 
     const conversationContext = buildConversationContext(trimmed);
 
@@ -2440,7 +2494,13 @@ export function GuideShellStatic({
         <motion.div
           key="welcome"
           {...baseMotion}
-          style={{ ...toastPosition, width: "min(calc(100vw - 32px), 380px)" }}
+          style={{
+            ...toastPosition,
+            width: "min(calc(100vw - 32px), 380px)",
+            maxHeight: floatingCardMaxHeight,
+            overflowY: "auto",
+            WebkitOverflowScrolling: "touch",
+          }}
         >
           <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:rounded-[28px]">
             <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 pb-5 pt-5 text-white sm:px-6 sm:pb-7 sm:pt-6">
@@ -2500,13 +2560,13 @@ export function GuideShellStatic({
         <motion.div
           key="panel"
           {...baseMotion}
-          style={{ ...toastPosition, width: "min(calc(100vw - 32px), 480px)" }}
+          style={panelToastStyle}
           onMouseEnter={clearMinimizeTimer}
           onMouseLeave={startMinimizeTimer}
         >
           <div data-demo-target="guide-shell" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:rounded-[30px]"
-            style={{ height: "min(760px, calc(100dvh - 32px))" }}>
-            <div className="flex h-full flex-col">
+            style={{ height: panelHeight, maxHeight: floatingCardMaxHeight }}>
+            <div className="flex h-full min-h-0 flex-col">
               <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex rounded-2xl bg-slate-900 p-2 text-white">
@@ -2527,6 +2587,10 @@ export function GuideShellStatic({
                   <button
                     data-demo-target="guide-minimize"
                     onClick={() => {
+                      textareaRef.current?.blur();
+                      setKeyboardCompressed(false);
+                      textareaRef.current?.blur();
+                      setKeyboardCompressed(false);
                       autoMinimizeDisabledRef.current = false;
                       forceWelcomeVisibleRef.current = false;
                       setShellState("launcher");
