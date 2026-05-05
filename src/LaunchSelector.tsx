@@ -8,6 +8,7 @@ function DemoCard({
   href,
   icon: Icon,
   bullets,
+  modeLabel = "Self-drive playground",
 }: {
   eyebrow: string;
   title: string;
@@ -15,6 +16,7 @@ function DemoCard({
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   bullets: string[];
+  modeLabel?: string;
 }) {
   return (
     <a
@@ -25,8 +27,13 @@ function DemoCard({
         <div className="flex h-13 w-13 items-center justify-center rounded-3xl bg-slate-950 text-white shadow-sm">
           <Icon className="h-6 w-6" />
         </div>
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition group-hover:bg-slate-950 group-hover:text-white">
-          <ArrowRight className="h-4 w-4" />
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:inline-flex">
+            {modeLabel}
+          </span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition group-hover:bg-slate-950 group-hover:text-white">
+            <ArrowRight className="h-4 w-4" />
+          </div>
         </div>
       </div>
 
@@ -71,7 +78,7 @@ export default function LaunchSelector() {
 
           <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
             <Sparkles className="h-4 w-4 text-slate-500" />
-            Choose an experience
+            Choose a playground
           </div>
         </div>
       </header>
@@ -97,14 +104,14 @@ export default function LaunchSelector() {
               href="/discovery"
               className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
             >
-              Open Guided Discovery
+              Open Discovery Playground
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
               href="/commerce"
               className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white/80 px-5 py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-white"
             >
-              Open Guided Commerce
+              Open Commerce Playground
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
           </div>
@@ -112,18 +119,18 @@ export default function LaunchSelector() {
 
         <div className="grid gap-5">
           <DemoCard
-            eyebrow="Guided Discovery"
+            eyebrow="Guided Discovery Playground"
             title="NexaPath Advisory"
-            description="A B2B advisory-style demo that shows TourBot answering questions, selecting the right site section, and walking visitors through a multi-step discovery path."
+            description="A self-drive B2B advisory playground where visitors can explore the site directly or activate TourBot to answer questions, select the right section, and walk them through a multi-step discovery path."
             href="/discovery"
             icon={Map}
             bullets={["B2B services", "Site navigation", "Multi-step tours"]}
           />
 
           <DemoCard
-            eyebrow="Guided Commerce"
+            eyebrow="Guided Commerce Playground"
             title="StayPilot Suites"
-            description="A hotel-booking demo that shows TourBot interpreting natural-language intent, refining missing details, ranking options, and preloading booking context."
+            description="A self-drive hotel-booking playground where visitors can browse normally or activate TourBot to interpret natural-language intent, refine missing details, rank options, and preload booking context."
             href="/commerce"
             icon={Hotel}
             bullets={["Hotel booking", "Intent capture", "Form preload"]}
