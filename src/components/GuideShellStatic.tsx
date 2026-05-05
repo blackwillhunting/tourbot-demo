@@ -1151,6 +1151,13 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function isCoarsePointer() {
+  return (
+    typeof window !== "undefined" &&
+    Boolean(window.matchMedia?.("(pointer: coarse)").matches)
+  );
+}
+
 function ThinkingText({ body }: { body: string }) {
   const tokens = body.match(/\S+|\s+/g) || [];
   let characterIndex = 0;
@@ -1958,6 +1965,10 @@ export function GuideShellStatic({
     const trimmed = draftValue.trim();
     if (!trimmed || isBotTyping) return;
 
+    // On phones, leaving the textarea focused keeps the soft keyboard open,
+    // shrinking the viewport and hiding the page navigation/spotlight behind the shell.
+    textareaRef.current?.blur();
+
     const conversationContext = buildConversationContext(trimmed);
 
     clearReplyTimer();
@@ -2062,7 +2073,9 @@ export function GuideShellStatic({
       emitDemoResponseComplete({ ok: false, message });
     } finally {
       setIsBotTyping(false);
-      requestAnimationFrame(() => textareaRef.current?.focus());
+      if (!isCoarsePointer()) {
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      }
     }
   };
 
@@ -2314,7 +2327,9 @@ export function GuideShellStatic({
       const textarea = textareaRef.current;
       if (!textarea) return;
 
-      textarea.focus({ preventScroll: true });
+      if (!isCoarsePointer()) {
+        textarea.focus({ preventScroll: true });
+      }
       const length = textarea.value.length;
       textarea.setSelectionRange(length, length);
     }, 40);
@@ -2370,7 +2385,9 @@ export function GuideShellStatic({
       setDraftValue(demoCommand.value || "");
 
       window.setTimeout(() => {
-        textareaRef.current?.focus({ preventScroll: true });
+        if (!isCoarsePointer()) {
+          textareaRef.current?.focus({ preventScroll: true });
+        }
       }, 120);
       return;
     }

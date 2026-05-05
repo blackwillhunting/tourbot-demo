@@ -1226,17 +1226,17 @@ function DemoPreviewCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.98 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
-      className="fixed right-6 top-20 z-[10050] w-[420px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+      className="fixed left-4 right-4 top-4 z-[10050] max-h-[calc(100dvh-32px)] overflow-y-auto rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:left-auto sm:right-6 sm:top-20 sm:w-[420px] sm:rounded-[28px]"
     >
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 pb-6 pt-5 text-white">
-        <div className="mb-3 inline-flex rounded-2xl bg-white/10 p-3 backdrop-blur">
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 pb-5 pt-4 text-white sm:px-6 sm:pb-6 sm:pt-5">
+        <div className="mb-3 inline-flex rounded-2xl bg-white/10 p-2.5 backdrop-blur sm:p-3">
           <Sparkles className="h-5 w-5" />
         </div>
-        <div className="text-xl font-semibold tracking-tight">{title}</div>
-        <p className="mt-3 text-sm leading-6 text-slate-200">{guideShows}</p>
+        <div className="text-lg font-semibold tracking-tight sm:text-xl">{title}</div>
+        <p className="mt-2 text-sm leading-6 text-slate-200 sm:mt-3">{guideShows}</p>
       </div>
-      <div className="space-y-4 px-6 py-5">
-        <div className="grid gap-3 text-sm leading-6 text-slate-600">
+      <div className="space-y-3 px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
+        <div className="grid gap-2 text-sm leading-6 text-slate-600 sm:gap-3">
           <div>
             <span className="font-semibold text-slate-950">Website:</span> {siteType}
           </div>
@@ -1249,7 +1249,7 @@ function DemoPreviewCard({
             <button
               key={option.label}
               onClick={option.onClick}
-              className="flex w-full items-start justify-between rounded-2xl bg-slate-950 px-4 py-3 text-left text-sm font-medium text-white transition hover:bg-slate-800"
+              className="flex w-full items-start justify-between rounded-2xl bg-slate-950 px-4 py-2.5 text-left text-sm font-medium text-white transition hover:bg-slate-800 sm:py-3"
             >
               <span>
                 <span className="block">{option.label}</span>
@@ -1263,7 +1263,7 @@ function DemoPreviewCard({
         </div>
         <button
           onClick={onClose}
-          className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-slate-50"
+          className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-900 transition hover:bg-slate-50 sm:py-3"
         >
           Not now
         </button>
@@ -1279,21 +1279,21 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.98 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
-      className="fixed right-6 top-20 z-[10050] w-[420px] overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-2xl"
+      className="fixed left-4 right-4 top-4 z-[10050] max-h-[calc(100dvh-32px)] overflow-y-auto rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:left-auto sm:right-6 sm:top-20 sm:w-[420px] sm:rounded-[28px]"
     >
-      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-6 pb-6 pt-5 text-white">
-        <div className="mb-3 inline-flex rounded-2xl bg-white/10 p-3 backdrop-blur">
+      <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 pb-5 pt-4 text-white sm:px-6 sm:pb-6 sm:pt-5">
+        <div className="mb-3 inline-flex rounded-2xl bg-white/10 p-2.5 backdrop-blur sm:p-3">
           <Sparkles className="h-5 w-5" />
         </div>
-        <div className="text-xl font-semibold tracking-tight">Demo complete</div>
-        <p className="mt-3 text-sm leading-6 text-slate-200">
+        <div className="text-lg font-semibold tracking-tight sm:text-xl">Demo complete</div>
+        <p className="mt-2 text-sm leading-6 text-slate-200 sm:mt-3">
           You can now use TourBot as a playground. Ask your own questions, request a tour, or test how the guide navigates the site.
         </p>
       </div>
-      <div className="px-6 py-5">
+      <div className="px-4 py-4 sm:px-6 sm:py-5">
         <button
           onClick={onClose}
-          className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-medium text-white transition hover:bg-slate-800"
+          className="w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 sm:py-3"
         >
           Close
         </button>
