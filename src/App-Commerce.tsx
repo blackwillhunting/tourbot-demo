@@ -65,7 +65,7 @@ function Card({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[30px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur ${className}`}
+      className={`overflow-hidden rounded-[24px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur sm:rounded-[30px] ${className}`}
     >
       {children}
     </div>
@@ -534,22 +534,22 @@ function Header({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11">
             <Compass className="h-5 w-5" />
           </div>
-          <div>
-            <div className="text-lg font-semibold tracking-tight">
+          <div className="min-w-0">
+            <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
               StayPilot Suites
             </div>
-            <div className="text-sm text-slate-500">
+            <div className="truncate text-xs text-slate-500 sm:text-sm">
               Guided Commerce travel demo
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center justify-end gap-3 md:w-auto">
           <nav className="hidden gap-2 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -568,14 +568,14 @@ function Header({
             })}
           </nav>
 
-          <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm md:flex">
+          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
             {demoStatus === "idle" && (
               <button
                 data-demo-target="start-demo"
                 onClick={onStartDemo}
                 className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
-                Self-Drive Tour
+                Self-Drive Booking
               </button>
             )}
             {demoStatus === "running" && (
@@ -612,9 +612,9 @@ function Header({
 function Hero({ page }: { page: Page }) {
   const visual = pageVisuals[page.id];
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-10 pt-10">
+    <section className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-10">
       <div
-        className={`relative overflow-hidden rounded-[40px] bg-gradient-to-br ${visual.gradient} px-6 py-8 text-white shadow-2xl shadow-slate-300/40 md:px-10 md:py-12`}
+        className={`relative overflow-hidden rounded-[28px] bg-gradient-to-br ${visual.gradient} px-5 py-7 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[40px] sm:px-6 sm:py-8 md:px-10 md:py-12`}
       >
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-300/10 blur-3xl" />
@@ -624,10 +624,10 @@ function Hero({ page }: { page: Page }) {
             <div className="mb-4 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
               {visual.eyebrow}
             </div>
-            <h1 className="max-w-4xl text-4xl font-semibold tracking-tight md:text-6xl">
+            <h1 className="max-w-4xl text-3xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
               {page.title}
             </h1>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-200">
+            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">
               {page.hero}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
@@ -712,7 +712,7 @@ function HomeExtras() {
   ];
 
   return (
-    <section className="mx-auto max-w-7xl px-6 pb-10">
+    <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 sm:pb-10">
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
