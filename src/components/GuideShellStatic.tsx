@@ -1151,11 +1151,7 @@ function runSuggestedNavigation(
 
   const target = findTourTarget(action);
   if (target) {
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
-    });
+    smoothScrollElementIntoView(target);
     window.setTimeout(() => {
       spotlightTarget(target);
       onSpotlightActive?.();
@@ -1777,6 +1773,24 @@ export function GuideShellStatic({
     }, 650);
   };
 
+  const collapsePanelForMobileAction = (nextThread?: ThreadItem[]) => {
+    if (!isCoarsePointer()) return;
+
+    const threadToKeep = nextThread?.length ? nextThread : threadStateRef.current;
+    if (threadToKeep.length > 0) {
+      threadStateRef.current = threadToKeep;
+      rememberShellSession("launcher", threadToKeep);
+    }
+
+    textareaRef.current?.blur();
+    setDraftFocus(false);
+    setKeyboardCompressed(false);
+    clearMinimizeTimer();
+    forceWelcomeVisibleRef.current = false;
+    autoMinimizeDisabledRef.current = false;
+    setShellState("launcher");
+  };
+
   const resetShellToWelcome = () => {
     textareaRef.current?.blur();
     setKeyboardCompressed(false);
@@ -2287,21 +2301,25 @@ export function GuideShellStatic({
     setSpotlightActive(false);
     setCurrentGuideStepIndex(boundedIndex);
 
+    let nextThread = threadStateRef.current;
     if (currentGuideMessageId) {
       const parts = answerPartsForGuideStep(step, boundedIndex, guideSteps.length);
       const body = answerBodyFromParts(parts);
-      setThread((prev) =>
-        prev.map((item) =>
-          item.id === currentGuideMessageId
-            ? { ...item, body, answerParts: parts, suggestedAction: step }
-            : item,
-        ),
+      nextThread = threadStateRef.current.map((item) =>
+        item.id === currentGuideMessageId
+          ? { ...item, body, answerParts: parts, suggestedAction: step }
+          : item,
       );
+      threadStateRef.current = nextThread;
+      setThread(nextThread);
+      rememberShellSession(isCoarsePointer() ? "launcher" : shellState, nextThread);
     }
 
+    collapsePanelForMobileAction(nextThread);
+
     window.setTimeout(() => {
-      runSuggestedNavigation(step, threadStateRef.current, () => setSpotlightActive(true));
-    }, 120);
+      runSuggestedNavigation(step, nextThread, () => setSpotlightActive(true));
+    }, isCoarsePointer() ? 60 : 120);
   };
 
   const acknowledgeSpotlight = () => {
@@ -2360,6 +2378,8 @@ export function GuideShellStatic({
         },
       }),
     );
+
+    collapsePanelForMobileAction(threadStateRef.current);
   };
 
   const chipToPrompt = (chip: string) => {
