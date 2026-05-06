@@ -618,6 +618,29 @@ function Header({
             )}
           </div>
         </div>
+
+        <nav className="flex w-full gap-2 overflow-x-auto pb-1 md:hidden">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.id === currentPage;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNavigate(item.id)}
+                className={
+                  "inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition " +
+                  (active
+                    ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                    : "border-slate-200 bg-white/80 text-slate-700 hover:bg-white")
+                }
+              >
+                <Icon className="mr-1.5 h-3.5 w-3.5" />
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </header>
   );
