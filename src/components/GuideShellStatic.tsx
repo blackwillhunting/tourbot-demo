@@ -2574,6 +2574,23 @@ export function GuideShellStatic({
     return `${nextYear}-${nextMonth}-${nextDay}`;
   };
 
+  const syncShellCalendarMonthToDate = (value: string) => {
+    if (!value) return;
+    const [year, month] = value.split("-").map(Number);
+    if (!year || !month) return;
+    setShellCalendarMonth({ year, monthIndex: month - 1 });
+  };
+
+  const openShellDatePicker = (kind: Exclude<DatePickerKind, null>) => {
+    const value = kind === "check-in" ? shellCheckInDate : shellCheckOutDate;
+    syncShellCalendarMonthToDate(value);
+    setActiveDatePicker((current) => (current === kind ? null : kind));
+  };
+
+  const closeMobileDateSheet = () => {
+    setActiveDatePicker(null);
+  };
+
   const selectShellCalendarDate = (
     kind: Exclude<DatePickerKind, null>,
     value: string,
@@ -2588,6 +2605,17 @@ export function GuideShellStatic({
     }
 
     setShellDatesApplied(false);
+
+    if (isCoarsePointer() && kind === "check-in") {
+      const nextCheckout =
+        !shellCheckOutDate || shellCheckOutDate <= value
+          ? addDaysToIsoDate(value, 1)
+          : shellCheckOutDate;
+      syncShellCalendarMonthToDate(nextCheckout);
+      setActiveDatePicker("check-out");
+      return;
+    }
+
     setActiveDatePicker(null);
   };
 
@@ -2598,7 +2626,10 @@ export function GuideShellStatic({
     });
   };
 
-  const renderShellCalendar = (kind: Exclude<DatePickerKind, null>) => {
+  const renderShellCalendar = (
+    kind: Exclude<DatePickerKind, null>,
+    presentation: "inline" | "sheet" = "inline",
+  ) => {
     const year = shellCalendarMonth.year;
     const monthIndex = shellCalendarMonth.monthIndex;
     const monthName = new Date(year, monthIndex, 1).toLocaleDateString(
@@ -2613,6 +2644,7 @@ export function GuideShellStatic({
     const blanks = Array.from({ length: firstDay });
     const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
     const selected = kind === "check-in" ? shellCheckInDate : shellCheckOutDate;
+    const isSheet = presentation === "sheet";
 
     return (
       <motion.div
@@ -2621,14 +2653,36 @@ export function GuideShellStatic({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 6 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
-        className="rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm sm:rounded-2xl sm:p-3"
+        className={
+          isSheet
+            ? "rounded-[24px] border border-slate-200 bg-white p-3 shadow-2xl"
+            : "rounded-lg border border-slate-200 bg-white p-1.5 shadow-sm sm:rounded-2xl sm:p-3"
+        }
       >
-        <div className="mb-1.5 flex items-center justify-between gap-2 sm:mb-3 sm:gap-3">
+        <div
+          className={
+            isSheet
+              ? "mb-3 flex items-center justify-between gap-3"
+              : "mb-1.5 flex items-center justify-between gap-2 sm:mb-3 sm:gap-3"
+          }
+        >
           <div>
-            <div className="text-[8px] font-semibold uppercase tracking-[0.10em] text-slate-400 sm:text-[10px] sm:tracking-[0.14em]">
+            <div
+              className={
+                isSheet
+                  ? "text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400"
+                  : "text-[8px] font-semibold uppercase tracking-[0.10em] text-slate-400 sm:text-[10px] sm:tracking-[0.14em]"
+              }
+            >
               {kind === "check-in" ? "Check-in calendar" : "Check-out calendar"}
             </div>
-            <div className="mt-0.5 text-[11px] font-semibold text-slate-950 sm:mt-1 sm:text-sm">
+            <div
+              className={
+                isSheet
+                  ? "mt-1 text-base font-semibold text-slate-950"
+                  : "mt-0.5 text-[11px] font-semibold text-slate-950 sm:mt-1 sm:text-sm"
+              }
+            >
               {monthName}
             </div>
           </div>
@@ -2656,12 +2710,18 @@ export function GuideShellStatic({
               onClick={() => setActiveDatePicker(null)}
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
             >
-              Collapse
+              {isSheet ? "Close" : "Collapse"}
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] font-semibold uppercase tracking-[0.02em] text-slate-400 sm:gap-1 sm:text-[10px] sm:tracking-[0.08em]">
+        <div
+          className={
+            isSheet
+              ? "grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400"
+              : "grid grid-cols-7 gap-0.5 text-center text-[8px] font-semibold uppercase tracking-[0.02em] text-slate-400 sm:gap-1 sm:text-[10px] sm:tracking-[0.08em]"
+          }
+        >
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div key={day} className="py-0.5 sm:py-1">
               {day}
@@ -2669,7 +2729,13 @@ export function GuideShellStatic({
           ))}
         </div>
 
-        <div className="mt-0.5 grid grid-cols-7 gap-0.5 sm:mt-1 sm:gap-1">
+        <div
+          className={
+            isSheet
+              ? "mt-1 grid grid-cols-7 gap-1"
+              : "mt-0.5 grid grid-cols-7 gap-0.5 sm:mt-1 sm:gap-1"
+          }
+        >
           {blanks.map((_, index) => (
             <div key={`blank-${index}`} />
           ))}
@@ -2694,7 +2760,11 @@ export function GuideShellStatic({
                 type="button"
                 disabled={disabled}
                 onClick={() => selectShellCalendarDate(kind, value)}
-                className={`rounded-md px-0 py-0.5 text-[10px] font-semibold leading-5 transition sm:rounded-xl sm:py-2 sm:text-xs ${
+                className={`${
+                  isSheet
+                    ? "rounded-xl px-0 py-1.5 text-sm font-semibold leading-6"
+                    : "rounded-md px-0 py-0.5 text-[10px] font-semibold leading-5 sm:rounded-xl sm:py-2 sm:text-xs"
+                } transition ${
                   isSelected
                     ? "bg-slate-950 text-white shadow-sm"
                     : disabled
@@ -3217,11 +3287,7 @@ export function GuideShellStatic({
                               <button
                                 data-demo-target="date-check-in-expand"
                                 type="button"
-                                onClick={() =>
-                                  setActiveDatePicker((current) =>
-                                    current === "check-in" ? null : "check-in",
-                                  )
-                                }
+                                onClick={() => openShellDatePicker("check-in")}
                                 className={`rounded-lg bg-white px-2 py-1.5 text-left shadow-sm transition hover:bg-slate-50 sm:rounded-xl sm:px-3 sm:py-2 ${
                                   activeDatePicker === "check-in"
                                     ? "ring-2 ring-slate-900/10"
@@ -3242,13 +3308,7 @@ export function GuideShellStatic({
                               <button
                                 data-demo-target="date-check-out-expand"
                                 type="button"
-                                onClick={() =>
-                                  setActiveDatePicker((current) =>
-                                    current === "check-out"
-                                      ? null
-                                      : "check-out",
-                                  )
-                                }
+                                onClick={() => openShellDatePicker("check-out")}
                                 className={`rounded-lg bg-white px-2 py-1.5 text-left shadow-sm transition hover:bg-slate-50 sm:rounded-xl sm:px-3 sm:py-2 ${
                                   activeDatePicker === "check-out"
                                     ? "ring-2 ring-slate-900/10"
@@ -3267,12 +3327,14 @@ export function GuideShellStatic({
                               </button>
                             </div>
 
-                            <AnimatePresence mode="wait">
-                              {activeDatePicker === "check-in" &&
-                                renderShellCalendar("check-in")}
-                              {activeDatePicker === "check-out" &&
-                                renderShellCalendar("check-out")}
-                            </AnimatePresence>
+                            {!coarsePointer && (
+                              <AnimatePresence mode="wait">
+                                {activeDatePicker === "check-in" &&
+                                  renderShellCalendar("check-in")}
+                                {activeDatePicker === "check-out" &&
+                                  renderShellCalendar("check-out")}
+                              </AnimatePresence>
+                            )}
                             <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                               <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
                                 {shellDatesApplied
@@ -3498,6 +3560,56 @@ export function GuideShellStatic({
           </div>
         </motion.div>
       )}
+
+
+
+      {coarsePointer &&
+        activeCompletionWidget === "dates" &&
+        activeDatePicker && (
+          <motion.div
+            key="mobile-date-sheet"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="fixed inset-0 z-[10000] bg-slate-950/35 px-3 pb-3 pt-12 backdrop-blur-[1px]"
+            onClick={closeMobileDateSheet}
+          >
+            <motion.div
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 28, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="absolute inset-x-3 bottom-3 max-h-[calc(100dvh-24px)] overflow-hidden rounded-[28px] border border-white/70 bg-white p-3 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-2 flex items-start justify-between gap-3 px-1">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Select dates
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-slate-950">
+                    {activeDatePicker === "check-in"
+                      ? "Choose check-in"
+                      : "Choose check-out"}
+                  </div>
+                  <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                    {formatShellDateRange(shellCheckInDate, shellCheckOutDate)}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeMobileDateSheet}
+                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-200"
+                >
+                  Done
+                </button>
+              </div>
+
+              {renderShellCalendar(activeDatePicker, "sheet")}
+            </motion.div>
+          </motion.div>
+        )}
 
       {shellState === "launcher" && (
         <motion.div
