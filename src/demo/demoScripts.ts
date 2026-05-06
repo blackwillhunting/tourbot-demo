@@ -57,6 +57,7 @@ export const guidedDiscoveryDemo: DemoScript = {
     { action: "type-prompt", prompt: "Walk me through your cybersecurity services.", delayMs: 900 },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2700, timeoutMs: 35000 },
+    { action: "wait", delayMs: 2400 },
     { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5600, targetWaitMs: 3600, maxClicks: 6 },
     { action: "click-target", target: "[data-demo-target='guide-got-it']", command: "got-it", hoverMs: 800, pulseMs: 650, delayMs: 1400, targetWaitMs: 3600 },
     { action: "click-target", target: "[data-demo-target='guide-minimize']", command: "minimize", hoverMs: 800, pulseMs: 650, delayMs: 1400, targetWaitMs: 3600 },
@@ -90,6 +91,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     // recommendation using the retained travel context plus the Luxury signal.
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait", delayMs: 2400 },
 
     // Step through the upgraded room/package path, then book it.
     { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5800, targetWaitMs: 3600, maxClicks: 4 },
@@ -140,6 +142,7 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
     // Dates and guests append into the composer. Submit once to refresh the path.
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait", delayMs: 2400 },
 
     // Step through any returned recommendations, book the best fit, then clear the shell.
     { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5800, targetWaitMs: 3600, maxClicks: 4 },

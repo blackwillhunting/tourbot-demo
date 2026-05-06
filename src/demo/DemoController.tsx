@@ -98,6 +98,7 @@ async function ensureMobileShellTargetAvailable(
   target: DemoPointerTarget,
   statusRef: MutableRefObject<DemoStatus>,
   stopRef: MutableRefObject<boolean>,
+  openLauncherVisibly?: () => Promise<void>,
 ) {
   if (typeof target !== "string" || !isCoarsePointer()) return;
   if (!isShellInternalTarget(target) || isVisibleTarget(target)) return;
@@ -107,11 +108,15 @@ async function ensureMobileShellTargetAvailable(
   );
   if (!launcher) return;
 
-  launcher.click();
-  await wait(520);
+  if (openLauncherVisibly) {
+    await openLauncherVisibly();
+  } else {
+    launcher.click();
+    await wait(520);
+  }
 
   const startedAt = Date.now();
-  while (!stopRef.current && Date.now() - startedAt < 1800) {
+  while (!stopRef.current && Date.now() - startedAt < 2200) {
     await waitWhilePaused(statusRef, stopRef);
     if (isVisibleTarget(target)) return;
     await wait(80);
@@ -273,6 +278,35 @@ export default function DemoController({
         await wait(pulseMs);
       };
 
+      const openMobileShellFromLauncher = async () => {
+        if (!isCoarsePointer() || stopRef.current) return;
+
+        const launcherTarget = "[data-demo-target='guide-launcher']";
+        const launcher = document.querySelector<HTMLElement>(launcherTarget);
+        if (!launcher || isVisibleTarget("[data-demo-target='guide-textarea']")) {
+          return;
+        }
+
+        setPointerVisible(true);
+        const position = await resolvePointerTargetWhenReady(
+          launcherTarget,
+          statusRef,
+          stopRef,
+          2600,
+        );
+        if (stopRef.current) return;
+
+        setPointerPosition(position);
+        await wait(900);
+        if (stopRef.current) return;
+
+        await pulsePointer(650);
+        if (stopRef.current) return;
+
+        launcher.click();
+        await wait(1150);
+      };
+
       const clickTarget = async ({
         target,
         command,
@@ -287,7 +321,12 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
-        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
+        await ensureMobileShellTargetAvailable(
+          target,
+          statusRef,
+          stopRef,
+          openMobileShellFromLauncher,
+        );
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -315,7 +354,12 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
-        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
+        await ensureMobileShellTargetAvailable(
+          target,
+          statusRef,
+          stopRef,
+          openMobileShellFromLauncher,
+        );
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -348,7 +392,12 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
-        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
+        await ensureMobileShellTargetAvailable(
+          target,
+          statusRef,
+          stopRef,
+          openMobileShellFromLauncher,
+        );
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -390,6 +439,7 @@ export default function DemoController({
               step.target,
               statusRef,
               stopRef,
+              openMobileShellFromLauncher,
             );
             const position = await resolvePointerTargetWhenReady(
               step.target,
