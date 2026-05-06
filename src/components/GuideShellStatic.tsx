@@ -1684,6 +1684,22 @@ export function GuideShellStatic({
     scheduleReopenGlide();
   };
 
+  const collapsePanelAfterMobileResponse = () => {
+    if (!isCoarsePointer()) return;
+
+    textareaRef.current?.blur();
+    setDraftFocus(false);
+    setKeyboardCompressed(false);
+    clearMinimizeTimer();
+    forceWelcomeVisibleRef.current = false;
+    autoMinimizeDisabledRef.current = false;
+
+    // Give React one paint to commit the response into the saved thread, then
+    // collapse so the page navigation/spotlight is visible on phones. Desktop
+    // keeps the shell open for normal chat continuity.
+    window.setTimeout(() => setShellState("launcher"), 120);
+  };
+
   const resetShellToWelcome = () => {
     textareaRef.current?.blur();
     setKeyboardCompressed(false);
@@ -2124,6 +2140,8 @@ export function GuideShellStatic({
         stepCount: nextGuideSteps.length,
         isMultiStep: isMultiStepGuide,
       });
+
+      collapsePanelAfterMobileResponse();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown backend error";
