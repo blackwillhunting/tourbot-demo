@@ -851,6 +851,7 @@ function SectionCard({
   const Icon = visual.icon;
   const wide = visual.shape === "hero" || visual.shape === "dark" || visual.shape === "cta";
   const dark = visual.shape === "dark" || visual.shape === "cta";
+  const mobileChips = visual.chips.slice(0, 3);
 
   return (
     <motion.section
@@ -862,7 +863,65 @@ function SectionCard({
       className="scroll-mt-20 sm:scroll-mt-28"
     >
       <Card
-        className={`transition-all ${
+        className={`md:hidden transition-all ${
+          emphasized
+            ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60"
+            : "border-slate-200 ring-1 ring-slate-200/80"
+        } ${dark ? `bg-gradient-to-br ${visual.tone} text-white` : ""}`}
+      >
+        <div className={`h-1.5 ${dark ? "bg-white/25" : `bg-gradient-to-r ${visual.tone}`}`} />
+        <div className="p-3">
+          <div className="flex items-start gap-2.5">
+            <div
+              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${visual.tone} text-white`
+              } shadow-sm`}
+            >
+              <Icon className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div
+                className={`text-[9px] font-semibold uppercase tracking-[0.14em] ${
+                  dark ? "text-white/60" : "text-slate-400"
+                }`}
+              >
+                {pageId} / {String(index + 1).padStart(2, "0")}
+              </div>
+              <h2
+                className={`mt-0.5 text-[15px] font-semibold leading-5 tracking-tight ${
+                  dark ? "text-white" : "text-slate-950"
+                }`}
+              >
+                {section.title}
+              </h2>
+            </div>
+          </div>
+
+          <p
+            className={`mt-2 overflow-hidden text-xs leading-4 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${
+              dark ? "text-slate-200" : "text-slate-600"
+            }`}
+          >
+            {section.body}
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {mobileChips.map((chip) => (
+              <span
+                key={chip}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                  dark ? "bg-white/10 text-white/80" : "border border-slate-200 bg-slate-50 text-slate-600"
+                }`}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
+      </Card>
+
+      <Card
+        className={`hidden md:block transition-all ${
           emphasized ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60" : ""
         } ${dark ? `bg-gradient-to-br ${visual.tone} text-white` : ""}`}
       >

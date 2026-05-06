@@ -1014,6 +1014,10 @@ function SectionCard({
   const isRoom = visual.shape === "room";
   const isSelectedRoom = isRoom && selectedRoom === section.id;
   const isRecommendedStart = section.id === "room-business-king";
+  const mobileChips = (section.tags || visual.chips).slice(0, 3);
+  const mobileSignal = section.price
+    ? `${section.price} · ${visual.chips.slice(0, 2).join(" · ")}`
+    : visual.chips.slice(0, 2).join(" · ");
 
   return (
     <motion.section
@@ -1026,7 +1030,94 @@ function SectionCard({
       className="scroll-mt-20 sm:scroll-mt-28"
     >
       <Card
-        className={`${
+        className={`md:hidden transition-all ${
+          emphasized
+            ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60"
+            : "border-slate-200 ring-1 ring-slate-200/80"
+        } ${
+          isSelectedRoom
+            ? "border-cyan-800 ring-2 ring-cyan-300 shadow-2xl shadow-cyan-200/70"
+            : ""
+        }`}
+      >
+        <div className={`h-1.5 bg-gradient-to-r ${visual.tone}`} />
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <div
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${visual.tone} text-white shadow-sm`}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  {section.eyebrow || `${pageId} / ${String(index + 1).padStart(2, "0")}`}
+                </div>
+                <h2 className="mt-0.5 text-[15px] font-semibold leading-5 tracking-tight text-slate-950">
+                  {section.title}
+                </h2>
+              </div>
+            </div>
+            {section.price && (
+              <div className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-semibold text-white">
+                {section.price}
+              </div>
+            )}
+          </div>
+
+          {mobileSignal && !section.price && (
+            <div className="mt-2 text-[11px] font-semibold uppercase tracking-[0.10em] text-slate-400">
+              {mobileSignal}
+            </div>
+          )}
+
+          <p className="mt-2 overflow-hidden text-xs leading-4 text-slate-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">
+            {section.body}
+          </p>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {mobileChips.map((chip) => (
+              <span
+                key={chip}
+                className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+
+          {isRecommendedStart && (
+            <div className="mt-2 inline-flex rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-800">
+              Recommended start
+            </div>
+          )}
+
+          {isRoom && (
+            <div
+              data-tour-id={`${section.id}-cta`}
+              className="mt-3 flex gap-1.5"
+            >
+              <button
+                type="button"
+                onClick={() => onBookRoom?.(section)}
+                className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-semibold text-white"
+              >
+                Book this
+              </button>
+              <button
+                type="button"
+                onClick={() => onNextRoomOption?.(section)}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700"
+              >
+                Next option
+              </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card
+        className={`hidden md:block ${
           emphasized
             ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60"
             : ""
