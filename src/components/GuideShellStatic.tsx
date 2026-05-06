@@ -1684,8 +1684,17 @@ export function GuideShellStatic({
     scheduleReopenGlide();
   };
 
-  const collapsePanelAfterMobileResponse = () => {
+  const collapsePanelAfterMobileResponse = (completedThread?: ThreadItem[]) => {
     if (!isCoarsePointer()) return;
+
+    const threadToKeep = completedThread?.length
+      ? completedThread
+      : threadStateRef.current;
+
+    if (threadToKeep.length > 0) {
+      threadStateRef.current = threadToKeep;
+      rememberShellSession("launcher", threadToKeep);
+    }
 
     textareaRef.current?.blur();
     setDraftFocus(false);
@@ -1694,10 +1703,15 @@ export function GuideShellStatic({
     forceWelcomeVisibleRef.current = false;
     autoMinimizeDisabledRef.current = false;
 
-    // Give React one paint to commit the response into the saved thread, then
-    // collapse so the page navigation/spotlight is visible on phones. Desktop
-    // keeps the shell open for normal chat continuity.
-    window.setTimeout(() => setShellState("launcher"), 120);
+    // Mobile-only: collapse after the response has been committed and after
+    // navigation has had a moment to start. Reopening the launcher restores
+    // the completed thread instead of starting from the greeting again.
+    window.setTimeout(() => {
+      if (threadToKeep.length > 0) {
+        rememberShellSession("launcher", threadToKeep);
+      }
+      setShellState("launcher");
+    }, 650);
   };
 
   const resetShellToWelcome = () => {
@@ -2071,15 +2085,18 @@ export function GuideShellStatic({
     const submittedId = makeId();
 
     pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
-    setThread((prev) => [
-      ...prev,
+    const thinkingThread: ThreadItem[] = [
+      ...threadStateRef.current,
       {
         id: submittedId,
         role: "user",
         body: trimmed,
         status: "thinking",
       },
-    ]);
+    ];
+    threadStateRef.current = thinkingThread;
+    setThread(thinkingThread);
+    rememberShellSession("panel", thinkingThread);
 
     setDraftValue("");
     setIsBotTyping(true);
@@ -2108,8 +2125,8 @@ export function GuideShellStatic({
         : reply.body;
 
       pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
-      setThread((prev) => [
-        ...prev.map((item) =>
+      const completedThread: ThreadItem[] = [
+        ...threadStateRef.current.map((item) =>
           item.id === submittedId ? { ...item, status: "done" as const } : item,
         ),
         {
@@ -2121,7 +2138,10 @@ export function GuideShellStatic({
           refinementChips: reply.refinementChips,
           suggestedAction: reply.suggestedAction,
         },
-      ]);
+      ];
+      threadStateRef.current = completedThread;
+      setThread(completedThread);
+      rememberShellSession("panel", completedThread);
 
       setGuideSteps(nextGuideSteps);
       setCurrentGuideStepIndex(0);
@@ -2129,9 +2149,10 @@ export function GuideShellStatic({
       setLastRefinementChipClicked(null);
 
       window.setTimeout(() => {
-        runSuggestedNavigation(nextGuideSteps[0] || reply.suggestedAction, threadStateRef.current, () =>
+        runSuggestedNavigation(nextGuideSteps[0] || reply.suggestedAction, completedThread, () =>
           setSpotlightActive(true),
         );
+        collapsePanelAfterMobileResponse(completedThread);
       }, 350);
 
       emitDemoResponseComplete({
@@ -2140,15 +2161,13 @@ export function GuideShellStatic({
         stepCount: nextGuideSteps.length,
         isMultiStep: isMultiStepGuide,
       });
-
-      collapsePanelAfterMobileResponse();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unknown backend error";
 
       pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
-      setThread((prev) => [
-        ...prev.map((item) =>
+      const errorThread: ThreadItem[] = [
+        ...threadStateRef.current.map((item) =>
           item.id === submittedId ? { ...item, status: "done" as const } : item,
         ),
         {
@@ -2157,7 +2176,10 @@ export function GuideShellStatic({
           title: "Guide connection issue",
           body: `I could not reach the AI backend. ${message}`,
         },
-      ]);
+      ];
+      threadStateRef.current = errorThread;
+      setThread(errorThread);
+      rememberShellSession("panel", errorThread);
 
       emitDemoResponseComplete({ ok: false, message });
     } finally {
