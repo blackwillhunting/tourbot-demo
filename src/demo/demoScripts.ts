@@ -40,13 +40,13 @@ export const guidedDiscoveryDemo: DemoScript = {
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 450 },
     { action: "type-prompt", prompt: "Give me a quick one-sentence overview of this site.", delayMs: 450 },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1200, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2200, timeoutMs: 35000 },
 
     // 2) Single destination: DORA/regulatory colored block. Move pointer away so shell minimizes.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 450 },
     { action: "type-prompt", prompt: "Do you cover DORA regulations?", delayMs: 450 },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1400, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2200, timeoutMs: 35000 },
     { action: "move-pointer", target: { x: 130, y: 220, label: "page canvas" }, delayMs: 1250 },
     { action: "minimize", delayMs: 950 },
 
@@ -56,8 +56,8 @@ export const guidedDiscoveryDemo: DemoScript = {
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 450 },
     { action: "type-prompt", prompt: "Walk me through your cybersecurity services.", delayMs: 450 },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1400, timeoutMs: 35000 },
-    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 3000, targetWaitMs: 3600, maxClicks: 6 },
+    { action: "wait-for-response", delayMs: 2200, timeoutMs: 35000 },
+    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 4600, targetWaitMs: 3600, maxClicks: 6 },
     { action: "click-target", target: "[data-demo-target='guide-got-it']", command: "got-it", hoverMs: 650, pulseMs: 560, delayMs: 850, targetWaitMs: 3600 },
     { action: "click-target", target: "[data-demo-target='guide-minimize']", command: "minimize", hoverMs: 650, pulseMs: 560, delayMs: 650, targetWaitMs: 3600 },
   ],
@@ -79,7 +79,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       delayMs: 450,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1600, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2300, timeoutMs: 35000 },
 
     // First result should navigate immediately. Now show that a passive
     // completion/refinement chip can change the recommendation path.
@@ -89,10 +89,10 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     // Budget selection preloads the composer. Submit it to refresh the guide
     // recommendation using the retained travel context plus the Luxury signal.
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1500, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2300, timeoutMs: 35000 },
 
     // Step through the upgraded room/package path, then book it.
-    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 2600, targetWaitMs: 3600, maxClicks: 4 },
+    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 4800, targetWaitMs: 3600, maxClicks: 4 },
 
     // Book from the current guide path. GuideShellStatic resolves this to the
     // current room step, or the first room step if the current step is a package.
@@ -101,7 +101,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     // Move the pointer away so the booking summary handoff is visible, then
     // explicitly minimize the shell. The fake pointer does not fire real
     // mouseleave events, so relying on hover timeout will not close the shell.
-    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 2800 },
+    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 3600 },
     { action: "minimize", delayMs: 900 },
   ],
 };
@@ -122,29 +122,29 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
       delayMs: 450,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1600, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2300, timeoutMs: 35000 },
 
     // Complete missing booking context through passive chips.
-    { action: "click-dom-target", target: "[data-demo-target='chip-select-dates']", hoverMs: 650, pulseMs: 560, delayMs: 700, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='date-check-in-expand']", hoverMs: 650, pulseMs: 560, delayMs: 650, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10']", hoverMs: 650, pulseMs: 560, delayMs: 700, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='date-check-out-expand']", hoverMs: 650, pulseMs: 560, delayMs: 650, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14']", hoverMs: 650, pulseMs: 560, delayMs: 800, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='apply-dates']", hoverMs: 650, pulseMs: 560, delayMs: 900, targetWaitMs: 3200 },
+    { action: "click-dom-target", target: "[data-demo-target='chip-select-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1200, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='date-check-in-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1100, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10']", hoverMs: 700, pulseMs: 600, delayMs: 1200, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='date-check-out-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1100, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14']", hoverMs: 700, pulseMs: 600, delayMs: 1300, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='apply-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 3200 },
 
-    { action: "click-dom-target", target: "[data-demo-target='chip-add-guests']", hoverMs: 650, pulseMs: 560, delayMs: 700, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='guest-adults-plus']", hoverMs: 520, pulseMs: 420, delayMs: 500, targetWaitMs: 3200 },
-    { action: "click-dom-target", target: "[data-demo-target='guest-children-plus']", hoverMs: 520, pulseMs: 420, delayMs: 650, targetWaitMs: 3200 },
-    { action: "click-dom-target", target: "[data-demo-target='apply-guests']", hoverMs: 650, pulseMs: 560, delayMs: 900, targetWaitMs: 3200 },
+    { action: "click-dom-target", target: "[data-demo-target='chip-add-guests']", hoverMs: 700, pulseMs: 600, delayMs: 1200, targetWaitMs: 4200 },
+    { action: "click-dom-target", target: "[data-demo-target='guest-adults-plus']", hoverMs: 650, pulseMs: 520, delayMs: 950, targetWaitMs: 3200 },
+    { action: "click-dom-target", target: "[data-demo-target='guest-children-plus']", hoverMs: 650, pulseMs: 520, delayMs: 1050, targetWaitMs: 3200 },
+    { action: "click-dom-target", target: "[data-demo-target='apply-guests']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 3200 },
 
     // Dates and guests append into the composer. Submit once to refresh the path.
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 320, pulseMs: 520, delayMs: 250, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 1600, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 2300, timeoutMs: 35000 },
 
     // Step through any returned recommendations, book the best fit, then clear the shell.
-    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 2600, targetWaitMs: 3600, maxClicks: 4 },
+    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 4800, targetWaitMs: 3600, maxClicks: 4 },
     { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 650, pulseMs: 560, delayMs: 900, targetWaitMs: 3600 },
-    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 2800 },
+    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 3600 },
     { action: "minimize", delayMs: 900 },
   ],
 };
