@@ -1406,6 +1406,16 @@ function DraftRow({
 
         <button
           data-demo-target="guide-submit"
+          type="button"
+          onPointerDown={(event) => {
+            // Mobile Safari can blur the textarea and reflow the fixed shell
+            // before a normal click reaches this button. Submit on touch/pointer
+            // down so the prompt is captured before the keyboard/layout shifts.
+            if (event.pointerType === "mouse") return;
+            if (disabled || !hasContent) return;
+            event.preventDefault();
+            onSubmit();
+          }}
           onClick={onSubmit}
           disabled={disabled || !hasContent}
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:w-11"
@@ -1473,6 +1483,7 @@ export function GuideShellStatic({
   const demoTypingDraftUpdateRef = useRef(false);
   const forceWelcomeVisibleRef = useRef(false);
   const autoMinimizeDisabledRef = useRef(false);
+  const submitInFlightRef = useRef(false);
   const modeCopy = guideModeCopy(guideConfig);
   const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
     if (typeof window === "undefined") return 760;
@@ -1581,7 +1592,10 @@ export function GuideShellStatic({
   const startMinimizeTimer = () => {
     clearMinimizeTimer();
 
-    if (isBotTyping || autoMinimizeDisabledRef.current) {
+    // Hover-based auto-minimize is desktop behavior. On phones, touch/keyboard
+    // focus can accidentally produce leave/blur events and collapse the shell
+    // before the submit click is delivered.
+    if (isCoarsePointer() || isBotTyping || autoMinimizeDisabledRef.current) {
       return;
     }
 
@@ -2062,12 +2076,18 @@ export function GuideShellStatic({
   };
 
   const submitDraft = async () => {
-    const trimmed = draftValue.trim();
+    if (submitInFlightRef.current) return;
+
+    const rawDraft = draftValue || textareaRef.current?.value || "";
+    const trimmed = rawDraft.trim();
     if (!trimmed || isBotTyping) return;
+
+    submitInFlightRef.current = true;
 
     // On phones, leaving the textarea focused keeps the soft keyboard open,
     // shrinking the viewport and hiding the page navigation/spotlight behind the shell.
     textareaRef.current?.blur();
+    setDraftFocus(false);
     window.setTimeout(() => setKeyboardCompressed(false), 80);
 
     const conversationContext = buildConversationContext(trimmed);
@@ -2183,6 +2203,7 @@ export function GuideShellStatic({
 
       emitDemoResponseComplete({ ok: false, message });
     } finally {
+      submitInFlightRef.current = false;
       setIsBotTyping(false);
       if (!isCoarsePointer()) {
         requestAnimationFrame(() => textareaRef.current?.focus());
@@ -2619,7 +2640,9 @@ export function GuideShellStatic({
           {...baseMotion}
           style={panelToastStyle}
           onMouseEnter={clearMinimizeTimer}
-          onMouseLeave={startMinimizeTimer}
+          onMouseLeave={() => {
+            if (!isCoarsePointer()) startMinimizeTimer();
+          }}
         >
           <div
             data-demo-target="guide-shell"
@@ -3053,7 +3076,9 @@ export function GuideShellStatic({
                   }}
                   onBlur={() => {
                     setDraftFocus(false);
-                    window.setTimeout(() => setKeyboardCompressed(false), 120);
+                    window.setTimeout(() => {
+                      if (!submitInFlightRef.current) setKeyboardCompressed(false);
+                    }, 120);
                   }}
                   disabled={isBotTyping}
                   hasFocus={draftFocus}
