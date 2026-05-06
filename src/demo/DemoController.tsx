@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import DemoPointer, { type DemoPointerPosition } from "./DemoPointer";
-import type { DemoScript, DemoStep, DemoPointerTarget, DemoClickCommand } from "./demoScripts";
+import type {
+  DemoScript,
+  DemoStep,
+  DemoPointerTarget,
+  DemoClickCommand,
+} from "./demoScripts";
 import type { GuideShellDemoCommand } from "../components/GuideShellStatic";
 
 export type DemoStatus = "idle" | "running" | "paused";
@@ -23,7 +28,12 @@ function resolvePointerTarget(target: DemoPointerTarget): DemoPointerPosition {
   if (typeof target === "object") return target;
 
   const el = document.querySelector<HTMLElement>(target);
-  if (!el) return { x: window.innerWidth / 2, y: window.innerHeight / 2, label: "target" };
+  if (!el)
+    return {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      label: "target",
+    };
 
   const rect = el.getBoundingClientRect();
   return {
@@ -33,12 +43,15 @@ function resolvePointerTarget(target: DemoPointerTarget): DemoPointerPosition {
 }
 
 function setDomInputValue(target: string, value: string) {
-  const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(target);
+  const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+    target,
+  );
   if (!el) return;
 
-  const prototype = el instanceof HTMLTextAreaElement
-    ? window.HTMLTextAreaElement.prototype
-    : window.HTMLInputElement.prototype;
+  const prototype =
+    el instanceof HTMLTextAreaElement
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
   const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
 
   if (valueSetter) valueSetter.call(el, value);
@@ -47,6 +60,62 @@ function setDomInputValue(target: string, value: string) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   el.dispatchEvent(new Event("change", { bubbles: true }));
   el.focus({ preventScroll: true });
+}
+
+function isCoarsePointer() {
+  return Boolean(window.matchMedia?.("(pointer: coarse)").matches);
+}
+
+function isVisibleTarget(selector: string) {
+  const el = document.querySelector<HTMLElement>(selector);
+  if (!el) return false;
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    style.display !== "none" &&
+    style.visibility !== "hidden"
+  );
+}
+
+function isShellInternalTarget(selector: string) {
+  return (
+    selector.includes("guide-textarea") ||
+    selector.includes("guide-submit") ||
+    selector.includes("guide-got-it") ||
+    selector.includes("guide-minimize") ||
+    selector.includes("chip-") ||
+    selector.includes("budget-") ||
+    selector.includes("date-") ||
+    selector.includes("calendar-") ||
+    selector.includes("guest-") ||
+    selector.includes("apply-")
+  );
+}
+
+async function ensureMobileShellTargetAvailable(
+  target: DemoPointerTarget,
+  statusRef: MutableRefObject<DemoStatus>,
+  stopRef: MutableRefObject<boolean>,
+) {
+  if (typeof target !== "string" || !isCoarsePointer()) return;
+  if (!isShellInternalTarget(target) || isVisibleTarget(target)) return;
+
+  const launcher = document.querySelector<HTMLElement>(
+    "[data-demo-target='guide-launcher']",
+  );
+  if (!launcher) return;
+
+  launcher.click();
+  await wait(520);
+
+  const startedAt = Date.now();
+  while (!stopRef.current && Date.now() - startedAt < 1800) {
+    await waitWhilePaused(statusRef, stopRef);
+    if (isVisibleTarget(target)) return;
+    await wait(80);
+  }
 }
 
 async function resolvePointerTargetWhenReady(
@@ -79,7 +148,10 @@ async function resolvePointerTargetWhenReady(
   return resolvePointerTarget(target);
 }
 
-async function waitWhilePaused(statusRef: MutableRefObject<DemoStatus>, stopRef: MutableRefObject<boolean>) {
+async function waitWhilePaused(
+  statusRef: MutableRefObject<DemoStatus>,
+  stopRef: MutableRefObject<boolean>,
+) {
   while (statusRef.current === "paused" && !stopRef.current) {
     await wait(120);
   }
@@ -96,7 +168,10 @@ async function waitForDemoResponse(
     let settled = false;
 
     const cleanup = () => {
-      window.removeEventListener(GUIDE_DEMO_RESPONSE_COMPLETE_EVENT, onComplete as EventListener);
+      window.removeEventListener(
+        GUIDE_DEMO_RESPONSE_COMPLETE_EVENT,
+        onComplete as EventListener,
+      );
     };
 
     const finish = (detail: DemoResponseDetail = {}) => {
@@ -122,7 +197,11 @@ async function waitForDemoResponse(
       }
     };
 
-    window.addEventListener(GUIDE_DEMO_RESPONSE_COMPLETE_EVENT, onComplete as EventListener, { once: true });
+    window.addEventListener(
+      GUIDE_DEMO_RESPONSE_COMPLETE_EVENT,
+      onComplete as EventListener,
+      { once: true },
+    );
     poll();
   });
 }
@@ -142,7 +221,8 @@ export default function DemoController({
   onFinished?: (script: DemoScript) => void;
   finishDelayMs?: number;
 }) {
-  const [pointerPosition, setPointerPosition] = useState<DemoPointerPosition | null>(null);
+  const [pointerPosition, setPointerPosition] =
+    useState<DemoPointerPosition | null>(null);
   const [pointerVisible, setPointerVisible] = useState(false);
   const [pointerPulseKey, setPointerPulseKey] = useState(0);
   const statusRef = useRef<DemoStatus>(status);
@@ -207,6 +287,7 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
+        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -234,6 +315,7 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
+        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -266,6 +348,7 @@ export default function DemoController({
         targetWaitMs?: number;
       }) => {
         setPointerVisible(true);
+        await ensureMobileShellTargetAvailable(target, statusRef, stopRef);
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -292,13 +375,22 @@ export default function DemoController({
             await wait(step.delayMs);
             return;
           case "wait-for-response": {
-            const detail = await waitForDemoResponse(statusRef, stopRef, step.timeoutMs);
+            const detail = await waitForDemoResponse(
+              statusRef,
+              stopRef,
+              step.timeoutMs,
+            );
             lastResponseRef.current = detail;
             if (step.delayMs) await wait(step.delayMs);
             return;
           }
           case "move-pointer": {
             setPointerVisible(true);
+            await ensureMobileShellTargetAvailable(
+              step.target,
+              statusRef,
+              stopRef,
+            );
             const position = await resolvePointerTargetWhenReady(
               step.target,
               statusRef,
@@ -340,8 +432,14 @@ export default function DemoController({
             await wait(step.delayMs ?? 900);
             return;
           case "click-through-guide-steps": {
-            const stepCount = Math.max(0, Number(lastResponseRef.current.stepCount || 0));
-            const nextClicks = Math.max(0, Math.min(step.maxClicks ?? 6, stepCount - 1));
+            const stepCount = Math.max(
+              0,
+              Number(lastResponseRef.current.stepCount || 0),
+            );
+            const nextClicks = Math.max(
+              0,
+              Math.min(step.maxClicks ?? 6, stepCount - 1),
+            );
 
             for (let i = 0; i < nextClicks; i += 1) {
               await waitWhilePaused(statusRef, stopRef);
@@ -366,7 +464,8 @@ export default function DemoController({
             await wait(step.delayMs ?? 700);
             return;
           case "type-prompt": {
-            const charDelayMs = step.charDelayMs ?? script.defaultCharDelayMs ?? 34;
+            const charDelayMs =
+              step.charDelayMs ?? script.defaultCharDelayMs ?? 34;
             await typePrompt(step.prompt, charDelayMs);
             await wait(step.delayMs ?? 350);
             return;
@@ -409,7 +508,14 @@ export default function DemoController({
 
       run();
     }
-  }, [status, script, onGuideCommand, onStatusChange, onFinished, finishDelayMs]);
+  }, [
+    status,
+    script,
+    onGuideCommand,
+    onStatusChange,
+    onFinished,
+    finishDelayMs,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -418,5 +524,11 @@ export default function DemoController({
     };
   }, []);
 
-  return <DemoPointer position={pointerPosition} visible={pointerVisible && status !== "idle"} pulseKey={pointerPulseKey} />;
+  return (
+    <DemoPointer
+      position={pointerPosition}
+      visible={pointerVisible && status !== "idle"}
+      pulseKey={pointerPulseKey}
+    />
+  );
 }

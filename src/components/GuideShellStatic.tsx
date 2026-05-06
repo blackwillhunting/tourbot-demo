@@ -94,7 +94,8 @@ function guideModeCopy(guideConfig?: GuideConfig): {
       statusLabel: "Commerce self-drive ready",
       greeting:
         "Hi — I’m TourBot. Activate me when you want this commerce playground to self-drive through best-fit rooms, packages, and booking context from what you share.",
-      placeholder: "Describe your trip, preferences, dates, guests, or budget...",
+      placeholder:
+        "Describe your trip, preferences, dates, guests, or budget...",
       quickStarts: [
         {
           label: "Rich intent",
@@ -107,7 +108,8 @@ function guideModeCopy(guideConfig?: GuideConfig): {
         },
         {
           label: "View + value",
-          prompt: "I want a nice room with a view and breakfast, but not too expensive.",
+          prompt:
+            "I want a nice room with a view and breakfast, but not too expensive.",
         },
       ],
     };
@@ -340,10 +342,17 @@ async function callGuideAi(
       "I received the request, but the backend did not return an answer.",
     answerParts: data.answerParts,
     suggestedAction: data.suggestedAction,
-    rankedDestinations: Array.isArray(data.rankedDestinations) ? data.rankedDestinations : [],
-    stepNarratives: Array.isArray(data.stepNarratives) ? data.stepNarratives : [],
-    refinementChips: Array.isArray(data.refinementChips) ? data.refinementChips.filter(Boolean).slice(0, 6) : [],
-    commerceAction: typeof data.commerceAction === "string" ? data.commerceAction : undefined,
+    rankedDestinations: Array.isArray(data.rankedDestinations)
+      ? data.rankedDestinations
+      : [],
+    stepNarratives: Array.isArray(data.stepNarratives)
+      ? data.stepNarratives
+      : [],
+    refinementChips: Array.isArray(data.refinementChips)
+      ? data.refinementChips.filter(Boolean).slice(0, 6)
+      : [],
+    commerceAction:
+      typeof data.commerceAction === "string" ? data.commerceAction : undefined,
     extractedBookingContext: data.extractedBookingContext,
   };
 }
@@ -652,7 +661,6 @@ function findTourTarget(
   return findByExactTarget(candidates) || findByHeadingOrText(candidates);
 }
 
-
 function findExactExternalSpotlightTarget(
   targetId?: string | null,
   selector?: string | null,
@@ -768,12 +776,18 @@ function readShellSession(): {
   }
 }
 
-function normalizeGuideSteps(reply: { suggestedAction?: SuggestedAction; rankedDestinations?: SuggestedAction[]; stepNarratives?: StepNarrative[] }): GuidedAction[] {
-  const rawSteps = Array.isArray(reply.rankedDestinations) && reply.rankedDestinations.length > 0
-    ? reply.rankedDestinations
-    : reply.suggestedAction
-      ? [reply.suggestedAction]
-      : [];
+function normalizeGuideSteps(reply: {
+  suggestedAction?: SuggestedAction;
+  rankedDestinations?: SuggestedAction[];
+  stepNarratives?: StepNarrative[];
+}): GuidedAction[] {
+  const rawSteps =
+    Array.isArray(reply.rankedDestinations) &&
+    reply.rankedDestinations.length > 0
+      ? reply.rankedDestinations
+      : reply.suggestedAction
+        ? [reply.suggestedAction]
+        : [];
 
   const narrativesByTarget = new Map<string, StepNarrative>();
   if (Array.isArray(reply.stepNarratives)) {
@@ -787,7 +801,8 @@ function normalizeGuideSteps(reply: { suggestedAction?: SuggestedAction; rankedD
   return rawSteps
     .filter((step) => step && step.type === "navigate" && step.targetId)
     .filter((step) => {
-      const key = `${step.pageUrl || step.pageId || ""}::${step.targetId || ""}`.toLowerCase();
+      const key =
+        `${step.pageUrl || step.pageId || ""}::${step.targetId || ""}`.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -795,22 +810,34 @@ function normalizeGuideSteps(reply: { suggestedAction?: SuggestedAction; rankedD
     .slice(0, 6)
     .map((step) => ({
       ...step,
-      stepNarrative: narrativesByTarget.get((step.targetId || "").toLowerCase()),
+      stepNarrative: narrativesByTarget.get(
+        (step.targetId || "").toLowerCase(),
+      ),
     }));
 }
 
-function answerPartsForGuideStep(step: GuidedAction, index: number, total: number): AnswerParts {
+function answerPartsForGuideStep(
+  step: GuidedAction,
+  index: number,
+  total: number,
+): AnswerParts {
   const narrative = step.stepNarrative;
-  const label = narrative?.targetText || step.targetText || phraseFromId(step.targetId) || "this section";
-  const intro = narrative?.intro || (
-    total > 1
+  const label =
+    narrative?.targetText ||
+    step.targetText ||
+    phraseFromId(step.targetId) ||
+    "this section";
+  const intro =
+    narrative?.intro ||
+    (total > 1
       ? `${index === 0 ? "Let’s start with" : "Next, let’s look at"} **${label}**.`
-      : `Here’s the most relevant section: **${label}**.`
-  );
+      : `Here’s the most relevant section: **${label}**.`);
 
   return {
     intro,
-    bullets: Array.isArray(narrative?.bullets) ? narrative?.bullets.filter(Boolean) : [],
+    bullets: Array.isArray(narrative?.bullets)
+      ? narrative?.bullets.filter(Boolean)
+      : [],
     closing: narrative?.closing || step.reason || "",
   };
 }
@@ -818,16 +845,18 @@ function answerPartsForGuideStep(step: GuidedAction, index: number, total: numbe
 function answerBodyFromParts(parts: AnswerParts) {
   const chunks: string[] = [];
   if (parts.intro) chunks.push(parts.intro);
-  if (parts.bullets?.length) chunks.push(parts.bullets.map((item) => `- ${item}`).join("\n"));
+  if (parts.bullets?.length)
+    chunks.push(parts.bullets.map((item) => `- ${item}`).join("\n"));
   if (parts.closing) chunks.push(parts.closing);
   return chunks.join("\n\n").trim();
 }
 
 function guideStepLabel(step?: SuggestedAction | null) {
   if (!step) return "Step";
-  return step.targetText || phraseFromId(step.targetId) || step.pageId || "Step";
+  return (
+    step.targetText || phraseFromId(step.targetId) || step.pageId || "Step"
+  );
 }
-
 
 type CompletionWidget = "dates" | "guests" | "budget" | null;
 type DatePickerKind = "check-in" | "check-out" | null;
@@ -868,7 +897,8 @@ function formatShellDateRange(checkIn: string, checkOut: string) {
 
 function guestSummary(adults: number, children: number) {
   const adultsLabel = `${adults} adult${adults === 1 ? "" : "s"}`;
-  const childrenLabel = children > 0 ? `, ${children} child${children === 1 ? "" : "ren"}` : "";
+  const childrenLabel =
+    children > 0 ? `, ${children} child${children === 1 ? "" : "ren"}` : "";
   return `${adultsLabel}${childrenLabel}`;
 }
 
@@ -934,7 +964,8 @@ function spotlightTarget(target: HTMLElement) {
   const computedPosition = window.getComputedStyle(target).position;
 
   target.setAttribute("data-guide-spotlight-target", "true");
-  target.style.position = computedPosition === "static" ? "relative" : previousPosition;
+  target.style.position =
+    computedPosition === "static" ? "relative" : previousPosition;
   target.style.zIndex = "8999";
   target.style.transition =
     "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
@@ -1058,7 +1089,6 @@ function findPageNavigationControl(
   );
 }
 
-
 function smoothScrollElementIntoView(
   target: HTMLElement,
   options: { duration?: number; block?: "center" | "start" } = {},
@@ -1067,12 +1097,16 @@ function smoothScrollElementIntoView(
   const block = options.block ?? "center";
   const rect = target.getBoundingClientRect();
   const startY = window.scrollY || window.pageYOffset || 0;
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight || 0;
   const rawTargetY =
     block === "center"
       ? startY + rect.top - viewportHeight / 2 + rect.height / 2
       : startY + rect.top;
-  const maxY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+  const maxY = Math.max(
+    0,
+    document.documentElement.scrollHeight - viewportHeight,
+  );
   const targetY = Math.max(0, Math.min(rawTargetY, maxY));
   const distance = targetY - startY;
 
@@ -1484,18 +1518,24 @@ export function GuideShellStatic({
   const [spotlightActive, setSpotlightActive] = useState(false);
   const [guideSteps, setGuideSteps] = useState<GuidedAction[]>([]);
   const [currentGuideStepIndex, setCurrentGuideStepIndex] = useState(0);
-  const [currentGuideMessageId, setCurrentGuideMessageId] = useState<string | null>(null);
-  const [activeCompletionWidget, setActiveCompletionWidget] = useState<CompletionWidget>(null);
+  const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
+    string | null
+  >(null);
+  const [activeCompletionWidget, setActiveCompletionWidget] =
+    useState<CompletionWidget>(null);
   const [shellCheckInDate, setShellCheckInDate] = useState("2026-06-12");
   const [shellCheckOutDate, setShellCheckOutDate] = useState("2026-06-15");
   const [shellDatesApplied, setShellDatesApplied] = useState(false);
-  const [activeDatePicker, setActiveDatePicker] = useState<DatePickerKind>(null);
+  const [activeDatePicker, setActiveDatePicker] =
+    useState<DatePickerKind>(null);
   const [shellAdults, setShellAdults] = useState(1);
   const [shellChildren, setShellChildren] = useState(0);
   const [shellGuestsApplied, setShellGuestsApplied] = useState(false);
   const [shellBudgetBand, setShellBudgetBand] = useState<BudgetBand | "">("");
   const [shellBreakfastRequested, setShellBreakfastRequested] = useState(false);
-  const [lastRefinementChipClicked, setLastRefinementChipClicked] = useState<string | null>(null);
+  const [lastRefinementChipClicked, setLastRefinementChipClicked] = useState<
+    string | null
+  >(null);
 
   const minimizeTimerRef = useRef<number | null>(null);
   const greetingTimerRef = useRef<number | null>(null);
@@ -1516,7 +1556,9 @@ export function GuideShellStatic({
   const modeCopy = guideModeCopy(guideConfig);
   const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
     if (typeof window === "undefined") return 760;
-    return Math.round(window.visualViewport?.height || window.innerHeight || 760);
+    return Math.round(
+      window.visualViewport?.height || window.innerHeight || 760,
+    );
   });
   const [visualViewportOffsetTop, setVisualViewportOffsetTop] = useState(() => {
     if (typeof window === "undefined") return 0;
@@ -1773,10 +1815,11 @@ export function GuideShellStatic({
     }, 650);
   };
 
-  const collapsePanelForMobileAction = (nextThread?: ThreadItem[]) => {
+  const collapsePanelForMobileAction = (
+    threadToKeep: ThreadItem[] = threadStateRef.current,
+  ) => {
     if (!isCoarsePointer()) return;
 
-    const threadToKeep = nextThread?.length ? nextThread : threadStateRef.current;
     if (threadToKeep.length > 0) {
       threadStateRef.current = threadToKeep;
       rememberShellSession("launcher", threadToKeep);
@@ -1840,7 +1883,9 @@ export function GuideShellStatic({
       const viewportHeight = Math.round(
         window.visualViewport?.height || window.innerHeight || 760,
       );
-      const viewportOffsetTop = Math.round(window.visualViewport?.offsetTop || 0);
+      const viewportOffsetTop = Math.round(
+        window.visualViewport?.offsetTop || 0,
+      );
       setVisualViewportHeight(viewportHeight);
       setVisualViewportOffsetTop(viewportOffsetTop);
 
@@ -1849,8 +1894,8 @@ export function GuideShellStatic({
       setKeyboardCompressed(
         Boolean(
           isCoarsePointer() &&
-            textareaActive &&
-            (viewportHeight < layoutHeight - 80 || viewportHeight < 620),
+          textareaActive &&
+          (viewportHeight < layoutHeight - 80 || viewportHeight < 620),
         ),
       );
     };
@@ -1922,13 +1967,15 @@ export function GuideShellStatic({
   useEffect(() => {
     const handleExternalSpotlight = (event: Event) => {
       const detail =
-        (event as CustomEvent<{
-          targetId?: string;
-          selector?: string;
-          targetText?: string;
-          pageId?: string;
-          pageUrl?: string;
-        }>).detail || {};
+        (
+          event as CustomEvent<{
+            targetId?: string;
+            selector?: string;
+            targetText?: string;
+            pageId?: string;
+            pageUrl?: string;
+          }>
+        ).detail || {};
 
       const targetId = (detail.targetId || "").trim();
       const selector = (detail.selector || "").trim();
@@ -2068,7 +2115,9 @@ export function GuideShellStatic({
     }
   }, [draftValue]);
 
-  const buildConversationContext = (currentMessage: string): GuideConversationContext => {
+  const buildConversationContext = (
+    currentMessage: string,
+  ): GuideConversationContext => {
     const recentUserMessages = threadStateRef.current
       .filter((item) => item.role === "user" && item.status !== "thinking")
       .slice(-4)
@@ -2089,7 +2138,10 @@ export function GuideShellStatic({
     }));
 
     return {
-      lastUserMessage: currentMessage || recentUserMessages[recentUserMessages.length - 1] || undefined,
+      lastUserMessage:
+        currentMessage ||
+        recentUserMessages[recentUserMessages.length - 1] ||
+        undefined,
       recentUserMessages,
       recentBotSummary: recentBot?.body?.slice(0, 900),
       currentGuideStepIndex,
@@ -2102,35 +2154,48 @@ export function GuideShellStatic({
 
   const normalizeBudgetBand = (value?: string | null): BudgetBand | "" => {
     const normalized = (value || "").trim().toLowerCase();
-    const match = BUDGET_BANDS.find((band) => band.toLowerCase() === normalized);
+    const match = BUDGET_BANDS.find(
+      (band) => band.toLowerCase() === normalized,
+    );
     return match || "";
   };
 
-  const mergeExtractedBookingContext = (context?: ExtractedBookingContext | null) => {
+  const mergeExtractedBookingContext = (
+    context?: ExtractedBookingContext | null,
+  ) => {
     if (!context || guideConfig?.mode !== "commerce") return;
 
-    const nextCheckIn = typeof context.checkInDate === "string" ? context.checkInDate : "";
-    const nextCheckOut = typeof context.checkOutDate === "string" ? context.checkOutDate : "";
+    const nextCheckIn =
+      typeof context.checkInDate === "string" ? context.checkInDate : "";
+    const nextCheckOut =
+      typeof context.checkOutDate === "string" ? context.checkOutDate : "";
     if (nextCheckIn && nextCheckOut && nextCheckOut > nextCheckIn) {
       setShellCheckInDate(nextCheckIn);
       setShellCheckOutDate(nextCheckOut);
       setShellDatesApplied(true);
-      setActiveCompletionWidget((current) => (current === "dates" ? null : current));
+      setActiveCompletionWidget((current) =>
+        current === "dates" ? null : current,
+      );
     }
 
     const adults = typeof context.adults === "number" ? context.adults : null;
-    const children = typeof context.children === "number" ? context.children : null;
+    const children =
+      typeof context.children === "number" ? context.children : null;
     if (adults !== null || children !== null) {
       setShellAdults(Math.max(1, Math.min(8, Math.round(adults ?? 1))));
       setShellChildren(Math.max(0, Math.min(8, Math.round(children ?? 0))));
       setShellGuestsApplied(true);
-      setActiveCompletionWidget((current) => (current === "guests" ? null : current));
+      setActiveCompletionWidget((current) =>
+        current === "guests" ? null : current,
+      );
     }
 
     const budgetBand = normalizeBudgetBand(context.budgetBand || null);
     if (budgetBand) {
       setShellBudgetBand(budgetBand);
-      setActiveCompletionWidget((current) => (current === "budget" ? null : current));
+      setActiveCompletionWidget((current) =>
+        current === "budget" ? null : current,
+      );
     }
 
     if (context.breakfastRequested === true) {
@@ -2187,7 +2252,11 @@ export function GuideShellStatic({
     const startedAt = performance.now();
 
     try {
-      const reply = await callGuideAi(trimmed, guideConfig, conversationContext);
+      const reply = await callGuideAi(
+        trimmed,
+        guideConfig,
+        conversationContext,
+      );
       mergeExtractedBookingContext(reply.extractedBookingContext);
       const remaining = Math.max(
         0,
@@ -2231,16 +2300,23 @@ export function GuideShellStatic({
       setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : null);
       setLastRefinementChipClicked(null);
 
+      const hasNavigation =
+        nextGuideSteps.length > 0 || reply.suggestedAction?.type === "navigate";
+
       window.setTimeout(() => {
-        runSuggestedNavigation(nextGuideSteps[0] || reply.suggestedAction, completedThread, () =>
-          setSpotlightActive(true),
-        );
-        collapsePanelAfterMobileResponse(completedThread);
+        if (hasNavigation) {
+          runSuggestedNavigation(
+            nextGuideSteps[0] || reply.suggestedAction,
+            completedThread,
+            () => setSpotlightActive(true),
+          );
+          collapsePanelAfterMobileResponse(completedThread);
+        }
       }, 350);
 
       emitDemoResponseComplete({
         ok: true,
-        hasNavigation: nextGuideSteps.length > 0 || reply.suggestedAction?.type === "navigate",
+        hasNavigation,
         stepCount: nextGuideSteps.length,
         isMultiStep: isMultiStepGuide,
       });
@@ -2283,17 +2359,22 @@ export function GuideShellStatic({
 
   const hasGuideSteps = guideSteps.length > 0;
   const hasMultipleGuideSteps = guideSteps.length > 1;
-  const currentGuideStep = hasGuideSteps ? guideSteps[currentGuideStepIndex] : null;
+  const currentGuideStep = hasGuideSteps
+    ? guideSteps[currentGuideStepIndex]
+    : null;
   const showBookAction = Boolean(
     guideConfig?.mode === "commerce" &&
-      guideConfig?.features?.bookingActions &&
-      guideSteps.some((step) => step?.targetId?.startsWith("room-")),
+    guideConfig?.features?.bookingActions &&
+    guideSteps.some((step) => step?.targetId?.startsWith("room-")),
   );
 
-  const navigateToGuideStep = (nextIndex: number) => {
+  const navigateToGuideStep = (nextIndex: number, collapseOnMobile = false) => {
     if (!guideSteps.length) return;
 
-    const boundedIndex = Math.max(0, Math.min(nextIndex, guideSteps.length - 1));
+    const boundedIndex = Math.max(
+      0,
+      Math.min(nextIndex, guideSteps.length - 1),
+    );
     const step = guideSteps[boundedIndex];
     if (!step) return;
 
@@ -2302,8 +2383,13 @@ export function GuideShellStatic({
     setCurrentGuideStepIndex(boundedIndex);
 
     let nextThread = threadStateRef.current;
+
     if (currentGuideMessageId) {
-      const parts = answerPartsForGuideStep(step, boundedIndex, guideSteps.length);
+      const parts = answerPartsForGuideStep(
+        step,
+        boundedIndex,
+        guideSteps.length,
+      );
       const body = answerBodyFromParts(parts);
       nextThread = threadStateRef.current.map((item) =>
         item.id === currentGuideMessageId
@@ -2312,14 +2398,24 @@ export function GuideShellStatic({
       );
       threadStateRef.current = nextThread;
       setThread(nextThread);
-      rememberShellSession(isCoarsePointer() ? "launcher" : shellState, nextThread);
+      rememberShellSession(
+        collapseOnMobile && isCoarsePointer() ? "launcher" : "panel",
+        nextThread,
+      );
     }
 
-    collapsePanelForMobileAction(nextThread);
+    if (collapseOnMobile) {
+      collapsePanelForMobileAction(nextThread);
+    }
 
-    window.setTimeout(() => {
-      runSuggestedNavigation(step, nextThread, () => setSpotlightActive(true));
-    }, isCoarsePointer() ? 60 : 120);
+    window.setTimeout(
+      () => {
+        runSuggestedNavigation(step, nextThread, () =>
+          setSpotlightActive(true),
+        );
+      },
+      collapseOnMobile && isCoarsePointer() ? 80 : 120,
+    );
   };
 
   const acknowledgeSpotlight = () => {
@@ -2359,27 +2455,34 @@ export function GuideShellStatic({
       : null,
   });
 
-  const bookCurrentGuideStep = () => {
-    const bookableStep =
-      currentGuideStep?.targetId?.startsWith("room-")
-        ? currentGuideStep
-        : guideSteps.find((step) => step?.targetId?.startsWith("room-")) ||
-          currentGuideStep ||
-          guideSteps[0] ||
-          null;
+  const bookCurrentGuideStep = (collapseOnMobile = false) => {
+    const bookableStep = currentGuideStep?.targetId?.startsWith("room-")
+      ? currentGuideStep
+      : guideSteps.find((step) => step?.targetId?.startsWith("room-")) ||
+        currentGuideStep ||
+        guideSteps[0] ||
+        null;
     const targetId = bookableStep?.targetId || null;
 
-    window.dispatchEvent(
-      new CustomEvent("guide-commerce-book", {
-        detail: {
-          targetId,
-          step: bookableStep,
-          commerceContext: buildCommerceContext(),
-        },
-      }),
-    );
+    const dispatchBook = () => {
+      window.dispatchEvent(
+        new CustomEvent("guide-commerce-book", {
+          detail: {
+            targetId,
+            step: bookableStep,
+            commerceContext: buildCommerceContext(),
+          },
+        }),
+      );
+    };
 
-    collapsePanelForMobileAction(threadStateRef.current);
+    if (collapseOnMobile && isCoarsePointer()) {
+      collapsePanelForMobileAction();
+      window.setTimeout(dispatchBook, 80);
+      return;
+    }
+
+    dispatchBook();
   };
 
   const chipToPrompt = (chip: string) => {
@@ -2391,8 +2494,10 @@ export function GuideShellStatic({
     if (lower === "add guests") return "I want to add guests.";
     if (lower === "add breakfast") return "Add breakfast to this stay.";
     if (lower === "set budget") return "I want to set a budget.";
-    if (lower.startsWith("show ")) return clean.endsWith(".") ? clean : `${clean}.`;
-    if (lower.startsWith("add ")) return clean.endsWith(".") ? clean : `${clean}.`;
+    if (lower.startsWith("show "))
+      return clean.endsWith(".") ? clean : `${clean}.`;
+    if (lower.startsWith("add "))
+      return clean.endsWith(".") ? clean : `${clean}.`;
     return clean.endsWith(".") || clean.endsWith("?") ? clean : `${clean}.`;
   };
 
@@ -2405,7 +2510,10 @@ export function GuideShellStatic({
     return `${nextYear}-${nextMonth}-${nextDay}`;
   };
 
-  const selectShellCalendarDate = (kind: Exclude<DatePickerKind, null>, value: string) => {
+  const selectShellCalendarDate = (
+    kind: Exclude<DatePickerKind, null>,
+    value: string,
+  ) => {
     if (kind === "check-in") {
       setShellCheckInDate(value);
       if (!shellCheckOutDate || shellCheckOutDate <= value) {
@@ -2422,10 +2530,13 @@ export function GuideShellStatic({
   const renderShellCalendar = (kind: Exclude<DatePickerKind, null>) => {
     const year = 2026;
     const monthIndex = 6; // July 2026. Kept fixed for the scripted demo path.
-    const monthName = new Date(year, monthIndex, 1).toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
+    const monthName = new Date(year, monthIndex, 1).toLocaleDateString(
+      "en-US",
+      {
+        month: "long",
+        year: "numeric",
+      },
+    );
     const firstDay = new Date(year, monthIndex, 1).getDay();
     const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
     const blanks = Array.from({ length: firstDay });
@@ -2446,7 +2557,9 @@ export function GuideShellStatic({
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               {kind === "check-in" ? "Check-in calendar" : "Check-out calendar"}
             </div>
-            <div className="mt-1 text-sm font-semibold text-slate-950">{monthName}</div>
+            <div className="mt-1 text-sm font-semibold text-slate-950">
+              {monthName}
+            </div>
           </div>
           <button
             type="button"
@@ -2459,7 +2572,9 @@ export function GuideShellStatic({
 
         <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="py-1">{day}</div>
+            <div key={day} className="py-1">
+              {day}
+            </div>
           ))}
         </div>
 
@@ -2473,12 +2588,18 @@ export function GuideShellStatic({
             const isDemoTarget =
               (kind === "check-in" && value === "2026-07-10") ||
               (kind === "check-out" && value === "2026-07-14");
-            const disabled = Boolean(kind === "check-out" && shellCheckInDate && value <= shellCheckInDate);
+            const disabled = Boolean(
+              kind === "check-out" &&
+              shellCheckInDate &&
+              value <= shellCheckInDate,
+            );
 
             return (
               <button
                 key={value}
-                data-demo-target={isDemoTarget ? `calendar-${kind}-${value}` : undefined}
+                data-demo-target={
+                  isDemoTarget ? `calendar-${kind}-${value}` : undefined
+                }
                 type="button"
                 disabled={disabled}
                 onClick={() => selectShellCalendarDate(kind, value)}
@@ -2599,7 +2720,7 @@ export function GuideShellStatic({
     }
 
     if (demoCommand.type === "next") {
-      navigateToGuideStep(currentGuideStepIndex + 1);
+      navigateToGuideStep(currentGuideStepIndex + 1, true);
       return;
     }
 
@@ -2609,7 +2730,7 @@ export function GuideShellStatic({
     }
 
     if (demoCommand.type === "book") {
-      bookCurrentGuideStep();
+      bookCurrentGuideStep(true);
       return;
     }
 
@@ -2660,7 +2781,9 @@ export function GuideShellStatic({
               </div>
 
               <p className="mt-2 text-sm leading-6 text-slate-200 sm:mt-3">
-                TourBot answers questions, guides users through the right site sections, and preloads forms or booking steps from natural-language intent.
+                TourBot answers questions, guides users through the right site
+                sections, and preloads forms or booking steps from
+                natural-language intent.
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2 sm:mt-5">
@@ -2726,7 +2849,9 @@ export function GuideShellStatic({
             }}
           >
             <div className="flex h-full min-h-0 flex-col">
-              <div className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}>
+              <div
+                className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}
+              >
                 <div className="flex items-center gap-3">
                   <span className="inline-flex rounded-2xl bg-slate-900 p-2 text-white">
                     <Compass className="h-4 w-4" />
@@ -2770,9 +2895,9 @@ export function GuideShellStatic({
 
               <div
                 className={
-                  keyboardCompressed || (coarsePointer && thread.length > 1)
+                  keyboardCompressed
                     ? "hidden"
-                    : "shrink-0 border-b border-slate-200 px-4 py-2.5 sm:px-5 sm:py-3"
+                    : "hidden shrink-0 border-b border-slate-200 px-4 py-2.5 sm:block sm:px-5 sm:py-3"
                 }
               >
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -2794,7 +2919,7 @@ export function GuideShellStatic({
 
               <motion.div
                 ref={laneRef}
-                className={`min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}` }
+                className={`min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
                 style={{ overflowAnchor: "none" }}
               >
                 <div
@@ -2851,7 +2976,7 @@ export function GuideShellStatic({
                     ? "0 -1px 0 rgba(148,163,184,0.22)"
                     : "0 -1px 0 rgba(226,232,240,1)",
                 }}
-                className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}` }
+                className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
               >
                 {(spotlightActive || hasGuideSteps) && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -2870,7 +2995,9 @@ export function GuideShellStatic({
                           )}
                         </div>
                       ) : (
-                        <div className="font-semibold text-slate-700">Guide spotlight</div>
+                        <div className="font-semibold text-slate-700">
+                          Guide spotlight
+                        </div>
                       )}
                     </div>
 
@@ -2878,7 +3005,12 @@ export function GuideShellStatic({
                       {hasMultipleGuideSteps && (
                         <>
                           <button
-                            onClick={() => navigateToGuideStep(currentGuideStepIndex - 1)}
+                            onClick={() =>
+                              navigateToGuideStep(
+                                currentGuideStepIndex - 1,
+                                true,
+                              )
+                            }
                             disabled={currentGuideStepIndex <= 0}
                             className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                           >
@@ -2886,8 +3018,15 @@ export function GuideShellStatic({
                           </button>
                           <button
                             data-demo-target="guide-next"
-                            onClick={() => navigateToGuideStep(currentGuideStepIndex + 1)}
-                            disabled={currentGuideStepIndex >= guideSteps.length - 1}
+                            onClick={() =>
+                              navigateToGuideStep(
+                                currentGuideStepIndex + 1,
+                                true,
+                              )
+                            }
+                            disabled={
+                              currentGuideStepIndex >= guideSteps.length - 1
+                            }
                             className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             Next
@@ -2898,7 +3037,7 @@ export function GuideShellStatic({
                       {showBookAction && (
                         <button
                           data-demo-target="guide-book"
-                          onClick={bookCurrentGuideStep}
+                          onClick={() => bookCurrentGuideStep(true)}
                           className="rounded-full bg-cyan-950 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
                         >
                           Book this
@@ -2917,234 +3056,302 @@ export function GuideShellStatic({
                 )}
 
                 <AnimatePresence>
-                  {activeCompletionWidget && guideConfig?.mode === "commerce" && (
-                    <motion.div
-                      key={activeCompletionWidget}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm sm:p-3"
-                    >
-                      <div className="mb-3 flex items-start justify-between gap-2 sm:gap-3">
-                        <div>
-                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                            {activeCompletionWidget === "dates"
-                              ? "Select dates"
-                              : activeCompletionWidget === "guests"
-                                ? "Add guests"
-                                : "Set budget"}
+                  {activeCompletionWidget &&
+                    guideConfig?.mode === "commerce" && (
+                      <motion.div
+                        key={activeCompletionWidget}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 8 }}
+                        transition={{ duration: 0.18, ease: "easeOut" }}
+                        className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm sm:p-3"
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-2 sm:gap-3">
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                              {activeCompletionWidget === "dates"
+                                ? "Select dates"
+                                : activeCompletionWidget === "guests"
+                                  ? "Add guests"
+                                  : "Set budget"}
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-slate-500">
+                              {activeCompletionWidget === "dates"
+                                ? "Choose check-in and check-out before handing off to booking."
+                                : activeCompletionWidget === "guests"
+                                  ? "Set the guest count so the guide can preserve capacity context."
+                                  : "Choose a budget band to steer recommendations without forcing exact pricing."}
+                            </div>
                           </div>
-                          <div className="mt-1 text-xs leading-5 text-slate-500">
-                            {activeCompletionWidget === "dates"
-                              ? "Choose check-in and check-out before handing off to booking."
-                              : activeCompletionWidget === "guests"
-                                ? "Set the guest count so the guide can preserve capacity context."
-                                : "Choose a budget band to steer recommendations without forcing exact pricing."}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveCompletionWidget(null);
+                              setActiveDatePicker(null);
+                            }}
+                            className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
+                          >
+                            Close
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveCompletionWidget(null);
-                            setActiveDatePicker(null);
-                          }}
-                          className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
-                        >
-                          Close
-                        </button>
-                      </div>
 
-                      {activeCompletionWidget === "dates" && (
-                        <div className="space-y-3">
+                        {activeCompletionWidget === "dates" && (
+                          <div className="space-y-3">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <button
+                                data-demo-target="date-check-in-expand"
+                                type="button"
+                                onClick={() =>
+                                  setActiveDatePicker((current) =>
+                                    current === "check-in" ? null : "check-in",
+                                  )
+                                }
+                                className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
+                                  activeDatePicker === "check-in"
+                                    ? "ring-2 ring-slate-900/10"
+                                    : ""
+                                }`}
+                              >
+                                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  Check-in
+                                </span>
+                                <span className="mt-1 block text-sm font-semibold text-slate-950">
+                                  {formatShellDate(shellCheckInDate)}
+                                </span>
+                                <span className="mt-1 block text-xs text-slate-500">
+                                  Expand calendar
+                                </span>
+                              </button>
+
+                              <button
+                                data-demo-target="date-check-out-expand"
+                                type="button"
+                                onClick={() =>
+                                  setActiveDatePicker((current) =>
+                                    current === "check-out"
+                                      ? null
+                                      : "check-out",
+                                  )
+                                }
+                                className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
+                                  activeDatePicker === "check-out"
+                                    ? "ring-2 ring-slate-900/10"
+                                    : ""
+                                }`}
+                              >
+                                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  Check-out
+                                </span>
+                                <span className="mt-1 block text-sm font-semibold text-slate-950">
+                                  {formatShellDate(shellCheckOutDate)}
+                                </span>
+                                <span className="mt-1 block text-xs text-slate-500">
+                                  Expand calendar
+                                </span>
+                              </button>
+                            </div>
+
+                            <AnimatePresence mode="wait">
+                              {activeDatePicker === "check-in" &&
+                                renderShellCalendar("check-in")}
+                              {activeDatePicker === "check-out" &&
+                                renderShellCalendar("check-out")}
+                            </AnimatePresence>
+                            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                              <div className="text-xs text-slate-500">
+                                {shellDatesApplied
+                                  ? `Saved: ${formatShellDateRange(shellCheckInDate, shellCheckOutDate)}`
+                                  : shellCheckInDate &&
+                                      shellCheckOutDate &&
+                                      shellCheckOutDate > shellCheckInDate
+                                    ? "Ready to save dates."
+                                    : "Choose a check-out date after check-in."}
+                              </div>
+                              <button
+                                data-demo-target="apply-dates"
+                                type="button"
+                                disabled={
+                                  !shellCheckInDate ||
+                                  !shellCheckOutDate ||
+                                  shellCheckOutDate <= shellCheckInDate
+                                }
+                                onClick={() => {
+                                  const dateLabel = formatShellDateRange(
+                                    shellCheckInDate,
+                                    shellCheckOutDate,
+                                  );
+                                  setShellDatesApplied(true);
+                                  setActiveCompletionWidget(null);
+                                  setActiveDatePicker(null);
+                                  appendDraftInstruction(
+                                    `Use ${dateLabel} for this stay.`,
+                                  );
+                                }}
+                                className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                Apply dates
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeCompletionWidget === "guests" && (
+                          <div className="space-y-3">
+                            {[
+                              {
+                                label: "Adults",
+                                value: shellAdults,
+                                setValue: setShellAdults,
+                                min: 1,
+                              },
+                              {
+                                label: "Children",
+                                value: shellChildren,
+                                setValue: setShellChildren,
+                                min: 0,
+                              },
+                            ].map((item) => (
+                              <div
+                                key={item.label}
+                                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm"
+                              >
+                                <div>
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                    {item.label}
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-950">
+                                    {item.value}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    data-demo-target={
+                                      item.label === "Adults"
+                                        ? "guest-adults-minus"
+                                        : "guest-children-minus"
+                                    }
+                                    type="button"
+                                    onClick={() => {
+                                      item.setValue(
+                                        Math.max(item.min, item.value - 1),
+                                      );
+                                      setShellGuestsApplied(false);
+                                    }}
+                                    className="h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                  >
+                                    −
+                                  </button>
+                                  <button
+                                    data-demo-target={
+                                      item.label === "Adults"
+                                        ? "guest-adults-plus"
+                                        : "guest-children-plus"
+                                    }
+                                    type="button"
+                                    onClick={() => {
+                                      item.setValue(item.value + 1);
+                                      setShellGuestsApplied(false);
+                                    }}
+                                    className="h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                              <div className="text-xs text-slate-500">
+                                {shellGuestsApplied
+                                  ? `Saved: ${guestSummary(shellAdults, shellChildren)}`
+                                  : "Ready to save guests."}
+                              </div>
+                              <button
+                                data-demo-target="apply-guests"
+                                type="button"
+                                onClick={() => {
+                                  const guestsLabel = guestSummary(
+                                    shellAdults,
+                                    shellChildren,
+                                  );
+                                  setShellGuestsApplied(true);
+                                  setActiveCompletionWidget(null);
+                                  appendDraftInstruction(
+                                    `Add ${guestsLabel} for this stay.`,
+                                  );
+                                }}
+                                className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                              >
+                                Apply guests
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {activeCompletionWidget === "budget" && (
                           <div className="grid gap-2 sm:grid-cols-2">
-                            <button
-                              data-demo-target="date-check-in-expand"
-                              type="button"
-                              onClick={() => setActiveDatePicker((current) => current === "check-in" ? null : "check-in")}
-                              className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
-                                activeDatePicker === "check-in" ? "ring-2 ring-slate-900/10" : ""
-                              }`}
-                            >
-                              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                Check-in
-                              </span>
-                              <span className="mt-1 block text-sm font-semibold text-slate-950">
-                                {formatShellDate(shellCheckInDate)}
-                              </span>
-                              <span className="mt-1 block text-xs text-slate-500">
-                                Expand calendar
-                              </span>
-                            </button>
-
-                            <button
-                              data-demo-target="date-check-out-expand"
-                              type="button"
-                              onClick={() => setActiveDatePicker((current) => current === "check-out" ? null : "check-out")}
-                              className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
-                                activeDatePicker === "check-out" ? "ring-2 ring-slate-900/10" : ""
-                              }`}
-                            >
-                              <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                Check-out
-                              </span>
-                              <span className="mt-1 block text-sm font-semibold text-slate-950">
-                                {formatShellDate(shellCheckOutDate)}
-                              </span>
-                              <span className="mt-1 block text-xs text-slate-500">
-                                Expand calendar
-                              </span>
-                            </button>
-                          </div>
-
-                          <AnimatePresence mode="wait">
-                            {activeDatePicker === "check-in" && renderShellCalendar("check-in")}
-                            {activeDatePicker === "check-out" && renderShellCalendar("check-out")}
-                          </AnimatePresence>
-                          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                            <div className="text-xs text-slate-500">
-                              {shellDatesApplied
-                                ? `Saved: ${formatShellDateRange(shellCheckInDate, shellCheckOutDate)}`
-                                : shellCheckInDate && shellCheckOutDate && shellCheckOutDate > shellCheckInDate
-                                  ? "Ready to save dates."
-                                  : "Choose a check-out date after check-in."}
-                            </div>
-                            <button
-                              data-demo-target="apply-dates"
-                              type="button"
-                              disabled={!shellCheckInDate || !shellCheckOutDate || shellCheckOutDate <= shellCheckInDate}
-                              onClick={() => {
-                                const dateLabel = formatShellDateRange(shellCheckInDate, shellCheckOutDate);
-                                setShellDatesApplied(true);
-                                setActiveCompletionWidget(null);
-                                setActiveDatePicker(null);
-                                appendDraftInstruction(`Use ${dateLabel} for this stay.`);
-                              }}
-                              className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                            >
-                              Apply dates
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {activeCompletionWidget === "guests" && (
-                        <div className="space-y-3">
-                          {[
-                            { label: "Adults", value: shellAdults, setValue: setShellAdults, min: 1 },
-                            { label: "Children", value: shellChildren, setValue: setShellChildren, min: 0 },
-                          ].map((item) => (
-                            <div key={item.label} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm">
-                              <div>
-                                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                  {item.label}
+                            {BUDGET_BANDS.map((band) => (
+                              <button
+                                key={band}
+                                data-demo-target={`budget-${band.toLowerCase()}`}
+                                type="button"
+                                onClick={() => {
+                                  const budgetPrompt = `Use a ${band.toLowerCase()} budget for this stay.`;
+                                  setShellBudgetBand(band);
+                                  setActiveCompletionWidget(null);
+                                  appendDraftInstruction(budgetPrompt);
+                                }}
+                                className={`rounded-xl border px-3 py-3 text-left transition ${
+                                  shellBudgetBand === band
+                                    ? "border-slate-950 bg-slate-950 text-white shadow-sm"
+                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                }`}
+                              >
+                                <div className="text-sm font-semibold">
+                                  {band}
                                 </div>
-                                <div className="mt-1 text-sm font-semibold text-slate-950">
-                                  {item.value}
+                                <div
+                                  className={`mt-1 text-xs ${shellBudgetBand === band ? "text-white/70" : "text-slate-500"}`}
+                                >
+                                  {band === "Value"
+                                    ? "Prioritize lower rates."
+                                    : band === "Moderate"
+                                      ? "Balance comfort and cost."
+                                      : band === "Premium"
+                                        ? "Allow nicer rooms and views."
+                                        : "Prioritize the best experience."}
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  data-demo-target={item.label === "Adults" ? "guest-adults-minus" : "guest-children-minus"}
-                                  type="button"
-                                  onClick={() => {
-                                    item.setValue(Math.max(item.min, item.value - 1));
-                                    setShellGuestsApplied(false);
-                                  }}
-                                  className="h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                                >
-                                  −
-                                </button>
-                                <button
-                                  data-demo-target={item.label === "Adults" ? "guest-adults-plus" : "guest-children-plus"}
-                                  type="button"
-                                  onClick={() => {
-                                    item.setValue(item.value + 1);
-                                    setShellGuestsApplied(false);
-                                  }}
-                                  className="h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800"
-                                >
-                                  +
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                            <div className="text-xs text-slate-500">
-                              {shellGuestsApplied ? `Saved: ${guestSummary(shellAdults, shellChildren)}` : "Ready to save guests."}
-                            </div>
-                            <button
-                              data-demo-target="apply-guests"
-                              type="button"
-                              onClick={() => {
-                                const guestsLabel = guestSummary(shellAdults, shellChildren);
-                                setShellGuestsApplied(true);
-                                setActiveCompletionWidget(null);
-                                appendDraftInstruction(`Add ${guestsLabel} for this stay.`);
-                              }}
-                              className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
-                            >
-                              Apply guests
-                            </button>
+                              </button>
+                            ))}
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {activeCompletionWidget === "budget" && (
-                        <div className="grid gap-2 sm:grid-cols-2">
-                          {BUDGET_BANDS.map((band) => (
-                            <button
-                              key={band}
-                              data-demo-target={`budget-${band.toLowerCase()}`}
-                              type="button"
-                              onClick={() => {
-                                const budgetPrompt = `Use a ${band.toLowerCase()} budget for this stay.`;
-                                setShellBudgetBand(band);
-                                setActiveCompletionWidget(null);
-                                appendDraftInstruction(budgetPrompt);
-                              }}
-                              className={`rounded-xl border px-3 py-3 text-left transition ${
-                                shellBudgetBand === band
-                                  ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                              }`}
-                            >
-                              <div className="text-sm font-semibold">{band}</div>
-                              <div className={`mt-1 text-xs ${shellBudgetBand === band ? "text-white/70" : "text-slate-500"}`}>
-                                {band === "Value"
-                                  ? "Prioritize lower rates."
-                                  : band === "Moderate"
-                                    ? "Balance comfort and cost."
-                                    : band === "Premium"
-                                      ? "Allow nicer rooms and views."
-                                      : "Prioritize the best experience."}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {(shellDatesApplied || shellGuestsApplied || shellBudgetBand || shellBreakfastRequested) && (
-                        <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                          {shellDatesApplied && (
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                              {formatShellDateRange(shellCheckInDate, shellCheckOutDate)}
-                            </span>
-                          )}
-                          {shellGuestsApplied && (
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                              {guestSummary(shellAdults, shellChildren)}
-                            </span>
-                          )}
-                          {shellBudgetBand && (
-                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                              {shellBudgetBand} budget
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </motion.div>
-                  )}
+                        {(shellDatesApplied ||
+                          shellGuestsApplied ||
+                          shellBudgetBand ||
+                          shellBreakfastRequested) && (
+                          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                            {shellDatesApplied && (
+                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                {formatShellDateRange(
+                                  shellCheckInDate,
+                                  shellCheckOutDate,
+                                )}
+                              </span>
+                            )}
+                            {shellGuestsApplied && (
+                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                {guestSummary(shellAdults, shellChildren)}
+                              </span>
+                            )}
+                            {shellBudgetBand && (
+                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                {shellBudgetBand} budget
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                 </AnimatePresence>
 
                 <DraftRow
@@ -3159,7 +3366,8 @@ export function GuideShellStatic({
                   onBlur={() => {
                     setDraftFocus(false);
                     window.setTimeout(() => {
-                      if (!submitInFlightRef.current) setKeyboardCompressed(false);
+                      if (!submitInFlightRef.current)
+                        setKeyboardCompressed(false);
                     }, 120);
                   }}
                   disabled={isBotTyping}
@@ -3174,21 +3382,82 @@ export function GuideShellStatic({
       )}
 
       {shellState === "launcher" && (
-        <motion.button
+        <motion.div
           key="launcher"
           {...baseMotion}
-          style={toastPosition}
-          data-demo-target="guide-launcher"
-          onClick={openPanel}
-          className="inline-flex max-w-[calc(100vw-32px)] items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-3 shadow-xl transition hover:bg-slate-50"
+          style={
+            coarsePointer
+              ? {
+                  position: "fixed" as const,
+                  left: "12px",
+                  right: "12px",
+                  bottom: "16px",
+                  zIndex: 9999,
+                }
+              : toastPosition
+          }
+          className="flex max-w-[calc(100vw-24px)] items-center justify-end gap-2"
         >
-          <span className="inline-flex rounded-full bg-slate-900 p-2 text-white animate-pulse">
-            <Compass className="h-4 w-4" />
-          </span>
-          <span className="text-sm font-medium text-slate-900">
-            TourBot active
-          </span>
-        </motion.button>
+          {coarsePointer && (hasGuideSteps || showBookAction) && (
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur">
+              {hasMultipleGuideSteps && (
+                <>
+                  <button
+                    data-demo-target="guide-back"
+                    onClick={() =>
+                      navigateToGuideStep(currentGuideStepIndex - 1, true)
+                    }
+                    disabled={currentGuideStepIndex <= 0}
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Back
+                  </button>
+                  <button
+                    data-demo-target="guide-next"
+                    onClick={() =>
+                      navigateToGuideStep(currentGuideStepIndex + 1, true)
+                    }
+                    disabled={currentGuideStepIndex >= guideSteps.length - 1}
+                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </>
+              )}
+
+              {showBookAction && (
+                <button
+                  data-demo-target="guide-book"
+                  onClick={() => bookCurrentGuideStep(true)}
+                  className="shrink-0 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
+                >
+                  Book this
+                </button>
+              )}
+
+              <button
+                data-demo-target="guide-open-answer"
+                onClick={openPanel}
+                className="shrink-0 rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              >
+                Open answer
+              </button>
+            </div>
+          )}
+
+          <button
+            data-demo-target="guide-launcher"
+            onClick={openPanel}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-3 shadow-xl transition hover:bg-slate-50 sm:gap-3 sm:px-4"
+          >
+            <span className="inline-flex rounded-full bg-slate-900 p-2 text-white animate-pulse">
+              <Compass className="h-4 w-4" />
+            </span>
+            <span className="hidden text-sm font-medium text-slate-900 sm:inline">
+              TourBot active
+            </span>
+          </button>
+        </motion.div>
       )}
     </AnimatePresence>
   );
