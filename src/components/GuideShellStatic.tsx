@@ -30,6 +30,7 @@ const KEYBOARD_TEXTAREA_HEIGHT = 52;
 const MAX_TEXTAREA_HEIGHT = 160;
 const MESSAGE_FADE_DURATION = 0.2;
 const THREAD_REVEAL_SCROLL_MS = 900;
+const GUIDE_NAVIGATION_SCROLL_MS = 1500;
 const BOT_REPLY_DELAY_MS = 3000;
 void BOT_REPLY_DELAY_MS;
 const THINKING_WIGGLE_DURATION = 1.15;
@@ -1057,6 +1058,42 @@ function findPageNavigationControl(
   );
 }
 
+
+function smoothScrollElementIntoView(
+  target: HTMLElement,
+  options: { duration?: number; block?: "center" | "start" } = {},
+) {
+  const duration = options.duration ?? GUIDE_NAVIGATION_SCROLL_MS;
+  const block = options.block ?? "center";
+  const rect = target.getBoundingClientRect();
+  const startY = window.scrollY || window.pageYOffset || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const rawTargetY =
+    block === "center"
+      ? startY + rect.top - viewportHeight / 2 + rect.height / 2
+      : startY + rect.top;
+  const maxY = Math.max(0, document.documentElement.scrollHeight - viewportHeight);
+  const targetY = Math.max(0, Math.min(rawTargetY, maxY));
+  const distance = targetY - startY;
+
+  if (Math.abs(distance) < 4) return;
+
+  const startedAt = performance.now();
+  const easeInOutCubic = (t: number) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  const step = (now: number) => {
+    const progress = Math.min((now - startedAt) / duration, 1);
+    window.scrollTo(0, startY + distance * easeInOutCubic(progress));
+
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+    }
+  };
+
+  window.requestAnimationFrame(step);
+}
+
 function runSpotlightWithRetries(
   action: SuggestedAction,
   delays = [250, 650, 1100, 1700, 2400],
@@ -1072,15 +1109,11 @@ function runSpotlightWithRetries(
       if (!target) return;
 
       found = true;
-      target.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
+      smoothScrollElementIntoView(target);
       window.setTimeout(() => {
         spotlightTarget(target);
         onSpotlightActive?.();
-      }, 250);
+      }, GUIDE_NAVIGATION_SCROLL_MS + 120);
     }, delay);
   });
 }
@@ -1126,7 +1159,7 @@ function runSuggestedNavigation(
     window.setTimeout(() => {
       spotlightTarget(target);
       onSpotlightActive?.();
-    }, 450);
+    }, GUIDE_NAVIGATION_SCROLL_MS + 120);
     return;
   }
 
@@ -1495,12 +1528,19 @@ export function GuideShellStatic({
   });
   const [keyboardCompressed, setKeyboardCompressed] = useState(false);
 
+  const coarsePointer = isCoarsePointer();
   const constrainedViewportHeight = Math.max(300, visualViewportHeight);
   const floatingCardMaxHeight = `${Math.max(280, constrainedViewportHeight - 32)}px`;
   const keyboardPanelMaxHeight = Math.max(240, constrainedViewportHeight - 20);
+  const mobilePanelMaxHeight = Math.max(
+    360,
+    Math.min(560, constrainedViewportHeight - 128),
+  );
   const panelHeight = keyboardCompressed
     ? `min(300px, ${keyboardPanelMaxHeight}px)`
-    : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
+    : coarsePointer
+      ? `${mobilePanelMaxHeight}px`
+      : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
   const panelToastStyle = keyboardCompressed
     ? {
         position: "fixed" as const,
@@ -1511,10 +1551,19 @@ export function GuideShellStatic({
         width: "auto",
         zIndex: 9999,
       }
-    : {
-        ...toastPosition,
-        width: "min(calc(100vw - 32px), 480px)",
-      };
+    : coarsePointer
+      ? {
+          position: "fixed" as const,
+          left: "12px",
+          right: "12px",
+          bottom: "16px",
+          width: "auto",
+          zIndex: 9999,
+        }
+      : {
+          ...toastPosition,
+          width: "min(calc(100vw - 32px), 480px)",
+        };
 
   const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
@@ -2647,7 +2696,14 @@ export function GuideShellStatic({
           <div
             data-demo-target="guide-shell"
             className={`overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
-            style={{ height: panelHeight, maxHeight: keyboardCompressed ? `${keyboardPanelMaxHeight}px` : floatingCardMaxHeight }}
+            style={{
+              height: panelHeight,
+              maxHeight: keyboardCompressed
+                ? `${keyboardPanelMaxHeight}px`
+                : coarsePointer
+                  ? `${mobilePanelMaxHeight}px`
+                  : floatingCardMaxHeight,
+            }}
           >
             <div className="flex h-full min-h-0 flex-col">
               <div className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}>
@@ -2692,7 +2748,13 @@ export function GuideShellStatic({
                 </div>
               </div>
 
-              <div className={keyboardCompressed ? "hidden" : "shrink-0 border-b border-slate-200 px-4 py-2.5 sm:px-5 sm:py-3"}>
+              <div
+                className={
+                  keyboardCompressed || (coarsePointer && thread.length > 1)
+                    ? "hidden"
+                    : "shrink-0 border-b border-slate-200 px-4 py-2.5 sm:px-5 sm:py-3"
+                }
+              >
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   Self-drive starters
                 </div>
