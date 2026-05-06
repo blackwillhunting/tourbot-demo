@@ -50,6 +50,33 @@ const GUIDE_CLEAR_SPOTLIGHT_EVENT = "guide-clear-spotlight";
 
 let activeSpotlightCleanup: (() => void) | null = null;
 let activeSpotlightOverlay: HTMLDivElement | null = null;
+let activeSpotlightRunId = 0;
+let activeSpotlightTimers: number[] = [];
+
+function clearScheduledSpotlightTimers() {
+  activeSpotlightTimers.forEach((timer) => window.clearTimeout(timer));
+  activeSpotlightTimers = [];
+}
+
+function beginSpotlightRun() {
+  activeSpotlightRunId += 1;
+  clearScheduledSpotlightTimers();
+  clearActiveSpotlight();
+  return activeSpotlightRunId;
+}
+
+function isCurrentSpotlightRun(runId: number) {
+  return runId === activeSpotlightRunId;
+}
+
+function scheduleSpotlightTimer(callback: () => void, delay: number) {
+  const timer = window.setTimeout(() => {
+    activeSpotlightTimers = activeSpotlightTimers.filter((item) => item !== timer);
+    callback();
+  }, delay);
+  activeSpotlightTimers.push(timer);
+  return timer;
+}
 
 type ShellState = "welcome" | "panel" | "launcher";
 
@@ -911,6 +938,8 @@ function clearShellSession() {
 }
 
 function clearActiveSpotlight() {
+  clearScheduledSpotlightTimers();
+
   if (activeSpotlightCleanup) {
     activeSpotlightCleanup();
     activeSpotlightCleanup = null;
@@ -931,7 +960,14 @@ function clearActiveSpotlight() {
 
     document
       .querySelectorAll<HTMLElement>('[data-guide-spotlight-target="true"]')
-      .forEach((node) => node.removeAttribute("data-guide-spotlight-target"));
+      .forEach((node) => {
+        node.removeAttribute("data-guide-spotlight-target");
+        node.style.outline = "";
+        node.style.outlineOffset = "";
+        node.style.boxShadow = "";
+        node.style.zIndex = "";
+        node.style.transition = "";
+      });
   }
 }
 
@@ -1133,22 +1169,32 @@ function runSpotlightWithRetries(
   delays = [250, 650, 1100, 1700, 2400],
   onSpotlightActive?: () => void,
 ) {
+  const runId = beginSpotlightRun();
   let found = false;
+  const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
+  const spotlightAfterScrollDelay =
+    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120);
 
   delays.forEach((delay) => {
-    window.setTimeout(() => {
-      if (found) return;
+    scheduleSpotlightTimer(() => {
+      if (!isCurrentSpotlightRun(runId) || found) return;
 
       const target = findTourTarget(action);
       if (!target) return;
 
       found = true;
-      smoothScrollElementIntoView(target);
-      window.setTimeout(() => {
-        spotlightTarget(target);
-        onSpotlightActive?.();
-      }, GUIDE_NAVIGATION_SCROLL_MS + 120);
-    }, delay);
+      scheduleSpotlightTimer(() => {
+        if (!isCurrentSpotlightRun(runId)) return;
+
+        smoothScrollElementIntoView(target);
+        scheduleSpotlightTimer(() => {
+          if (!isCurrentSpotlightRun(runId)) return;
+
+          spotlightTarget(target);
+          onSpotlightActive?.();
+        }, spotlightAfterScrollDelay);
+      }, mobileSettleDelay);
+    }, delay + mobileSettleDelay);
   });
 }
 
@@ -1185,11 +1231,22 @@ function runSuggestedNavigation(
 
   const target = findTourTarget(action);
   if (target) {
-    smoothScrollElementIntoView(target);
-    window.setTimeout(() => {
-      spotlightTarget(target);
-      onSpotlightActive?.();
-    }, GUIDE_NAVIGATION_SCROLL_MS + 120);
+    const runId = beginSpotlightRun();
+    const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
+    scheduleSpotlightTimer(() => {
+      if (!isCurrentSpotlightRun(runId)) return;
+
+      smoothScrollElementIntoView(target);
+      scheduleSpotlightTimer(
+        () => {
+          if (!isCurrentSpotlightRun(runId)) return;
+
+          spotlightTarget(target);
+          onSpotlightActive?.();
+        },
+        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120),
+      );
+    }, mobileSettleDelay);
     return;
   }
 
@@ -1981,29 +2038,31 @@ export function GuideShellStatic({
       const selector = (detail.selector || "").trim();
       if (!targetId && !selector) return;
 
-      clearActiveSpotlight();
+      const runId = beginSpotlightRun();
       setSpotlightActive(false);
 
       let found = false;
+      const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
       [80, 220, 420, 700, 1100, 1500].forEach((delay) => {
-        window.setTimeout(() => {
-          if (found) return;
+        scheduleSpotlightTimer(() => {
+          if (!isCurrentSpotlightRun(runId) || found) return;
 
           const target = findExactExternalSpotlightTarget(targetId, selector);
           if (!target) return;
 
           found = true;
-          target.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-            inline: "nearest",
-          });
+          scheduleSpotlightTimer(() => {
+            if (!isCurrentSpotlightRun(runId)) return;
 
-          window.setTimeout(() => {
-            spotlightTarget(target);
-            setSpotlightActive(true);
-          }, 260);
-        }, delay);
+            smoothScrollElementIntoView(target);
+            scheduleSpotlightTimer(() => {
+              if (!isCurrentSpotlightRun(runId)) return;
+
+              spotlightTarget(target);
+              setSpotlightActive(true);
+            }, GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120));
+          }, mobileSettleDelay);
+        }, delay + mobileSettleDelay);
       });
     };
 
