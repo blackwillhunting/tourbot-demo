@@ -1585,6 +1585,10 @@ export function GuideShellStatic({
   const [shellDatesApplied, setShellDatesApplied] = useState(false);
   const [activeDatePicker, setActiveDatePicker] =
     useState<DatePickerKind>(null);
+  const [shellCalendarMonth, setShellCalendarMonth] = useState(() => ({
+    year: 2026,
+    monthIndex: 6,
+  }));
   const [shellAdults, setShellAdults] = useState(1);
   const [shellChildren, setShellChildren] = useState(0);
   const [shellGuestsApplied, setShellGuestsApplied] = useState(false);
@@ -1930,6 +1934,7 @@ export function GuideShellStatic({
     setCurrentGuideMessageId(null);
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
+    setShellCalendarMonth({ year: 2026, monthIndex: 6 });
     setLastRefinementChipClicked(null);
     setShowWelcome(true);
     setShellState("welcome");
@@ -2586,9 +2591,16 @@ export function GuideShellStatic({
     setActiveDatePicker(null);
   };
 
+  const shiftShellCalendarMonth = (delta: number) => {
+    setShellCalendarMonth((current) => {
+      const next = new Date(current.year, current.monthIndex + delta, 1);
+      return { year: next.getFullYear(), monthIndex: next.getMonth() };
+    });
+  };
+
   const renderShellCalendar = (kind: Exclude<DatePickerKind, null>) => {
-    const year = 2026;
-    const monthIndex = 6; // July 2026. Kept fixed for the scripted demo path.
+    const year = shellCalendarMonth.year;
+    const monthIndex = shellCalendarMonth.monthIndex;
     const monthName = new Date(year, monthIndex, 1).toLocaleDateString(
       "en-US",
       {
@@ -2620,13 +2632,33 @@ export function GuideShellStatic({
               {monthName}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setActiveDatePicker(null)}
-            className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
-          >
-            Collapse
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => shiftShellCalendarMonth(-1)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
+              aria-label="Previous month"
+              title="Previous month"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftShellCalendarMonth(1)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
+              aria-label="Next month"
+              title="Next month"
+            >
+              →
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDatePicker(null)}
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
+            >
+              Collapse
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-7 gap-0.5 text-center text-[8px] font-semibold uppercase tracking-[0.02em] text-slate-400 sm:gap-1 sm:text-[10px] sm:tracking-[0.08em]">
@@ -2679,7 +2711,22 @@ export function GuideShellStatic({
     );
   };
 
-  const appendDraftInstruction = (instruction: string) => {
+  const completionInstructionPatterns: Record<
+    Exclude<CompletionWidget, null>,
+    RegExp
+  > = {
+    dates:
+      /(?:^|\s)Use\s+[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?[–-][A-Z][a-z]{2}\s+\d{1,2},\s*\d{4}\s+for this stay\./gi,
+    guests:
+      /(?:^|\s)Add\s+\d+\s+adult(?:s)?(?:,\s*\d+\s+child(?:ren)?)?\s+for this stay\./gi,
+    budget:
+      /(?:^|\s)Use\s+a\s+(?:value|moderate|premium|luxury)\s+budget\s+for this stay\./gi,
+  };
+
+  const appendDraftInstruction = (
+    instruction: string,
+    completionType: CompletionWidget = null,
+  ) => {
     const cleanInstruction = instruction.trim();
     if (!cleanInstruction) return;
 
@@ -2694,7 +2741,17 @@ export function GuideShellStatic({
     suppressNextDraftScrollRef.current = true;
 
     setDraftValue((current) => {
-      const trimmedCurrent = current.trim();
+      let trimmedCurrent = current.trim();
+      const pattern = completionType
+        ? completionInstructionPatterns[completionType]
+        : null;
+      if (pattern) {
+        trimmedCurrent = trimmedCurrent
+          .replace(pattern, " ")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+      }
+
       if (!trimmedCurrent) return sentence;
 
       const normalizedCurrent = trimmedCurrent.toLowerCase();
@@ -3244,6 +3301,7 @@ export function GuideShellStatic({
                                   setActiveDatePicker(null);
                                   appendDraftInstruction(
                                     `Use ${dateLabel} for this stay.`,
+                                    "dates",
                                   );
                                 }}
                                 className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-xs"
@@ -3336,6 +3394,7 @@ export function GuideShellStatic({
                                   setActiveCompletionWidget(null);
                                   appendDraftInstruction(
                                     `Add ${guestsLabel} for this stay.`,
+                                    "guests",
                                   );
                                 }}
                                 className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:px-4 sm:py-2 sm:text-xs"
@@ -3357,7 +3416,7 @@ export function GuideShellStatic({
                                   const budgetPrompt = `Use a ${band.toLowerCase()} budget for this stay.`;
                                   setShellBudgetBand(band);
                                   setActiveCompletionWidget(null);
-                                  appendDraftInstruction(budgetPrompt);
+                                  appendDraftInstruction(budgetPrompt, "budget");
                                 }}
                                 className={`rounded-lg border px-2.5 py-2 text-left transition sm:rounded-xl sm:px-3 sm:py-3 ${
                                   shellBudgetBand === band
@@ -3497,9 +3556,11 @@ export function GuideShellStatic({
               <button
                 data-demo-target="guide-open-answer"
                 onClick={openPanel}
-                className="shrink-0 rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                aria-label="Open message"
+                title="Open message"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
               >
-                Open answer
+                <MessageSquare className="h-4 w-4" />
               </button>
             </div>
           )}
