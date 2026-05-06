@@ -50,7 +50,7 @@ function Card({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[24px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur sm:rounded-[28px] ${className}`}
+      className={`overflow-hidden rounded-[18px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur sm:rounded-[28px] ${className}`}
     >
       {children}
     </div>
@@ -749,23 +749,23 @@ function getSectionVisual(section: Section, index: number) {
 function Hero({ page }: { page: Page }) {
   const visual = pageVisuals[page.id];
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-10">
-      <div className={`relative overflow-hidden rounded-[28px] bg-gradient-to-br ${visual.gradient} px-5 py-7 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
+    <section className="mx-auto max-w-7xl px-4 pb-5 pt-4 sm:px-6 sm:pb-10 sm:pt-10">
+      <div className={`relative overflow-hidden rounded-[28px] bg-gradient-to-br ${visual.gradient} px-4 py-5 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-white/10 bg-white/5 lg:block" />
 
-        <div className="relative grid gap-8 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
+        <div className="relative grid gap-5 sm:gap-8 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
           <div>
-            <div className="mb-4 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white/80">
+            <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
               {visual.eyebrow}
             </div>
-            <h1 className="max-w-4xl text-3xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
+            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
               {page.title}
             </h1>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">{page.hero}</p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">{page.hero}</p>
+            <div className="mt-5 flex flex-wrap gap-2 sm:mt-7 sm:gap-3">
               {[visual.metricA, visual.metricB, visual.proof].map((item) => (
-                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm text-white/90">
+                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-white/90 sm:px-4 sm:py-2 sm:text-sm">
                   {item}
                 </span>
               ))}
@@ -773,17 +773,17 @@ function Hero({ page }: { page: Page }) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[28px] border border-white/15 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-[20px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Guide readiness</div>
-              <div className="mt-3 text-2xl font-semibold">{page.sections.length} anchored stops</div>
-              <p className="mt-2 text-sm leading-6 text-slate-200">
+              <div className="mt-2 text-lg font-semibold sm:mt-3 sm:text-2xl">{page.sections.length} anchored stops</div>
+              <p className="mt-2 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
                 Each section remains addressable for spotlighting, multi-step navigation, and AI-guided explanations.
               </p>
             </div>
-            <div className="rounded-[28px] border border-white/15 bg-white/10 p-5 backdrop-blur">
+            <div className="rounded-[20px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Current path</div>
-              <div className="mt-3 text-2xl font-semibold">{page.subtitle}</div>
-              <p className="mt-2 text-sm leading-6 text-slate-200">
+              <div className="mt-2 text-lg font-semibold sm:mt-3 sm:text-2xl">{page.subtitle}</div>
+              <p className="mt-2 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
                 A more realistic page canvas gives the guide better visual moments to land on during demos.
               </p>
             </div>
@@ -796,11 +796,11 @@ function Hero({ page }: { page: Page }) {
 
 function HomeExtras() {
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 sm:pb-10">
-      <div className="mb-5 flex items-end justify-between gap-4">
+    <section className="mx-auto max-w-7xl px-4 pb-5 sm:px-6 sm:pb-10">
+      <div className="mb-4 flex items-end justify-between gap-4 sm:mb-5">
         <div>
-          <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Service lanes</div>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">A site-like overview with real visual destinations</h2>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">Service lanes</div>
+          <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A site-like overview with real visual destinations</h2>
         </div>
         <div className="hidden rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-sm md:block">
           Built for guided discovery
@@ -818,13 +818,13 @@ function HomeExtras() {
           ];
           return (
             <Card key={item.title} className={index === 0 ? "xl:row-span-2" : ""}>
-              <CardContent className="p-6">
-                <div className={`mb-5 inline-flex rounded-2xl bg-gradient-to-br ${tones[index]} p-3 text-white shadow-sm`}>
+              <CardContent className="p-4 sm:p-6">
+                <div className={`mb-3 inline-flex rounded-xl bg-gradient-to-br ${tones[index]} p-2.5 text-white shadow-sm sm:mb-5 sm:rounded-2xl sm:p-3`}>
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="text-lg font-semibold">{item.title}</div>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div className="text-base font-semibold sm:text-lg">{item.title}</div>
+                <p className="mt-2 text-sm leading-5 text-slate-600 sm:leading-6">{item.text}</p>
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100 sm:mt-5 sm:h-2">
                   <div className={`h-full rounded-full bg-gradient-to-r ${tones[index]}`} style={{ width: `${72 + index * 6}%` }} />
                 </div>
               </CardContent>
@@ -859,7 +859,7 @@ function SectionCard({
       initial={false}
       animate={{ scale: emphasized ? 1.012 : 1, opacity: 1 }}
       transition={{ duration: 0.25 }}
-      className="scroll-mt-28"
+      className="scroll-mt-24 sm:scroll-mt-28"
     >
       <Card
         className={`transition-all ${
@@ -868,11 +868,11 @@ function SectionCard({
       >
         <CardContent className={`p-0 ${wide ? "md:p-0" : ""}`}>
           <div className={`grid ${wide ? "md:grid-cols-[0.9fr_1.35fr]" : "md:grid-cols-[180px_1fr]"}`}>
-            <div className={`${dark ? "border-white/10 bg-white/10" : "border-slate-100 bg-slate-50"} border-b p-6 md:border-b-0 md:border-r`}>
-              <div className={`inline-flex rounded-2xl ${dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${visual.tone} text-white`} p-3 shadow-sm`}>
+            <div className={`${dark ? "border-white/10 bg-white/10" : "border-slate-100 bg-slate-50"} border-b p-4 md:border-b-0 md:border-r md:p-6`}>
+              <div className={`inline-flex rounded-2xl ${dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${visual.tone} text-white`} p-2.5 shadow-sm sm:p-3`}>
                 <Icon className="h-5 w-5" />
               </div>
-              <div className={`mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] ${dark ? "text-white/60" : "text-slate-500"}`}>
+              <div className={`mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] sm:mt-5 sm:text-[11px] sm:tracking-[0.18em] ${dark ? "text-white/60" : "text-slate-500"}`}>
                 {pageId} / {String(index + 1).padStart(2, "0")}
               </div>
               <div className={`mt-2 break-all text-xs ${dark ? "text-white/70" : "text-slate-400"}`}>
@@ -880,7 +880,7 @@ function SectionCard({
               </div>
             </div>
 
-            <div className="p-7 md:p-8">
+            <div className="p-5 md:p-8">
               <div className="flex flex-wrap gap-2">
                 {visual.chips.map((chip) => (
                   <span
@@ -894,24 +894,24 @@ function SectionCard({
                 ))}
               </div>
 
-              <h2 className={`mt-4 text-2xl font-semibold tracking-tight ${dark ? "text-white" : "text-slate-950"}`}>
+              <h2 className={`mt-3 text-xl font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}>
                 {section.title}
               </h2>
-              <p className={`mt-4 max-w-4xl text-base leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
+              <p className={`mt-3 max-w-4xl text-sm leading-6 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
                 {section.body}
               </p>
 
-              <div className={`mt-6 grid gap-3 ${wide ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                <div className={`rounded-2xl p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+              <div className={`mt-4 grid gap-2 sm:mt-6 sm:gap-3 ${wide ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                   <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Guide signal</div>
                   <div className="mt-2 text-sm font-semibold">Anchor-ready stop</div>
                 </div>
-                <div className={`rounded-2xl p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+                <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                   <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Buyer lens</div>
                   <div className="mt-2 text-sm font-semibold">Explain, compare, route</div>
                 </div>
                 {wide && (
-                  <div className={`rounded-2xl p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+                  <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                     <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Next action</div>
                     <div className="mt-2 text-sm font-semibold">Continue guided path</div>
                   </div>
@@ -1140,8 +1140,8 @@ export default function App() {
 
       {currentPage === "home" && <HomeExtras />}
 
-      <main className="mx-auto grid max-w-7xl gap-8 px-6 pb-20 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-5">
+      <main className="mx-auto grid max-w-7xl gap-5 px-4 pb-20 sm:px-6 lg:grid-cols-[1fr_320px] lg:gap-8">
+        <div className="space-y-4 sm:space-y-5">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentPage}
@@ -1149,7 +1149,7 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.2 }}
-              className="space-y-5"
+              className="space-y-4 sm:space-y-5"
             >
               {page.sections.map((section) => (
                 <SectionCard
@@ -1166,19 +1166,19 @@ export default function App() {
 
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Page map
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
                 These remain the same tour anchors used by the guide shell.
               </p>
-              <div className="mt-4 space-y-2">
+              <div className="mt-3 space-y-2 sm:mt-4">
                 {anchorButtons.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => jumpToAnchor(section.id)}
-                    className={`flex w-full items-start justify-between rounded-2xl border px-4 py-3 text-left transition ${
+                    className={`flex w-full items-start justify-between rounded-xl border px-3 py-2.5 text-left transition sm:rounded-2xl sm:px-4 sm:py-3 ${
                       activeAnchor === section.id
                         ? "border-slate-900 bg-slate-100 shadow-sm"
                         : "border-slate-200 bg-white hover:bg-slate-50"
@@ -1198,11 +1198,11 @@ export default function App() {
           </Card>
 
           <Card className={`bg-gradient-to-br ${pageVisuals[currentPage].accent} text-white`}>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-white/60">
                 Recommended path
               </div>
-              <p className="mt-4 text-sm leading-6 text-slate-200">
+              <p className="mt-3 text-sm leading-5 text-slate-200 sm:mt-4 sm:leading-6">
                 This page now behaves more like a real B2B destination: visual hierarchy, varied cards, and clearer stops for guided tours.
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
@@ -1222,12 +1222,12 @@ export default function App() {
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 <Database className="h-4 w-4" />
                 Demo integrity
               </div>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+              <div className="mt-3 space-y-2 text-sm leading-5 text-slate-600 sm:mt-4 sm:space-y-3 sm:leading-6">
                 <div>• Page IDs remain unchanged</div>
                 <div>• Section anchors remain unchanged</div>
                 <div>• Nav labels remain unchanged</div>

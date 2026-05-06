@@ -2550,14 +2550,14 @@ export function GuideShellStatic({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 6 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
-        className="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm sm:p-3"
+        className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-2xl sm:p-3"
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-2 sm:mb-3 sm:gap-3">
           <div>
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               {kind === "check-in" ? "Check-in calendar" : "Check-out calendar"}
             </div>
-            <div className="mt-1 text-sm font-semibold text-slate-950">
+            <div className="mt-0.5 text-xs font-semibold text-slate-950 sm:mt-1 sm:text-sm">
               {monthName}
             </div>
           </div>
@@ -2570,7 +2570,7 @@ export function GuideShellStatic({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400">
+        <div className="grid grid-cols-7 gap-0.5 text-center text-[9px] font-semibold uppercase tracking-[0.04em] text-slate-400 sm:gap-1 sm:text-[10px] sm:tracking-[0.08em]">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
             <div key={day} className="py-1">
               {day}
@@ -2578,7 +2578,7 @@ export function GuideShellStatic({
           ))}
         </div>
 
-        <div className="mt-1 grid grid-cols-7 gap-1">
+        <div className="mt-1 grid grid-cols-7 gap-0.5 sm:gap-1">
           {blanks.map((_, index) => (
             <div key={`blank-${index}`} />
           ))}
@@ -2603,7 +2603,7 @@ export function GuideShellStatic({
                 type="button"
                 disabled={disabled}
                 onClick={() => selectShellCalendarDate(kind, value)}
-                className={`rounded-xl px-0 py-2 text-xs font-semibold transition ${
+                className={`rounded-lg px-0 py-1.5 text-[11px] font-semibold transition sm:rounded-xl sm:py-2 sm:text-xs ${
                   isSelected
                     ? "bg-slate-950 text-white shadow-sm"
                     : disabled
@@ -2861,7 +2861,7 @@ export function GuideShellStatic({
                     <div className="text-sm font-semibold text-slate-950">
                       TourBot
                     </div>
-                    <div className="text-xs text-slate-500">
+                    <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
                       {modeCopy.statusLabel}
                     </div>
                   </div>
@@ -3064,18 +3064,18 @@ export function GuideShellStatic({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
-                        className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm sm:p-3"
+                        className="mb-2 max-h-[min(46dvh,360px)] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3"
                       >
-                        <div className="mb-3 flex items-start justify-between gap-2 sm:gap-3">
+                        <div className="mb-2 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
                           <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">
                               {activeCompletionWidget === "dates"
                                 ? "Select dates"
                                 : activeCompletionWidget === "guests"
                                   ? "Add guests"
                                   : "Set budget"}
                             </div>
-                            <div className="mt-1 text-xs leading-5 text-slate-500">
+                            <div className="mt-0.5 text-[11px] leading-4 text-slate-500 sm:mt-1 sm:text-xs sm:leading-5">
                               {activeCompletionWidget === "dates"
                                 ? "Choose check-in and check-out before handing off to booking."
                                 : activeCompletionWidget === "guests"
@@ -3096,8 +3096,8 @@ export function GuideShellStatic({
                         </div>
 
                         {activeCompletionWidget === "dates" && (
-                          <div className="space-y-3">
-                            <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="space-y-2 sm:space-y-3">
+                            <div className="grid gap-2 min-[390px]:grid-cols-2 sm:grid-cols-2">
                               <button
                                 data-demo-target="date-check-in-expand"
                                 type="button"
@@ -3106,19 +3106,19 @@ export function GuideShellStatic({
                                     current === "check-in" ? null : "check-in",
                                   )
                                 }
-                                className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
+                                className={`rounded-lg bg-white px-2.5 py-2 text-left shadow-sm transition hover:bg-slate-50 sm:rounded-xl sm:px-3 ${
                                   activeDatePicker === "check-in"
                                     ? "ring-2 ring-slate-900/10"
                                     : ""
                                 }`}
                               >
-                                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                <span className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400 sm:text-[10px] sm:tracking-[0.14em]">
                                   Check-in
                                 </span>
-                                <span className="mt-1 block text-sm font-semibold text-slate-950">
+                                <span className="mt-0.5 block text-xs font-semibold text-slate-950 sm:mt-1 sm:text-sm">
                                   {formatShellDate(shellCheckInDate)}
                                 </span>
-                                <span className="mt-1 block text-xs text-slate-500">
+                                <span className="mt-0.5 block text-[11px] text-slate-500 sm:mt-1 sm:text-xs">
                                   Expand calendar
                                 </span>
                               </button>
@@ -3133,19 +3133,19 @@ export function GuideShellStatic({
                                       : "check-out",
                                   )
                                 }
-                                className={`rounded-xl bg-white px-3 py-2 text-left shadow-sm transition hover:bg-slate-50 ${
+                                className={`rounded-lg bg-white px-2.5 py-2 text-left shadow-sm transition hover:bg-slate-50 sm:rounded-xl sm:px-3 ${
                                   activeDatePicker === "check-out"
                                     ? "ring-2 ring-slate-900/10"
                                     : ""
                                 }`}
                               >
-                                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                <span className="block text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-400 sm:text-[10px] sm:tracking-[0.14em]">
                                   Check-out
                                 </span>
-                                <span className="mt-1 block text-sm font-semibold text-slate-950">
+                                <span className="mt-0.5 block text-xs font-semibold text-slate-950 sm:mt-1 sm:text-sm">
                                   {formatShellDate(shellCheckOutDate)}
                                 </span>
-                                <span className="mt-1 block text-xs text-slate-500">
+                                <span className="mt-0.5 block text-[11px] text-slate-500 sm:mt-1 sm:text-xs">
                                   Expand calendar
                                 </span>
                               </button>
@@ -3157,8 +3157,8 @@ export function GuideShellStatic({
                               {activeDatePicker === "check-out" &&
                                 renderShellCalendar("check-out")}
                             </AnimatePresence>
-                            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                              <div className="text-xs text-slate-500">
+                            <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                              <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
                                 {shellDatesApplied
                                   ? `Saved: ${formatShellDateRange(shellCheckInDate, shellCheckOutDate)}`
                                   : shellCheckInDate &&
@@ -3187,7 +3187,7 @@ export function GuideShellStatic({
                                     `Use ${dateLabel} for this stay.`,
                                   );
                                 }}
-                                className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                                className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-xs"
                               >
                                 Apply dates
                               </button>
@@ -3196,7 +3196,7 @@ export function GuideShellStatic({
                         )}
 
                         {activeCompletionWidget === "guests" && (
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             {[
                               {
                                 label: "Adults",
@@ -3213,13 +3213,13 @@ export function GuideShellStatic({
                             ].map((item) => (
                               <div
                                 key={item.label}
-                                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 shadow-sm"
+                                className="flex items-center justify-between rounded-lg bg-white px-2.5 py-2 shadow-sm sm:rounded-xl sm:px-3"
                               >
                                 <div>
                                   <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                                     {item.label}
                                   </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-950">
+                                  <div className="mt-0.5 text-xs font-semibold text-slate-950 sm:mt-1 sm:text-sm">
                                     {item.value}
                                   </div>
                                 </div>
@@ -3237,7 +3237,7 @@ export function GuideShellStatic({
                                       );
                                       setShellGuestsApplied(false);
                                     }}
-                                    className="h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                                    className="h-7 w-7 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:h-8 sm:w-8 sm:text-sm"
                                   >
                                     −
                                   </button>
@@ -3252,15 +3252,15 @@ export function GuideShellStatic({
                                       item.setValue(item.value + 1);
                                       setShellGuestsApplied(false);
                                     }}
-                                    className="h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800"
+                                    className="h-7 w-7 rounded-full bg-slate-950 text-xs font-semibold text-white transition hover:bg-slate-800 sm:h-8 sm:w-8 sm:text-sm"
                                   >
                                     +
                                   </button>
                                 </div>
                               </div>
                             ))}
-                            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                              <div className="text-xs text-slate-500">
+                            <div className="flex flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                              <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
                                 {shellGuestsApplied
                                   ? `Saved: ${guestSummary(shellAdults, shellChildren)}`
                                   : "Ready to save guests."}
@@ -3279,7 +3279,7 @@ export function GuideShellStatic({
                                     `Add ${guestsLabel} for this stay.`,
                                   );
                                 }}
-                                className="rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                                className="rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:px-4 sm:py-2 sm:text-xs"
                               >
                                 Apply guests
                               </button>
@@ -3288,7 +3288,7 @@ export function GuideShellStatic({
                         )}
 
                         {activeCompletionWidget === "budget" && (
-                          <div className="grid gap-2 sm:grid-cols-2">
+                          <div className="grid gap-2 min-[390px]:grid-cols-2 sm:grid-cols-2">
                             {BUDGET_BANDS.map((band) => (
                               <button
                                 key={band}
@@ -3300,17 +3300,17 @@ export function GuideShellStatic({
                                   setActiveCompletionWidget(null);
                                   appendDraftInstruction(budgetPrompt);
                                 }}
-                                className={`rounded-xl border px-3 py-3 text-left transition ${
+                                className={`rounded-lg border px-2.5 py-2 text-left transition sm:rounded-xl sm:px-3 sm:py-3 ${
                                   shellBudgetBand === band
                                     ? "border-slate-950 bg-slate-950 text-white shadow-sm"
                                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                                 }`}
                               >
-                                <div className="text-sm font-semibold">
+                                <div className="text-xs font-semibold sm:text-sm">
                                   {band}
                                 </div>
                                 <div
-                                  className={`mt-1 text-xs ${shellBudgetBand === band ? "text-white/70" : "text-slate-500"}`}
+                                  className={`mt-0.5 text-[11px] leading-4 sm:mt-1 sm:text-xs ${shellBudgetBand === band ? "text-white/70" : "text-slate-500"}`}
                                 >
                                   {band === "Value"
                                     ? "Prioritize lower rates."
@@ -3329,9 +3329,9 @@ export function GuideShellStatic({
                           shellGuestsApplied ||
                           shellBudgetBand ||
                           shellBreakfastRequested) && (
-                          <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                          <div className="mt-2 flex flex-wrap gap-1.5 border-t border-slate-200 pt-2 sm:mt-3 sm:gap-2 sm:pt-3">
                             {shellDatesApplied && (
-                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 sm:px-3 sm:py-1 sm:text-xs">
                                 {formatShellDateRange(
                                   shellCheckInDate,
                                   shellCheckOutDate,
@@ -3339,12 +3339,12 @@ export function GuideShellStatic({
                               </span>
                             )}
                             {shellGuestsApplied && (
-                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 sm:px-3 sm:py-1 sm:text-xs">
                                 {guestSummary(shellAdults, shellChildren)}
                               </span>
                             )}
                             {shellBudgetBand && (
-                              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 sm:px-3 sm:py-1 sm:text-xs">
                                 {shellBudgetBand} budget
                               </span>
                             )}
