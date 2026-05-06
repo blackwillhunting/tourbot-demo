@@ -83,7 +83,7 @@ function Button({
   return (
     <button
       {...props}
-      className={`inline-flex items-center justify-center rounded-2xl px-4 py-2 text-sm font-medium transition ${variantClass} ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition ${variantClass} ${className}`}
     >
       {children}
     </button>
@@ -749,8 +749,8 @@ function getSectionVisual(section: Section, index: number) {
 function Hero({ page }: { page: Page }) {
   const visual = pageVisuals[page.id];
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-5 pt-4 sm:px-6 sm:pb-10 sm:pt-10">
-      <div className={`relative overflow-hidden rounded-[28px] bg-gradient-to-br ${visual.gradient} px-4 py-5 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
+    <section className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 sm:pb-10 sm:pt-10">
+      <div className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-white/10 bg-white/5 lg:block" />
 
@@ -759,31 +759,31 @@ function Hero({ page }: { page: Page }) {
             <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
               {visual.eyebrow}
             </div>
-            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
+            <h1 className="max-w-4xl text-xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
               {page.title}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">{page.hero}</p>
-            <div className="mt-5 flex flex-wrap gap-2 sm:mt-7 sm:gap-3">
+            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">{page.hero}</p>
+            <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-7 sm:gap-3">
               {[visual.metricA, visual.metricB, visual.proof].map((item) => (
-                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-white/90 sm:px-4 sm:py-2 sm:text-sm">
+                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/90 sm:px-4 sm:py-2 sm:text-sm">
                   {item}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[20px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:rounded-[28px] sm:p-5">
+          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Guide readiness</div>
-              <div className="mt-2 text-lg font-semibold sm:mt-3 sm:text-2xl">{page.sections.length} anchored stops</div>
-              <p className="mt-2 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
+              <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">{page.sections.length} anchored stops</div>
+              <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
                 Each section remains addressable for spotlighting, multi-step navigation, and AI-guided explanations.
               </p>
             </div>
-            <div className="rounded-[20px] border border-white/15 bg-white/10 p-4 backdrop-blur sm:rounded-[28px] sm:p-5">
+            <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Current path</div>
-              <div className="mt-2 text-lg font-semibold sm:mt-3 sm:text-2xl">{page.subtitle}</div>
-              <p className="mt-2 text-xs leading-5 text-slate-200 sm:text-sm sm:leading-6">
+              <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">{page.subtitle}</div>
+              <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
                 A more realistic page canvas gives the guide better visual moments to land on during demos.
               </p>
             </div>
@@ -796,18 +796,18 @@ function Hero({ page }: { page: Page }) {
 
 function HomeExtras() {
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-5 sm:px-6 sm:pb-10">
-      <div className="mb-4 flex items-end justify-between gap-4 sm:mb-5">
+    <section className="mx-auto max-w-7xl px-4 pb-3 sm:px-6 sm:pb-10">
+      <div className="mb-3 flex items-end justify-between gap-4 sm:mb-5">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">Service lanes</div>
-          <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A site-like overview with real visual destinations</h2>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A site-like overview with real visual destinations</h2>
         </div>
         <div className="hidden rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-sm md:block">
           Built for guided discovery
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         {solutionHighlights.map((item, index) => {
           const Icon = item.icon;
           const tones = [
@@ -818,13 +818,13 @@ function HomeExtras() {
           ];
           return (
             <Card key={item.title} className={index === 0 ? "xl:row-span-2" : ""}>
-              <CardContent className="p-4 sm:p-6">
-                <div className={`mb-3 inline-flex rounded-xl bg-gradient-to-br ${tones[index]} p-2.5 text-white shadow-sm sm:mb-5 sm:rounded-2xl sm:p-3`}>
-                  <Icon className="h-5 w-5" />
+              <CardContent className="p-3 sm:p-6">
+                <div className={`mb-2 inline-flex rounded-lg bg-gradient-to-br ${tones[index]} p-2 text-white shadow-sm sm:mb-5 sm:rounded-2xl sm:p-3`}>
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="text-base font-semibold sm:text-lg">{item.title}</div>
-                <p className="mt-2 text-sm leading-5 text-slate-600 sm:leading-6">{item.text}</p>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-100 sm:mt-5 sm:h-2">
+                <div className="text-sm font-semibold sm:text-lg">{item.title}</div>
+                <p className="mt-1.5 text-xs leading-4 text-slate-600 sm:leading-6">{item.text}</p>
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-100 sm:mt-5 sm:h-2">
                   <div className={`h-full rounded-full bg-gradient-to-r ${tones[index]}`} style={{ width: `${72 + index * 6}%` }} />
                 </div>
               </CardContent>
@@ -859,7 +859,7 @@ function SectionCard({
       initial={false}
       animate={{ scale: emphasized ? 1.012 : 1, opacity: 1 }}
       transition={{ duration: 0.25 }}
-      className="scroll-mt-24 sm:scroll-mt-28"
+      className="scroll-mt-20 sm:scroll-mt-28"
     >
       <Card
         className={`transition-all ${
@@ -868,24 +868,24 @@ function SectionCard({
       >
         <CardContent className={`p-0 ${wide ? "md:p-0" : ""}`}>
           <div className={`grid ${wide ? "md:grid-cols-[0.9fr_1.35fr]" : "md:grid-cols-[180px_1fr]"}`}>
-            <div className={`${dark ? "border-white/10 bg-white/10" : "border-slate-100 bg-slate-50"} border-b p-4 md:border-b-0 md:border-r md:p-6`}>
-              <div className={`inline-flex rounded-2xl ${dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${visual.tone} text-white`} p-2.5 shadow-sm sm:p-3`}>
-                <Icon className="h-5 w-5" />
+            <div className={`${dark ? "border-white/10 bg-white/10" : "border-slate-100 bg-slate-50"} border-b p-3 md:border-b-0 md:border-r md:p-6`}>
+              <div className={`inline-flex rounded-2xl ${dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${visual.tone} text-white`} p-2 shadow-sm sm:p-3`}>
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div className={`mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] sm:mt-5 sm:text-[11px] sm:tracking-[0.18em] ${dark ? "text-white/60" : "text-slate-500"}`}>
+              <div className={`mt-2 text-[9px] font-semibold uppercase tracking-[0.16em] sm:mt-5 sm:text-[11px] sm:tracking-[0.18em] ${dark ? "text-white/60" : "text-slate-500"}`}>
                 {pageId} / {String(index + 1).padStart(2, "0")}
               </div>
-              <div className={`mt-2 break-all text-xs ${dark ? "text-white/70" : "text-slate-400"}`}>
+              <div className={`mt-1 hidden break-all text-xs sm:block ${dark ? "text-white/70" : "text-slate-400"}`}>
                 #{section.id}
               </div>
             </div>
 
-            <div className="p-5 md:p-8">
-              <div className="flex flex-wrap gap-2">
+            <div className="p-3 sm:p-5 md:p-8">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {visual.chips.map((chip) => (
                   <span
                     key={chip}
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-xs ${
                       dark ? "bg-white/10 text-white/80" : "bg-slate-100 text-slate-600"
                     }`}
                   >
@@ -894,24 +894,24 @@ function SectionCard({
                 ))}
               </div>
 
-              <h2 className={`mt-3 text-xl font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}>
+              <h2 className={`mt-2 text-lg font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}>
                 {section.title}
               </h2>
-              <p className={`mt-3 max-w-4xl text-sm leading-6 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
+              <p className={`mt-2 max-w-4xl text-[13px] leading-5 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
                 {section.body}
               </p>
 
-              <div className={`mt-4 grid gap-2 sm:mt-6 sm:gap-3 ${wide ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+              <div className={`mt-3 hidden gap-2 sm:mt-6 sm:grid sm:gap-3 ${wide ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                <div className={`rounded-lg p-2.5 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                   <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Guide signal</div>
                   <div className="mt-2 text-sm font-semibold">Anchor-ready stop</div>
                 </div>
-                <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+                <div className={`rounded-lg p-2.5 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                   <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Buyer lens</div>
                   <div className="mt-2 text-sm font-semibold">Explain, compare, route</div>
                 </div>
                 {wide && (
-                  <div className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
+                  <div className={`rounded-lg p-2.5 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}>
                     <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>Next action</div>
                     <div className="mt-2 text-sm font-semibold">Continue guided path</div>
                   </div>
@@ -1166,7 +1166,7 @@ export default function App() {
 
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <Card>
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Page map
               </div>
@@ -1198,14 +1198,14 @@ export default function App() {
           </Card>
 
           <Card className={`bg-gradient-to-br ${pageVisuals[currentPage].accent} text-white`}>
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-white/60">
                 Recommended path
               </div>
               <p className="mt-3 text-sm leading-5 text-slate-200 sm:mt-4 sm:leading-6">
                 This page now behaves more like a real B2B destination: visual hierarchy, varied cards, and clearer stops for guided tours.
               </p>
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {prevPage && (
                   <Button variant="outline" onClick={() => onNavigate(prevPage)} className="border-white/20 bg-white/10 text-white hover:bg-white/15">
                     Previous page
@@ -1222,7 +1222,7 @@ export default function App() {
           </Card>
 
           <Card>
-            <CardContent className="p-4 sm:p-6">
+            <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 <Database className="h-4 w-4" />
                 Demo integrity

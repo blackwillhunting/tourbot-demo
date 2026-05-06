@@ -534,7 +534,7 @@ function Header({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11">
             <Compass className="h-5 w-5" />
@@ -635,29 +635,29 @@ function Header({
 function Hero({ page }: { page: Page }) {
   const visual = pageVisuals[page.id];
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-5 pt-4 sm:px-6 sm:pb-10 sm:pt-10">
+    <section className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 sm:pb-10 sm:pt-10">
       <div
-        className={`relative overflow-hidden rounded-[22px] bg-gradient-to-br ${visual.gradient} px-4 py-5 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[40px] sm:px-6 sm:py-8 md:px-10 md:py-12`}
+        className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[40px] sm:px-6 sm:py-8 md:px-10 md:py-12`}
       >
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-300/10 blur-3xl" />
 
-        <div className="relative grid gap-5 sm:gap-8 lg:grid-cols-[1.18fr_0.82fr] lg:items-end">
+        <div className="relative grid gap-2 sm:gap-8 lg:grid-cols-[1.18fr_0.82fr] lg:items-end">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+            <div className="mb-1.5 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
               {visual.eyebrow}
             </div>
-            <h1 className="max-w-4xl text-2xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
+            <h1 className="max-w-4xl text-xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
               {page.title}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">
+            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">
               {page.hero}
             </p>
-            <div className="mt-5 flex flex-wrap gap-2 sm:mt-7 sm:gap-3">
+            <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-7 sm:gap-3">
               {[visual.metricA, visual.metricB, visual.proof].map((item) => (
                 <span
                   key={item}
-                  className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs text-white/90 sm:px-4 sm:py-2 sm:text-sm"
+                  className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/90 sm:px-4 sm:py-2 sm:text-sm"
                 >
                   {item}
                 </span>
@@ -668,20 +668,20 @@ function Hero({ page }: { page: Page }) {
           <div
             id="hero-booking-widget"
             data-tour-id="hero-booking-widget"
-            className="rounded-[20px] border border-white/15 bg-white/12 p-4 shadow-2xl backdrop-blur sm:rounded-[32px] sm:p-5"
+            className="rounded-[16px] border border-white/15 bg-white/12 p-3 shadow-2xl backdrop-blur sm:rounded-[32px] sm:p-5"
           >
-            <div className="mb-3 flex items-center justify-between sm:mb-4">
+            <div className="mb-2 flex items-center justify-between sm:mb-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
                   Trip starter
                 </div>
-                <div className="mt-1 text-lg font-semibold sm:text-xl">
+                <div className="mt-1 text-base font-semibold sm:text-xl">
                   Tell us what matters
                 </div>
               </div>
               <Search className="h-5 w-5 text-white/70" />
             </div>
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               {[
                 "Quiet room for work",
                 "3 nights",
@@ -690,13 +690,13 @@ function Hero({ page }: { page: Page }) {
               ].map((item) => (
                 <div
                   key={item}
-                  className="rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs text-slate-100 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
+                  className="rounded-xl border border-white/10 bg-white/10 px-2.5 py-1.5 text-[11px] text-slate-100 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm"
                 >
                   {item}
                 </div>
               ))}
             </div>
-            <div className="mt-4 rounded-xl bg-white px-3 py-2.5 text-xs font-semibold text-slate-950 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
+            <div className="mt-3 rounded-xl bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-950 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
               AI can recommend → you can refine → booking preloads
             </div>
           </div>
@@ -735,13 +735,13 @@ function HomeExtras() {
   ];
 
   return (
-    <section className="mx-auto max-w-7xl px-4 pb-5 sm:px-6 sm:pb-10">
-      <div className="mb-4 flex items-end justify-between gap-4 sm:mb-5">
+    <section className="mx-auto max-w-7xl px-4 pb-3 sm:px-6 sm:pb-10">
+      <div className="mb-3 flex items-end justify-between gap-4 sm:mb-5">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">
             Guided paths
           </div>
-          <h2 className="mt-1.5 text-xl font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">
             Commerce journeys with clear visual destinations
           </h2>
         </div>
@@ -750,19 +750,19 @@ function HomeExtras() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2.5 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
         {paths.map((item) => {
           const Icon = item.icon;
           return (
             <Card key={item.title}>
-              <div className="p-4 sm:p-6">
+              <div className="p-3 sm:p-6">
                 <div
-                  className={`mb-3 inline-flex rounded-xl bg-gradient-to-br ${item.tone} p-2.5 text-white shadow-sm sm:mb-5 sm:rounded-2xl sm:p-3`}
+                  className={`mb-2 inline-flex rounded-lg bg-gradient-to-br ${item.tone} p-2 text-white shadow-sm sm:mb-5 sm:rounded-2xl sm:p-3`}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
-                <div className="text-base font-semibold sm:text-lg">{item.title}</div>
-                <p className="mt-2 text-sm leading-5 text-slate-600 sm:leading-6">
+                <div className="text-sm font-semibold sm:text-lg">{item.title}</div>
+                <p className="mt-1.5 text-xs leading-4 text-slate-600 sm:leading-6">
                   {item.text}
                 </p>
               </div>
@@ -864,7 +864,7 @@ function BookingMock({
     <div
       id="booking-summary-card"
       data-tour-id="booking-summary-card"
-      className="relative rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm transition sm:rounded-[28px] sm:p-5"
+      className="relative rounded-[16px] border border-slate-200 bg-white p-3 shadow-sm transition sm:rounded-[28px] sm:p-5"
     >
       <div
         data-tour-id="booking-panel-main"
@@ -874,7 +874,7 @@ function BookingMock({
           <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
             Booking summary
           </div>
-          <div className="mt-1 text-lg font-semibold text-slate-950">
+          <div className="mt-1 text-base font-semibold text-slate-950">
             {roomMeta?.title || "No room selected"}
           </div>
           {roomMeta && !compact && (
@@ -886,10 +886,10 @@ function BookingMock({
         <CreditCard className="h-5 w-5 text-slate-500" />
       </div>
 
-      <div className="mt-3 space-y-1.5 text-xs sm:mt-4 sm:space-y-2 sm:text-sm">
+      <div className="mt-2 space-y-1 text-[11px] sm:mt-4 sm:space-y-2 sm:text-sm">
         <div
           data-tour-id="booking-selected-room"
-          className={`flex justify-between rounded-xl px-3 py-1.5 sm:rounded-2xl sm:py-2 ${
+          className={`flex justify-between rounded-lg px-2.5 py-1.5 sm:rounded-2xl sm:py-2 ${
             roomMeta
               ? "bg-emerald-50 text-emerald-800"
               : "bg-amber-50 text-amber-900"
@@ -901,7 +901,7 @@ function BookingMock({
 
         <div
           data-tour-id="booking-missing-dates"
-          className={`flex justify-between rounded-xl px-3 py-1.5 sm:rounded-2xl sm:py-2 ${
+          className={`flex justify-between rounded-lg px-2.5 py-1.5 sm:rounded-2xl sm:py-2 ${
             datesSelected
               ? "bg-emerald-50 text-emerald-800"
               : "bg-amber-50 text-amber-900"
@@ -913,7 +913,7 @@ function BookingMock({
 
         <div
           data-tour-id="booking-missing-guests"
-          className={`flex justify-between rounded-xl px-3 py-1.5 sm:rounded-2xl sm:py-2 ${
+          className={`flex justify-between rounded-lg px-2.5 py-1.5 sm:rounded-2xl sm:py-2 ${
             guestsSelected
               ? "bg-emerald-50 text-emerald-800"
               : "bg-amber-50 text-amber-900"
@@ -946,7 +946,7 @@ function BookingMock({
         {!compact && (
           <div
             data-tour-id="booking-budget-preference"
-            className={`flex justify-between rounded-xl px-3 py-1.5 sm:rounded-2xl sm:py-2 ${
+            className={`flex justify-between rounded-lg px-2.5 py-1.5 sm:rounded-2xl sm:py-2 ${
               budgetBand
                 ? "bg-emerald-50 text-emerald-800"
                 : "bg-slate-50 text-slate-700"
@@ -1023,7 +1023,7 @@ function SectionCard({
       initial={false}
       animate={{ scale: emphasized || isSelectedRoom ? 1.012 : 1, opacity: 1 }}
       transition={{ duration: 0.25 }}
-      className="scroll-mt-24 sm:scroll-mt-28"
+      className="scroll-mt-20 sm:scroll-mt-28"
     >
       <Card
         className={`${
@@ -1040,40 +1040,40 @@ function SectionCard({
           className={`grid ${isRoom || dark ? "lg:grid-cols-[0.82fr_1.18fr]" : "md:grid-cols-[190px_1fr]"}`}
         >
           {isRoom ? (
-            <div className="relative min-h-[190px] overflow-hidden border-b text-white sm:min-h-[240px] md:min-h-[280px] md:border-b-0 md:border-r md:border-white/10">
+            <div className="relative min-h-[96px] overflow-hidden border-b text-white sm:min-h-[240px] md:min-h-[280px] md:border-b-0 md:border-r md:border-white/10">
               <div
                 className={`absolute inset-0 bg-gradient-to-br ${visual.tone}`}
               />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,rgba(255,255,255,0.42),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.14),transparent_45%)]" />
-              <div className="absolute bottom-4 right-4 h-20 w-20 rounded-[26px] border border-white/15 bg-white/10 shadow-2xl backdrop-blur sm:bottom-5 sm:right-5 sm:h-28 sm:w-28 sm:rounded-[34px]" />
-              <div className="absolute bottom-8 right-10 h-12 w-12 rotate-12 rounded-[18px] border border-white/10 bg-white/10 sm:bottom-10 sm:right-12 sm:h-16 sm:w-16 sm:rounded-[24px]" />
+              <div className="absolute bottom-3 right-3 h-12 w-12 rounded-[26px] border border-white/15 bg-white/10 shadow-2xl backdrop-blur sm:bottom-5 sm:right-5 sm:h-28 sm:w-28 sm:rounded-[34px]" />
+              <div className="absolute bottom-6 right-8 h-8 w-8 rotate-12 rounded-[18px] border border-white/10 bg-white/10 sm:bottom-10 sm:right-12 sm:h-16 sm:w-16 sm:rounded-[24px]" />
 
-              <div className="relative z-10 flex h-full min-h-[190px] flex-col justify-between p-4 sm:min-h-[240px] sm:p-5 md:min-h-[280px] md:p-6">
+              <div className="relative z-10 flex h-full min-h-[96px] flex-row items-end justify-between gap-3 p-3 sm:flex-col sm:items-stretch sm:min-h-[240px] sm:p-5 md:min-h-[280px] md:p-6">
                 <div>
-                  <div className="inline-flex rounded-xl bg-white/15 p-2.5 text-white shadow-sm backdrop-blur sm:rounded-2xl sm:p-3">
-                    <Icon className="h-5 w-5" />
+                  <div className="inline-flex rounded-xl bg-white/15 p-2 text-white shadow-sm backdrop-blur sm:rounded-2xl sm:p-3">
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:mt-5 sm:text-[11px] sm:tracking-[0.18em]">
+                  <div className="mt-1.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:mt-5 sm:text-[11px] sm:tracking-[0.18em]">
                     {section.eyebrow ||
                       `${pageId} / ${String(index + 1).padStart(2, "0")}`}
                   </div>
-                  <div className="mt-3 break-all text-xs text-white/65">
+                  <div className="mt-1 hidden break-all text-xs text-white/65 sm:block">
                     #{section.id}
                   </div>
                 </div>
 
                 <div>
                   {isSelectedRoom && (
-                    <div className="mb-3 inline-flex rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-50 ring-1 ring-emerald-200/30">
+                    <div className="mb-1.5 inline-flex rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-50 ring-1 ring-emerald-200/30">
                       Selected for booking
                     </div>
                   )}
                   {section.price && (
-                    <div className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    <div className="text-lg font-semibold tracking-tight sm:text-3xl">
                       {section.price}
                     </div>
                   )}
-                  <div className="mt-2 text-xs font-medium text-white/70">
+                  <div className="mt-1 text-[10px] font-medium text-white/70">
                     Premium commerce object
                   </div>
                 </div>
@@ -1081,32 +1081,32 @@ function SectionCard({
             </div>
           ) : (
             <div
-              className={`${dark ? "border-white/10 bg-white/10" : `bg-gradient-to-br ${visual.tone} text-white`} min-h-[160px] border-b p-4 sm:min-h-[190px] md:min-h-[220px] md:border-b-0 md:border-r md:p-6`}
+              className={`${dark ? "border-white/10 bg-white/10" : `bg-gradient-to-br ${visual.tone} text-white`} min-h-[86px] border-b p-3 sm:min-h-[190px] md:min-h-[220px] md:border-b-0 md:border-r md:p-6`}
             >
-              <div className="inline-flex rounded-xl bg-white/15 p-2.5 text-white shadow-sm sm:rounded-2xl sm:p-3">
-                <Icon className="h-5 w-5" />
+              <div className="inline-flex rounded-xl bg-white/15 p-2 text-white shadow-sm sm:rounded-2xl sm:p-3">
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-              <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+              <div className="mt-2 text-[9px] font-semibold uppercase tracking-[0.18em] text-white/65">
                 {section.eyebrow ||
                   `${pageId} / ${String(index + 1).padStart(2, "0")}`}
               </div>
-              <div className="mt-3 break-all text-xs text-white/65">
+              <div className="mt-1 hidden break-all text-xs text-white/65 sm:block">
                 #{section.id}
               </div>
               {section.price && (
-                <div className="mt-4 text-2xl font-semibold tracking-tight sm:mt-5 sm:text-3xl">
+                <div className="mt-2 text-lg font-semibold tracking-tight sm:mt-5 sm:text-3xl">
                   {section.price}
                 </div>
               )}
             </div>
           )}
 
-          <div className="p-5 md:p-8">
-            <div className="flex flex-wrap gap-2">
+          <div className="p-3 sm:p-5 md:p-8">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {(section.tags || visual.chips).map((chip) => (
                 <span
                   key={chip}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${dark ? "bg-white/10 text-white/80" : "bg-slate-100 text-slate-600"}`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-xs ${dark ? "bg-white/10 text-white/80" : "bg-slate-100 text-slate-600"}`}
                 >
                   {chip}
                 </span>
@@ -1115,61 +1115,61 @@ function SectionCard({
 
             <div data-tour-id={isRoom ? `${section.id}-details` : undefined}>
               <h2
-                className={`mt-3 text-xl font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}
+                className={`mt-2 text-lg font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}
               >
                 {section.title}
               </h2>
               {isRecommendedStart && (
-                <div className="mt-2 inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-800">
+                <div className="mt-1.5 inline-flex rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-800">
                   Recommended starting point for quiet business travel
                 </div>
               )}
               <p
-                className={`mt-3 max-w-4xl text-sm leading-6 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}
+                className={`mt-2 max-w-4xl text-[13px] leading-5 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}
               >
                 {section.body}
               </p>
             </div>
 
             {section.details?.length ? (
-              <div className="mt-4 grid gap-2 sm:mt-6 sm:gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-1.5 sm:mt-6 sm:gap-3 sm:grid-cols-2">
                 {section.details.map((detail) => (
                   <div
                     key={detail}
-                    className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
+                    className={`rounded-lg p-2 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
                   >
                     <div
-                      className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
+                      className={`text-[10px] font-semibold uppercase tracking-[0.11em] sm:text-xs sm:tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
                     >
                       Included
                     </div>
-                    <div className="mt-2 text-sm font-semibold">{detail}</div>
+                    <div className="mt-1 text-xs font-semibold sm:mt-2 sm:text-sm">{detail}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mt-4 grid gap-2 sm:mt-6 sm:gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-1.5 sm:mt-6 sm:gap-3 sm:grid-cols-2">
                 <div
-                  className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
+                  className={`rounded-lg p-2 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
                 >
                   <div
-                    className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
+                    className={`text-[10px] font-semibold uppercase tracking-[0.11em] sm:text-xs sm:tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
                   >
                     Guide signal
                   </div>
-                  <div className="mt-2 text-sm font-semibold">
+                  <div className="mt-1 text-xs font-semibold sm:mt-2 sm:text-sm">
                     Anchor-ready commerce stop
                   </div>
                 </div>
                 <div
-                  className={`rounded-xl p-3 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
+                  className={`rounded-lg p-2 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
                 >
                   <div
-                    className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
+                    className={`text-[10px] font-semibold uppercase tracking-[0.11em] sm:text-xs sm:tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}
                   >
                     Action
                   </div>
-                  <div className="mt-2 text-sm font-semibold">
+                  <div className="mt-1 text-xs font-semibold sm:mt-2 sm:text-sm">
                     Recommend, refine, book
                   </div>
                 </div>
@@ -1181,7 +1181,7 @@ function SectionCard({
                 data-tour-id={
                   isRoom ? `${section.id}-cta` : "booking-panel-cta"
                 }
-                className="mt-4 flex flex-wrap gap-2 sm:mt-6 sm:gap-3"
+                className="mt-4 flex flex-wrap gap-1.5 sm:gap-2 sm:mt-6 sm:gap-3"
               >
                 {isRoom ? (
                   <>
@@ -1617,7 +1617,7 @@ export default function AppCommerce() {
           }`}
         >
           <Card>
-            <div className="p-4 sm:p-6">
+            <div className="p-3 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Page map
               </div>
@@ -1664,7 +1664,7 @@ export default function AppCommerce() {
           <Card
             className={`bg-gradient-to-br ${pageVisuals[currentPage].accent} text-white`}
           >
-            <div className="p-4 sm:p-6">
+            <div className="p-3 sm:p-6">
               <div className="text-sm font-semibold uppercase tracking-[0.16em] text-white/60">
                 Guided commerce rule
               </div>
@@ -1672,7 +1672,7 @@ export default function AppCommerce() {
                 Book means commit intent, open the booking panel, preload known
                 data, and expose missing fields without blocking momentum.
               </p>
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {prevPage && (
                   <Button
                     variant="outline"
