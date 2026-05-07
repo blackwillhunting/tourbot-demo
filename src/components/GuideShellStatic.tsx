@@ -1755,6 +1755,7 @@ export function GuideShellStatic({
   const forceWelcomeVisibleRef = useRef(false);
   const autoMinimizeDisabledRef = useRef(false);
   const submitInFlightRef = useRef(false);
+  const pendingRoomSaveRef = useRef<SavedCommerceItem | null>(null);
   const modeCopy = guideModeCopy(guideConfig);
   const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
     if (typeof window === "undefined") return 760;
@@ -2064,6 +2065,7 @@ export function GuideShellStatic({
     forceBottomOnNextPanelPaintRef.current = false;
     suppressNextDraftScrollRef.current = false;
     demoTypingDraftUpdateRef.current = false;
+    pendingRoomSaveRef.current = null;
 
     setIsBotTyping(false);
     setDraftFocus(false);
@@ -2453,6 +2455,29 @@ export function GuideShellStatic({
     });
   };
 
+  const completePendingRoomSaveFromContextUpdate = (
+    extracted?: ExtractedBookingContext,
+  ) => {
+    const pendingRoom = pendingRoomSaveRef.current;
+    if (!pendingRoom) return;
+
+    const datesSatisfied =
+      shellDatesApplied ||
+      Boolean(extracted?.checkInDate && extracted?.checkOutDate);
+    const guestsSatisfied =
+      shellGuestsApplied ||
+      (extracted?.adults !== undefined && extracted?.adults !== null);
+
+    if (!datesSatisfied || !guestsSatisfied) return;
+
+    setSavedTripContext((current) => ({
+      ...current,
+      room: pendingRoom,
+    }));
+    pendingRoomSaveRef.current = null;
+    setActiveCompletionWidget("saved-trip");
+  };
+
   const submitDraft = async () => {
     if (submitInFlightRef.current) return;
 
@@ -2473,17 +2498,24 @@ export function GuideShellStatic({
       trimmed,
       Boolean(conversationContext.activeStayPlan),
     );
+    const previousGuideSteps = guideSteps;
+    const previousGuideStepIndex = currentGuideStepIndex;
+    const previousGuideMessageId = currentGuideMessageId;
+    const preserveGuideActionsDuringSubmit =
+      previousGuideSteps.length > 0 && isCommerceContextUpdateDraft(trimmed);
 
     clearReplyTimer();
     clearMinimizeTimer();
     clearActiveSpotlight();
     setSpotlightActive(false);
-    setGuideSteps([]);
-    setCurrentGuideStepIndex(0);
+    if (!preserveGuideActionsDuringSubmit) {
+      setGuideSteps([]);
+      setCurrentGuideStepIndex(0);
+      setCurrentGuideMessageId(null);
+    }
     if (orderMutation === "start") {
       setActiveStayPlan(null);
     }
-    setCurrentGuideMessageId(null);
 
     suppressNextDraftScrollRef.current = true;
 
@@ -2515,6 +2547,9 @@ export function GuideShellStatic({
         conversationContext,
       );
       mergeExtractedBookingContext(reply.extractedBookingContext);
+      if (reply.commerceAction === "booking_context_update") {
+        completePendingRoomSaveFromContextUpdate(reply.extractedBookingContext);
+      }
       const remaining = Math.max(
         0,
         MIN_THINKING_MS - (performance.now() - startedAt),
@@ -2529,7 +2564,7 @@ export function GuideShellStatic({
           ?.map((step) => step?.stayPlan)
           .find((plan): plan is StayPlan => isStayPlan(plan)) ||
         null;
-      const nextGuideSteps = normalizeGuideSteps(reply).map((step) => {
+      const normalizedGuideSteps = normalizeGuideSteps(reply).map((step) => {
         if (!replyStayPlan) return step;
         return {
           ...step,
@@ -2542,7 +2577,20 @@ export function GuideShellStatic({
             : step.stepNarrative,
         };
       });
-      const isMultiStepGuide = nextGuideSteps.length > 1;
+      const preservePreviousGuideSteps =
+        reply.commerceAction === "booking_context_update" &&
+        normalizedGuideSteps.length === 0 &&
+        previousGuideSteps.length > 0;
+      const nextGuideSteps = preservePreviousGuideSteps
+        ? previousGuideSteps
+        : normalizedGuideSteps;
+      const nextGuideStepIndex = preservePreviousGuideSteps
+        ? Math.min(previousGuideStepIndex, Math.max(0, nextGuideSteps.length - 1))
+        : 0;
+      const nextGuideMessageId = preservePreviousGuideSteps
+        ? previousGuideMessageId
+        : null;
+      const isMultiStepGuide = !preservePreviousGuideSteps && nextGuideSteps.length > 1;
       const botMessageId = makeId();
       const firstStepParts = isMultiStepGuide
         ? answerPartsForGuideStep(nextGuideSteps[0], 0, nextGuideSteps.length)
@@ -2575,8 +2623,8 @@ export function GuideShellStatic({
       rememberShellSession("panel", completedThread);
 
       setGuideSteps(nextGuideSteps);
-      setCurrentGuideStepIndex(0);
-      setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : null);
+      setCurrentGuideStepIndex(nextGuideStepIndex);
+      setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : nextGuideMessageId);
       if (replyStayPlan) {
         setActiveStayPlan(replyStayPlan);
       } else if (orderMutation === "start") {
@@ -2585,7 +2633,8 @@ export function GuideShellStatic({
       setLastRefinementChipClicked(null);
 
       const hasNavigation =
-        nextGuideSteps.length > 0 || reply.suggestedAction?.type === "navigate";
+        reply.commerceAction !== "booking_context_update" &&
+        (normalizedGuideSteps.length > 0 || reply.suggestedAction?.type === "navigate");
 
       window.setTimeout(() => {
         if (hasNavigation) {
@@ -2641,6 +2690,22 @@ export function GuideShellStatic({
       e.preventDefault();
       submitDraft();
     }
+  };
+
+  const isCommerceContextUpdateDraft = (message: string) => {
+    if (guideConfig?.mode !== "commerce") return false;
+    const text = message.trim().toLowerCase();
+    if (!text) return false;
+
+    const hasContextSignal =
+      /\bfor this stay\b/.test(text) ||
+      /\b(check-?in|check-?out|dates?|guests?|adults?|children|kids)\b/.test(text);
+    if (!hasContextSignal) return false;
+
+    const hasBrowseOrSelectionSignal =
+      /\b(show|find|recommend|suggest|compare|options?|available|availability|save|book|rooms?|suites?|villas?|packages?|bundles?|deals?|upgrades?)\b/.test(text);
+
+    return !hasBrowseOrSelectionSignal;
   };
 
   const hasGuideSteps = guideSteps.length > 0;
@@ -2789,6 +2854,7 @@ export function GuideShellStatic({
 
     if (item.type === "room") {
       if (!shellDatesApplied) {
+        pendingRoomSaveRef.current = item;
         setActiveCompletionWidget("dates");
         setActiveDatePicker("check-in");
         if (isCoarsePointer()) openPanel();
@@ -2796,6 +2862,7 @@ export function GuideShellStatic({
       }
 
       if (!shellGuestsApplied) {
+        pendingRoomSaveRef.current = item;
         setActiveCompletionWidget("guests");
         setActiveDatePicker(null);
         if (isCoarsePointer()) openPanel();
@@ -2819,6 +2886,9 @@ export function GuideShellStatic({
       return existing ? current : { ...current, extras: [...current.extras, item] };
     });
 
+    if (item.type === "room") {
+      pendingRoomSaveRef.current = null;
+    }
     setActiveCompletionWidget("saved-trip");
     setActiveDatePicker(null);
     if (isCoarsePointer()) {
