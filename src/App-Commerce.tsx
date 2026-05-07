@@ -98,73 +98,88 @@ function Button({
 export const PAGES: Record<PageId, Page> = {
   home: {
     id: "home",
-    title: "StayPilot Suites",
-    subtitle: "AI-ready hotel booking demo",
-    hero: "A synthetic travel site designed for Guided Commerce demos: room discovery, provisional recommendations, booking preload, and missing-field completion without forcing users into a traditional form.",
+    title: "Domi Coast Resort & Conference Hotel",
+    subtitle: "AI-guided resort commerce playground",
+    hero:
+      "A synthetic 1,050-room coastal resort and conference hotel designed to prove Guided Commerce at real scale: property discovery, room/tower matching, package optimization, amenity routing, and booking preload.",
     sections: [
       {
         id: "travel-hero",
-        eyebrow: "AI-guided stays",
-        title: "Find the right stay without browsing every room",
-        body: "Tell the guide what matters: quiet, work setup, view, budget, guests, dates, or trip purpose. The site is intentionally structured so AI can answer, route, compare, and preload a booking summary.",
-        tags: ["Guided commerce", "Hotel booking", "Decision support"],
+        eyebrow: "Large resort playground",
+        title: "A stay planner for a property with real choice complexity",
+        body:
+          "Domi Coast combines oceanfront resort amenities with a major conference hotel footprint: three guest towers, villa inventory, family zones, quiet business floors, dining, spa, pools, shuttle service, and event support. TourBot can answer general property questions before narrowing guests toward the right stay.",
+        tags: ["1,050 rooms", "3 towers", "Resort + conference"],
+      },
+      {
+        id: "property-overview",
+        eyebrow: "Core knowledge",
+        title: "What the resort is known for",
+        body:
+          "The property is known for blending business logistics with vacation-style amenities: conference access, quiet work-ready floors, ocean-view leisure stays, family pool access, spa weekends, and extended-stay convenience.",
+        tags: ["Oceanfront", "Conference center", "Family friendly"],
       },
       {
         id: "room-finder",
         eyebrow: "Search assist",
-        title: "Room finder",
-        body: "A lightweight search panel collects the most useful dimensions: stay length, dates, guests, work needs, budget, and preferred style. Users can skip details and still get a provisional recommendation.",
-        tags: ["Dates", "Budget", "Guests", "Intent"],
+        title: "Room and tower matcher",
+        body:
+          "A guide can compare tower, view, budget, guest count, work needs, trip purpose, and arrival logistics before recommending a starting room instead of forcing visitors to browse every configuration.",
+        tags: ["Tower", "View", "Budget", "Trip type"],
       },
       {
         id: "featured-stays",
-        eyebrow: "Curated options",
-        title: "Featured stays",
-        body: "The homepage previews the strongest paths: quiet business travel, ocean-view leisure, family comfort, and flexible extended stay. Each path maps to a specific room or package anchor.",
-        tags: ["Business", "Leisure", "Family", "Extended stay"],
+        eyebrow: "Curated paths",
+        title: "Common resort journeys",
+        body:
+          "The strongest paths include conference business travel, ocean-view anniversaries, family resort stays, longer visits, accessible stays, and villa-style premium trips. Each journey maps to rooms, packages, and amenity anchors.",
+        tags: ["Conference", "Anniversary", "Family", "Long stay"],
       },
       {
         id: "booking-preview",
         eyebrow: "Preload behavior",
         title: "Booking preview",
-        body: "When a user clicks Book, the booking panel should open with known information preloaded and missing required fields highlighted instead of blocking the action.",
+        body:
+          "When a user clicks Book, known context should carry forward: selected room, dates, guests, budget, package signals, and missing fields. The user keeps momentum instead of starting over in a generic form.",
         tags: ["Book this", "Partial form", "Missing fields"],
       },
     ],
   },
   rooms: {
     id: "rooms",
-    title: "Rooms & Suites",
-    subtitle: "One option at a time, ranked by intent",
-    hero: "Room sections are built as clear commerce destinations. The guide can spotlight one best starting room or step through multiple strong options with Back, Next, and Book controls.",
+    title: "Rooms, Towers & Villas",
+    subtitle: "A broad inventory field ranked by guest intent",
+    hero:
+      "Domi Coast has multiple stay zones: an executive conference tower, quiet coastal floors, family-friendly rooms, extended-stay studios, villas, and accessible options. TourBot can rank these based on what the guest actually needs.",
     sections: [
       {
         id: "room-business-king",
         eyebrow: "Best for work trips",
         title: "Business King Suite",
         price: "$289/night",
-        body: "A quiet upper-floor king suite with an ergonomic desk, fast Wi‑Fi, blackout curtains, and lounge access. This is the best starting anchor for business travelers who mention quiet, work, calls, or productivity.",
-        details: [
-          "King bed",
-          "Upper floor",
-          "Desk + task lighting",
-          "Lounge access",
-          "Quiet wing",
-        ],
+        body:
+          "A quiet upper-floor king suite in the Executive Tower with ergonomic desk, fast Wi‑Fi, blackout curtains, lounge access, and easy conference-center routing.",
+        details: ["King bed", "Executive Tower", "Desk + task lighting", "Lounge access", "Quiet wing"],
         tags: ["Quiet", "Business", "Wi‑Fi", "Desk"],
+      },
+      {
+        id: "room-executive-tower-king",
+        eyebrow: "Best for conferences",
+        title: "Executive Tower King",
+        price: "$259/night",
+        body:
+          "A practical conference-hotel room closest to meeting floors, elevators, lobby coffee, and business services. Strong for attendees who value logistics over views.",
+        details: ["Conference tower", "Fast elevator access", "Lobby coffee", "Work desk"],
+        tags: ["Conference", "Convenient", "Work", "Value"],
       },
       {
         id: "room-ocean-view-suite",
         eyebrow: "Best for leisure",
         title: "Ocean View Suite",
         price: "$379/night",
-        body: "A larger suite with a private balcony, ocean-facing seating area, soaking tub, and late checkout eligibility. Strong for romantic trips, views, relaxation, and premium stays.",
-        details: [
-          "Ocean balcony",
-          "Soaking tub",
-          "Late checkout",
-          "Premium view",
-        ],
+        body:
+          "A larger suite with private balcony, ocean-facing seating area, soaking tub, and late checkout eligibility. Strong for romantic trips, views, and premium leisure stays.",
+        details: ["Ocean balcony", "Soaking tub", "Late checkout", "Premium view"],
         tags: ["View", "Romantic", "Premium", "Balcony"],
       },
       {
@@ -172,53 +187,98 @@ export const PAGES: Record<PageId, Page> = {
         eyebrow: "Best for families",
         title: "Family Double Room",
         price: "$249/night",
-        body: "Two queen beds, extra floor space, a small dining nook, and close elevator access. A practical option for families or groups that need comfort without suite pricing.",
-        details: ["Two queens", "Sleeps 4", "Dining nook", "Near elevator"],
-        tags: ["Family", "Group", "Value", "Flexible"],
+        body:
+          "Two queen beds, extra floor space, a small dining nook, and easy access to the family pool wing. Practical for families that need comfort without suite pricing.",
+        details: ["Two queens", "Sleeps 4", "Dining nook", "Near family pool"],
+        tags: ["Family", "Group", "Value", "Pool access"],
       },
       {
         id: "room-extended-stay-studio",
         eyebrow: "Best for longer stays",
         title: "Extended Stay Studio",
         price: "$219/night",
-        body: "A studio room with kitchenette, laundry access, storage, and weekly-rate eligibility. Best for guests staying five nights or more or wanting a more self-sufficient setup.",
+        body:
+          "A studio with kitchenette, laundry access, storage, and weekly-rate eligibility. Best for guests staying five nights or more or wanting a self-sufficient setup.",
         details: ["Kitchenette", "Weekly rate", "Laundry access", "Storage"],
         tags: ["Long stay", "Kitchenette", "Value", "Practical"],
+      },
+      {
+        id: "room-garden-terrace",
+        eyebrow: "Best value resort feel",
+        title: "Garden Terrace King",
+        price: "$239/night",
+        body:
+          "A quieter garden-facing room with terrace seating and easy access to walking paths. Good for guests who want a resort feel without paying for full oceanfront views.",
+        details: ["Garden terrace", "Walking paths", "Quiet zone", "Good value"],
+        tags: ["Garden", "Quiet", "Value", "Terrace"],
+      },
+      {
+        id: "room-coastal-villa",
+        eyebrow: "Best premium stay",
+        title: "Coastal Villa Suite",
+        price: "$549/night",
+        body:
+          "A villa-style suite with separate living space, resort shuttle pickup, premium views, and concierge support. Strong for anniversaries, VIP stays, and longer premium trips.",
+        details: ["Separate living room", "Concierge", "Premium view", "Resort shuttle"],
+        tags: ["Villa", "Premium", "Concierge", "Anniversary"],
+      },
+      {
+        id: "room-accessible-king",
+        eyebrow: "Best accessible option",
+        title: "Accessible King Room",
+        price: "$229/night",
+        body:
+          "A step-free king room near main elevators with accessible bathroom features and close routing to lobby, dining, and shuttle pickup areas.",
+        details: ["Step-free route", "Accessible bath", "Near elevator", "Lobby access"],
+        tags: ["Accessible", "Elevator", "Practical", "King"],
       },
     ],
   },
   packages: {
     id: "packages",
-    title: "Packages & Upgrades",
-    subtitle: "Add-ons that can be guided into the booking path",
-    hero: "Packages are commerce destinations too. The guide can recommend upgrades based on trip purpose, budget, and missing context after a room is selected.",
+    title: "Packages & Stay Add-ons",
+    subtitle: "Deals and upgrades layered onto the stay decision",
+    hero:
+      "Packages turn discovery into commerce. The guide can attach breakfast, business services, conference convenience, family support, spa upgrades, transfer bundles, or romance amenities after the room path is clear.",
     sections: [
       {
         id: "package-business-ready",
         eyebrow: "Work upgrade",
         title: "Business Ready Package",
         price: "+$45/night",
-        body: "Includes breakfast, meeting pod credit, premium Wi‑Fi tier, and 6pm late checkout. Best paired with the Business King Suite.",
-        details: [
-          "Breakfast",
-          "Meeting pod credit",
-          "Premium Wi‑Fi",
-          "Late checkout",
-        ],
+        body:
+          "Includes breakfast, meeting pod credit, premium Wi‑Fi tier, and 6pm late checkout. Best paired with Business King or Executive Tower rooms.",
+        details: ["Breakfast", "Meeting pod credit", "Premium Wi‑Fi", "Late checkout"],
         tags: ["Business", "Meetings", "Productivity"],
+      },
+      {
+        id: "package-conference-convenience",
+        eyebrow: "Event upgrade",
+        title: "Conference Convenience Package",
+        price: "+$65/stay",
+        body:
+          "Adds early coffee, badge pickup support, conference-floor wayfinding, bag hold, and late checkout priority for event attendees.",
+        details: ["Badge pickup", "Bag hold", "Early coffee", "Late checkout priority"],
+        tags: ["Conference", "Logistics", "Convenience"],
+      },
+      {
+        id: "package-breakfast-flex",
+        eyebrow: "Meal plan",
+        title: "Breakfast Flex Plan",
+        price: "+$32/night",
+        body:
+          "Daily breakfast credit that works across the lobby café, buffet, and grab-and-go market. Useful when guests mention breakfast but not a full package.",
+        details: ["Daily credit", "Café", "Buffet", "Grab-and-go"],
+        tags: ["Breakfast", "Flexible", "Value"],
       },
       {
         id: "package-relaxation-weekend",
         eyebrow: "Leisure upgrade",
         title: "Relaxation Weekend Package",
         price: "+$95/stay",
-        body: "Includes spa credit, welcome drinks, breakfast for two, and guaranteed late checkout. Best for romantic weekends or premium leisure stays.",
-        details: [
-          "Spa credit",
-          "Welcome drinks",
-          "Breakfast for two",
-          "Late checkout",
-        ],
+        body:
+          "Includes spa credit, welcome drinks, breakfast for two, and guaranteed late checkout. Best for romantic weekends or premium leisure stays.",
+        details: ["Spa credit", "Welcome drinks", "Breakfast for two", "Late checkout"],
         tags: ["Romantic", "Spa", "Weekend"],
       },
       {
@@ -226,50 +286,93 @@ export const PAGES: Record<PageId, Page> = {
         eyebrow: "Family upgrade",
         title: "Family Comfort Bundle",
         price: "+$55/stay",
-        body: "Adds parking, snack credit, extra towels, and flexible check-in support. Best for families arriving with children or extra luggage.",
-        details: [
-          "Parking",
-          "Snack credit",
-          "Extra towels",
-          "Flexible arrival",
-        ],
+        body:
+          "Adds parking, snack credit, extra towels, pool wristbands, and flexible check-in support. Best for families arriving with children or extra luggage.",
+        details: ["Parking", "Snack credit", "Pool wristbands", "Flexible arrival"],
         tags: ["Family", "Parking", "Convenience"],
+      },
+      {
+        id: "package-transfer-parking",
+        eyebrow: "Arrival bundle",
+        title: "Transfer + Parking Bundle",
+        price: "+$40/stay",
+        body:
+          "Combines airport shuttle priority, secured parking discount, and luggage hold for guests juggling arrival logistics.",
+        details: ["Shuttle priority", "Parking discount", "Luggage hold", "Arrival support"],
+        tags: ["Shuttle", "Parking", "Arrival"],
       },
     ],
   },
   amenities: {
     id: "amenities",
-    title: "Amenities",
-    subtitle: "Decision-support details for refining recommendations",
-    hero: "Amenities give the guide useful secondary signals. They help explain why a room is recommended and what tradeoffs may matter.",
+    title: "Amenities & Experiences",
+    subtitle: "Property knowledge that explains the recommendation",
+    hero:
+      "A resort guide needs more than inventory. Amenities, dining, events, transportation, policies, and trip-style signals explain why one stay path is better than another.",
     sections: [
       {
         id: "amenity-quiet-zone",
         eyebrow: "Noise control",
         title: "Quiet Zone Floors",
-        body: "Upper-floor rooms away from elevators and event spaces are marked as quiet-zone eligible. This is a major signal for business travelers and light sleepers.",
+        body:
+          "Upper-floor rooms away from elevators and event spaces are marked as quiet-zone eligible. This is a major signal for business travelers and light sleepers.",
         tags: ["Quiet", "Upper floor", "Sleep"],
+      },
+      {
+        id: "amenity-conference-center",
+        eyebrow: "Events",
+        title: "Conference Center",
+        body:
+          "The property includes a connected conference wing with ballroom space, breakout rooms, badge pickup, coffee stations, and direct routing from the Executive Tower.",
+        tags: ["Conference", "Events", "Ballroom"],
       },
       {
         id: "amenity-work-lounge",
         eyebrow: "Productivity",
         title: "Work Lounge & Meeting Pods",
-        body: "Semi-private work pods, coffee service, printing support, and reservable meeting space create a stronger business-travel experience.",
+        body:
+          "Semi-private work pods, coffee service, printing support, and reservable meeting space create a stronger business-travel experience.",
         tags: ["Work", "Meetings", "Coffee"],
       },
       {
         id: "amenity-pool-spa",
         eyebrow: "Relaxation",
         title: "Pool, Spa & Rooftop Deck",
-        body: "The leisure layer includes a rooftop pool, spa treatment rooms, and evening deck service. This supports premium and romantic recommendation paths.",
+        body:
+          "The leisure layer includes a family pool, quieter rooftop deck, spa treatment rooms, and evening deck service for couples or premium leisure guests.",
         tags: ["Spa", "Pool", "Rooftop"],
+      },
+      {
+        id: "amenity-dining-district",
+        eyebrow: "Dining",
+        title: "Dining District",
+        body:
+          "Guests can choose lobby café breakfast, coastal seafood dining, a market for quick meals, poolside service, and private dining options for events or special occasions.",
+        tags: ["Breakfast", "Seafood", "Poolside"],
+      },
+      {
+        id: "amenity-kids-club",
+        eyebrow: "Family",
+        title: "Kids Club & Family Pool",
+        body:
+          "Family travelers can use supervised activity windows, splash-zone access, snack credits, and family pool routing near the family room wing.",
+        tags: ["Kids", "Pool", "Family"],
       },
       {
         id: "amenity-airport-shuttle",
         eyebrow: "Arrival support",
         title: "Airport Shuttle & Parking",
-        body: "A predictable shuttle and secured parking make arrival easier for business travelers, families, and guests with rental cars.",
+        body:
+          "A predictable shuttle and secured parking make arrival easier for business travelers, families, conference attendees, and guests with rental cars.",
         tags: ["Shuttle", "Parking", "Arrival"],
+      },
+      {
+        id: "amenity-accessibility-pets",
+        eyebrow: "Policy support",
+        title: "Accessibility & Pet-Friendly Stays",
+        body:
+          "Accessible room routing, step-free public areas, service animal support, and limited pet-friendly room blocks help the guide answer practical pre-booking questions.",
+        tags: ["Accessibility", "Pets", "Policies"],
       },
     ],
   },
@@ -277,32 +380,31 @@ export const PAGES: Record<PageId, Page> = {
     id: "booking",
     title: "Booking Panel",
     subtitle: "Preloaded summary with missing-field completion",
-    hero: "The booking module demonstrates the key commerce behavior: Book commits intent, opens the form, preloads known data, and highlights missing required fields without blocking the user.",
+    hero:
+      "The booking module demonstrates the commercial layer: Book commits intent, opens the form, preloads known data, and highlights missing required fields without blocking the user.",
     sections: [
       {
         id: "booking-panel",
         eyebrow: "Checkout preload",
         title: "Booking Summary",
-        body: "The selected room is carried into the booking panel. If dates, guests, or budget are missing, the module shows them as required next steps while preserving momentum.",
-        tags: [
-          "Selected room",
-          "Dates required",
-          "Guests required",
-          "Ready for payment",
-        ],
+        body:
+          "The selected room is carried into the booking panel. If dates, guests, budget, package, or arrival needs are missing, the module shows them as required next steps while preserving momentum.",
+        tags: ["Selected room", "Dates required", "Guests required", "Ready for payment"],
       },
       {
         id: "booking-missing-fields",
         eyebrow: "Completion chips",
         title: "Missing details",
-        body: "Incomplete input becomes completion guidance: Select dates, add guests, adjust budget, or change room. The user is not pushed backward into chat.",
+        body:
+          "Incomplete input becomes completion guidance: Select dates, add guests, adjust budget, choose a package, or change room. The user is not pushed backward into chat.",
         tags: ["Select dates", "Add guests", "Adjust budget"],
       },
       {
         id: "payment-module",
         eyebrow: "Mock payment",
         title: "Payment module",
-        body: "A simulated payment area shows how the final step could become transactional once room, dates, guests, and policies are confirmed.",
+        body:
+          "A simulated payment area shows how the final step could become transactional once room, dates, guests, policies, and package choices are confirmed.",
         tags: ["Payment", "Confirm", "Policies"],
       },
     ],
@@ -341,35 +443,35 @@ const pageVisuals: Record<
   }
 > = {
   home: {
-    eyebrow: "Guided travel commerce",
+    eyebrow: "Resort + conference intelligence",
     gradient: "from-cyan-950 via-slate-900 to-indigo-900",
     accent: "from-cyan-950 to-slate-800",
-    metricA: "Intent → option",
-    metricB: "Book → preload",
-    proof: "Built for guide demos",
+    metricA: "1,050 rooms",
+    metricB: "3 towers + villas",
+    proof: "Discovery + booking",
   },
   rooms: {
-    eyebrow: "Room catalog",
+    eyebrow: "Room, tower, and villa inventory",
     gradient: "from-indigo-950 via-slate-900 to-cyan-900",
     accent: "from-indigo-950 to-cyan-800",
-    metricA: "4 room anchors",
-    metricB: "3–5 step paths",
-    proof: "One option at a time",
+    metricA: "8 room anchors",
+    metricB: "Tower + view logic",
+    proof: "Ranked by intent",
   },
   packages: {
-    eyebrow: "Upgrade routing",
+    eyebrow: "Deal and upgrade routing",
     gradient: "from-violet-950 via-slate-900 to-rose-900",
     accent: "from-violet-950 to-rose-800",
     metricA: "Business · leisure",
-    metricB: "Family bundles",
-    proof: "Optional add-ons",
+    metricB: "Family · events",
+    proof: "Layered add-ons",
   },
   amenities: {
-    eyebrow: "Refinement signals",
+    eyebrow: "Property knowledge layer",
     gradient: "from-emerald-950 via-slate-900 to-cyan-900",
     accent: "from-emerald-950 to-cyan-800",
-    metricA: "Quiet · work",
-    metricB: "Spa · shuttle",
+    metricA: "Dining · spa",
+    metricB: "Kids · conference",
     proof: "Explains recommendations",
   },
   booking: {
@@ -394,19 +496,25 @@ const sectionVisuals: Record<
   "travel-hero": {
     icon: Compass,
     tone: "from-cyan-950 to-indigo-800",
-    chips: ["Guide", "Search", "Book"],
+    chips: ["1,050 rooms", "3 towers", "Resort"],
     shape: "hero",
+  },
+  "property-overview": {
+    icon: Hotel,
+    tone: "from-slate-950 to-cyan-800",
+    chips: ["Property", "Known for", "Discovery"],
+    shape: "feature",
   },
   "room-finder": {
     icon: Search,
     tone: "from-slate-950 to-cyan-800",
-    chips: ["Dates", "Budget", "Guests"],
+    chips: ["Tower", "View", "Budget"],
     shape: "feature",
   },
   "featured-stays": {
     icon: Sparkles,
     tone: "from-indigo-950 to-violet-800",
-    chips: ["Quiet", "Views", "Family"],
+    chips: ["Conference", "Family", "Anniversary"],
     shape: "feature",
   },
   "booking-preview": {
@@ -419,6 +527,12 @@ const sectionVisuals: Record<
     icon: Wifi,
     tone: "from-slate-950 to-cyan-800",
     chips: ["Quiet", "Desk", "Lounge"],
+    shape: "room",
+  },
+  "room-executive-tower-king": {
+    icon: Hotel,
+    tone: "from-indigo-950 to-slate-800",
+    chips: ["Conference", "Convenient", "Work"],
     shape: "room",
   },
   "room-ocean-view-suite": {
@@ -439,10 +553,40 @@ const sectionVisuals: Record<
     chips: ["Kitchenette", "Weekly", "Laundry"],
     shape: "room",
   },
+  "room-garden-terrace": {
+    icon: Moon,
+    tone: "from-emerald-950 to-cyan-800",
+    chips: ["Garden", "Quiet", "Value"],
+    shape: "room",
+  },
+  "room-coastal-villa": {
+    icon: Sparkles,
+    tone: "from-violet-950 to-cyan-800",
+    chips: ["Villa", "Concierge", "Premium"],
+    shape: "room",
+  },
+  "room-accessible-king": {
+    icon: Hotel,
+    tone: "from-slate-950 to-emerald-800",
+    chips: ["Accessible", "Elevator", "Practical"],
+    shape: "room",
+  },
   "package-business-ready": {
     icon: Coffee,
     tone: "from-slate-950 to-indigo-800",
     chips: ["Breakfast", "Meeting pod", "Late checkout"],
+    shape: "dark",
+  },
+  "package-conference-convenience": {
+    icon: CalendarDays,
+    tone: "from-indigo-950 to-slate-800",
+    chips: ["Badge", "Bag hold", "Events"],
+    shape: "dark",
+  },
+  "package-breakfast-flex": {
+    icon: Coffee,
+    tone: "from-amber-900 to-slate-800",
+    chips: ["Breakfast", "Café", "Flexible"],
     shape: "dark",
   },
   "package-relaxation-weekend": {
@@ -454,13 +598,25 @@ const sectionVisuals: Record<
   "package-family-comfort": {
     icon: Users,
     tone: "from-emerald-950 to-slate-800",
-    chips: ["Parking", "Snacks", "Family"],
+    chips: ["Parking", "Pool", "Family"],
+    shape: "dark",
+  },
+  "package-transfer-parking": {
+    icon: Plane,
+    tone: "from-cyan-950 to-slate-800",
+    chips: ["Shuttle", "Parking", "Arrival"],
     shape: "dark",
   },
   "amenity-quiet-zone": {
     icon: Moon,
     tone: "from-slate-950 to-blue-800",
     chips: ["Sleep", "Quiet", "Upper floor"],
+    shape: "feature",
+  },
+  "amenity-conference-center": {
+    icon: CalendarDays,
+    tone: "from-indigo-950 to-slate-800",
+    chips: ["Conference", "Events", "Ballroom"],
     shape: "feature",
   },
   "amenity-work-lounge": {
@@ -475,10 +631,28 @@ const sectionVisuals: Record<
     chips: ["Pool", "Spa", "Rooftop"],
     shape: "feature",
   },
+  "amenity-dining-district": {
+    icon: Coffee,
+    tone: "from-rose-950 to-amber-800",
+    chips: ["Breakfast", "Seafood", "Poolside"],
+    shape: "feature",
+  },
+  "amenity-kids-club": {
+    icon: Users,
+    tone: "from-emerald-950 to-teal-700",
+    chips: ["Kids", "Pool", "Family"],
+    shape: "feature",
+  },
   "amenity-airport-shuttle": {
     icon: Plane,
     tone: "from-amber-900 to-slate-800",
     chips: ["Shuttle", "Parking", "Arrival"],
+    shape: "feature",
+  },
+  "amenity-accessibility-pets": {
+    icon: Hotel,
+    tone: "from-slate-950 to-emerald-800",
+    chips: ["Accessibility", "Pets", "Policies"],
     shape: "feature",
   },
   "booking-panel": {
@@ -541,10 +715,10 @@ function Header({
           </div>
           <div className="min-w-0">
             <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
-              StayPilot Suites
+              Domi Coast Resort
             </div>
             <div className="truncate text-xs text-slate-500 sm:text-sm">
-              Guided Commerce travel demo
+              Resort commerce playground
             </div>
           </div>
         </div>
@@ -575,7 +749,7 @@ function Header({
                 onClick={onStartDemo}
                 className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
               >
-                Self-Drive Booking
+                Self-Drive Stay
               </button>
             )}
             {demoStatus === "running" && (
@@ -673,20 +847,20 @@ function Hero({ page }: { page: Page }) {
             <div className="mb-2 flex items-center justify-between sm:mb-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
-                  Trip starter
+                  Stay planner
                 </div>
                 <div className="mt-1 text-base font-semibold sm:text-xl">
-                  Tell us what matters
+                  Tell us the trip
                 </div>
               </div>
               <Search className="h-5 w-5 text-white/70" />
             </div>
             <div className="grid gap-2">
               {[
-                "Quiet room for work",
-                "3 nights",
-                "Under $325/night",
-                "Near airport shuttle",
+                "Conference stay with quiet nights",
+                "Ocean view without villa pricing",
+                "Family pool access + breakfast",
+                "Airport shuttle and late arrival",
               ].map((item) => (
                 <div
                   key={item}
@@ -697,7 +871,7 @@ function Hero({ page }: { page: Page }) {
               ))}
             </div>
             <div className="mt-3 rounded-xl bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-950 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-              AI can recommend → you can refine → booking preloads
+              Ask about the resort → compare options → booking preloads
             </div>
           </div>
         </div>
@@ -709,27 +883,27 @@ function Hero({ page }: { page: Page }) {
 function HomeExtras() {
   const paths = [
     {
-      title: "Quiet business trip",
+      title: "Conference business stay",
       icon: Wifi,
-      text: "Starts with Business King Suite and work-friendly amenities.",
+      text: "Prioritizes Executive Tower access, quiet floors, breakfast, and late checkout.",
       tone: "from-slate-950 to-cyan-800",
     },
     {
-      title: "Romantic weekend",
+      title: "Anniversary coast weekend",
       icon: Waves,
-      text: "Starts with Ocean View Suite and relaxation upgrades.",
+      text: "Balances view quality, spa access, dining, and package value without defaulting to the villa.",
       tone: "from-blue-950 to-violet-800",
     },
     {
-      title: "Family stay",
+      title: "Family resort trip",
       icon: Users,
-      text: "Starts with Family Double Room and convenience bundles.",
+      text: "Connects family rooms, pool access, kids club, parking, snacks, and arrival support.",
       tone: "from-emerald-950 to-teal-700",
     },
     {
-      title: "Longer visit",
+      title: "Longer value stay",
       icon: Luggage,
-      text: "Starts with Extended Stay Studio and weekly-rate logic.",
+      text: "Surfaces studios, weekly rates, laundry, kitchenette access, and practical add-ons.",
       tone: "from-amber-900 to-slate-800",
     },
   ];
@@ -742,11 +916,11 @@ function HomeExtras() {
             Guided paths
           </div>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">
-            Commerce journeys with clear visual destinations
+            Resort journeys that need discovery before booking
           </h2>
         </div>
         <div className="hidden rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-sm md:block">
-          Designed for AI + spotlighting
+          Built for guided optimization
         </div>
       </div>
 
@@ -783,6 +957,11 @@ const roomBookingMeta: Record<
     price: "$289/night",
     signal: "Quiet, work-ready, upper-floor room",
   },
+  "room-executive-tower-king": {
+    title: "Executive Tower King",
+    price: "$259/night",
+    signal: "Conference access and practical business logistics",
+  },
   "room-ocean-view-suite": {
     title: "Ocean View Suite",
     price: "$379/night",
@@ -798,13 +977,32 @@ const roomBookingMeta: Record<
     price: "$219/night",
     signal: "Kitchenette and longer-stay convenience",
   },
+  "room-garden-terrace": {
+    title: "Garden Terrace King",
+    price: "$239/night",
+    signal: "Quiet resort feel without oceanfront pricing",
+  },
+  "room-coastal-villa": {
+    title: "Coastal Villa Suite",
+    price: "$549/night",
+    signal: "Premium villa-style stay with concierge support",
+  },
+  "room-accessible-king": {
+    title: "Accessible King Room",
+    price: "$229/night",
+    signal: "Step-free practical room near key resort routes",
+  },
 };
 
 const roomStepOrder = [
   "room-business-king",
+  "room-executive-tower-king",
   "room-ocean-view-suite",
   "room-family-double",
   "room-extended-stay-studio",
+  "room-garden-terrace",
+  "room-coastal-villa",
+  "room-accessible-king",
 ];
 
 function getRoomMeta(roomId?: string | null) {
@@ -1649,18 +1847,18 @@ export default function AppCommerce() {
         {demoPreviewOpen && demoStatus === "idle" && (
           <DemoPreviewCard
             title="Guided Commerce Demo"
-            siteType="A synthetic hotel booking website with rooms, packages, amenities, and a booking summary."
-            contentType="Room catalog, upgrade packages, guest/date/budget signals, and a preloaded booking handoff."
-            guideShows="TourBot will walk through best-fit rooms and packages, collect or infer missing details, and carry intent into a booking summary."
+            siteType="A resort-conference hotel website with property discovery, rooms, packages, amenities, and booking preload."
+            contentType="Core property knowledge, room inventory, package/deal signals, amenity routing, and a preloaded booking handoff."
+            guideShows="TourBot will answer property questions, narrow a broad stay field, recommend rooms/packages, collect missing details, and carry intent into booking."
             options={[
               {
                 label: "Natural Language Booking",
-                description: "A rich request becomes a recommended room, package, and preloaded booking summary.",
+                description: "A rich resort request becomes a recommended room, package, and preloaded booking summary.",
                 onClick: () => startSelectedDemo(guidedCommerceRichIntentDemo),
               },
               {
                 label: "Assisted Completion",
-                description: "A sparse request produces passive chips for dates, guests, budget, and refinement.",
+                description: "A sparse stay request produces passive chips for dates, guests, budget, and refinement.",
                 onClick: () => startSelectedDemo(guidedCommerceAssistedCompletionDemo),
               },
             ]}
@@ -1761,7 +1959,7 @@ export default function AppCommerce() {
               </div>
               <p className="mt-3 text-sm leading-5 text-slate-200 sm:mt-4 sm:leading-6">
                 Book means commit intent, open the booking panel, preload known
-                data, and expose missing fields without blocking momentum.
+                stay context, and expose missing fields without blocking momentum.
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {prevPage && (
