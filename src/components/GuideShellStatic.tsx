@@ -47,6 +47,7 @@ const GUIDE_PENDING_SPOTLIGHT_KEY = "guide_pending_spotlight";
 const GUIDE_DEMO_RESPONSE_COMPLETE_EVENT = "guide-demo-response-complete";
 const GUIDE_EXTERNAL_SPOTLIGHT_EVENT = "guide-spotlight-target";
 const GUIDE_CLEAR_SPOTLIGHT_EVENT = "guide-clear-spotlight";
+const MAX_GUIDED_STEPS = 10;
 
 let activeSpotlightCleanup: (() => void) | null = null;
 let activeSpotlightOverlay: HTMLDivElement | null = null;
@@ -834,7 +835,7 @@ function normalizeGuideSteps(reply: {
       seen.add(key);
       return true;
     })
-    .slice(0, 6)
+    .slice(0, MAX_GUIDED_STEPS)
     .map((step) => ({
       ...step,
       stepNarrative: narrativesByTarget.get(
@@ -2192,7 +2193,7 @@ export function GuideShellStatic({
       .reverse()
       .find((item) => item.role === "bot" && item.status !== "thinking");
 
-    const trimmedSteps = guideSteps.slice(0, 6).map((step) => ({
+    const trimmedSteps = guideSteps.slice(0, MAX_GUIDED_STEPS).map((step) => ({
       type: step.type,
       targetId: step.targetId,
       pageId: step.pageId,
