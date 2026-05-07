@@ -1,11 +1,18 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowLeft,
+  ArrowRight,
+  Bookmark,
+  Check,
+  Eye,
   Compass,
   MessageSquare,
   Minus,
   SendHorizonal,
+  ShoppingBag,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -165,11 +172,30 @@ function guideModeCopy(guideConfig?: GuideConfig): {
   };
 }
 
+type SavedCommerceItem = {
+  id: string;
+  type: "room" | "package" | "amenity" | "extra";
+  title: string;
+  targetId?: string | null;
+  pageId?: string | null;
+  priceLabel?: string | null;
+  priceUsd?: number | null;
+  priceUnit?: string | null;
+};
+
+type SavedTripContext = {
+  room?: SavedCommerceItem | null;
+  packages: SavedCommerceItem[];
+  amenities: SavedCommerceItem[];
+  extras: SavedCommerceItem[];
+};
+
 type CommerceSessionContext = {
   dates?: { checkIn: string; checkOut: string; label: string } | null;
   guests?: { adults: number; children: number; label: string } | null;
   budget?: { band: string } | null;
   breakfast?: { requested: boolean; label: string } | null;
+  savedTrip?: SavedTripContext | null;
 };
 
 type ExtractedBookingContext = {
@@ -995,7 +1021,7 @@ function guideStepLabel(step?: SuggestedAction | null) {
   );
 }
 
-type CompletionWidget = "dates" | "guests" | "budget" | null;
+type CompletionWidget = "dates" | "guests" | "budget" | "saved-trip" | null;
 type DatePickerKind = "check-in" | "check-out" | null;
 type BudgetBand = "Value" | "Moderate" | "Premium" | "Luxury";
 
@@ -1686,6 +1712,12 @@ export function GuideShellStatic({
   const [guideSteps, setGuideSteps] = useState<GuidedAction[]>([]);
   const [currentGuideStepIndex, setCurrentGuideStepIndex] = useState(0);
   const [activeStayPlan, setActiveStayPlan] = useState<StayPlan | null>(null);
+  const [savedTripContext, setSavedTripContext] = useState<SavedTripContext>({
+    room: null,
+    packages: [],
+    amenities: [],
+    extras: [],
+  });
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
     string | null
   >(null);
@@ -2043,6 +2075,7 @@ export function GuideShellStatic({
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
     setActiveStayPlan(null);
+    setSavedTripContext({ room: null, packages: [], amenities: [], extras: [] });
     setCurrentGuideMessageId(null);
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
@@ -2690,6 +2723,142 @@ export function GuideShellStatic({
     }
   };
 
+  const savedTripNights = () => {
+    if (!shellDatesApplied || !shellCheckInDate || !shellCheckOutDate) return null;
+    const checkIn = new Date(`${shellCheckInDate}T00:00:00`);
+    const checkOut = new Date(`${shellCheckOutDate}T00:00:00`);
+    const nights = Math.round(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    return Number.isFinite(nights) && nights > 0 ? nights : null;
+  };
+
+  const savedTripItemCount = () =>
+    (savedTripContext.room ? 1 : 0) +
+    savedTripContext.packages.length +
+    savedTripContext.amenities.length +
+    savedTripContext.extras.length;
+
+  const currentGuideStepToSavedItem = (): SavedCommerceItem | null => {
+    if (!currentGuideStep?.targetId) return null;
+
+    const targetId = currentGuideStep.targetId;
+    const stayPlan = stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan;
+    const label = guideStepLabel(currentGuideStep);
+
+    if (targetId.startsWith("room-")) {
+      const room = stayPlan?.room?.targetId === targetId ? stayPlan.room : null;
+      return {
+        id: targetId,
+        type: "room",
+        title: room?.title || currentGuideStep.targetText || label,
+        targetId,
+        pageId: currentGuideStep.pageId || null,
+        priceUsd: room?.nightlyRateUsd ?? null,
+        priceUnit: room?.nightlyRateUsd ? "per_night" : null,
+        priceLabel: room?.nightlyRateUsd ? `$${room.nightlyRateUsd}/night` : null,
+      };
+    }
+
+    if (targetId.startsWith("package-")) {
+      const pkg = stayPlan?.packages?.find((item) => item.targetId === targetId);
+      return {
+        id: targetId,
+        type: "package",
+        title: pkg?.title || currentGuideStep.targetText || label,
+        targetId,
+        pageId: currentGuideStep.pageId || null,
+        priceUsd: pkg?.priceUsd ?? null,
+        priceUnit: pkg?.priceUnit || null,
+        priceLabel: pkg?.priceLabel || null,
+      };
+    }
+
+    if (targetId.startsWith("amenity-")) {
+      return {
+        id: targetId,
+        type: "amenity",
+        title: currentGuideStep.targetText || label,
+        targetId,
+        pageId: currentGuideStep.pageId || null,
+      };
+    }
+
+    return null;
+  };
+
+  const saveCurrentGuideStep = () => {
+    const item = currentGuideStepToSavedItem();
+    if (!item) {
+      setActiveCompletionWidget("saved-trip");
+      return;
+    }
+
+    setSavedTripContext((current) => {
+      if (item.type === "room") {
+        return { ...current, room: item };
+      }
+
+      if (item.type === "package") {
+        const existing = current.packages.some((entry) => entry.id === item.id);
+        return existing
+          ? current
+          : { ...current, packages: [...current.packages, item] };
+      }
+
+      if (item.type === "amenity") {
+        const existing = current.amenities.some((entry) => entry.id === item.id);
+        return existing
+          ? current
+          : { ...current, amenities: [...current.amenities, item] };
+      }
+
+      const existing = current.extras.some((entry) => entry.id === item.id);
+      return existing ? current : { ...current, extras: [...current.extras, item] };
+    });
+
+    setActiveCompletionWidget("saved-trip");
+    setActiveDatePicker(null);
+    if (isCoarsePointer()) {
+      openPanel();
+    }
+  };
+
+  const removeSavedTripItem = (type: SavedCommerceItem["type"], id: string) => {
+    setSavedTripContext((current) => {
+      if (type === "room") return { ...current, room: null };
+      if (type === "package") {
+        return {
+          ...current,
+          packages: current.packages.filter((item) => item.id !== id),
+        };
+      }
+      if (type === "amenity") {
+        return {
+          ...current,
+          amenities: current.amenities.filter((item) => item.id !== id),
+        };
+      }
+      return {
+        ...current,
+        extras: current.extras.filter((item) => item.id !== id),
+      };
+    });
+  };
+
+  const estimateSavedTripSubtotal = () => {
+    const nights = savedTripNights();
+    if (!nights || !savedTripContext.room?.priceUsd) return null;
+
+    const roomSubtotal = savedTripContext.room.priceUsd * nights;
+    const packageSubtotal = savedTripContext.packages.reduce((total, item) => {
+      if (!item.priceUsd) return total;
+      return total + (item.priceUnit === "per_stay" ? item.priceUsd : item.priceUsd * nights);
+    }, 0);
+
+    return roomSubtotal + packageSubtotal;
+  };
+
   const buildCommerceContext = () => ({
     dates: shellDatesApplied
       ? {
@@ -2709,6 +2878,7 @@ export function GuideShellStatic({
     breakfast: shellBreakfastRequested
       ? { requested: true, label: "Breakfast requested" }
       : null,
+    savedTrip: savedTripContext,
   });
 
   const bookCurrentGuideStep = (collapseOnMobile = false) => {
@@ -2990,10 +3160,10 @@ export function GuideShellStatic({
     );
   };
 
-  const completionInstructionPatterns: Record<
+  const completionInstructionPatterns: Partial<Record<
     Exclude<CompletionWidget, null>,
     RegExp
-  > = {
+  >> = {
     dates:
       /(?:^|\s)Use\s+[A-Z][a-z]{2}\s+\d{1,2}(?:,\s*\d{4})?[–-][A-Z][a-z]{2}\s+\d{1,2},\s*\d{4}\s+for this stay\./gi,
     guests:
@@ -3396,10 +3566,14 @@ export function GuideShellStatic({
                       )}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                       {hasMultipleGuideSteps && (
                         <>
                           <button
+                            data-demo-target="guide-back"
+                            type="button"
+                            aria-label="Back"
+                            title="Back"
                             onClick={() =>
                               navigateToGuideStep(
                                 currentGuideStepIndex - 1,
@@ -3407,12 +3581,15 @@ export function GuideShellStatic({
                               )
                             }
                             disabled={currentGuideStepIndex <= 0}
-                            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            Back
+                            <ArrowLeft className="h-3.5 w-3.5" />
                           </button>
                           <button
                             data-demo-target="guide-next"
+                            type="button"
+                            aria-label="Next"
+                            title="Next"
                             onClick={() =>
                               navigateToGuideStep(
                                 currentGuideStepIndex + 1,
@@ -3422,9 +3599,39 @@ export function GuideShellStatic({
                             disabled={
                               currentGuideStepIndex >= guideSteps.length - 1
                             }
-                            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                           >
-                            Next
+                            <ArrowRight className="h-3.5 w-3.5" />
+                          </button>
+                        </>
+                      )}
+
+                      {guideConfig?.mode === "commerce" && hasGuideSteps && (
+                        <>
+                          <button
+                            data-demo-target="guide-save"
+                            type="button"
+                            aria-label="Save current recommendation"
+                            title="Save"
+                            onClick={saveCurrentGuideStep}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                          >
+                            <Bookmark className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            data-demo-target="guide-view"
+                            type="button"
+                            aria-label="View saved trip"
+                            title="View"
+                            onClick={() => setActiveCompletionWidget("saved-trip")}
+                            className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            {savedTripItemCount() > 0 && (
+                              <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-cyan-950 px-1 text-[10px] font-bold leading-4 text-white">
+                                {savedTripItemCount()}
+                              </span>
+                            )}
                           </button>
                         </>
                       )}
@@ -3432,19 +3639,25 @@ export function GuideShellStatic({
                       {showBookAction && (
                         <button
                           data-demo-target="guide-book"
+                          type="button"
+                          aria-label="Book selected stay"
+                          title="Book"
                           onClick={() => bookCurrentGuideStep(true)}
-                          className="rounded-full bg-cyan-950 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-950 text-white shadow-sm transition hover:bg-cyan-900"
                         >
-                          Book this
+                          <ShoppingBag className="h-3.5 w-3.5" />
                         </button>
                       )}
 
                       <button
                         data-demo-target="guide-got-it"
+                        type="button"
+                        aria-label="Clear spotlight"
+                        title="Got it"
                         onClick={acknowledgeSpotlight}
-                        className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
                       >
-                        Got it
+                        <Check className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -3468,14 +3681,18 @@ export function GuideShellStatic({
                                 ? "Select dates"
                                 : activeCompletionWidget === "guests"
                                   ? "Add guests"
-                                  : "Set budget"}
+                                  : activeCompletionWidget === "saved-trip"
+                                    ? "Saved trip"
+                                    : "Set budget"}
                             </div>
                             <div className="mt-0.5 text-[10px] leading-[14px] text-slate-500 sm:mt-1 sm:text-xs sm:leading-5">
                               {activeCompletionWidget === "dates"
                                 ? "Choose check-in and check-out before handing off to booking."
                                 : activeCompletionWidget === "guests"
                                   ? "Set the guest count so the guide can preserve capacity context."
-                                  : "Choose a budget band to steer recommendations without forcing exact pricing."}
+                                  : activeCompletionWidget === "saved-trip"
+                                    ? "Review selected rooms, packages, amenities, and trip details."
+                                    : "Choose a budget band to steer recommendations without forcing exact pricing."}
                             </div>
                           </div>
                           <button
@@ -3676,6 +3893,192 @@ export function GuideShellStatic({
                           </div>
                         )}
 
+                        {activeCompletionWidget === "saved-trip" && (
+                          <div className="space-y-2 sm:space-y-3">
+                            <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
+                              <div className="mb-2 flex items-center justify-between gap-2">
+                                <div>
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                    Selected room
+                                  </div>
+                                  <div className="mt-0.5 text-xs text-slate-500">
+                                    A room is required before checkout.
+                                  </div>
+                                </div>
+                              </div>
+                              {savedTripContext.room ? (
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold text-slate-900">
+                                      {savedTripContext.room.title}
+                                    </div>
+                                    {savedTripContext.room.priceLabel && (
+                                      <div className="mt-0.5 text-xs text-slate-500">
+                                        {savedTripContext.room.priceLabel}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    aria-label="Remove selected room"
+                                    onClick={() =>
+                                      removeSavedTripItem("room", savedTripContext.room?.id || "")
+                                    }
+                                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-rose-600"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
+                                  No room saved yet. Step to a room recommendation and tap Save.
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
+                                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  Packages
+                                </div>
+                                {savedTripContext.packages.length ? (
+                                  <div className="space-y-1.5">
+                                    {savedTripContext.packages.map((item) => (
+                                      <div
+                                        key={item.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2"
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="truncate text-xs font-semibold text-slate-900">
+                                            {item.title}
+                                          </div>
+                                          {item.priceLabel && (
+                                            <div className="mt-0.5 text-[11px] text-slate-500">
+                                              {item.priceLabel}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          aria-label={`Remove ${item.title}`}
+                                          onClick={() => removeSavedTripItem("package", item.id)}
+                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-rose-600"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
+                                    No packages saved.
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
+                                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                  Amenities
+                                </div>
+                                {savedTripContext.amenities.length ? (
+                                  <div className="space-y-1.5">
+                                    {savedTripContext.amenities.map((item) => (
+                                      <div
+                                        key={item.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2"
+                                      >
+                                        <div className="min-w-0 truncate text-xs font-semibold text-slate-900">
+                                          {item.title}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          aria-label={`Remove ${item.title}`}
+                                          onClick={() => removeSavedTripItem("amenity", item.id)}
+                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-rose-600"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
+                                    No amenities saved.
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
+                              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                Trip details
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {shellDatesApplied ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShellDatesApplied(false)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition hover:bg-rose-50 hover:text-rose-700"
+                                  >
+                                    {formatShellDateRange(shellCheckInDate, shellCheckOutDate)}
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveCompletionWidget("dates")}
+                                    className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
+                                  >
+                                    Add dates
+                                  </button>
+                                )}
+                                {shellGuestsApplied ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShellGuestsApplied(false)}
+                                    className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition hover:bg-rose-50 hover:text-rose-700"
+                                  >
+                                    {guestSummary(shellAdults, shellChildren)}
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveCompletionWidget("guests")}
+                                    className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
+                                  >
+                                    Add guests
+                                  </button>
+                                )}
+                                {shellBudgetBand ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShellBudgetBand("")}
+                                    className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition hover:bg-rose-50 hover:text-rose-700"
+                                  >
+                                    {shellBudgetBand} budget
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveCompletionWidget("budget")}
+                                    className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
+                                  >
+                                    Add budget
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs text-cyan-950">
+                              {estimateSavedTripSubtotal() !== null
+                                ? `Estimated room + package subtotal: $${estimateSavedTripSubtotal()?.toLocaleString()} before taxes and fees.`
+                                : "Estimate appears here after a saved room has a nightly rate and dates are applied."}
+                            </div>
+                          </div>
+                        )}
+
                         {activeCompletionWidget === "budget" && (
                           <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
                             {BUDGET_BANDS.map((band) => (
@@ -3843,23 +4246,62 @@ export function GuideShellStatic({
                 <>
                   <button
                     data-demo-target="guide-back"
+                    type="button"
+                    aria-label="Back"
+                    title="Back"
                     onClick={() =>
                       navigateToGuideStep(currentGuideStepIndex - 1, true)
                     }
                     disabled={currentGuideStepIndex <= 0}
-                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Back
+                    <ArrowLeft className="h-4 w-4" />
                   </button>
                   <button
                     data-demo-target="guide-next"
+                    type="button"
+                    aria-label="Next"
+                    title="Next"
                     onClick={() =>
                       navigateToGuideStep(currentGuideStepIndex + 1, true)
                     }
                     disabled={currentGuideStepIndex >= guideSteps.length - 1}
-                    className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Next
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </>
+              )}
+
+              {guideConfig?.mode === "commerce" && hasGuideSteps && (
+                <>
+                  <button
+                    data-demo-target="guide-save"
+                    type="button"
+                    aria-label="Save current recommendation"
+                    title="Save"
+                    onClick={saveCurrentGuideStep}
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  >
+                    <Bookmark className="h-4 w-4" />
+                  </button>
+                  <button
+                    data-demo-target="guide-view"
+                    type="button"
+                    aria-label="View saved trip"
+                    title="View"
+                    onClick={() => {
+                      openPanel();
+                      setActiveCompletionWidget("saved-trip");
+                    }}
+                    className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {savedTripItemCount() > 0 && (
+                      <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-cyan-950 px-1 text-[10px] font-bold leading-4 text-white">
+                        {savedTripItemCount()}
+                      </span>
+                    )}
                   </button>
                 </>
               )}
@@ -3867,10 +4309,13 @@ export function GuideShellStatic({
               {showBookAction && (
                 <button
                   data-demo-target="guide-book"
+                  type="button"
+                  aria-label="Book selected stay"
+                  title="Book"
                   onClick={() => bookCurrentGuideStep(true)}
-                  className="shrink-0 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-950 text-white shadow-sm transition hover:bg-cyan-900"
                 >
-                  Book this
+                  <ShoppingBag className="h-4 w-4" />
                 </button>
               )}
 
