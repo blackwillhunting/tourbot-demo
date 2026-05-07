@@ -2267,6 +2267,48 @@ export function GuideShellStatic({
     }
   };
 
+  const filterSatisfiedRefinementChips = (
+    chips?: string[],
+    extracted?: ExtractedBookingContext | null,
+    sentContext?: GuideConversationContext,
+  ) => {
+    if (!Array.isArray(chips) || guideConfig?.mode !== "commerce") {
+      return chips || [];
+    }
+
+    const commerceContext = sentContext?.commerceContext;
+    const datesSatisfied = Boolean(
+      shellDatesApplied ||
+        commerceContext?.dates ||
+        (extracted?.checkInDate && extracted?.checkOutDate),
+    );
+    const guestsSatisfied = Boolean(
+      shellGuestsApplied || commerceContext?.guests || extracted?.adults,
+    );
+    const budgetSatisfied = Boolean(
+      shellBudgetBand || commerceContext?.budget || extracted?.budgetBand,
+    );
+    const breakfastSatisfied = Boolean(
+      shellBreakfastRequested ||
+        commerceContext?.breakfast?.requested ||
+        extracted?.breakfastRequested === true,
+    );
+
+    return chips.filter((chip) => {
+      const lower = chip.trim().toLowerCase();
+      if (datesSatisfied && lower === "select dates") return false;
+      if (guestsSatisfied && lower === "add guests") return false;
+      if (budgetSatisfied && lower === "set budget") return false;
+      if (
+        breakfastSatisfied &&
+        (lower === "add breakfast" || lower === "show breakfast packages")
+      ) {
+        return false;
+      }
+      return true;
+    });
+  };
+
   const submitDraft = async () => {
     if (submitInFlightRef.current) return;
 
@@ -2351,7 +2393,11 @@ export function GuideShellStatic({
           title: reply.title,
           body: botBody,
           answerParts: firstStepParts,
-          refinementChips: reply.refinementChips,
+          refinementChips: filterSatisfiedRefinementChips(
+            reply.refinementChips,
+            reply.extractedBookingContext,
+            conversationContext,
+          ),
           suggestedAction: reply.suggestedAction,
         },
       ];
