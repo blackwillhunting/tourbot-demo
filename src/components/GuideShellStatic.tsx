@@ -214,6 +214,31 @@ function isStayPlan(value: unknown): value is StayPlan {
   return Boolean(value && typeof value === "object" && (value as StayPlan).room);
 }
 
+type CommerceOrderMutation = "add" | "remove" | "start" | "none";
+
+function commerceOrderMutationFromMessage(message: string, hasActiveStayPlan: boolean): CommerceOrderMutation {
+  const text = (message || "").toLowerCase().trim();
+  if (!text) return "none";
+
+  if (
+    /\b(start over|new order|new booking|clear order|clear cart|reset|restart)\b/.test(text)
+  ) {
+    return "start";
+  }
+
+  if (
+    hasActiveStayPlan &&
+    /\b(remove|delete|drop|take off|take out|without|no longer|don'?t need|cancel the)\b/.test(text)
+  ) {
+    return "remove";
+  }
+
+  const addsBookingFields =
+    /\b(add|use|set|for this stay|for the stay|check.?in|check.?out|dates?|guests?|adults?|children|kids|budget|premium wi-?fi|wifi|breakfast|parking|package|bundle|add-?on)\b/.test(text);
+
+  return hasActiveStayPlan && addsBookingFields ? "add" : "none";
+}
+
 type GuideConversationContext = {
   lastUserMessage?: string;
   recentUserMessages?: string[];
@@ -2413,6 +2438,10 @@ export function GuideShellStatic({
     window.setTimeout(() => setKeyboardCompressed(false), 80);
 
     const conversationContext = buildConversationContext(trimmed);
+    const orderMutation = commerceOrderMutationFromMessage(
+      trimmed,
+      Boolean(conversationContext.activeStayPlan),
+    );
 
     clearReplyTimer();
     clearMinimizeTimer();
@@ -2420,7 +2449,9 @@ export function GuideShellStatic({
     setSpotlightActive(false);
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
-    setActiveStayPlan(null);
+    if (orderMutation === "start") {
+      setActiveStayPlan(null);
+    }
     setCurrentGuideMessageId(null);
 
     suppressNextDraftScrollRef.current = true;
@@ -2461,7 +2492,25 @@ export function GuideShellStatic({
         await wait(remaining);
       }
 
-      const nextGuideSteps = normalizeGuideSteps(reply);
+      const replyStayPlan =
+        reply.stayPlan ||
+        reply.stepNarratives
+          ?.map((step) => step?.stayPlan)
+          .find((plan): plan is StayPlan => isStayPlan(plan)) ||
+        null;
+      const nextGuideSteps = normalizeGuideSteps(reply).map((step) => {
+        if (!replyStayPlan) return step;
+        return {
+          ...step,
+          stayPlan: step.stayPlan || replyStayPlan,
+          stepNarrative: step.stepNarrative
+            ? {
+                ...step.stepNarrative,
+                stayPlan: step.stepNarrative.stayPlan || replyStayPlan,
+              }
+            : step.stepNarrative,
+        };
+      });
       const isMultiStepGuide = nextGuideSteps.length > 1;
       const botMessageId = makeId();
       const firstStepParts = isMultiStepGuide
@@ -2497,6 +2546,11 @@ export function GuideShellStatic({
       setGuideSteps(nextGuideSteps);
       setCurrentGuideStepIndex(0);
       setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : null);
+      if (replyStayPlan) {
+        setActiveStayPlan(replyStayPlan);
+      } else if (orderMutation === "start") {
+        setActiveStayPlan(null);
+      }
       setLastRefinementChipClicked(null);
 
       const hasNavigation =
@@ -2519,7 +2573,7 @@ export function GuideShellStatic({
         stepCount: nextGuideSteps.length,
         isMultiStep: isMultiStepGuide,
         displayMode: reply.displayMode,
-        hasStayPlan: Boolean(reply.stayPlan),
+        hasStayPlan: Boolean(replyStayPlan),
       });
     } catch (error) {
       const message =
