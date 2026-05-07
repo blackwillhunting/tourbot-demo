@@ -174,7 +174,7 @@ function guideModeCopy(guideConfig?: GuideConfig): {
 
 type SavedCommerceItem = {
   id: string;
-  type: "room" | "package" | "amenity" | "extra";
+  type: "room" | "package" | "extra";
   title: string;
   targetId?: string | null;
   pageId?: string | null;
@@ -186,7 +186,6 @@ type SavedCommerceItem = {
 type SavedTripContext = {
   room?: SavedCommerceItem | null;
   packages: SavedCommerceItem[];
-  amenities: SavedCommerceItem[];
   extras: SavedCommerceItem[];
 };
 
@@ -1715,7 +1714,6 @@ export function GuideShellStatic({
   const [savedTripContext, setSavedTripContext] = useState<SavedTripContext>({
     room: null,
     packages: [],
-    amenities: [],
     extras: [],
   });
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
@@ -2075,7 +2073,7 @@ export function GuideShellStatic({
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
     setActiveStayPlan(null);
-    setSavedTripContext({ room: null, packages: [], amenities: [], extras: [] });
+    setSavedTripContext({ room: null, packages: [], extras: [] });
     setCurrentGuideMessageId(null);
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
@@ -2736,7 +2734,6 @@ export function GuideShellStatic({
   const savedTripItemCount = () =>
     (savedTripContext.room ? 1 : 0) +
     savedTripContext.packages.length +
-    savedTripContext.amenities.length +
     savedTripContext.extras.length;
 
   const currentGuideStepToSavedItem = (): SavedCommerceItem | null => {
@@ -2774,14 +2771,10 @@ export function GuideShellStatic({
       };
     }
 
+    // Amenities are informational navigation/explanation objects in this demo,
+    // not selectable booking items.
     if (targetId.startsWith("amenity-")) {
-      return {
-        id: targetId,
-        type: "amenity",
-        title: currentGuideStep.targetText || label,
-        targetId,
-        pageId: currentGuideStep.pageId || null,
-      };
+      return null;
     }
 
     return null;
@@ -2794,6 +2787,22 @@ export function GuideShellStatic({
       return;
     }
 
+    if (item.type === "room") {
+      if (!shellDatesApplied) {
+        setActiveCompletionWidget("dates");
+        setActiveDatePicker("check-in");
+        if (isCoarsePointer()) openPanel();
+        return;
+      }
+
+      if (!shellGuestsApplied) {
+        setActiveCompletionWidget("guests");
+        setActiveDatePicker(null);
+        if (isCoarsePointer()) openPanel();
+        return;
+      }
+    }
+
     setSavedTripContext((current) => {
       if (item.type === "room") {
         return { ...current, room: item };
@@ -2804,13 +2813,6 @@ export function GuideShellStatic({
         return existing
           ? current
           : { ...current, packages: [...current.packages, item] };
-      }
-
-      if (item.type === "amenity") {
-        const existing = current.amenities.some((entry) => entry.id === item.id);
-        return existing
-          ? current
-          : { ...current, amenities: [...current.amenities, item] };
       }
 
       const existing = current.extras.some((entry) => entry.id === item.id);
@@ -2832,14 +2834,7 @@ export function GuideShellStatic({
           ...current,
           packages: current.packages.filter((item) => item.id !== id),
         };
-      }
-      if (type === "amenity") {
-        return {
-          ...current,
-          amenities: current.amenities.filter((item) => item.id !== id),
-        };
-      }
-      return {
+      }      return {
         ...current,
         extras: current.extras.filter((item) => item.id !== id),
       };
@@ -3649,16 +3644,18 @@ export function GuideShellStatic({
                         </button>
                       )}
 
-                      <button
-                        data-demo-target="guide-got-it"
-                        type="button"
-                        aria-label="Clear spotlight"
-                        title="Got it"
-                        onClick={acknowledgeSpotlight}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
+                      {guideConfig?.mode !== "commerce" && (
+                        <button
+                          data-demo-target="guide-got-it"
+                          type="button"
+                          aria-label="Clear spotlight"
+                          title="Got it"
+                          onClick={acknowledgeSpotlight}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -3691,7 +3688,7 @@ export function GuideShellStatic({
                                 : activeCompletionWidget === "guests"
                                   ? "Set the guest count so the guide can preserve capacity context."
                                   : activeCompletionWidget === "saved-trip"
-                                    ? "Review selected rooms, packages, amenities, and trip details."
+                                    ? "Review selected room, packages, and trip details."
                                     : "Choose a budget band to steer recommendations without forcing exact pricing."}
                             </div>
                           </div>
@@ -3936,10 +3933,10 @@ export function GuideShellStatic({
                               )}
                             </div>
 
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="grid gap-2">
                               <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
                                 <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                  Packages
+                                  Packages / add-ons
                                 </div>
                                 {savedTripContext.packages.length ? (
                                   <div className="space-y-1.5">
@@ -3976,37 +3973,6 @@ export function GuideShellStatic({
                                 )}
                               </div>
 
-                              <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
-                                <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                                  Amenities
-                                </div>
-                                {savedTripContext.amenities.length ? (
-                                  <div className="space-y-1.5">
-                                    {savedTripContext.amenities.map((item) => (
-                                      <div
-                                        key={item.id}
-                                        className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2"
-                                      >
-                                        <div className="min-w-0 truncate text-xs font-semibold text-slate-900">
-                                          {item.title}
-                                        </div>
-                                        <button
-                                          type="button"
-                                          aria-label={`Remove ${item.title}`}
-                                          onClick={() => removeSavedTripItem("amenity", item.id)}
-                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-rose-600"
-                                        >
-                                          <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-500">
-                                    No amenities saved.
-                                  </div>
-                                )}
-                              </div>
                             </div>
 
                             <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
