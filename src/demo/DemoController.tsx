@@ -18,6 +18,8 @@ type DemoResponseDetail = {
   stepCount?: number;
   isMultiStep?: boolean;
   message?: string;
+  displayMode?: string;
+  hasStayPlan?: boolean;
 };
 
 function wait(ms: number) {

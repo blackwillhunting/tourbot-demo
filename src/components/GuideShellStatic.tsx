@@ -181,6 +181,39 @@ type ExtractedBookingContext = {
   breakfastRequested?: boolean | null;
 };
 
+type StayPlanRoom = {
+  targetId?: string | null;
+  title?: string | null;
+  nightlyRateUsd?: number | null;
+};
+
+type StayPlanPackage = {
+  targetId?: string | null;
+  title?: string | null;
+  priceUsd?: number | null;
+  priceUnit?: string | null;
+  priceLabel?: string | null;
+  fulfills?: string[];
+  summary?: string | null;
+};
+
+type StayPlan = {
+  type?: string;
+  room?: StayPlanRoom | null;
+  packages?: StayPlanPackage[];
+  extras?: string[];
+  nights?: number | null;
+  addOnNightlyUsd?: number | null;
+  addOnStayUsd?: number | null;
+  estimatedNightlyTotalUsd?: number | null;
+  estimatedStaySubtotalUsd?: number | null;
+  navigationOrder?: string[];
+};
+
+function isStayPlan(value: unknown): value is StayPlan {
+  return Boolean(value && typeof value === "object" && (value as StayPlan).room);
+}
+
 type GuideConversationContext = {
   lastUserMessage?: string;
   recentUserMessages?: string[];
@@ -190,6 +223,7 @@ type GuideConversationContext = {
   currentGuideStep?: SuggestedAction | null;
   lastRefinementChipClicked?: string | null;
   commerceContext?: CommerceSessionContext;
+  activeStayPlan?: StayPlan | null;
 };
 
 type SuggestedAction = {
@@ -210,10 +244,13 @@ type StepNarrative = {
   intro?: string;
   bullets?: string[];
   closing?: string;
+  offerComposition?: unknown;
+  stayPlan?: StayPlan;
 };
 
 type GuidedAction = SuggestedAction & {
   stepNarrative?: StepNarrative;
+  stayPlan?: StayPlan;
 };
 
 type ThreadItem = {
@@ -237,6 +274,8 @@ function emitDemoResponseComplete(detail: {
   stepCount?: number;
   isMultiStep?: boolean;
   message?: string;
+  displayMode?: string;
+  hasStayPlan?: boolean;
 }) {
   window.dispatchEvent(
     new CustomEvent(GUIDE_DEMO_RESPONSE_COMPLETE_EVENT, { detail }),
@@ -286,6 +325,10 @@ type GuideAiResponse = {
   stepNarratives?: StepNarrative[];
   refinementChips?: string[];
   commerceAction?: string;
+  displayMode?: string;
+  stayPlan?: StayPlan;
+  navigationOrder?: string[];
+  bookingUpdate?: { stayPlan?: StayPlan; [key: string]: unknown };
   extractedBookingContext?: ExtractedBookingContext;
   followups?: string[];
 };
@@ -326,6 +369,9 @@ async function callGuideAi(
   stepNarratives?: StepNarrative[];
   refinementChips?: string[];
   commerceAction?: string;
+  displayMode?: string;
+  stayPlan?: StayPlan | null;
+  navigationOrder?: string[];
   extractedBookingContext?: ExtractedBookingContext;
 }> {
   const response = await fetch(GUIDE_AI_URL, {
@@ -381,6 +427,15 @@ async function callGuideAi(
       : [],
     commerceAction:
       typeof data.commerceAction === "string" ? data.commerceAction : undefined,
+    displayMode: typeof data.displayMode === "string" ? data.displayMode : undefined,
+    stayPlan: isStayPlan(data.stayPlan)
+      ? data.stayPlan
+      : isStayPlan(data.bookingUpdate?.stayPlan)
+        ? data.bookingUpdate?.stayPlan
+        : null,
+    navigationOrder: Array.isArray(data.navigationOrder)
+      ? data.navigationOrder.filter(Boolean)
+      : [],
     extractedBookingContext: data.extractedBookingContext,
   };
 }
@@ -842,6 +897,35 @@ function normalizeGuideSteps(reply: {
         (step.targetId || "").toLowerCase(),
       ),
     }));
+}
+
+function stayPlanFromGuidedStep(step?: GuidedAction | null): StayPlan | null {
+  if (!step) return null;
+  if (isStayPlan(step.stayPlan)) return step.stayPlan;
+  if (isStayPlan(step.stepNarrative?.stayPlan)) return step.stepNarrative?.stayPlan || null;
+  if (isStayPlan((step as { offerComposition?: unknown }).offerComposition)) {
+    return (step as { offerComposition?: StayPlan }).offerComposition || null;
+  }
+  if (isStayPlan((step.stepNarrative as { offerComposition?: unknown } | undefined)?.offerComposition)) {
+    return ((step.stepNarrative as { offerComposition?: StayPlan } | undefined)?.offerComposition || null);
+  }
+  return null;
+}
+
+function primaryRoomStepForStayPlan(
+  stayPlan: StayPlan | null,
+  steps: GuidedAction[],
+): GuidedAction | null {
+  const roomTargetId = stayPlan?.room?.targetId || null;
+  if (!roomTargetId) return null;
+  return (
+    steps.find((step) => step?.targetId === roomTargetId) ||
+    ({
+      type: "navigate",
+      targetId: roomTargetId,
+      targetText: stayPlan?.room?.title || undefined,
+    } as GuidedAction)
+  );
 }
 
 function answerPartsForGuideStep(
@@ -1576,6 +1660,7 @@ export function GuideShellStatic({
   const [spotlightActive, setSpotlightActive] = useState(false);
   const [guideSteps, setGuideSteps] = useState<GuidedAction[]>([]);
   const [currentGuideStepIndex, setCurrentGuideStepIndex] = useState(0);
+  const [activeStayPlan, setActiveStayPlan] = useState<StayPlan | null>(null);
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
     string | null
   >(null);
@@ -1932,6 +2017,7 @@ export function GuideShellStatic({
     setSpotlightActive(false);
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
+    setActiveStayPlan(null);
     setCurrentGuideMessageId(null);
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
@@ -2214,6 +2300,7 @@ export function GuideShellStatic({
       currentGuideStep: trimmedSteps[currentGuideStepIndex] || null,
       lastRefinementChipClicked,
       commerceContext: buildCommerceContext(),
+      activeStayPlan,
     };
   };
 
@@ -2333,6 +2420,7 @@ export function GuideShellStatic({
     setSpotlightActive(false);
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
+    setActiveStayPlan(null);
     setCurrentGuideMessageId(null);
 
     suppressNextDraftScrollRef.current = true;
@@ -2430,6 +2518,8 @@ export function GuideShellStatic({
         hasNavigation,
         stepCount: nextGuideSteps.length,
         isMultiStep: isMultiStepGuide,
+        displayMode: reply.displayMode,
+        hasStayPlan: Boolean(reply.stayPlan),
       });
     } catch (error) {
       const message =
@@ -2534,6 +2624,7 @@ export function GuideShellStatic({
     setSpotlightActive(false);
     setGuideSteps([]);
     setCurrentGuideStepIndex(0);
+    setActiveStayPlan(null);
     setCurrentGuideMessageId(null);
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
@@ -2567,13 +2658,25 @@ export function GuideShellStatic({
   });
 
   const bookCurrentGuideStep = (collapseOnMobile = false) => {
-    const bookableStep = currentGuideStep?.targetId?.startsWith("room-")
-      ? currentGuideStep
-      : guideSteps.find((step) => step?.targetId?.startsWith("room-")) ||
+    const stepStayPlan = stayPlanFromGuidedStep(currentGuideStep);
+    const fallbackStepStayPlan =
+      stepStayPlan ||
+      activeStayPlan ||
+      guideSteps.map((step) => stayPlanFromGuidedStep(step)).find(Boolean) ||
+      null;
+    const bookableStep = fallbackStepStayPlan
+      ? primaryRoomStepForStayPlan(fallbackStepStayPlan, guideSteps) ||
         currentGuideStep ||
         guideSteps[0] ||
-        null;
-    const targetId = bookableStep?.targetId || null;
+        null
+      : currentGuideStep?.targetId?.startsWith("room-")
+        ? currentGuideStep
+        : guideSteps.find((step) => step?.targetId?.startsWith("room-")) ||
+          currentGuideStep ||
+          guideSteps[0] ||
+          null;
+    const targetId =
+      fallbackStepStayPlan?.room?.targetId || bookableStep?.targetId || null;
 
     const dispatchBook = () => {
       window.dispatchEvent(
@@ -2581,6 +2684,11 @@ export function GuideShellStatic({
           detail: {
             targetId,
             step: bookableStep,
+            stayPlan: fallbackStepStayPlan,
+            packageIds: fallbackStepStayPlan?.packages
+              ?.map((item) => item.targetId)
+              .filter(Boolean),
+            extras: fallbackStepStayPlan?.extras || [],
             commerceContext: buildCommerceContext(),
           },
         }),
