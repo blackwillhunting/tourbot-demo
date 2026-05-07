@@ -72,7 +72,7 @@ export default function LaunchSelector() {
             </div>
             <div>
               <div className="text-[13px] font-semibold tracking-tight sm:text-lg">TourBot Demo</div>
-              <div className="text-[10px] text-slate-500 sm:text-sm">Guided Discovery + Guided Commerce</div>
+              <div className="text-[10px] text-slate-500 sm:text-sm">Discovery foundation + Commerce layer</div>
             </div>
           </div>
 
@@ -91,12 +91,12 @@ export default function LaunchSelector() {
           </div>
 
           <h1 className="mt-2 max-w-3xl text-2xl font-semibold leading-[1.04] tracking-[-0.04em] text-slate-950 sm:mt-4 sm:text-4xl md:text-5xl">
-            TourBot turns dense websites into guided conversations.
+            TourBot turns complex websites into guided discovery and guided decisions.
           </h1>
 
           <p className="mt-2 max-w-2xl text-[13px] leading-5 text-slate-600 sm:mt-4 sm:text-base sm:leading-7">
-            TourBot answers questions, guides users through the right site sections,
-            and preloads forms or booking steps from natural-language intent.
+            TourBot answers general questions, guides users through the right site sections,
+            then layers commerce intelligence on top: ranking options, capturing missing details, and preloading next steps.
           </p>
 
           <div className="mt-3 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:gap-3">
@@ -129,11 +129,11 @@ export default function LaunchSelector() {
 
           <DemoCard
             eyebrow="Guided Commerce Playground"
-            title="StayPilot Suites"
-            description="A self-drive hotel-booking playground where visitors can browse normally or activate TourBot to interpret natural-language intent, refine missing details, rank options, and preload booking context."
+            title="Domi Coast Resort & Conference Hotel"
+            description="A self-drive resort and conference-hotel playground where visitors can ask general property questions, explore rooms and experiences, compare options, refine missing details, and preload booking context."
             href="/commerce"
             icon={Hotel}
-            bullets={["Hotel booking", "Intent capture", "Form preload"]}
+            bullets={["Resort discovery", "Option ranking", "Booking preload"]}
           />
         </div>
       </section>
