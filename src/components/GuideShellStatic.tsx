@@ -1887,7 +1887,18 @@ export function GuideShellStatic({
     // Hover-based auto-minimize is desktop behavior. On phones, touch/keyboard
     // focus can accidentally produce leave/blur events and collapse the shell
     // before the submit click is delivered.
-    if (isCoarsePointer() || isBotTyping || autoMinimizeDisabledRef.current) {
+    // Do not collapse while the user is completing required booking context
+    // or while a pending room save is waiting for dates/guests. Collapsing here
+    // can unmount the composer/widget row and leave the user unable to submit
+    // the required context that unlocks Save.
+    if (
+      isCoarsePointer() ||
+      isBotTyping ||
+      autoMinimizeDisabledRef.current ||
+      activeCompletionWidget !== null ||
+      draftValue.trim().length > 0 ||
+      Boolean(pendingRoomSaveRef.current)
+    ) {
       return;
     }
 
@@ -3368,6 +3379,9 @@ export function GuideShellStatic({
         : `${cleanInstruction}.`;
 
     clearMinimizeTimer();
+    if (shellState !== "panel") {
+      openPanel();
+    }
     suppressNextDraftScrollRef.current = true;
 
     setDraftValue((current) => {
@@ -3409,21 +3423,24 @@ export function GuideShellStatic({
     if (clean) setLastRefinementChipClicked(clean);
 
     if (guideConfig?.mode === "commerce" && lower === "select dates") {
+      clearMinimizeTimer();
+      if (shellState !== "panel") openPanel();
       setActiveCompletionWidget("dates");
       setActiveDatePicker(null);
-      clearMinimizeTimer();
       return;
     }
 
     if (guideConfig?.mode === "commerce" && lower === "add guests") {
-      setActiveCompletionWidget("guests");
       clearMinimizeTimer();
+      if (shellState !== "panel") openPanel();
+      setActiveCompletionWidget("guests");
       return;
     }
 
     if (guideConfig?.mode === "commerce" && lower === "set budget") {
-      setActiveCompletionWidget("budget");
       clearMinimizeTimer();
+      if (shellState !== "panel") openPanel();
+      setActiveCompletionWidget("budget");
       return;
     }
 
@@ -3963,6 +3980,8 @@ export function GuideShellStatic({
                                   shellCheckOutDate <= shellCheckInDate
                                 }
                                 onClick={() => {
+                                  clearMinimizeTimer();
+                                  if (shellState !== "panel") openPanel();
                                   const dateLabel = formatShellDateRange(
                                     shellCheckInDate,
                                     shellCheckOutDate,
@@ -4023,6 +4042,7 @@ export function GuideShellStatic({
                                       item.setValue(
                                         Math.max(item.min, item.value - 1),
                                       );
+                                      confirmedBookingContextKeyRef.current = "";
                                       setShellGuestsApplied(false);
                                     }}
                                     className="h-7 w-7 rounded-full border border-slate-200 bg-white text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:h-8 sm:w-8 sm:text-sm"
@@ -4038,6 +4058,7 @@ export function GuideShellStatic({
                                     type="button"
                                     onClick={() => {
                                       item.setValue(item.value + 1);
+                                      confirmedBookingContextKeyRef.current = "";
                                       setShellGuestsApplied(false);
                                     }}
                                     className="h-7 w-7 rounded-full bg-slate-950 text-xs font-semibold text-white transition hover:bg-slate-800 sm:h-8 sm:w-8 sm:text-sm"
@@ -4057,6 +4078,8 @@ export function GuideShellStatic({
                                 data-demo-target="apply-guests"
                                 type="button"
                                 onClick={() => {
+                                  clearMinimizeTimer();
+                                  if (shellState !== "panel") openPanel();
                                   const guestsLabel = guestSummary(
                                     shellAdults,
                                     shellChildren,
@@ -4169,7 +4192,7 @@ export function GuideShellStatic({
                                 {shellDatesApplied ? (
                                   <button
                                     type="button"
-                                    onClick={() => setShellDatesApplied(false)}
+                                    onClick={() => { confirmedBookingContextKeyRef.current = ""; setShellDatesApplied(false); }}
                                     className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition hover:bg-rose-50 hover:text-rose-700"
                                   >
                                     {formatShellDateRange(shellCheckInDate, shellCheckOutDate)}
@@ -4178,7 +4201,7 @@ export function GuideShellStatic({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => setActiveCompletionWidget("dates")}
+                                    onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("dates"); }}
                                     className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
                                   >
                                     Add dates
@@ -4187,7 +4210,7 @@ export function GuideShellStatic({
                                 {shellGuestsApplied ? (
                                   <button
                                     type="button"
-                                    onClick={() => setShellGuestsApplied(false)}
+                                    onClick={() => { confirmedBookingContextKeyRef.current = ""; setShellGuestsApplied(false); }}
                                     className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 transition hover:bg-rose-50 hover:text-rose-700"
                                   >
                                     {guestSummary(shellAdults, shellChildren)}
@@ -4196,7 +4219,7 @@ export function GuideShellStatic({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => setActiveCompletionWidget("guests")}
+                                    onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("guests"); }}
                                     className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
                                   >
                                     Add guests
@@ -4214,7 +4237,7 @@ export function GuideShellStatic({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => setActiveCompletionWidget("budget")}
+                                    onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("budget"); }}
                                     className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
                                   >
                                     Add budget
@@ -4239,6 +4262,8 @@ export function GuideShellStatic({
                                 data-demo-target={`budget-${band.toLowerCase()}`}
                                 type="button"
                                 onClick={() => {
+                                  clearMinimizeTimer();
+                                  if (shellState !== "panel") openPanel();
                                   const budgetPrompt = `Use a ${band.toLowerCase()} budget for this stay.`;
                                   setShellBudgetBand(band);
                                   setActiveCompletionWidget(null);
