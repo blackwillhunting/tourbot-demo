@@ -1898,7 +1898,8 @@ export function GuideShellStatic({
       autoMinimizeDisabledRef.current ||
       activeCompletionWidget !== null ||
       draftValue.trim().length > 0 ||
-      Boolean(pendingRoomSaveRef.current)
+      Boolean(pendingRoomSaveRef.current) ||
+      Boolean(guideConfig?.mode === "commerce" && (hasCommerceRefinementChips || hasSavedTripItems))
     ) {
       return;
     }
@@ -2822,6 +2823,30 @@ export function GuideShellStatic({
   const currentGuideStep = hasGuideSteps
     ? guideSteps[currentGuideStepIndex]
     : null;
+  const latestBotRefinementChips = [...thread]
+    .reverse()
+    .find((item) => item.role === "bot" && (item.refinementChips?.length || 0) > 0)
+    ?.refinementChips || [];
+  const hasCommerceRefinementChips = Boolean(
+    guideConfig?.mode === "commerce" && latestBotRefinementChips.length > 0,
+  );
+  const hasSavedTripItems = Boolean(
+    savedTripContext.room ||
+      savedTripContext.packages.length > 0 ||
+      savedTripContext.extras.length > 0,
+  );
+  // Hard rule: commerce action tools stay visible for answer-only commerce
+  // turns when the user still has visible trip state or refinement actions.
+  // This prevents informational follow-ups like "what amenities do you offer?"
+  // from collapsing the action strip after a room/package has been saved.
+  const keepCommerceActionStripOpen = Boolean(
+    guideConfig?.mode === "commerce" &&
+      !hasGuideSteps &&
+      (hasCommerceRefinementChips || hasSavedTripItems || activeStayPlan),
+  );
+  const showGuideActionStrip = Boolean(
+    spotlightActive || hasGuideSteps || keepCommerceActionStripOpen,
+  );
   const showBookAction = Boolean(
     guideConfig?.mode === "commerce" &&
     guideConfig?.features?.bookingActions &&
@@ -3732,7 +3757,7 @@ export function GuideShellStatic({
                 }}
                 className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
               >
-                {(spotlightActive || hasGuideSteps) && (
+                {showGuideActionStrip && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0 flex-1 text-xs text-slate-500">
                       {hasGuideSteps ? (
@@ -3747,6 +3772,15 @@ export function GuideShellStatic({
                               {guideStepLabel(currentGuideStep)}
                             </div>
                           )}
+                        </div>
+                      ) : keepCommerceActionStripOpen ? (
+                        <div className="min-w-0 leading-tight">
+                          <div className="font-semibold text-slate-700">
+                            Trip tools stay open
+                          </div>
+                          <div className="mt-0.5 truncate text-slate-500">
+                            Continue the saved trip, or use the suggested actions above.
+                          </div>
                         </div>
                       ) : (
                         <div className="font-semibold text-slate-700">
@@ -3795,24 +3829,27 @@ export function GuideShellStatic({
                         </>
                       )}
 
-                      {guideConfig?.mode === "commerce" && hasGuideSteps && (
+                      {guideConfig?.mode === "commerce" &&
+                        (hasGuideSteps || keepCommerceActionStripOpen) && (
                         <>
-                          <button
-                            data-demo-target="guide-save"
-                            type="button"
-                            aria-label="Save current recommendation"
-                            title="Save"
-                            onClick={saveCurrentGuideStep}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-                          >
-                            <Bookmark className="h-3.5 w-3.5" />
-                          </button>
+                          {hasGuideSteps && (
+                            <button
+                              data-demo-target="guide-save"
+                              type="button"
+                              aria-label="Save current recommendation"
+                              title="Save"
+                              onClick={saveCurrentGuideStep}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                            >
+                              <Bookmark className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             data-demo-target="guide-view"
                             type="button"
                             aria-label="View saved trip"
                             title="View"
-                            onClick={() => setActiveCompletionWidget("saved-trip")}
+                            onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("saved-trip"); }}
                             className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -4408,7 +4445,7 @@ export function GuideShellStatic({
           }
           className="flex max-w-[calc(100vw-24px)] items-center justify-end gap-2"
         >
-          {coarsePointer && (hasGuideSteps || showBookAction) && (
+          {coarsePointer && (showGuideActionStrip || showBookAction) && (
             <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur">
               {hasMultipleGuideSteps && (
                 <>
@@ -4441,24 +4478,28 @@ export function GuideShellStatic({
                 </>
               )}
 
-              {guideConfig?.mode === "commerce" && hasGuideSteps && (
+              {guideConfig?.mode === "commerce" &&
+                (hasGuideSteps || keepCommerceActionStripOpen) && (
                 <>
-                  <button
-                    data-demo-target="guide-save"
-                    type="button"
-                    aria-label="Save current recommendation"
-                    title="Save"
-                    onClick={saveCurrentGuideStep}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  >
-                    <Bookmark className="h-4 w-4" />
-                  </button>
+                  {hasGuideSteps && (
+                    <button
+                      data-demo-target="guide-save"
+                      type="button"
+                      aria-label="Save current recommendation"
+                      title="Save"
+                      onClick={saveCurrentGuideStep}
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
+                    >
+                      <Bookmark className="h-4 w-4" />
+                    </button>
+                  )}
                   <button
                     data-demo-target="guide-view"
                     type="button"
                     aria-label="View saved trip"
                     title="View"
                     onClick={() => {
+                      clearMinimizeTimer();
                       openPanel();
                       setActiveCompletionWidget("saved-trip");
                     }}
