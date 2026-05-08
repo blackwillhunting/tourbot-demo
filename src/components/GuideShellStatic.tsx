@@ -2847,10 +2847,14 @@ export function GuideShellStatic({
   const showGuideActionStrip = Boolean(
     spotlightActive || hasGuideSteps || keepCommerceActionStripOpen,
   );
+  const hasBookableSavedTrip = Boolean(savedTripContext.room?.targetId);
+  const hasBookableActiveStayPlan = Boolean(activeStayPlan?.room?.targetId);
   const showBookAction = Boolean(
     guideConfig?.mode === "commerce" &&
-    guideConfig?.features?.bookingActions &&
-    guideSteps.some((step) => step?.targetId?.startsWith("room-")),
+      guideConfig?.features?.bookingActions &&
+      (guideSteps.some((step) => step?.targetId?.startsWith("room-")) ||
+        hasBookableActiveStayPlan ||
+        hasBookableSavedTrip),
   );
 
   const navigateToGuideStep = (nextIndex: number, collapseOnMobile = false) => {
@@ -3089,26 +3093,73 @@ export function GuideShellStatic({
     savedTrip: savedTripContext,
   });
 
+  const stayPlanFromSavedTrip = (): StayPlan | null => {
+    const savedRoom = savedTripContext.room;
+    if (!savedRoom?.targetId) return null;
+
+    return {
+      type: "saved_trip",
+      room: {
+        targetId: savedRoom.targetId,
+        title: savedRoom.title,
+        nightlyRateUsd:
+          savedRoom.priceUnit === "night" ? savedRoom.priceUsd ?? null : null,
+      },
+      packages: savedTripContext.packages
+        .filter((item) => item.targetId)
+        .map((item) => ({
+          targetId: item.targetId,
+          title: item.title,
+          priceUsd: item.priceUsd ?? null,
+          priceUnit: item.priceUnit ?? null,
+          priceLabel: item.priceLabel ?? null,
+          summary: null,
+        })),
+      extras: savedTripContext.extras.map((item) => item.title),
+      navigationOrder: [
+        savedRoom.targetId,
+        ...savedTripContext.packages
+          .map((item) => item.targetId)
+          .filter(Boolean),
+      ] as string[],
+    };
+  };
+
   const bookCurrentGuideStep = (collapseOnMobile = false) => {
     const stepStayPlan = stayPlanFromGuidedStep(currentGuideStep);
+    const savedTripStayPlan = stayPlanFromSavedTrip();
     const fallbackStepStayPlan =
       stepStayPlan ||
       activeStayPlan ||
       guideSteps.map((step) => stayPlanFromGuidedStep(step)).find(Boolean) ||
+      savedTripStayPlan ||
       null;
+    const savedRoomStep = savedTripContext.room?.targetId
+      ? ({
+          type: "navigate",
+          targetId: savedTripContext.room.targetId,
+          pageId: savedTripContext.room.pageId || undefined,
+          targetText: savedTripContext.room.title,
+        } as GuidedAction)
+      : null;
     const bookableStep = fallbackStepStayPlan
       ? primaryRoomStepForStayPlan(fallbackStepStayPlan, guideSteps) ||
         currentGuideStep ||
         guideSteps[0] ||
+        savedRoomStep ||
         null
       : currentGuideStep?.targetId?.startsWith("room-")
         ? currentGuideStep
         : guideSteps.find((step) => step?.targetId?.startsWith("room-")) ||
           currentGuideStep ||
           guideSteps[0] ||
+          savedRoomStep ||
           null;
     const targetId =
-      fallbackStepStayPlan?.room?.targetId || bookableStep?.targetId || null;
+      fallbackStepStayPlan?.room?.targetId ||
+      bookableStep?.targetId ||
+      savedTripContext.room?.targetId ||
+      null;
 
     const dispatchBook = () => {
       window.dispatchEvent(
