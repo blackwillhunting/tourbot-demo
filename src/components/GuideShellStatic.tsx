@@ -1021,11 +1021,60 @@ function guideStepLabel(step?: SuggestedAction | null) {
   );
 }
 
-type CompletionWidget = "dates" | "guests" | "budget" | "saved-trip" | null;
+type CompletionWidget = "dates" | "guests" | "budget" | "saved-trip" | "upsell" | null;
 type DatePickerKind = "check-in" | "check-out" | null;
 type BudgetBand = "Value" | "Moderate" | "Premium" | "Luxury";
 
 const BUDGET_BANDS: BudgetBand[] = ["Value", "Moderate", "Premium", "Luxury"];
+
+type UpsellSuggestion = {
+  label: string;
+  prompt: string;
+  helper: string;
+};
+
+const DEFAULT_UPSELL_SUGGESTIONS: UpsellSuggestion[] = [
+  {
+    label: "Add breakfast",
+    prompt: "Show me breakfast packages I can add to this stay.",
+    helper: "Morning value and coffee coverage.",
+  },
+  {
+    label: "Better view",
+    prompt: "Show me room upgrades with better views for this stay.",
+    helper: "Ocean, terrace, balcony, or premium view options.",
+  },
+  {
+    label: "Quieter room",
+    prompt: "Show me quieter room options or quiet-floor upgrades for this stay.",
+    helper: "Better sleep, business travel, lower noise.",
+  },
+  {
+    label: "Parking / shuttle",
+    prompt: "Show me parking or airport transfer packages I can add to this stay.",
+    helper: "Convenience add-ons before checkout.",
+  },
+  {
+    label: "Late checkout",
+    prompt: "Show me packages with late checkout for this stay.",
+    helper: "More flexibility on departure day.",
+  },
+  {
+    label: "Spa / relaxation",
+    prompt: "Show me spa, rooftop, or relaxation packages I can add to this stay.",
+    helper: "Premium leisure upsell.",
+  },
+  {
+    label: "Business upgrade",
+    prompt: "Show me business-friendly upgrades with premium Wi-Fi or meeting pods for this stay.",
+    helper: "Work lounge, Wi-Fi, meeting support.",
+  },
+  {
+    label: "Family comfort",
+    prompt: "Show me family comfort packages or kid-friendly amenities for this stay.",
+    helper: "Kids Club, towels, snacks, pool support.",
+  },
+];
 
 function formatShellDate(value: string) {
   if (!value) return "Select date";
@@ -3123,7 +3172,14 @@ export function GuideShellStatic({
     };
   };
 
-  const bookCurrentGuideStep = (collapseOnMobile = false) => {
+  const bookCurrentGuideStep = (collapseOnMobile = false, forceCheckout = false) => {
+    if (guideConfig?.mode === "commerce" && !forceCheckout) {
+      clearMinimizeTimer();
+      if (shellState !== "panel") openPanel();
+      setActiveCompletionWidget("upsell");
+      setActiveDatePicker(null);
+      return;
+    }
     const stepStayPlan = stayPlanFromGuidedStep(currentGuideStep);
     const savedTripStayPlan = stayPlanFromSavedTrip();
     const fallbackStepStayPlan =
@@ -3979,7 +4035,9 @@ export function GuideShellStatic({
                                   ? "Add guests"
                                   : activeCompletionWidget === "saved-trip"
                                     ? "Saved trip"
-                                    : "Set budget"}
+                                    : activeCompletionWidget === "upsell"
+                                      ? "Enhance your stay"
+                                      : "Set budget"}
                             </div>
                             <div className="mt-0.5 text-[10px] leading-[14px] text-slate-500 sm:mt-1 sm:text-xs sm:leading-5">
                               {activeCompletionWidget === "dates"
@@ -3988,7 +4046,9 @@ export function GuideShellStatic({
                                   ? "Set the guest count so the guide can preserve capacity context."
                                   : activeCompletionWidget === "saved-trip"
                                     ? "Review selected room, packages, and trip details."
-                                    : "Choose a budget band to steer recommendations without forcing exact pricing."}
+                                    : activeCompletionWidget === "upsell"
+                                      ? "Optional quality modifiers before the cart handoff. Pick one to preload a request, or continue to booking."
+                                      : "Choose a budget band to steer recommendations without forcing exact pricing."}
                             </div>
                           </div>
                           <button
@@ -4346,6 +4406,55 @@ export function GuideShellStatic({
                               {estimateSavedTripSubtotal() !== null
                                 ? `Estimated room + package subtotal: $${estimateSavedTripSubtotal()?.toLocaleString()} before taxes and fees.`
                                 : "Estimate appears here after a saved room has a nightly rate and dates are applied."}
+                            </div>
+                          </div>
+                        )}
+
+                        {activeCompletionWidget === "upsell" && (
+                          <div className="space-y-2 sm:space-y-3">
+                            <div className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs leading-5 text-cyan-950">
+                              Before checkout, TourBot can check for useful stay enhancers the traveler may not know to ask for.
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
+                              {DEFAULT_UPSELL_SUGGESTIONS.map((suggestion) => (
+                                <button
+                                  key={suggestion.label}
+                                  type="button"
+                                  onClick={() => {
+                                    clearMinimizeTimer();
+                                    if (shellState !== "panel") openPanel();
+                                    appendDraftInstruction(suggestion.prompt);
+                                  }}
+                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left transition hover:border-cyan-200 hover:bg-cyan-50 sm:rounded-xl sm:px-3 sm:py-3"
+                                >
+                                  <div className="text-xs font-semibold text-slate-900 sm:text-sm">
+                                    {suggestion.label}
+                                  </div>
+                                  <div className="mt-0.5 text-[11px] leading-4 text-slate-500 sm:mt-1 sm:text-xs">
+                                    {suggestion.helper}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
+                              <div className="min-w-0">
+                                <div className="text-xs font-semibold text-slate-900">
+                                  Ready to checkout?
+                                </div>
+                                <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                                  Continue with the current room, dates, guests, and saved trip context.
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => bookCurrentGuideStep(true, true)}
+                                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
+                              >
+                                <ShoppingBag className="h-3.5 w-3.5" />
+                                Continue
+                              </button>
                             </div>
                           </div>
                         )}
