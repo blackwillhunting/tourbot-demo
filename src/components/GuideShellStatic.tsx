@@ -265,6 +265,7 @@ function commerceOrderMutationFromMessage(message: string, hasActiveStayPlan: bo
 }
 
 type GuideConversationContext = {
+  singleTurn?: boolean;
   lastUserMessage?: string;
   recentUserMessages?: string[];
   recentBotSummary?: string;
@@ -2342,16 +2343,6 @@ export function GuideShellStatic({
   const buildConversationContext = (
     currentMessage: string,
   ): GuideConversationContext => {
-    const recentUserMessages = threadStateRef.current
-      .filter((item) => item.role === "user" && item.status !== "thinking")
-      .slice(-4)
-      .map((item) => item.body)
-      .filter(Boolean);
-
-    const recentBot = [...threadStateRef.current]
-      .reverse()
-      .find((item) => item.role === "bot" && item.status !== "thinking");
-
     const trimmedSteps = guideSteps.slice(0, MAX_GUIDED_STEPS).map((step) => ({
       type: step.type,
       targetId: step.targetId,
@@ -2361,13 +2352,13 @@ export function GuideShellStatic({
       reason: step.reason,
     }));
 
+    // Single-turn contract: the backend gets the latest prompt plus the
+    // current visible UI state. It should not receive prior chat text that can
+    // poison a fresh catalog search like "packages with coffee" after a
+    // previous parking query.
     return {
-      lastUserMessage:
-        currentMessage ||
-        recentUserMessages[recentUserMessages.length - 1] ||
-        undefined,
-      recentUserMessages,
-      recentBotSummary: recentBot?.body?.slice(0, 900),
+      singleTurn: true,
+      lastUserMessage: currentMessage || undefined,
       currentGuideStepIndex,
       currentGuideSteps: trimmedSteps,
       currentGuideStep: trimmedSteps[currentGuideStepIndex] || null,
