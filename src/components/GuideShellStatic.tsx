@@ -2457,16 +2457,20 @@ export function GuideShellStatic({
 
   const completePendingRoomSaveFromContextUpdate = (
     extracted?: ExtractedBookingContext,
+    context?: GuideConversationContext,
   ) => {
     const pendingRoom = pendingRoomSaveRef.current;
     if (!pendingRoom) return;
 
+    const commerceContext = context?.commerceContext;
     const datesSatisfied =
       shellDatesApplied ||
-      Boolean(extracted?.checkInDate && extracted?.checkOutDate);
+      Boolean(extracted?.checkInDate && extracted?.checkOutDate) ||
+      Boolean(commerceContext?.dates?.checkIn && commerceContext?.dates?.checkOut);
     const guestsSatisfied =
       shellGuestsApplied ||
-      (extracted?.adults !== undefined && extracted?.adults !== null);
+      (extracted?.adults !== undefined && extracted?.adults !== null) ||
+      Boolean(commerceContext?.guests?.adults);
 
     if (!datesSatisfied || !guestsSatisfied) return;
 
@@ -2476,6 +2480,7 @@ export function GuideShellStatic({
     }));
     pendingRoomSaveRef.current = null;
     setActiveCompletionWidget("saved-trip");
+    setActiveDatePicker(null);
   };
 
   const submitDraft = async () => {
@@ -2501,8 +2506,10 @@ export function GuideShellStatic({
     const previousGuideSteps = guideSteps;
     const previousGuideStepIndex = currentGuideStepIndex;
     const previousGuideMessageId = currentGuideMessageId;
+    const hadPendingRoomSaveAtSubmit = Boolean(pendingRoomSaveRef.current);
+    const isCommerceContextUpdateSubmit = isCommerceContextUpdateDraft(trimmed);
     const preserveGuideActionsDuringSubmit =
-      previousGuideSteps.length > 0 && isCommerceContextUpdateDraft(trimmed);
+      previousGuideSteps.length > 0 && isCommerceContextUpdateSubmit;
 
     clearReplyTimer();
     clearMinimizeTimer();
@@ -2547,8 +2554,16 @@ export function GuideShellStatic({
         conversationContext,
       );
       mergeExtractedBookingContext(reply.extractedBookingContext);
-      if (reply.commerceAction === "booking_context_update") {
-        completePendingRoomSaveFromContextUpdate(reply.extractedBookingContext);
+      const shouldCompletePendingRoomSave =
+        hadPendingRoomSaveAtSubmit && isCommerceContextUpdateSubmit;
+      if (
+        shouldCompletePendingRoomSave ||
+        reply.commerceAction === "booking_context_update"
+      ) {
+        completePendingRoomSaveFromContextUpdate(
+          reply.extractedBookingContext,
+          conversationContext,
+        );
       }
       const remaining = Math.max(
         0,
@@ -2577,10 +2592,12 @@ export function GuideShellStatic({
             : step.stepNarrative,
         };
       });
+      const shouldIgnoreContextUpdateNavigation =
+        guideConfig?.mode === "commerce" &&
+        isCommerceContextUpdateSubmit &&
+        (hadPendingRoomSaveAtSubmit || reply.commerceAction === "booking_context_update");
       const preservePreviousGuideSteps =
-        reply.commerceAction === "booking_context_update" &&
-        normalizedGuideSteps.length === 0 &&
-        previousGuideSteps.length > 0;
+        shouldIgnoreContextUpdateNavigation && previousGuideSteps.length > 0;
       const nextGuideSteps = preservePreviousGuideSteps
         ? previousGuideSteps
         : normalizedGuideSteps;
@@ -2633,6 +2650,7 @@ export function GuideShellStatic({
       setLastRefinementChipClicked(null);
 
       const hasNavigation =
+        !shouldIgnoreContextUpdateNavigation &&
         reply.commerceAction !== "booking_context_update" &&
         (normalizedGuideSteps.length > 0 || reply.suggestedAction?.type === "navigate");
 
