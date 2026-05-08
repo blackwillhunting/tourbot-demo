@@ -1888,18 +1888,16 @@ export function GuideShellStatic({
     // Hover-based auto-minimize is desktop behavior. On phones, touch/keyboard
     // focus can accidentally produce leave/blur events and collapse the shell
     // before the submit click is delivered.
-    // Do not collapse while the user is completing required booking context
-    // or while a pending room save is waiting for dates/guests. Collapsing here
-    // can unmount the composer/widget row and leave the user unable to submit
-    // the required context that unlocks Save.
+    // Desktop timeout should only be suspended while the user has unsent text
+    // in the composer or while a backend response/preloader is in flight.
+    // Do not keep the panel open merely because commerce chips, saved-trip
+    // tools, booking widgets, or pending-save state are visible.
     if (
       isCoarsePointer() ||
       isBotTyping ||
+      submitInFlightRef.current ||
       autoMinimizeDisabledRef.current ||
-      activeCompletionWidget !== null ||
-      draftValue.trim().length > 0 ||
-      Boolean(pendingRoomSaveRef.current) ||
-      Boolean(guideConfig?.mode === "commerce" && (hasCommerceRefinementChips || hasSavedTripItems))
+      draftValue.trim().length > 0
     ) {
       return;
     }
