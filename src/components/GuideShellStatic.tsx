@@ -3187,15 +3187,29 @@ export function GuideShellStatic({
     dispatchBook();
   };
 
+  const normalizeCommerceChip = (chip: string) =>
+    chip
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
   const chipToPrompt = (chip: string) => {
     const clean = chip.trim();
     if (!clean) return "";
 
-    const lower = clean.toLowerCase();
-    if (lower === "select dates") return "I want to select dates.";
-    if (lower === "add guests") return "I want to add guests.";
+    const lower = normalizeCommerceChip(clean);
+    // Completion chips are handled by handleRefinementChipClick. They should
+    // never be converted into composer text, especially during pending Save
+    // flows where Select dates/Add guests must open the inline widgets.
+    if (guideConfig?.mode === "commerce") {
+      if (lower === "select dates" || lower === "add dates") return "";
+      if (lower === "add guests" || lower === "select guests") return "";
+      if (lower === "set budget" || lower === "add budget") return "";
+    }
+
     if (lower === "add breakfast") return "Add breakfast to this stay.";
-    if (lower === "set budget") return "I want to set a budget.";
     if (lower.startsWith("show "))
       return clean.endsWith(".") ? clean : `${clean}.`;
     if (lower.startsWith("add "))
@@ -3486,29 +3500,34 @@ export function GuideShellStatic({
 
   const handleRefinementChipClick = (chip: string) => {
     const clean = chip.trim();
-    const lower = clean.toLowerCase();
+    const lower = normalizeCommerceChip(clean);
     if (clean) setLastRefinementChipClicked(clean);
 
-    if (guideConfig?.mode === "commerce" && lower === "select dates") {
-      clearMinimizeTimer();
-      if (shellState !== "panel") openPanel();
-      setActiveCompletionWidget("dates");
-      setActiveDatePicker(null);
-      return;
-    }
+    if (guideConfig?.mode === "commerce") {
+      if (lower === "select dates" || lower === "add dates") {
+        clearMinimizeTimer();
+        if (shellState !== "panel") openPanel();
+        setActiveCompletionWidget("dates");
+        syncShellCalendarMonthToDate(shellCheckInDate);
+        setActiveDatePicker("check-in");
+        return;
+      }
 
-    if (guideConfig?.mode === "commerce" && lower === "add guests") {
-      clearMinimizeTimer();
-      if (shellState !== "panel") openPanel();
-      setActiveCompletionWidget("guests");
-      return;
-    }
+      if (lower === "add guests" || lower === "select guests") {
+        clearMinimizeTimer();
+        if (shellState !== "panel") openPanel();
+        setActiveCompletionWidget("guests");
+        setActiveDatePicker(null);
+        return;
+      }
 
-    if (guideConfig?.mode === "commerce" && lower === "set budget") {
-      clearMinimizeTimer();
-      if (shellState !== "panel") openPanel();
-      setActiveCompletionWidget("budget");
-      return;
+      if (lower === "set budget" || lower === "add budget") {
+        clearMinimizeTimer();
+        if (shellState !== "panel") openPanel();
+        setActiveCompletionWidget("budget");
+        setActiveDatePicker(null);
+        return;
+      }
     }
 
     const nextPrompt = chipToPrompt(clean);
@@ -4280,7 +4299,7 @@ export function GuideShellStatic({
                                 ) : (
                                   <button
                                     type="button"
-                                    onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("dates"); }}
+                                    onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("dates"); syncShellCalendarMonthToDate(shellCheckInDate); setActiveDatePicker("check-in"); }}
                                     className="rounded-full border border-dashed border-slate-300 px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition hover:bg-slate-50"
                                   >
                                     Add dates
