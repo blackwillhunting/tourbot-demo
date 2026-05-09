@@ -1158,13 +1158,17 @@ function clearActiveSpotlight() {
   }
 }
 
-type SpotlightMode = "card" | "band" | "heading" | "control" | "navigation";
+type SpotlightMode = "card" | "area" | "control" | "navigation";
 
 function elementTextLength(target: HTMLElement) {
   return (target.innerText || target.textContent || "").replace(/\s+/g, " ").trim().length;
 }
 
 function visibleHeadingInside(target: HTMLElement): HTMLElement | null {
+  if (target.tagName.toLowerCase().match(/^h[1-6]$/) || target.hasAttribute("data-tour-heading")) {
+    return isVisibleElement(target) ? target : null;
+  }
+
   const headings = Array.from(
     target.querySelectorAll<HTMLElement>("h1,h2,h3,h4,[data-tour-heading]"),
   );
@@ -1172,111 +1176,108 @@ function visibleHeadingInside(target: HTMLElement): HTMLElement | null {
   return headings.find(isVisibleElement) || null;
 }
 
-function isLargeOrLooseTarget(target: HTMLElement) {
+function firstMeaningfulChildTarget(target: HTMLElement): HTMLElement | null {
+  return (
+    Array.from(
+      target.querySelectorAll<HTMLElement>(
+        "article, [data-tour-id], button, a, [role='button'], [role='link']",
+      ),
+    ).find((node) => node !== target && isVisibleElement(node)) || null
+  );
+}
+
+function isNavigationSpotlightTarget(target: HTMLElement) {
+  const targetId = (
+    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
+  ).toLowerCase();
+
+  return Boolean(
+    targetId.includes("menu-path") ||
+      target.closest("header, nav, [role='navigation']"),
+  );
+}
+
+function isControlSpotlightTarget(target: HTMLElement) {
+  const targetId = (
+    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
+  ).toLowerCase();
+  const tag = target.tagName.toLowerCase();
+  const interactiveSelector =
+    'button, a, input, select, textarea, [role="button"], [role="link"], [data-demo-target]';
+
+  return Boolean(
+    targetId.includes("contact-button") ||
+      targetId.includes("expert-cta") ||
+      tag === "button" ||
+      tag === "a" ||
+      target.matches(interactiveSelector),
+  );
+}
+
+function isCleanCardTarget(target: HTMLElement) {
+  const targetId = (
+    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
+  ).toLowerCase();
+  const rect = target.getBoundingClientRect();
+  const normalizedClass = target.className ? String(target.className).toLowerCase() : "";
+
+  return Boolean(
+    targetId.includes("card") ||
+      normalizedClass.includes("card") ||
+      (rect.width <= 560 && rect.height <= 360),
+  );
+}
+
+function isLargeCoherentArea(target: HTMLElement) {
+  if (!visibleHeadingInside(target)) return false;
+  if (isNavigationSpotlightTarget(target) || isControlSpotlightTarget(target) || isCleanCardTarget(target)) return false;
+
+  const targetId = (
+    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
+  ).toLowerCase();
   const rect = target.getBoundingClientRect();
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   const hasMultipleSubtargets =
     target.querySelectorAll("article, [data-tour-id], button, a").length >= 3;
-  const hasMeaningfulHeading = Boolean(visibleHeadingInside(target));
 
   return Boolean(
-    hasMeaningfulHeading &&
-      (rect.width >= Math.min(760, viewportWidth * 0.55) ||
-        rect.height >= 320 ||
-        hasMultipleSubtargets ||
-        elementTextLength(target) >= 420),
+    targetId.includes("global-content-band") ||
+      targetId.includes("ai-human-workflow") ||
+      targetId.includes("proof-points") ||
+      targetId.includes("hero-modern-provider") ||
+      targetId.includes("industries-preview") ||
+      targetId.includes("compliance-preview") ||
+      rect.width >= Math.min(780, viewportWidth * 0.58) ||
+      rect.height >= 340 ||
+      hasMultipleSubtargets ||
+      elementTextLength(target) >= 460,
   );
 }
 
-function bestChildTargetForLargeRegion(target: HTMLElement): HTMLElement | null {
-  const heading = visibleHeadingInside(target);
-  if (heading) return heading;
-
-  const firstMeaningfulChild = Array.from(
-    target.querySelectorAll<HTMLElement>(
-      "article, [data-tour-id], button, a, [role='button'], [role='link']",
-    ),
-  ).find(isVisibleElement);
-
-  return firstMeaningfulChild || null;
-}
-
 function effectiveSpotlightTarget(target: HTMLElement): HTMLElement {
-  const targetId = (
-    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
-  ).toLowerCase();
-  const tag = target.tagName.toLowerCase();
-  const interactiveSelector =
-    'button, a, input, select, textarea, [role="button"], [role="link"], [data-demo-target]';
-
-  if (
-    targetId.includes("global-content-band") ||
-    targetId.includes("menu-path") ||
-    targetId.includes("contact-button") ||
-    targetId.includes("expert-cta") ||
-    tag === "button" ||
-    tag === "a" ||
-    target.matches(interactiveSelector) ||
-    target.closest("header, nav, [role='navigation']")
-  ) {
+  if (isNavigationSpotlightTarget(target) || isControlSpotlightTarget(target) || isCleanCardTarget(target)) {
     return target;
   }
 
-  if (isLargeOrLooseTarget(target)) {
-    return bestChildTargetForLargeRegion(target) || target;
+  if (isLargeCoherentArea(target)) {
+    return target;
   }
 
-  return target;
+  return firstMeaningfulChildTarget(target) || target;
+}
+
+function scrollTargetForSpotlight(target: HTMLElement): HTMLElement {
+  const effectiveTarget = effectiveSpotlightTarget(target);
+  return isLargeCoherentArea(effectiveTarget)
+    ? visibleHeadingInside(effectiveTarget) || effectiveTarget
+    : effectiveTarget;
 }
 
 function getAdaptiveSpotlightMode(target: HTMLElement): SpotlightMode {
-  const targetId = (
-    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
-  ).toLowerCase();
-  const tag = target.tagName.toLowerCase();
-  const rect = target.getBoundingClientRect();
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-  const normalizedClass = target.className ? String(target.className).toLowerCase() : "";
-  const interactiveSelector =
-    'button, a, input, select, textarea, [role="button"], [role="link"], [data-demo-target]';
-
-  if (
-    targetId.includes("menu-path") ||
-    Boolean(target.closest("header, nav, [role='navigation']"))
-  ) {
-    return "navigation";
-  }
-
-  if (
-    targetId.includes("contact-button") ||
-    targetId.includes("expert-cta") ||
-    tag === "button" ||
-    tag === "a" ||
-    Boolean(target.matches(interactiveSelector))
-  ) {
-    return "control";
-  }
-
-  if (
-    targetId.includes("global-content-band") ||
-    (viewportWidth > 0 && rect.width >= viewportWidth * 0.72 && rect.height <= 430)
-  ) {
-    return "band";
-  }
-
-  if (tag.match(/^h[1-6]$/) || target.hasAttribute("data-tour-heading")) {
-    return "heading";
-  }
-
-  if (
-    targetId.includes("card") ||
-    normalizedClass.includes("card") ||
-    rect.width <= 520
-  ) {
-    return "card";
-  }
-
-  return "heading";
+  if (isNavigationSpotlightTarget(target)) return "navigation";
+  if (isControlSpotlightTarget(target)) return "control";
+  if (isLargeCoherentArea(target)) return "area";
+  return "card";
 }
 
 function positionSpotlightLabel(label: HTMLElement, target: HTMLElement) {
@@ -1290,10 +1291,8 @@ function positionSpotlightLabel(label: HTMLElement, target: HTMLElement) {
 
 function spotlightLabelForMode(mode: SpotlightMode) {
   switch (mode) {
-    case "band":
-      return "Band focus";
-    case "heading":
-      return "Heading focus";
+    case "area":
+      return "Area focus";
     case "control":
       return "Action focus";
     case "navigation":
@@ -1318,6 +1317,25 @@ function expandedSpotlightRect(target: HTMLElement, padding: number) {
   };
 }
 
+function visibleAreaRect(target: HTMLElement, padding = 14) {
+  const rect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const safeTop = 92;
+  const safeBottom = viewportHeight - 18;
+  const left = Math.max(12, rect.left - padding);
+  const right = Math.min(viewportWidth - 12, rect.right + padding);
+  const top = Math.max(safeTop, rect.top - padding);
+  const bottom = Math.min(safeBottom, rect.bottom + padding);
+
+  return {
+    left,
+    top,
+    width: Math.max(220, right - left),
+    height: Math.max(150, bottom - top),
+  };
+}
+
 function applySpotlightBox(layer: HTMLElement, rect: ReturnType<typeof expandedSpotlightRect>) {
   layer.style.top = `${rect.top}px`;
   layer.style.left = `${rect.left}px`;
@@ -1325,72 +1343,101 @@ function applySpotlightBox(layer: HTMLElement, rect: ReturnType<typeof expandedS
   layer.style.height = `${rect.height}px`;
 }
 
-function createHeadingFocusLayer(target: HTMLElement) {
+function createAreaFocusLayer(target: HTMLElement) {
   const layer = document.createElement("div");
   layer.setAttribute("data-guide-spotlight-overlay", "true");
-  layer.setAttribute("data-guide-spotlight-mode", "heading");
+  layer.setAttribute("data-guide-spotlight-mode", "area");
   layer.style.position = "fixed";
   layer.style.zIndex = "8998";
   layer.style.pointerEvents = "none";
   layer.style.opacity = "0";
-  layer.style.transition = "opacity 240ms ease, transform 240ms ease";
+  layer.style.transition = "opacity 260ms ease, transform 260ms ease";
   layer.style.transform = "translateY(4px)";
+  layer.style.borderRadius = "34px";
+  layer.style.overflow = "visible";
+  layer.style.background = "rgba(255,255,255,0.08)";
+  layer.style.boxShadow =
+    "inset 0 0 0 1px rgba(15,23,42,0.10), inset 0 0 52px rgba(15,23,42,0.045), 0 0 80px rgba(255,255,255,0.28)";
 
-  const chevron = document.createElement("div");
-  chevron.textContent = "›";
-  chevron.style.position = "absolute";
-  chevron.style.left = "0";
-  chevron.style.top = "50%";
-  chevron.style.transform = "translateY(-50%)";
-  chevron.style.width = "32px";
-  chevron.style.height = "32px";
-  chevron.style.borderRadius = "999px";
-  chevron.style.display = "flex";
-  chevron.style.alignItems = "center";
-  chevron.style.justifyContent = "center";
-  chevron.style.background = "rgba(15, 23, 42, 0.92)";
-  chevron.style.color = "white";
-  chevron.style.fontSize = "36px";
-  chevron.style.fontWeight = "900";
-  chevron.style.lineHeight = "24px";
-  chevron.style.boxShadow = "0 0 0 7px rgba(255,255,255,0.18), 0 14px 32px rgba(15,23,42,0.24)";
-  layer.appendChild(chevron);
+  const shimmer = document.createElement("div");
+  shimmer.setAttribute("data-guide-spotlight-overlay", "true");
+  shimmer.style.position = "absolute";
+  shimmer.style.inset = "0";
+  shimmer.style.borderRadius = "34px";
+  shimmer.style.background =
+    "radial-gradient(circle at 50% 22%, rgba(255,255,255,0.18), rgba(255,255,255,0.07) 42%, rgba(255,255,255,0.00) 78%)";
+  shimmer.style.opacity = "0.72";
+  layer.appendChild(shimmer);
+
+  const heading = visibleHeadingInside(target) || target;
+  const headingCue = document.createElement("div");
+  headingCue.setAttribute("data-guide-spotlight-overlay", "true");
+  headingCue.style.position = "absolute";
+  headingCue.style.pointerEvents = "none";
+  headingCue.style.opacity = "1";
+  headingCue.style.transition = "opacity 420ms ease, transform 420ms ease";
+  headingCue.style.transform = "translateY(0)";
+
+  const pulse = document.createElement("div");
+  pulse.style.position = "absolute";
+  pulse.style.left = "0";
+  pulse.style.top = "50%";
+  pulse.style.width = "22px";
+  pulse.style.height = "22px";
+  pulse.style.borderRadius = "999px";
+  pulse.style.transform = "translateY(-50%)";
+  pulse.style.background = "rgba(15,23,42,0.92)";
+  pulse.style.boxShadow = "0 0 0 7px rgba(255,255,255,0.18), 0 12px 30px rgba(15,23,42,0.24)";
+
+  const pulseCore = document.createElement("div");
+  pulseCore.style.position = "absolute";
+  pulseCore.style.left = "7px";
+  pulseCore.style.top = "7px";
+  pulseCore.style.width = "8px";
+  pulseCore.style.height = "8px";
+  pulseCore.style.borderRadius = "999px";
+  pulseCore.style.background = "white";
+  pulse.appendChild(pulseCore);
+  headingCue.appendChild(pulse);
 
   const underline = document.createElement("div");
   underline.style.position = "absolute";
-  underline.style.left = "42px";
-  underline.style.right = "8px";
-  underline.style.bottom = "3px";
+  underline.style.left = "34px";
+  underline.style.right = "0";
+  underline.style.bottom = "2px";
   underline.style.height = "4px";
   underline.style.borderRadius = "999px";
   underline.style.overflow = "hidden";
-  underline.style.background = "rgba(15, 23, 42, 0.14)";
-  underline.style.boxShadow = "0 0 26px rgba(15,23,42,0.12)";
+  underline.style.background = "rgba(15,23,42,0.14)";
+  underline.style.boxShadow = "0 0 22px rgba(15,23,42,0.10)";
 
   const sweep = document.createElement("div");
-  sweep.style.width = "44%";
+  sweep.style.width = "42%";
   sweep.style.height = "100%";
   sweep.style.borderRadius = "999px";
   sweep.style.background =
     "linear-gradient(90deg, rgba(15,23,42,0.00), rgba(15,23,42,0.76), rgba(15,23,42,0.00))";
   sweep.style.transform = "translateX(-110%)";
   underline.appendChild(sweep);
-  layer.appendChild(underline);
+  headingCue.appendChild(underline);
+  layer.appendChild(headingCue);
 
   const positionLayer = () => {
-    const rect = target.getBoundingClientRect();
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-    const safeTop = Math.max(96, Math.min(rect.top - 10, viewportHeight - 96));
-    const left = Math.max(14, rect.left - 44);
-    const top = safeTop;
-    const width = Math.max(190, Math.min(viewportWidth - left - 14, rect.width + 68));
-    const height = Math.max(44, rect.height + 34);
+    const area = visibleAreaRect(target, 14);
+    const headingRect = heading.getBoundingClientRect();
+    layer.style.left = `${area.left}px`;
+    layer.style.top = `${area.top}px`;
+    layer.style.width = `${area.width}px`;
+    layer.style.height = `${area.height}px`;
 
-    layer.style.left = `${left}px`;
-    layer.style.top = `${top}px`;
-    layer.style.width = `${width}px`;
-    layer.style.height = `${height}px`;
+    const cueLeft = Math.max(8, headingRect.left - area.left - 34);
+    const cueTop = Math.max(12, headingRect.top - area.top - 8);
+    const cueWidth = Math.max(190, Math.min(area.width - cueLeft - 14, headingRect.width + 44));
+    const cueHeight = Math.max(44, headingRect.height + 28);
+    headingCue.style.left = `${cueLeft}px`;
+    headingCue.style.top = `${cueTop}px`;
+    headingCue.style.width = `${cueWidth}px`;
+    headingCue.style.height = `${cueHeight}px`;
   };
 
   positionLayer();
@@ -1398,30 +1445,44 @@ function createHeadingFocusLayer(target: HTMLElement) {
   window.setTimeout(positionLayer, 90);
   window.setTimeout(positionLayer, 240);
 
-  chevron.animate?.(
+  shimmer.animate?.(
     [
-      { transform: "translateY(-50%) scale(0.94)", opacity: 0.72 },
-      { transform: "translateY(-50%) scale(1.1)", opacity: 1 },
-      { transform: "translateY(-50%) scale(0.94)", opacity: 0.72 },
+      { opacity: 0.48, transform: "scale(0.997)" },
+      { opacity: 0.82, transform: "scale(1.003)" },
+      { opacity: 0.48, transform: "scale(0.997)" },
     ],
-    { duration: 1150, iterations: Infinity, easing: "ease-in-out" },
+    { duration: 2600, iterations: Infinity, easing: "ease-in-out" },
+  );
+
+  pulse.animate?.(
+    [
+      { transform: "translateY(-50%) scale(0.94)", opacity: 0.78 },
+      { transform: "translateY(-50%) scale(1.12)", opacity: 1 },
+      { transform: "translateY(-50%) scale(0.94)", opacity: 0.78 },
+    ],
+    { duration: 1100, iterations: Infinity, easing: "ease-in-out" },
   );
 
   sweep.animate?.(
     [
       { transform: "translateX(-115%)" },
-      { transform: "translateX(270%)" },
+      { transform: "translateX(280%)" },
     ],
-    { duration: 1500, iterations: Infinity, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+    { duration: 1400, iterations: Infinity, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
   );
+
+  scheduleSpotlightTimer(() => {
+    headingCue.style.opacity = "0";
+    headingCue.style.transform = "translateY(-2px)";
+  }, 2000);
 
   document.body.appendChild(layer);
   return layer;
 }
 
 function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
-  if (mode === "heading") {
-    return createHeadingFocusLayer(target);
+  if (mode === "area") {
+    return createAreaFocusLayer(target);
   }
 
   const layer = document.createElement("div");
@@ -1434,23 +1495,6 @@ function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
   layer.style.transition = "opacity 240ms ease, transform 240ms ease";
   layer.style.transform = "translateY(4px)";
   document.body.appendChild(layer);
-
-  const targetRect = target.getBoundingClientRect();
-
-  if (mode === "band") {
-    const top = Math.max(0, targetRect.top - 34);
-    const height = Math.min((window.innerHeight || 760) - top, targetRect.height + 68);
-    layer.style.left = "0";
-    layer.style.right = "0";
-    layer.style.top = `${top}px`;
-    layer.style.height = `${height}px`;
-    layer.style.background =
-      "linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.26) 18%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0.26) 82%, rgba(255,255,255,0.00))";
-    layer.style.borderTop = "1px solid rgba(255,255,255,0.68)";
-    layer.style.borderBottom = "1px solid rgba(255,255,255,0.52)";
-    layer.style.boxShadow = "0 0 120px rgba(255,255,255,0.30)";
-    return layer;
-  }
 
   if (mode === "control") {
     const rect = expandedSpotlightRect(target, 10);
@@ -1515,8 +1559,8 @@ function spotlightTarget(rawTarget: HTMLElement) {
   const mode = getAdaptiveSpotlightMode(target);
   const labelText = spotlightLabelForMode(mode);
   const overlayOpacity =
-    mode === "band" || mode === "heading"
-      ? "rgba(15, 23, 42, 0.00)"
+    mode === "area"
+      ? "rgba(15, 23, 42, 0.26)"
       : mode === "control" || mode === "navigation"
         ? "rgba(15, 23, 42, 0.42)"
         : "rgba(15, 23, 42, 0.34)";
@@ -1534,15 +1578,14 @@ function spotlightTarget(rawTarget: HTMLElement) {
   overlay.style.pointerEvents = "none";
   overlay.style.background = overlayOpacity;
   overlay.style.backdropFilter = overlayBackdropFilter;
-  overlay.style.transition = "opacity 220ms ease";
+  overlay.style.transition = "opacity 420ms ease, background 720ms ease";
   overlay.style.opacity = "0";
   document.body.appendChild(overlay);
   activeSpotlightOverlay = overlay;
 
   const focusLayer = createSpotlightLayer(mode, target);
 
-    const label =
-    mode === "heading" ? null : document.createElement("div");
+  const label = mode === "area" ? null : document.createElement("div");
 
   if (label) {
     label.setAttribute("data-guide-spotlight-label", "true");
@@ -1577,6 +1620,12 @@ function spotlightTarget(rawTarget: HTMLElement) {
     focusLayer.style.opacity = "1";
     focusLayer.style.transform = mode === "control" ? "scale(1)" : "translateY(0)";
   });
+
+  if (mode === "area") {
+    scheduleSpotlightTimer(() => {
+      overlay.style.background = "rgba(15, 23, 42, 0.08)";
+    }, 2000);
+  }
 
   const previousPosition = target.style.position;
   const previousZIndex = target.style.zIndex;
@@ -1788,7 +1837,7 @@ function runSpotlightWithRetries(
       scheduleSpotlightTimer(() => {
         if (!isCurrentSpotlightRun(runId)) return;
 
-        smoothScrollElementIntoView(effectiveSpotlightTarget(target));
+        smoothScrollElementIntoView(scrollTargetForSpotlight(target));
         scheduleSpotlightTimer(() => {
           if (!isCurrentSpotlightRun(runId)) return;
 
@@ -1838,7 +1887,7 @@ function runSuggestedNavigation(
     scheduleSpotlightTimer(() => {
       if (!isCurrentSpotlightRun(runId)) return;
 
-      smoothScrollElementIntoView(effectiveSpotlightTarget(target));
+      smoothScrollElementIntoView(scrollTargetForSpotlight(target));
       scheduleSpotlightTimer(
         () => {
           if (!isCurrentSpotlightRun(runId)) return;
@@ -2687,7 +2736,7 @@ export function GuideShellStatic({
           scheduleSpotlightTimer(() => {
             if (!isCurrentSpotlightRun(runId)) return;
 
-            smoothScrollElementIntoView(effectiveSpotlightTarget(target));
+            smoothScrollElementIntoView(scrollTargetForSpotlight(target));
             scheduleSpotlightTimer(() => {
               if (!isCurrentSpotlightRun(runId)) return;
 
