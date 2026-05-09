@@ -1788,6 +1788,7 @@ export function GuideShellStatic({
   const [lastRefinementChipClicked, setLastRefinementChipClicked] = useState<
     string | null
   >(null);
+  const [bookingPreloadConfirmed, setBookingPreloadConfirmed] = useState(false);
 
   const minimizeTimerRef = useRef<number | null>(null);
   const greetingTimerRef = useRef<number | null>(null);
@@ -2145,6 +2146,7 @@ export function GuideShellStatic({
     setActiveDatePicker(null);
     setShellCalendarMonth({ year: 2026, monthIndex: 6 });
     setLastRefinementChipClicked(null);
+    setBookingPreloadConfirmed(false);
     setShowWelcome(true);
     setShellState("welcome");
   };
@@ -3030,6 +3032,29 @@ export function GuideShellStatic({
     return null;
   };
 
+  const packageToSavedItem = (pkg: StayPlanPackage): SavedCommerceItem | null => {
+    if (!pkg?.targetId) return null;
+    return {
+      id: pkg.targetId,
+      type: "package",
+      title: pkg.title || phraseFromId(pkg.targetId),
+      targetId: pkg.targetId,
+      pageId: null,
+      priceUsd: pkg.priceUsd ?? null,
+      priceUnit: pkg.priceUnit || null,
+      priceLabel: pkg.priceLabel || null,
+    };
+  };
+
+  const stayPlanPackagesForCurrentSelection = (): SavedCommerceItem[] => {
+    const stayPlan = currentGuideStep
+      ? stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan
+      : activeStayPlan;
+    return (stayPlan?.packages || [])
+      .map(packageToSavedItem)
+      .filter((item): item is SavedCommerceItem => Boolean(item));
+  };
+
   const saveCurrentGuideStep = () => {
     const item = currentGuideStepToSavedItem();
     if (!item) {
@@ -3065,7 +3090,18 @@ export function GuideShellStatic({
 
     setSavedTripContext((current) => {
       if (item.type === "room") {
-        return { ...current, room: item };
+        // Room recommendations can arrive as room + package stay plans.
+        // Saving the room should preserve the whole recommended combo so the
+        // traveler does not lose bundled breakfast/parking/business add-ons by
+        // saving from the room step.
+        const bundledPackages = stayPlanPackagesForCurrentSelection();
+        const packages = [...current.packages];
+        bundledPackages.forEach((pkg) => {
+          if (!packages.some((entry) => entry.id === pkg.id)) {
+            packages.push(pkg);
+          }
+        });
+        return { ...current, room: item, packages };
       }
 
       if (item.type === "package") {
@@ -3150,7 +3186,7 @@ export function GuideShellStatic({
         targetId: savedRoom.targetId,
         title: savedRoom.title,
         nightlyRateUsd:
-          savedRoom.priceUnit === "night" ? savedRoom.priceUsd ?? null : null,
+          savedRoom.priceUnit === "per_night" ? savedRoom.priceUsd ?? null : null,
       },
       packages: savedTripContext.packages
         .filter((item) => item.targetId)
@@ -3176,6 +3212,7 @@ export function GuideShellStatic({
     if (guideConfig?.mode === "commerce" && !forceCheckout) {
       clearMinimizeTimer();
       if (shellState !== "panel") openPanel();
+      setBookingPreloadConfirmed(false);
       setActiveCompletionWidget("upsell");
       setActiveDatePicker(null);
       return;
@@ -3214,6 +3251,11 @@ export function GuideShellStatic({
       bookableStep?.targetId ||
       savedTripContext.room?.targetId ||
       null;
+
+    if (guideConfig?.mode === "commerce" && forceCheckout) {
+      setBookingPreloadConfirmed(true);
+      setActiveCompletionWidget("upsell");
+    }
 
     const dispatchBook = () => {
       window.dispatchEvent(
@@ -4056,6 +4098,7 @@ export function GuideShellStatic({
                             onClick={() => {
                               setActiveCompletionWidget(null);
                               setActiveDatePicker(null);
+                              setBookingPreloadConfirmed(false);
                             }}
                             className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
                           >
@@ -4435,6 +4478,13 @@ export function GuideShellStatic({
                               </button>
                             </div>
 
+                            {bookingPreloadConfirmed && (
+                              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900 shadow-sm">
+                                <span className="font-semibold">Booking form preloaded.</span>{" "}
+                                The current room, saved packages, dates, guests, and trip context have been sent to checkout.
+                              </div>
+                            )}
+
                             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
                               {DEFAULT_UPSELL_SUGGESTIONS.map((suggestion) => (
                                 <button
@@ -4443,6 +4493,7 @@ export function GuideShellStatic({
                                   onClick={() => {
                                     clearMinimizeTimer();
                                     if (shellState !== "panel") openPanel();
+                                    setBookingPreloadConfirmed(false);
                                     appendDraftInstruction(suggestion.prompt);
                                   }}
                                   className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left transition hover:border-cyan-200 hover:bg-cyan-50 sm:rounded-xl sm:px-3 sm:py-3"
