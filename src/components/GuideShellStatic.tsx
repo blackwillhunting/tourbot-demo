@@ -1295,30 +1295,209 @@ function positionSpotlightLabel(label: HTMLElement, target: HTMLElement) {
   label.style.top = `${top}px`;
 }
 
+function spotlightLabelForMode(mode: SpotlightMode) {
+  switch (mode) {
+    case "band":
+      return "Band focus";
+    case "section":
+      return "Section focus";
+    case "control":
+      return "Action focus";
+    case "navigation":
+      return "Path focus";
+    case "region":
+      return "Region focus";
+    case "card":
+    default:
+      return "Card focus";
+  }
+}
+
+function expandedSpotlightRect(target: HTMLElement, padding: number) {
+  const rect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+  return {
+    top: Math.max(12, rect.top - padding),
+    left: Math.max(12, rect.left - padding),
+    width: Math.min(viewportWidth - 24, rect.width + padding * 2),
+    height: Math.min(viewportHeight - 24, rect.height + padding * 2),
+    raw: rect,
+  };
+}
+
+function applySpotlightBox(layer: HTMLElement, rect: ReturnType<typeof expandedSpotlightRect>) {
+  layer.style.top = `${rect.top}px`;
+  layer.style.left = `${rect.left}px`;
+  layer.style.width = `${rect.width}px`;
+  layer.style.height = `${rect.height}px`;
+}
+
+function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
+  const layer = document.createElement("div");
+  layer.setAttribute("data-guide-spotlight-overlay", "true");
+  layer.setAttribute("data-guide-spotlight-mode", mode);
+  layer.style.position = "fixed";
+  layer.style.zIndex = "8998";
+  layer.style.pointerEvents = "none";
+  layer.style.opacity = "0";
+  layer.style.transition = "opacity 240ms ease, transform 240ms ease";
+  layer.style.transform = "translateY(4px)";
+  document.body.appendChild(layer);
+
+  const targetRect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+
+  if (mode === "band") {
+    const top = Math.max(0, targetRect.top - 34);
+    const height = Math.min((window.innerHeight || 760) - top, targetRect.height + 68);
+    layer.style.left = "0";
+    layer.style.right = "0";
+    layer.style.top = `${top}px`;
+    layer.style.height = `${height}px`;
+    layer.style.background =
+      "linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.20) 18%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0.20) 82%, rgba(255,255,255,0.00))";
+    layer.style.borderTop = "1px solid rgba(255,255,255,0.56)";
+    layer.style.borderBottom = "1px solid rgba(255,255,255,0.44)";
+    layer.style.boxShadow = "0 0 90px rgba(255,255,255,0.20)";
+    return layer;
+  }
+
+  if (mode === "section") {
+    const rect = expandedSpotlightRect(target, 18);
+    const heading = target.querySelector<HTMLElement>("h1,h2,h3,h4");
+    applySpotlightBox(layer, rect);
+    layer.style.borderLeft = "6px solid rgba(255,255,255,0.94)";
+    layer.style.borderRadius = "0 28px 28px 0";
+    layer.style.background =
+      "linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07), rgba(255,255,255,0.00))";
+    layer.style.boxShadow = "-16px 0 34px rgba(255,255,255,0.16)";
+
+    if (heading) {
+      const headingRect = heading.getBoundingClientRect();
+      const headingLayer = document.createElement("div");
+      headingLayer.setAttribute("data-guide-spotlight-overlay", "true");
+      headingLayer.setAttribute("data-guide-spotlight-mode", mode);
+      headingLayer.style.position = "fixed";
+      headingLayer.style.zIndex = "8998";
+      headingLayer.style.pointerEvents = "none";
+      headingLayer.style.left = `${Math.max(12, headingRect.left - 10)}px`;
+      headingLayer.style.top = `${Math.max(12, headingRect.top - 8)}px`;
+      headingLayer.style.width = `${Math.min(viewportWidth - 24, headingRect.width + 20)}px`;
+      headingLayer.style.height = `${headingRect.height + 16}px`;
+      headingLayer.style.borderRadius = "18px";
+      headingLayer.style.background = "rgba(255,255,255,0.16)";
+      headingLayer.style.boxShadow = "0 0 38px rgba(255,255,255,0.22)";
+      headingLayer.style.opacity = "0";
+      headingLayer.style.transition = "opacity 240ms ease";
+      document.body.appendChild(headingLayer);
+      window.requestAnimationFrame(() => {
+        headingLayer.style.opacity = "1";
+      });
+    }
+
+    return layer;
+  }
+
+  if (mode === "control") {
+    const rect = expandedSpotlightRect(target, 10);
+    applySpotlightBox(layer, rect);
+    layer.style.borderRadius = "999px";
+    layer.style.border = "3px solid rgba(255,255,255,0.96)";
+    layer.style.boxShadow =
+      "0 0 0 8px rgba(255,255,255,0.16), 0 0 0 18px rgba(255,255,255,0.07), 0 18px 48px rgba(15,23,42,0.34)";
+    layer.animate?.(
+      [
+        { transform: "scale(0.98)", opacity: 0.88 },
+        { transform: "scale(1.035)", opacity: 1 },
+        { transform: "scale(0.98)", opacity: 0.88 },
+      ],
+      { duration: 1400, iterations: Infinity, easing: "ease-in-out" },
+    );
+    return layer;
+  }
+
+  if (mode === "navigation") {
+    const rect = expandedSpotlightRect(target, 14);
+    applySpotlightBox(layer, rect);
+    layer.style.borderRadius = "999px";
+    layer.style.border = "2px dashed rgba(255,255,255,0.95)";
+    layer.style.background = "rgba(255,255,255,0.08)";
+    layer.style.boxShadow = "0 12px 46px rgba(15,23,42,0.30)";
+
+    const dot = document.createElement("div");
+    dot.setAttribute("data-guide-spotlight-overlay", "true");
+    dot.setAttribute("data-guide-spotlight-mode", mode);
+    dot.style.position = "fixed";
+    dot.style.zIndex = "8999";
+    dot.style.pointerEvents = "none";
+    dot.style.width = "10px";
+    dot.style.height = "10px";
+    dot.style.borderRadius = "999px";
+    dot.style.background = "rgba(255,255,255,0.96)";
+    dot.style.boxShadow = "0 0 0 8px rgba(255,255,255,0.12)";
+    dot.style.left = `${Math.max(16, rect.left + rect.width - 10)}px`;
+    dot.style.top = `${Math.max(16, rect.top + rect.height / 2 - 5)}px`;
+    dot.style.opacity = "0";
+    dot.style.transition = "opacity 240ms ease";
+    document.body.appendChild(dot);
+    window.requestAnimationFrame(() => {
+      dot.style.opacity = "1";
+    });
+    return layer;
+  }
+
+  if (mode === "region") {
+    const rect = expandedSpotlightRect(target, 32);
+    applySpotlightBox(layer, rect);
+    layer.style.borderRadius = "42px";
+    layer.style.background =
+      "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.28), rgba(255,255,255,0.12) 42%, rgba(255,255,255,0.00) 74%)";
+    layer.style.boxShadow = "0 0 110px rgba(255,255,255,0.22)";
+    return layer;
+  }
+
+  const rect = expandedSpotlightRect(target, 10);
+  applySpotlightBox(layer, rect);
+  layer.style.borderRadius = "26px";
+  layer.style.border = "3px solid rgba(255,255,255,0.92)";
+  layer.style.boxShadow = "0 24px 90px rgba(15,23,42,0.36), 0 0 0 1px rgba(255,255,255,0.72)";
+  return layer;
+}
+
 function spotlightTarget(target: HTMLElement) {
   clearActiveSpotlight();
 
   const mode = getAdaptiveSpotlightMode(target);
-  const style = getSpotlightStyle(mode);
+  const labelText = spotlightLabelForMode(mode);
+  const overlayOpacity =
+    mode === "control" || mode === "navigation"
+      ? "rgba(15, 23, 42, 0.42)"
+      : mode === "band" || mode === "region"
+        ? "rgba(15, 23, 42, 0.24)"
+        : "rgba(15, 23, 42, 0.30)";
 
   const overlay = document.createElement("div");
   overlay.setAttribute("data-guide-spotlight-overlay", "true");
   overlay.setAttribute("data-guide-spotlight-mode", mode);
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
-  overlay.style.zIndex = "8998";
+  overlay.style.zIndex = "8997";
   overlay.style.pointerEvents = "none";
-  overlay.style.background = style.overlay;
+  overlay.style.background = overlayOpacity;
   overlay.style.backdropFilter = "saturate(0.9)";
   overlay.style.transition = "opacity 220ms ease";
   overlay.style.opacity = "0";
   document.body.appendChild(overlay);
   activeSpotlightOverlay = overlay;
 
+  const focusLayer = createSpotlightLayer(mode, target);
+
   const label = document.createElement("div");
   label.setAttribute("data-guide-spotlight-label", "true");
   label.setAttribute("data-guide-spotlight-mode", mode);
-  label.textContent = style.label;
+  label.textContent = labelText;
   label.style.position = "fixed";
   label.style.zIndex = "9000";
   label.style.pointerEvents = "none";
@@ -1340,6 +1519,8 @@ function spotlightTarget(target: HTMLElement) {
   window.requestAnimationFrame(() => {
     positionSpotlightLabel(label, target);
     overlay.style.opacity = "1";
+    focusLayer.style.opacity = "1";
+    focusLayer.style.transform = mode === "control" ? "scale(1)" : "translateY(0)";
     label.style.opacity = "1";
     label.style.transform = "translateY(0)";
   });
@@ -1358,12 +1539,27 @@ function spotlightTarget(target: HTMLElement) {
   target.style.position =
     computedPosition === "static" ? "relative" : previousPosition;
   target.style.zIndex = "8999";
-  target.style.transition =
-    "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
-  target.style.outline = style.outline;
-  target.style.outlineOffset = style.outlineOffset;
-  target.style.boxShadow = style.shadow;
-  target.style.borderRadius = target.style.borderRadius || style.radius;
+  target.style.transition = "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
+
+  // Only card mode keeps the classic hard target border. Other modes use
+  // separate overlay mechanics so the demo does not look like one rectangle
+  // merely stretched across differently sized objects.
+  if (mode === "card") {
+    target.style.outline = "3px solid rgba(255, 255, 255, 0.92)";
+    target.style.outlineOffset = "8px";
+    target.style.boxShadow =
+      "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
+    target.style.borderRadius = target.style.borderRadius || "24px";
+  } else {
+    target.style.outline = "none";
+    target.style.outlineOffset = "0";
+    target.style.boxShadow =
+      mode === "control"
+        ? "0 10px 34px rgba(15,23,42,0.24)"
+        : mode === "section"
+          ? "0 18px 60px rgba(15,23,42,0.18)"
+          : "none";
+  }
 
   activeSpotlightCleanup = () => {
     if (activeSpotlightOverlay) {
@@ -1371,7 +1567,10 @@ function spotlightTarget(target: HTMLElement) {
       activeSpotlightOverlay = null;
     }
 
-    label.remove();
+    document
+      .querySelectorAll<HTMLElement>('[data-guide-spotlight-overlay="true"], [data-guide-spotlight-label="true"]')
+      .forEach((node) => node.remove());
+
     target.style.position = previousPosition;
     target.style.zIndex = previousZIndex;
     target.style.outline = previousOutline;
@@ -1383,7 +1582,6 @@ function spotlightTarget(target: HTMLElement) {
     target.removeAttribute("data-guide-spotlight-mode");
   };
 }
-
 function suggestedActionToTourStep(action: SuggestedAction): TourStep {
   const targetId = (action.targetId || "").trim();
   const pageUrl = (action.pageUrl || "").trim();
