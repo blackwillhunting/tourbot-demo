@@ -1291,10 +1291,10 @@ function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
     layer.style.top = `${top}px`;
     layer.style.height = `${height}px`;
     layer.style.background =
-      "linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.20) 18%, rgba(255,255,255,0.30) 50%, rgba(255,255,255,0.20) 82%, rgba(255,255,255,0.00))";
-    layer.style.borderTop = "1px solid rgba(255,255,255,0.56)";
-    layer.style.borderBottom = "1px solid rgba(255,255,255,0.44)";
-    layer.style.boxShadow = "0 0 90px rgba(255,255,255,0.20)";
+      "linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.26) 18%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0.26) 82%, rgba(255,255,255,0.00))";
+    layer.style.borderTop = "1px solid rgba(255,255,255,0.68)";
+    layer.style.borderBottom = "1px solid rgba(255,255,255,0.52)";
+    layer.style.boxShadow = "0 0 120px rgba(255,255,255,0.30)";
     return layer;
   }
 
@@ -1305,8 +1305,8 @@ function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
     layer.style.borderLeft = "6px solid rgba(255,255,255,0.94)";
     layer.style.borderRadius = "0 28px 28px 0";
     layer.style.background =
-      "linear-gradient(90deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07), rgba(255,255,255,0.00))";
-    layer.style.boxShadow = "-16px 0 34px rgba(255,255,255,0.16)";
+      "linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.10), rgba(255,255,255,0.00))";
+    layer.style.boxShadow = "-18px 0 42px rgba(255,255,255,0.22)";
 
     if (heading) {
       const headingRect = heading.getBoundingClientRect();
@@ -1387,8 +1387,8 @@ function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
     applySpotlightBox(layer, rect);
     layer.style.borderRadius = "42px";
     layer.style.background =
-      "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.28), rgba(255,255,255,0.12) 42%, rgba(255,255,255,0.00) 74%)";
-    layer.style.boxShadow = "0 0 110px rgba(255,255,255,0.22)";
+      "radial-gradient(circle at 50% 45%, rgba(255,255,255,0.34), rgba(255,255,255,0.16) 42%, rgba(255,255,255,0.00) 76%)";
+    layer.style.boxShadow = "0 0 130px rgba(255,255,255,0.28)";
     return layer;
   }
 
@@ -1408,9 +1408,17 @@ function spotlightTarget(target: HTMLElement) {
   const overlayOpacity =
     mode === "control" || mode === "navigation"
       ? "rgba(15, 23, 42, 0.42)"
-      : mode === "band" || mode === "region"
-        ? "rgba(15, 23, 42, 0.24)"
-        : "rgba(15, 23, 42, 0.30)";
+      : mode === "card"
+        ? "rgba(15, 23, 42, 0.34)"
+        : mode === "section"
+          ? "rgba(15, 23, 42, 0.12)"
+          : mode === "region"
+            ? "rgba(15, 23, 42, 0.10)"
+            : "rgba(15, 23, 42, 0.07)";
+  const overlayBackdropFilter =
+    mode === "card" || mode === "control" || mode === "navigation"
+      ? "saturate(0.9)"
+      : "none";
 
   const overlay = document.createElement("div");
   overlay.setAttribute("data-guide-spotlight-overlay", "true");
@@ -1420,7 +1428,7 @@ function spotlightTarget(target: HTMLElement) {
   overlay.style.zIndex = "8997";
   overlay.style.pointerEvents = "none";
   overlay.style.background = overlayOpacity;
-  overlay.style.backdropFilter = "saturate(0.9)";
+  overlay.style.backdropFilter = overlayBackdropFilter;
   overlay.style.transition = "opacity 220ms ease";
   overlay.style.opacity = "0";
   document.body.appendChild(overlay);
