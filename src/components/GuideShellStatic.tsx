@@ -1176,10 +1176,6 @@ function clearActiveSpotlight() {
 
 type SpotlightMode = "card" | "area" | "control" | "navigation";
 
-function elementTextLength(target: HTMLElement) {
-  return (target.innerText || target.textContent || "").replace(/\s+/g, " ").trim().length;
-}
-
 function visibleHeadingInside(target: HTMLElement): HTMLElement | null {
   if (target.tagName.toLowerCase().match(/^h[1-6]$/) || target.hasAttribute("data-tour-heading")) {
     return isVisibleElement(target) ? target : null;
@@ -1190,16 +1186,6 @@ function visibleHeadingInside(target: HTMLElement): HTMLElement | null {
   );
 
   return headings.find(isVisibleElement) || null;
-}
-
-function firstMeaningfulChildTarget(target: HTMLElement): HTMLElement | null {
-  return (
-    Array.from(
-      target.querySelectorAll<HTMLElement>(
-        "article, [data-tour-id], button, a, [role='button'], [role='link']",
-      ),
-    ).find((node) => node !== target && isVisibleElement(node)) || null
-  );
 }
 
 function isNavigationSpotlightTarget(target: HTMLElement) {
@@ -1229,50 +1215,26 @@ function isControlSpotlightTarget(target: HTMLElement) {
   );
 }
 
-function isCleanCardTarget(target: HTMLElement) {
-  const targetId = (
+const AREA_FOCUS_TARGET_IDS = new Set([
+  // Area focus is deliberately opt-in. It is a fallback for truly broad,
+  // uncontainable demo regions — not the default treatment for normal tours.
+  "adaptive-global-content-band",
+  "adaptive-ai-human-workflow",
+]);
+
+function targetIdentity(target: HTMLElement) {
+  return (
     target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
   ).toLowerCase();
-  const rect = target.getBoundingClientRect();
-  const normalizedClass = target.className ? String(target.className).toLowerCase() : "";
-
-  return Boolean(
-    targetId.includes("card") ||
-      normalizedClass.includes("card") ||
-      (rect.width <= 560 && rect.height <= 360),
-  );
 }
 
 function isLargeCoherentArea(target: HTMLElement) {
-  if (!visibleHeadingInside(target)) return false;
-  if (isNavigationSpotlightTarget(target) || isControlSpotlightTarget(target) || isCleanCardTarget(target)) return false;
-
-  const targetId = (
-    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
-  ).toLowerCase();
-  const rect = target.getBoundingClientRect();
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-  const hasMultipleSubtargets =
-    target.querySelectorAll("article, [data-tour-id], button, a").length >= 3;
-
-  return Boolean(
-    targetId.includes("global-content-band") ||
-      targetId.includes("ai-human-workflow") ||
-      targetId.includes("proof-points") ||
-      targetId.includes("hero-modern-provider") ||
-      targetId.includes("industries-preview") ||
-      targetId.includes("compliance-preview") ||
-      rect.width >= Math.min(780, viewportWidth * 0.58) ||
-      rect.height >= 340 ||
-      hasMultipleSubtargets ||
-      elementTextLength(target) >= 460,
-  );
+  const targetId = targetIdentity(target);
+  return AREA_FOCUS_TARGET_IDS.has(targetId);
 }
 
 function effectiveSpotlightTarget(target: HTMLElement): HTMLElement {
-  const targetId = (
-    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
-  ).toLowerCase();
+  const targetId = targetIdentity(target);
 
   if (targetId.includes("expert-cta")) {
     const buttonTarget = target.querySelector<HTMLElement>(
@@ -1281,15 +1243,10 @@ function effectiveSpotlightTarget(target: HTMLElement): HTMLElement {
     if (buttonTarget && isVisibleElement(buttonTarget)) return buttonTarget;
   }
 
-  if (isNavigationSpotlightTarget(target) || isControlSpotlightTarget(target) || isCleanCardTarget(target)) {
-    return target;
-  }
-
-  if (isLargeCoherentArea(target)) {
-    return target;
-  }
-
-  return firstMeaningfulChildTarget(target) || target;
+  // Default to the actual selected target. Earlier heuristic retargeting made
+  // ordinary tours look like area-focus blankets. Border/card spotlight should
+  // be the normal fallback unless a target is explicitly whitelisted for area focus.
+  return target;
 }
 
 function scrollTargetForSpotlight(target: HTMLElement): HTMLElement {
