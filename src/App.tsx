@@ -836,6 +836,233 @@ function HomeExtras() {
   );
 }
 
+
+function AdaptiveSpotlightShowcase() {
+  const serviceCards = [
+    {
+      id: "adaptive-translation-card",
+      title: "Translation at enterprise scale",
+      body: "A card-shaped destination for precise spotlighting on a discrete service module.",
+      chips: ["Language ops", "Scale", "Governance"],
+      icon: Database,
+    },
+    {
+      id: "adaptive-multimedia-card",
+      title: "Multimedia localization",
+      body: "A visual service tile for video, audio, training, and campaign content adaptation.",
+      chips: ["Video", "Audio", "Training"],
+      icon: Sparkles,
+    },
+    {
+      id: "adaptive-testing-card",
+      title: "Market readiness testing",
+      body: "A compact module for quality review, linguistic validation, and launch confidence.",
+      chips: ["QA", "Validation", "Launch"],
+      icon: Shield,
+    },
+  ];
+
+  return (
+    <section
+      id="adaptive-guidance-showcase"
+      data-tour-id="adaptive-guidance-showcase"
+      data-spotlight-mode="region"
+      className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 sm:pb-12"
+    >
+      <div className="mb-4 flex flex-col gap-2 sm:mb-7 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-sm">
+            Adaptive guidance canvas
+          </div>
+          <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            Open enterprise sections built for multiple spotlight styles
+          </h2>
+        </div>
+        <p className="max-w-md text-sm leading-6 text-slate-600">
+          These sections are presentation-only additions. They give TourBot a wider visual terrain:
+          bands, editorial regions, cards, navigation paths, and CTA controls.
+        </p>
+      </div>
+
+      <div className="space-y-5 sm:space-y-8">
+        <section
+          id="adaptive-global-content-band"
+          data-tour-id="adaptive-global-content-band"
+          data-spotlight-mode="band"
+          className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-5 py-8 shadow-sm sm:rounded-[40px] sm:px-8 sm:py-12 lg:px-12"
+        >
+          <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-slate-100/80 to-transparent" />
+          <div className="relative grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
+            <div>
+              <div className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
+                Band mode
+              </div>
+              <h3 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+                Global content operations
+              </h3>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {["Translate", "Localize", "Optimize"].map((item, index) => (
+                <div key={item} className="rounded-3xl bg-slate-50 p-5 ring-1 ring-slate-200/80">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    0{index + 1}
+                  </div>
+                  <div className="mt-3 text-lg font-semibold text-slate-950">{item}</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    A broad horizontal region should get a soft band focus rather than a tight bordered box.
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="adaptive-ai-human-workflow"
+          data-tour-id="adaptive-ai-human-workflow"
+          data-spotlight-mode="section"
+          className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch"
+        >
+          <div className="rounded-[28px] bg-slate-950 p-6 text-white shadow-xl shadow-slate-300/40 sm:rounded-[40px] sm:p-9">
+            <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
+              Section mode
+            </div>
+            <h3 className="mt-5 max-w-xl text-2xl font-semibold tracking-tight sm:text-4xl">
+              AI-assisted work with expert human review
+            </h3>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-200 sm:text-base">
+              This is intentionally editorial: a heading, supporting body copy, and proof details.
+              A section spotlight should emphasize the heading and surrounding content, not just
+              draw a rectangle around the nearest container.
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:rounded-[40px] sm:p-8">
+            <div className="space-y-4">
+              {[
+                ["Intake", "Understand audience, markets, and channel requirements."],
+                ["Adapt", "Use AI-enabled workflows with expert review where quality matters."],
+                ["Launch", "Prepare content for regional delivery, governance, and measurement."],
+              ].map(([label, body]) => (
+                <div key={label} className="flex gap-4 rounded-3xl bg-slate-50 p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
+                    {label.slice(0, 1)}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-950">{label}</div>
+                    <div className="mt-1 text-sm leading-6 text-slate-600">{body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="adaptive-menu-path"
+          data-tour-id="adaptive-menu-path"
+          data-spotlight-mode="navigation"
+          className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:rounded-[40px] sm:p-8"
+        >
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Navigation mode
+              </div>
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                A buried path the guide can explain step by step
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["Services", "Industries", "Resources", "Contact"].map((item, index) => (
+                <span
+                  key={item}
+                  data-tour-id={`adaptive-nav-${item.toLowerCase()}`}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold ${
+                    index === 1 ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-3 md:grid-cols-4">
+            {["Choose an industry", "Open service lane", "Review proof", "Start a consult"].map((item) => (
+              <div key={item} className="rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="adaptive-service-model-grid"
+          data-tour-id="adaptive-service-model-grid"
+          data-spotlight-mode="region"
+          className="grid gap-4 md:grid-cols-3"
+        >
+          {serviceCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <article
+                key={card.id}
+                id={card.id}
+                data-tour-id={card.id}
+                data-spotlight-mode="card"
+                className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-[34px] sm:p-7"
+              >
+                <div className="inline-flex rounded-2xl bg-slate-950 p-3 text-white">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">{card.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {card.chips.map((chip) => (
+                    <span key={chip} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
+        </section>
+
+        <section
+          id="adaptive-expert-cta"
+          data-tour-id="adaptive-expert-cta"
+          data-spotlight-mode="control"
+          className="rounded-[28px] bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 p-5 text-white shadow-2xl shadow-slate-300/50 sm:rounded-[40px] sm:p-8"
+        >
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+                Control mode
+              </div>
+              <h3 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
+                Ready to scope a global content workflow?
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200">
+                A CTA should get a tighter control-style focus so the user knows exactly what to click next.
+              </p>
+            </div>
+            <button
+              id="adaptive-contact-button"
+              data-tour-id="adaptive-contact-button"
+              data-spotlight-mode="control"
+              className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-100"
+            >
+              Talk to an expert
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </button>
+          </div>
+        </section>
+      </div>
+    </section>
+  );
+}
+
+
 function SectionCard({
   section,
   emphasized,
@@ -1198,6 +1425,7 @@ export default function App() {
       <Hero page={page} />
 
       {currentPage === "home" && <HomeExtras />}
+      {currentPage === "home" && <AdaptiveSpotlightShowcase />}
 
       <main className="mx-auto grid max-w-7xl gap-5 px-4 pb-20 sm:px-6 lg:grid-cols-[1fr_320px] lg:gap-8">
         <div className="space-y-4 sm:space-y-5">
@@ -1291,6 +1519,7 @@ export default function App() {
                 <div>• Section anchors remain unchanged</div>
                 <div>• Nav labels remain unchanged</div>
                 <div>• Visual variety is presentation-only</div>
+                <div>• Adaptive showcase uses data-tour-id anchors</div>
               </div>
             </CardContent>
           </Card>
