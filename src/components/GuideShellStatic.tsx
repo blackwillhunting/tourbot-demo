@@ -564,7 +564,7 @@ function isVisibleElement(el: HTMLElement) {
 function isInsideChrome(el: HTMLElement) {
   return Boolean(
     el.closest(
-      'nav, header, footer, button, [role="navigation"], [aria-label*="navigation" i], [class*="sticky"], [class*="fixed"], [class*="top-"]',
+      'nav, header, footer, [role="navigation"], [aria-label*="navigation" i], [class*="sticky"], [class*="fixed"], [class*="top-"]',
     ),
   );
 }
@@ -596,6 +596,17 @@ function contentContainerFor(node: HTMLElement): HTMLElement | null {
   if (container && isLikelyContentTarget(container)) return container;
   if (isLikelyContentTarget(node)) return node;
   return null;
+}
+
+function isExactInteractiveTourTarget(node: HTMLElement) {
+  const tag = node.tagName.toLowerCase();
+  return Boolean(
+    isVisibleElement(node) &&
+      (node.getAttribute("data-tour-id") || node.id) &&
+      (tag === "button" ||
+        tag === "a" ||
+        node.matches('button, a, input, select, textarea, [role="button"], [role="link"], [data-demo-target]'))
+  );
 }
 
 function getTargetCandidates(
@@ -652,6 +663,11 @@ function findByExactTarget(candidates: string[]): HTMLElement | null {
       document.querySelector<HTMLElement>(`#${escaped}`);
 
     if (exact) {
+      // Exact interactive anchors, such as adaptive-contact-button, must resolve
+      // to the control itself. Wrapping them in a larger content container makes
+      // action focus degrade into a broad area effect.
+      if (isExactInteractiveTourTarget(exact)) return exact;
+
       const target = contentContainerFor(exact);
       if (target) return target;
     }
@@ -1207,7 +1223,6 @@ function isControlSpotlightTarget(target: HTMLElement) {
 
   return Boolean(
     targetId.includes("contact-button") ||
-      targetId.includes("expert-cta") ||
       tag === "button" ||
       tag === "a" ||
       target.matches(interactiveSelector),
@@ -1255,6 +1270,17 @@ function isLargeCoherentArea(target: HTMLElement) {
 }
 
 function effectiveSpotlightTarget(target: HTMLElement): HTMLElement {
+  const targetId = (
+    target.getAttribute("data-tour-id") || target.id || target.getAttribute("aria-label") || ""
+  ).toLowerCase();
+
+  if (targetId.includes("expert-cta")) {
+    const buttonTarget = target.querySelector<HTMLElement>(
+      '[data-tour-id="adaptive-contact-button"], #adaptive-contact-button, button, a, [role="button"]',
+    );
+    if (buttonTarget && isVisibleElement(buttonTarget)) return buttonTarget;
+  }
+
   if (isNavigationSpotlightTarget(target) || isControlSpotlightTarget(target) || isCleanCardTarget(target)) {
     return target;
   }
