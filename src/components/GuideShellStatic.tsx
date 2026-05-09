@@ -1406,15 +1406,17 @@ function spotlightTarget(target: HTMLElement) {
   const mode = getAdaptiveSpotlightMode(target);
   const labelText = spotlightLabelForMode(mode);
   const overlayOpacity =
-    mode === "control" || mode === "navigation"
-      ? "rgba(15, 23, 42, 0.42)"
-      : mode === "card"
-        ? "rgba(15, 23, 42, 0.34)"
-        : mode === "section"
-          ? "rgba(15, 23, 42, 0.12)"
-          : mode === "region"
-            ? "rgba(15, 23, 42, 0.10)"
-            : "rgba(15, 23, 42, 0.07)";
+    mode === "band"
+      ? "rgba(15, 23, 42, 0.00)"
+      : mode === "control" || mode === "navigation"
+        ? "rgba(15, 23, 42, 0.42)"
+        : mode === "card"
+          ? "rgba(15, 23, 42, 0.34)"
+          : mode === "section"
+            ? "rgba(15, 23, 42, 0.12)"
+            : mode === "region"
+              ? "rgba(15, 23, 42, 0.10)"
+              : "rgba(15, 23, 42, 0.00)";
   const overlayBackdropFilter =
     mode === "card" || mode === "control" || mode === "navigation"
       ? "saturate(0.9)"
