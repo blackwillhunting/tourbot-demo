@@ -457,7 +457,9 @@ async function callGuideAi(
     throw new Error(detail);
   }
 
-  const answer = data.answer || data.reply || data.message || data.body;
+  const answer = stripVisibleDebugTrace(
+    data.answer || data.reply || data.message || data.body || "",
+  );
 
   return {
     title: data.title || "Guide response",
@@ -995,6 +997,22 @@ function primaryRoomStepForStayPlan(
   );
 }
 
+function cleanGuideStepClosing(value?: string | null) {
+  const text = (value || "").trim();
+  const normalized = normalizeText(text);
+
+  if (
+    !text ||
+    normalized === "package stop in this guided path" ||
+    normalized === "ranked room option for this request" ||
+    normalized === "recommended destination based on the guide response"
+  ) {
+    return "";
+  }
+
+  return text;
+}
+
 function answerPartsForGuideStep(
   step: GuidedAction,
   index: number,
@@ -1006,19 +1024,29 @@ function answerPartsForGuideStep(
     step.targetText ||
     phraseFromId(step.targetId) ||
     "this section";
-  const intro =
-    narrative?.intro ||
-    (total > 1
-      ? `${index === 0 ? "Let’s start with" : "Next, let’s look at"} **${label}**.`
-      : `Here’s the most relevant section: **${label}**.`);
+  const stepPrefix = total > 1 ? `Stop ${index + 1} of ${total}` : "Recommended stop";
+  const intro = narrative?.intro || `${stepPrefix}: **${label}**.`;
 
   return {
     intro,
     bullets: Array.isArray(narrative?.bullets)
       ? narrative?.bullets.filter(Boolean)
       : [],
-    closing: narrative?.closing || step.reason || "",
+    closing: cleanGuideStepClosing(narrative?.closing || step.reason || ""),
   };
+}
+
+function stripVisibleDebugTrace(value?: string | null) {
+  const text = value || "";
+  const blockMarker = "\n---\nDEBUG TRACE";
+  const blockIndex = text.indexOf(blockMarker);
+  if (blockIndex >= 0) return text.slice(0, blockIndex).trim();
+
+  const inlineMarker = "DEBUG TRACE";
+  const inlineIndex = text.indexOf(inlineMarker);
+  if (inlineIndex > 0) return text.slice(0, inlineIndex).trim();
+
+  return text;
 }
 
 function answerBodyFromParts(parts: AnswerParts) {
@@ -1593,6 +1621,20 @@ function spotlightTarget(rawTarget: HTMLElement) {
     document.body.appendChild(label);
   }
 
+  const repositionSpotlightChrome = () => {
+    if (mode !== "area") {
+      const padding = mode === "navigation" ? 14 : 10;
+      applySpotlightBox(focusLayer, expandedSpotlightRect(target, padding));
+    }
+
+    if (label) {
+      positionSpotlightLabel(label, target);
+    }
+  };
+
+  window.addEventListener("scroll", repositionSpotlightChrome, { passive: true });
+  window.addEventListener("resize", repositionSpotlightChrome);
+
   window.requestAnimationFrame(() => {
     if (label) {
       positionSpotlightLabel(label, target);
@@ -1627,10 +1669,11 @@ function spotlightTarget(rawTarget: HTMLElement) {
   target.style.transition = "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
 
   if (mode === "card") {
-    target.style.outline = "3px solid rgba(255, 255, 255, 0.92)";
-    target.style.outlineOffset = "8px";
-    target.style.boxShadow =
-      "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
+    // The fixed focusLayer already draws the spotlight border. Do not also
+    // outline the card itself; that creates the double-border effect.
+    target.style.outline = "none";
+    target.style.outlineOffset = "0";
+    target.style.boxShadow = "none";
     target.style.borderRadius = target.style.borderRadius || "24px";
   } else {
     target.style.outline = "none";
@@ -1646,6 +1689,9 @@ function spotlightTarget(rawTarget: HTMLElement) {
       activeSpotlightOverlay.remove();
       activeSpotlightOverlay = null;
     }
+
+    window.removeEventListener("scroll", repositionSpotlightChrome);
+    window.removeEventListener("resize", repositionSpotlightChrome);
 
     document
       .querySelectorAll<HTMLElement>('[data-guide-spotlight-overlay="true"], [data-guide-spotlight-label="true"]')
