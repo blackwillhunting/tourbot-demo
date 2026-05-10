@@ -1627,10 +1627,11 @@ function spotlightTarget(rawTarget: HTMLElement) {
   target.style.transition = "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
 
   if (mode === "card") {
-    target.style.outline = "3px solid rgba(255, 255, 255, 0.92)";
-    target.style.outlineOffset = "8px";
-    target.style.boxShadow =
-      "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
+    // The fixed focusLayer already draws the card border. Do not also outline
+    // the underlying target, or scrolling reveals a second/offset border.
+    target.style.outline = "none";
+    target.style.outlineOffset = "0";
+    target.style.boxShadow = "none";
     target.style.borderRadius = target.style.borderRadius || "24px";
   } else {
     target.style.outline = "none";
@@ -3198,14 +3199,13 @@ export function GuideShellStatic({
       const responseAnswerParts = autoSavedPendingRoom
         ? savedRoomConfirmationParts(autoSavedPendingRoom)
         : reply.answerParts;
-      const firstStepParts = isMultiStepGuide
-        ? answerPartsForGuideStep(nextGuideSteps[0], 0, nextGuideSteps.length)
-        : responseAnswerParts;
-      const botBody = isMultiStepGuide
-        ? answerBodyFromParts(firstStepParts || {}) || reply.body
-        : autoSavedPendingRoom
-          ? answerBodyFromParts(responseAnswerParts || {}) || reply.body
-          : reply.body;
+      // Keep the backend's main answer in the chat bubble for multi-step guides.
+      // Navigation steps still drive spotlight/Next/Back, but they should not
+      // replace the answer with "Next, let's look at..." copy.
+      const firstStepParts = responseAnswerParts;
+      const botBody = autoSavedPendingRoom
+        ? answerBodyFromParts(responseAnswerParts || {}) || reply.body
+        : reply.body;
 
       pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
       const completedThread: ThreadItem[] = [
@@ -3372,15 +3372,12 @@ export function GuideShellStatic({
     let nextThread = threadStateRef.current;
 
     if (currentGuideMessageId) {
-      const parts = answerPartsForGuideStep(
-        step,
-        boundedIndex,
-        guideSteps.length,
-      );
-      const body = answerBodyFromParts(parts);
+      // Do not overwrite the bot's main answer/debug trace when stepping through
+      // a multi-stop guide. The active step changes the spotlight target; the
+      // chat bubble keeps the original planner answer visible for diagnosis.
       nextThread = threadStateRef.current.map((item) =>
         item.id === currentGuideMessageId
-          ? { ...item, body, answerParts: parts, suggestedAction: step }
+          ? { ...item, suggestedAction: step }
           : item,
       );
       threadStateRef.current = nextThread;
