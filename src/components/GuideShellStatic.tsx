@@ -200,10 +200,23 @@ type CommerceSessionContext = {
 type ExtractedBookingContext = {
   checkInDate?: string | null;
   checkOutDate?: string | null;
+  nights?: number | null;
   adults?: number | null;
   children?: number | null;
+  guests?: number | null;
   budgetBand?: BudgetBand | string | null;
   breakfastRequested?: boolean | null;
+};
+
+type VisibleContext = {
+  bookingContext?: ExtractedBookingContext | null;
+  selectedRoomId?: string | null;
+  suggestedPackageId?: string | null;
+  activeStayPlan?: StayPlan | null;
+  savedItems?: unknown[];
+  pendingSave?: unknown;
+  lastPlannerIntent?: unknown;
+  [key: string]: unknown;
 };
 
 type StayPlanRoom = {
@@ -381,6 +394,7 @@ type GuideAiResponse = {
   navigationOrder?: string[];
   bookingUpdate?: { stayPlan?: StayPlan; [key: string]: unknown };
   extractedBookingContext?: ExtractedBookingContext;
+  visibleContext?: VisibleContext;
   followups?: string[];
 };
 
@@ -411,6 +425,7 @@ async function callGuideAi(
   message: string,
   guideConfig?: GuideConfig,
   conversationContext?: GuideConversationContext,
+  visibleContext?: VisibleContext,
 ): Promise<{
   title: string;
   body: string;
@@ -424,6 +439,7 @@ async function callGuideAi(
   stayPlan?: StayPlan | null;
   navigationOrder?: string[];
   extractedBookingContext?: ExtractedBookingContext;
+  visibleContext?: VisibleContext;
 }> {
   const response = await fetch(GUIDE_AI_URL, {
     method: "POST",
@@ -436,6 +452,7 @@ async function callGuideAi(
       guideConfig,
       message,
       conversationContext,
+      visibleContext,
       pageContext: {
         url: window.location.href,
         title: document.title,
@@ -458,6 +475,18 @@ async function callGuideAi(
   }
 
   const answer = data.answer || data.reply || data.message || data.body;
+  const responseVisibleContext =
+    data.visibleContext && typeof data.visibleContext === "object"
+      ? data.visibleContext
+      : undefined;
+  const responseBookingContext =
+    responseVisibleContext?.bookingContext &&
+    typeof responseVisibleContext.bookingContext === "object"
+      ? (responseVisibleContext.bookingContext as ExtractedBookingContext)
+      : undefined;
+  const visibleStayPlan = isStayPlan(responseVisibleContext?.activeStayPlan)
+    ? responseVisibleContext?.activeStayPlan
+    : null;
 
   return {
     title: data.title || "Guide response",
@@ -483,11 +512,12 @@ async function callGuideAi(
       ? data.stayPlan
       : isStayPlan(data.bookingUpdate?.stayPlan)
         ? data.bookingUpdate?.stayPlan
-        : null,
+        : visibleStayPlan,
     navigationOrder: Array.isArray(data.navigationOrder)
       ? data.navigationOrder.filter(Boolean)
       : [],
-    extractedBookingContext: data.extractedBookingContext,
+    extractedBookingContext: data.extractedBookingContext || responseBookingContext,
+    visibleContext: responseVisibleContext,
   };
 }
 
@@ -2262,6 +2292,14 @@ export function GuideShellStatic({
   const pendingRoomSaveRef = useRef<SavedCommerceItem | null>(null);
   const pendingRoomSaveSubmitIdRef = useRef<string | null>(null);
   const confirmedBookingContextKeyRef = useRef("");
+  const visibleContextRef = useRef<VisibleContext>({
+    bookingContext: {},
+    selectedRoomId: null,
+    suggestedPackageId: null,
+    savedItems: [],
+    pendingSave: null,
+    lastPlannerIntent: null,
+  });
   const modeCopy = guideModeCopy(guideConfig);
   const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
     if (typeof window === "undefined") return 760;
@@ -2584,6 +2622,14 @@ export function GuideShellStatic({
     pendingRoomSaveRef.current = null;
     pendingRoomSaveSubmitIdRef.current = null;
     confirmedBookingContextKeyRef.current = "";
+    visibleContextRef.current = {
+      bookingContext: {},
+      selectedRoomId: null,
+      suggestedPackageId: null,
+      savedItems: [],
+      pendingSave: null,
+      lastPlannerIntent: null,
+    };
 
     setIsBotTyping(false);
     setDraftFocus(false);
@@ -2922,6 +2968,125 @@ export function GuideShellStatic({
     }
   };
 
+
+  const bookingContextFromShell = (): ExtractedBookingContext => {
+    const booking: ExtractedBookingContext = {};
+
+    if (shellDatesApplied && shellCheckInDate && shellCheckOutDate) {
+      booking.checkInDate = shellCheckInDate;
+      booking.checkOutDate = shellCheckOutDate;
+      const nights = savedTripNights();
+      if (nights) booking.nights = nights;
+    }
+
+    if (shellGuestsApplied) {
+      booking.adults = shellAdults;
+      booking.children = shellChildren;
+      booking.guests = shellAdults + shellChildren;
+    }
+
+    if (shellBudgetBand) booking.budgetBand = shellBudgetBand;
+    if (shellBreakfastRequested) booking.breakfastRequested = true;
+
+    return booking;
+  };
+
+  const buildVisibleContext = (): VisibleContext => {
+    const previous = visibleContextRef.current || {};
+    const bookingContext = {
+      ...((previous.bookingContext as ExtractedBookingContext | undefined) || {}),
+      ...bookingContextFromShell(),
+    };
+    const activeRoomId = activeStayPlan?.room?.targetId || null;
+    const activePackageId = activeStayPlan?.packages?.find((pkg) => pkg?.targetId)?.targetId || null;
+
+    return {
+      ...previous,
+      bookingContext,
+      selectedRoomId: activeRoomId || previous.selectedRoomId || null,
+      suggestedPackageId: activePackageId || previous.suggestedPackageId || null,
+      activeStayPlan: activeStayPlan || previous.activeStayPlan || null,
+      savedItems: Array.isArray(previous.savedItems) ? previous.savedItems : [],
+      pendingSave: previous.pendingSave ?? null,
+      lastPlannerIntent: previous.lastPlannerIntent ?? null,
+    };
+  };
+
+  const roomFromStayPlan = (stayPlan?: StayPlan | null): SavedCommerceItem | null => {
+    const room = stayPlan?.room;
+    if (!room?.targetId) return null;
+    return {
+      id: room.targetId,
+      type: "room",
+      title: room.title || phraseFromId(room.targetId),
+      targetId: room.targetId,
+      pageId: null,
+      priceUsd: room.nightlyRateUsd ?? null,
+      priceUnit: room.nightlyRateUsd ? "per_night" : null,
+      priceLabel: room.nightlyRateUsd ? `$${room.nightlyRateUsd}/night` : null,
+    };
+  };
+
+  const savedTripFromStayPlan = (stayPlan?: StayPlan | null): SavedTripContext | null => {
+    const room = roomFromStayPlan(stayPlan);
+    if (!room) return null;
+    return {
+      room,
+      packages: (stayPlan?.packages || [])
+        .map(packageToSavedItem)
+        .filter((item): item is SavedCommerceItem => Boolean(item)),
+      extras: [],
+    };
+  };
+
+  const mergeSavedTrip = (next: SavedTripContext) => {
+    setSavedTripContext((current) => {
+      const packages = [...current.packages];
+      next.packages.forEach((pkg) => {
+        if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
+      });
+
+      const extras = [...current.extras];
+      next.extras.forEach((extra) => {
+        if (!extras.some((entry) => entry.id === extra.id)) extras.push(extra);
+      });
+
+      return {
+        room: next.room || current.room,
+        packages,
+        extras,
+      };
+    });
+  };
+
+  const mergeBackendVisibleContext = (context?: VisibleContext | null) => {
+    if (!context || guideConfig?.mode !== "commerce") return;
+
+    visibleContextRef.current = {
+      ...visibleContextRef.current,
+      ...context,
+      bookingContext: {
+        ...((visibleContextRef.current.bookingContext as ExtractedBookingContext | undefined) || {}),
+        ...((context.bookingContext as ExtractedBookingContext | undefined) || {}),
+      },
+    };
+
+    if (context.bookingContext && typeof context.bookingContext === "object") {
+      mergeExtractedBookingContext(context.bookingContext as ExtractedBookingContext);
+    }
+
+    if (isStayPlan(context.activeStayPlan)) {
+      setActiveStayPlan(context.activeStayPlan);
+    }
+
+    const savedItems = Array.isArray(context.savedItems) ? context.savedItems : [];
+    const latestSavedStay = [...savedItems]
+      .reverse()
+      .find((item): item is StayPlan => isStayPlan(item));
+    const savedTrip = savedTripFromStayPlan(latestSavedStay);
+    if (savedTrip) mergeSavedTrip(savedTrip);
+  };
+
   const filterSatisfiedRefinementChips = (
     chips?: string[],
     extracted?: ExtractedBookingContext | null,
@@ -3052,10 +3217,18 @@ export function GuideShellStatic({
       return null;
     }
 
-    setSavedTripContext((current) => ({
-      ...current,
-      room: pendingRoom,
-    }));
+    const bundledPackages = stayPlanPackagesForCurrentSelection();
+    setSavedTripContext((current) => {
+      const packages = [...current.packages];
+      bundledPackages.forEach((pkg) => {
+        if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
+      });
+      return {
+        ...current,
+        room: pendingRoom,
+        packages,
+      };
+    });
     pendingRoomSaveRef.current = null;
     pendingRoomSaveSubmitIdRef.current = null;
     setActiveCompletionWidget("saved-trip");
@@ -3131,12 +3304,15 @@ export function GuideShellStatic({
     const startedAt = performance.now();
 
     try {
+      const sentVisibleContext = buildVisibleContext();
       const reply = await callGuideAi(
         trimmed,
         guideConfig,
         conversationContext,
+        sentVisibleContext,
       );
       mergeExtractedBookingContext(reply.extractedBookingContext);
+      mergeBackendVisibleContext(reply.visibleContext);
       const isBookingContextUpdateResponse =
         reply.commerceAction === "booking_context_update";
       const shouldTreatAsContextUpdate = Boolean(
@@ -3162,8 +3338,12 @@ export function GuideShellStatic({
         await wait(remaining);
       }
 
+      const visibleStayPlan = isStayPlan(reply.visibleContext?.activeStayPlan)
+        ? reply.visibleContext?.activeStayPlan
+        : null;
       const replyStayPlan =
         reply.stayPlan ||
+        visibleStayPlan ||
         reply.stepNarratives
           ?.map((step) => step?.stayPlan)
           .find((plan): plan is StayPlan => isStayPlan(plan)) ||
@@ -3558,10 +3738,22 @@ export function GuideShellStatic({
       }
 
       if (item.type === "package") {
-        const existing = current.packages.some((entry) => entry.id === item.id);
-        return existing
-          ? current
-          : { ...current, packages: [...current.packages, item] };
+        const stayPlan = currentGuideStep
+          ? stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan
+          : activeStayPlan;
+        const bundledRoom = roomFromStayPlan(stayPlan);
+        const bundledPackages = stayPlanPackagesForCurrentSelection();
+        const packages = [...current.packages];
+
+        [...bundledPackages, item].forEach((pkg) => {
+          if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
+        });
+
+        return {
+          ...current,
+          room: current.room || bundledRoom,
+          packages,
+        };
       }
 
       const existing = current.extras.some((entry) => entry.id === item.id);
