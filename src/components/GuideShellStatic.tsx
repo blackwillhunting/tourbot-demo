@@ -656,6 +656,7 @@ function getTargetCandidates(
     lower,
     phraseFromId(targetId),
     action?.targetText,
+    action?.pageId,
     ...(Array.isArray(action?.targetCandidates)
       ? (action?.targetCandidates ?? [])
       : []),
@@ -831,33 +832,11 @@ function findByHeadingOrText(candidates: string[]): HTMLElement | null {
   return null;
 }
 
-function isStructuredCommerceTargetId(value?: string | null) {
-  return /^(room|package)-[a-z0-9-]+$/i.test((value || "").trim());
-}
-
-function hasUsableSpotlightRect(target: HTMLElement | null) {
-  if (!target || !target.isConnected) return false;
-  const rect = target.getBoundingClientRect();
-  return rect.width > 4 && rect.height > 4;
-}
-
 function findTourTarget(
   actionOrTarget?: SuggestedAction | string | null,
 ): HTMLElement | null {
-  const rawTargetId =
-    typeof actionOrTarget === "string"
-      ? actionOrTarget
-      : actionOrTarget?.targetId;
   const candidates = getTargetCandidates(actionOrTarget);
   if (!candidates.length) return null;
-
-  // Commerce cards/packages have stable DOM anchors. Do not let broad page
-  // labels like "packages" fall back to fuzzy text matching against stale
-  // off-page cards during a page transition. That was the intermittent dim/no-border
-  // failure: a stale room card was accepted, then React detached it before attach.
-  if (isStructuredCommerceTargetId(rawTargetId)) {
-    return findByExactTarget(candidates);
-  }
 
   return findByExactTarget(candidates) || findByHeadingOrText(candidates);
 }
@@ -1308,21 +1287,10 @@ function scrollTargetForSpotlight(target: HTMLElement): HTMLElement {
 }
 
 function getAdaptiveSpotlightMode(target: HTMLElement): SpotlightMode {
+  if (isNavigationSpotlightTarget(target)) return "navigation";
   if (isControlSpotlightTarget(target)) return "control";
+  if (isLargeCoherentArea(target)) return "area";
   return "card";
-}
-
-function positionSpotlightLabel(label: HTMLElement, target: HTMLElement) {
-  const rect = target.getBoundingClientRect();
-  const labelRect = label.getBoundingClientRect();
-  const left = Math.max(16, Math.min(rect.left, window.innerWidth - labelRect.width - 16));
-  const top = Math.max(16, rect.top - labelRect.height - 14);
-  label.style.left = `${left}px`;
-  label.style.top = `${top}px`;
-}
-
-function spotlightLabelForMode(_mode: SpotlightMode) {
-  return "";
 }
 
 function expandedSpotlightRect(target: HTMLElement, padding: number) {
@@ -1366,297 +1334,57 @@ function applySpotlightBox(layer: HTMLElement, rect: ReturnType<typeof expandedS
 }
 
 function createAreaFocusLayer(target: HTMLElement) {
-  const layer = document.createElement("div");
-  layer.setAttribute("data-guide-spotlight-overlay", "true");
-  layer.setAttribute("data-guide-spotlight-mode", "area");
-  layer.style.position = "fixed";
-  layer.style.zIndex = "8998";
-  layer.style.pointerEvents = "none";
-  layer.style.opacity = "0";
-  layer.style.transition = "opacity 260ms ease, transform 260ms ease";
-  layer.style.transform = "translateY(4px)";
-  layer.style.borderRadius = "34px";
-  layer.style.overflow = "visible";
-  layer.style.background = "rgba(255,255,255,0.08)";
-  layer.style.boxShadow =
-    "inset 0 0 0 1px rgba(15,23,42,0.10), inset 0 0 52px rgba(15,23,42,0.045), 0 0 80px rgba(255,255,255,0.28)";
-
-  const shimmer = document.createElement("div");
-  shimmer.setAttribute("data-guide-spotlight-overlay", "true");
-  shimmer.style.position = "absolute";
-  shimmer.style.inset = "0";
-  shimmer.style.borderRadius = "34px";
-  shimmer.style.background =
-    "radial-gradient(circle at 50% 22%, rgba(255,255,255,0.18), rgba(255,255,255,0.07) 42%, rgba(255,255,255,0.00) 78%)";
-  shimmer.style.opacity = "0.72";
-  layer.appendChild(shimmer);
-
-  const heading = visibleHeadingInside(target) || target;
-  const headingCue = document.createElement("div");
-  headingCue.setAttribute("data-guide-spotlight-overlay", "true");
-  headingCue.style.position = "absolute";
-  headingCue.style.pointerEvents = "none";
-  headingCue.style.opacity = "1";
-  headingCue.style.transition = "opacity 420ms ease, transform 420ms ease";
-  headingCue.style.transform = "translateY(0)";
-
-  const pulse = document.createElement("div");
-  pulse.style.position = "absolute";
-  pulse.style.left = "0";
-  pulse.style.top = "50%";
-  pulse.style.width = "22px";
-  pulse.style.height = "22px";
-  pulse.style.borderRadius = "999px";
-  pulse.style.transform = "translateY(-50%)";
-  pulse.style.background = "rgba(15,23,42,0.92)";
-  pulse.style.boxShadow = "0 0 0 7px rgba(255,255,255,0.18), 0 12px 30px rgba(15,23,42,0.24)";
-
-  const pulseCore = document.createElement("div");
-  pulseCore.style.position = "absolute";
-  pulseCore.style.left = "7px";
-  pulseCore.style.top = "7px";
-  pulseCore.style.width = "8px";
-  pulseCore.style.height = "8px";
-  pulseCore.style.borderRadius = "999px";
-  pulseCore.style.background = "white";
-  pulse.appendChild(pulseCore);
-  headingCue.appendChild(pulse);
-
-  const underline = document.createElement("div");
-  underline.style.position = "absolute";
-  underline.style.left = "34px";
-  underline.style.right = "0";
-  underline.style.bottom = "2px";
-  underline.style.height = "4px";
-  underline.style.borderRadius = "999px";
-  underline.style.overflow = "hidden";
-  underline.style.background = "rgba(15,23,42,0.14)";
-  underline.style.boxShadow = "0 0 22px rgba(15,23,42,0.10)";
-
-  const sweep = document.createElement("div");
-  sweep.style.width = "42%";
-  sweep.style.height = "100%";
-  sweep.style.borderRadius = "999px";
-  sweep.style.background =
-    "linear-gradient(90deg, rgba(15,23,42,0.00), rgba(15,23,42,0.76), rgba(15,23,42,0.00))";
-  sweep.style.transform = "translateX(-110%)";
-  underline.appendChild(sweep);
-  headingCue.appendChild(underline);
-  layer.appendChild(headingCue);
-
-  const positionLayer = () => {
-    const area = visibleAreaRect(target, 14);
-    const headingRect = heading.getBoundingClientRect();
-    layer.style.left = `${area.left}px`;
-    layer.style.top = `${area.top}px`;
-    layer.style.width = `${area.width}px`;
-    layer.style.height = `${area.height}px`;
-
-    const cueLeft = Math.max(8, headingRect.left - area.left - 34);
-    const cueTop = Math.max(12, headingRect.top - area.top - 8);
-    const cueWidth = Math.max(190, Math.min(area.width - cueLeft - 14, headingRect.width + 44));
-    const cueHeight = Math.max(44, headingRect.height + 28);
-    headingCue.style.left = `${cueLeft}px`;
-    headingCue.style.top = `${cueTop}px`;
-    headingCue.style.width = `${cueWidth}px`;
-    headingCue.style.height = `${cueHeight}px`;
-  };
-
-  positionLayer();
-  window.requestAnimationFrame(positionLayer);
-  window.setTimeout(positionLayer, 90);
-  window.setTimeout(positionLayer, 240);
-
-  shimmer.animate?.(
-    [
-      { opacity: 0.48, transform: "scale(0.997)" },
-      { opacity: 0.82, transform: "scale(1.003)" },
-      { opacity: 0.48, transform: "scale(0.997)" },
-    ],
-    { duration: 2600, iterations: Infinity, easing: "ease-in-out" },
-  );
-
-  pulse.animate?.(
-    [
-      { transform: "translateY(-50%) scale(0.94)", opacity: 0.78 },
-      { transform: "translateY(-50%) scale(1.12)", opacity: 1 },
-      { transform: "translateY(-50%) scale(0.94)", opacity: 0.78 },
-    ],
-    { duration: 1100, iterations: Infinity, easing: "ease-in-out" },
-  );
-
-  sweep.animate?.(
-    [
-      { transform: "translateX(-115%)" },
-      { transform: "translateX(280%)" },
-    ],
-    { duration: 1400, iterations: Infinity, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
-  );
-
-  scheduleSpotlightTimer(() => {
-    headingCue.style.opacity = "0";
-    headingCue.style.transform = "translateY(-2px)";
-  }, 2000);
-
-  document.body.appendChild(layer);
-  return layer;
+  // Simplified demo-safe spotlight path: area/card/control/navigation now all
+  // share the same plain ring behavior. This intentionally removes the old
+  // experimental area-focus shimmer/label system that could leave the page dimmed
+  // without a visible target.
+  return createSpotlightLayer("area", target);
 }
 
-function createSpotlightLayer(mode: SpotlightMode, target: HTMLElement) {
-  if (mode === "area") {
-    return createAreaFocusLayer(target);
-  }
-
+function createSpotlightLayer(_mode: SpotlightMode, target: HTMLElement) {
   const layer = document.createElement("div");
   layer.setAttribute("data-guide-spotlight-overlay", "true");
-  layer.setAttribute("data-guide-spotlight-mode", mode);
+  layer.setAttribute("data-guide-spotlight-mode", "ring");
   layer.style.position = "fixed";
   layer.style.zIndex = "8998";
   layer.style.pointerEvents = "none";
   layer.style.opacity = "0";
-  layer.style.transition = "opacity 240ms ease, transform 240ms ease";
+  layer.style.transition = "opacity 220ms ease, transform 220ms ease";
   layer.style.transform = "translateY(4px)";
+  layer.style.border = "3px solid rgba(255,255,255,0.94)";
+  layer.style.borderRadius = "24px";
+  layer.style.boxShadow =
+    "0 0 0 8px rgba(255,255,255,0.14), 0 22px 70px rgba(15,23,42,0.32)";
+  layer.style.background = "rgba(255,255,255,0.03)";
+  applySpotlightBox(layer, expandedSpotlightRect(target, 10));
   document.body.appendChild(layer);
-
-  if (mode === "control") {
-    const rect = expandedSpotlightRect(target, 10);
-    applySpotlightBox(layer, rect);
-    layer.style.borderRadius = "999px";
-    layer.style.border = "3px solid rgba(255,255,255,0.96)";
-    layer.style.boxShadow =
-      "0 0 0 8px rgba(255,255,255,0.16), 0 0 0 18px rgba(255,255,255,0.07), 0 18px 48px rgba(15,23,42,0.34)";
-    layer.animate?.(
-      [
-        { transform: "scale(0.98)", opacity: 0.88 },
-        { transform: "scale(1.035)", opacity: 1 },
-        { transform: "scale(0.98)", opacity: 0.88 },
-      ],
-      { duration: 1400, iterations: Infinity, easing: "ease-in-out" },
-    );
-    return layer;
-  }
-
-  if (mode === "navigation") {
-    const rect = expandedSpotlightRect(target, 14);
-    applySpotlightBox(layer, rect);
-    layer.style.borderRadius = "999px";
-    layer.style.border = "2px dashed rgba(255,255,255,0.95)";
-    layer.style.background = "rgba(255,255,255,0.08)";
-    layer.style.boxShadow = "0 12px 46px rgba(15,23,42,0.30)";
-
-    const dot = document.createElement("div");
-    dot.setAttribute("data-guide-spotlight-overlay", "true");
-    dot.setAttribute("data-guide-spotlight-mode", mode);
-    dot.style.position = "fixed";
-    dot.style.zIndex = "8999";
-    dot.style.pointerEvents = "none";
-    dot.style.width = "10px";
-    dot.style.height = "10px";
-    dot.style.borderRadius = "999px";
-    dot.style.background = "rgba(255,255,255,0.96)";
-    dot.style.boxShadow = "0 0 0 8px rgba(255,255,255,0.12)";
-    dot.style.left = `${Math.max(16, rect.left + rect.width - 10)}px`;
-    dot.style.top = `${Math.max(16, rect.top + rect.height / 2 - 5)}px`;
-    dot.style.opacity = "0";
-    dot.style.transition = "opacity 240ms ease";
-    document.body.appendChild(dot);
-    window.requestAnimationFrame(() => {
-      dot.style.opacity = "1";
-    });
-    return layer;
-  }
-
-// Card focus gets a real fixed border layer as a fallback.
-// The target also still receives its own outline in spotlightTarget().
-const rect = expandedSpotlightRect(target, 8);
-applySpotlightBox(layer, rect);
-layer.style.borderRadius = "24px";
-layer.style.border = "3px solid rgba(255,255,255,0.92)";
-layer.style.boxShadow =
-  "0 24px 90px rgba(15,23,42,0.30), 0 0 0 1px rgba(255,255,255,0.60)";
-layer.style.background = "transparent";
-return layer;
+  return layer;
 }
 
 function spotlightTarget(rawTarget: HTMLElement) {
   clearActiveSpotlight();
 
   const target = effectiveSpotlightTarget(rawTarget);
-  if (!hasUsableSpotlightRect(target)) {
+  if (!target || !target.isConnected || !isVisibleElement(target)) {
     clearActiveSpotlight();
-    return;
+    return false;
   }
-
-  const mode = getAdaptiveSpotlightMode(target);
-  const labelText = spotlightLabelForMode(mode);
-  const overlayOpacity =
-    mode === "area"
-      ? "rgba(15, 23, 42, 0.26)"
-      : mode === "control" || mode === "navigation"
-        ? "rgba(15, 23, 42, 0.42)"
-        : "rgba(15, 23, 42, 0.34)";
-  const overlayBackdropFilter =
-    mode === "card" || mode === "control" || mode === "navigation"
-      ? "saturate(0.9)"
-      : "none";
 
   const overlay = document.createElement("div");
   overlay.setAttribute("data-guide-spotlight-overlay", "true");
-  overlay.setAttribute("data-guide-spotlight-mode", mode);
+  overlay.setAttribute("data-guide-spotlight-mode", "dim");
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
   overlay.style.zIndex = "8997";
   overlay.style.pointerEvents = "none";
-  overlay.style.background = overlayOpacity;
-  overlay.style.backdropFilter = overlayBackdropFilter;
-  overlay.style.transition = "opacity 420ms ease, background 720ms ease";
+  overlay.style.background = "rgba(15, 23, 42, 0.34)";
+  overlay.style.backdropFilter = "saturate(0.9)";
+  overlay.style.transition = "opacity 320ms ease";
   overlay.style.opacity = "0";
   document.body.appendChild(overlay);
   activeSpotlightOverlay = overlay;
 
-  const focusLayer = createSpotlightLayer(mode, target);
-
-  const label = null;
-
-  if (label) {
-    label.setAttribute("data-guide-spotlight-label", "true");
-    label.setAttribute("data-guide-spotlight-mode", mode);
-    label.textContent = labelText;
-    label.style.position = "fixed";
-    label.style.zIndex = "9000";
-    label.style.pointerEvents = "none";
-    label.style.opacity = "0";
-    label.style.transition = "opacity 220ms ease, transform 220ms ease";
-    label.style.transform = "translateY(4px)";
-    label.style.border = "1px solid rgba(255, 255, 255, 0.28)";
-    label.style.background = "rgba(15, 23, 42, 0.78)";
-    label.style.color = "white";
-    label.style.borderRadius = "999px";
-    label.style.padding = "6px 10px";
-    label.style.fontSize = "11px";
-    label.style.fontWeight = "700";
-    label.style.letterSpacing = "0.12em";
-    label.style.textTransform = "uppercase";
-    label.style.boxShadow = "0 10px 30px rgba(15, 23, 42, 0.26)";
-    document.body.appendChild(label);
-  }
-
-  window.requestAnimationFrame(() => {
-    if (label) {
-      positionSpotlightLabel(label, target);
-      label.style.opacity = "1";
-      label.style.transform = "translateY(0)";
-    }
-    overlay.style.opacity = "1";
-    focusLayer.style.opacity = "1";
-    focusLayer.style.transform = mode === "control" ? "scale(1)" : "translateY(0)";
-  });
-
-  if (mode === "area") {
-    scheduleSpotlightTimer(() => {
-      overlay.style.background = "rgba(15, 23, 42, 0.08)";
-    }, 2000);
-  }
+  const focusLayer = createSpotlightLayer("card", target);
 
   const previousPosition = target.style.position;
   const previousZIndex = target.style.zIndex;
@@ -1668,28 +1396,36 @@ function spotlightTarget(rawTarget: HTMLElement) {
   const computedPosition = window.getComputedStyle(target).position;
 
   target.setAttribute("data-guide-spotlight-target", "true");
-  target.setAttribute("data-guide-spotlight-mode", mode);
-  target.style.position =
-    computedPosition === "static" ? "relative" : previousPosition;
+  target.setAttribute("data-guide-spotlight-mode", "card");
+  target.style.position = computedPosition === "static" ? "relative" : previousPosition;
   target.style.zIndex = "8999";
   target.style.transition = "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
+  target.style.outline = "3px solid rgba(255, 255, 255, 0.94)";
+  target.style.outlineOffset = "8px";
+  target.style.boxShadow =
+    "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
+  target.style.borderRadius = target.style.borderRadius || "24px";
 
-  if (mode === "card") {
-    target.style.outline = "3px solid rgba(255, 255, 255, 0.92)";
-    target.style.outlineOffset = "8px";
-    target.style.boxShadow =
-      "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
-    target.style.borderRadius = target.style.borderRadius || "24px";
-  } else {
-    target.style.outline = "none";
-    target.style.outlineOffset = "0";
-    target.style.boxShadow =
-      mode === "control"
-        ? "0 10px 34px rgba(15,23,42,0.24)"
-        : "none";
-  }
+  const positionLayer = () => {
+    if (!target.isConnected || !isVisibleElement(target)) return;
+    applySpotlightBox(focusLayer, expandedSpotlightRect(target, 10));
+  };
+
+  const onViewportChange = () => positionLayer();
+  window.addEventListener("scroll", onViewportChange, { passive: true });
+  window.addEventListener("resize", onViewportChange);
+
+  window.requestAnimationFrame(() => {
+    positionLayer();
+    overlay.style.opacity = "1";
+    focusLayer.style.opacity = "1";
+    focusLayer.style.transform = "translateY(0)";
+  });
 
   activeSpotlightCleanup = () => {
+    window.removeEventListener("scroll", onViewportChange);
+    window.removeEventListener("resize", onViewportChange);
+
     if (activeSpotlightOverlay) {
       activeSpotlightOverlay.remove();
       activeSpotlightOverlay = null;
@@ -1709,6 +1445,8 @@ function spotlightTarget(rawTarget: HTMLElement) {
     target.removeAttribute("data-guide-spotlight-target");
     target.removeAttribute("data-guide-spotlight-mode");
   };
+
+  return true;
 }
 function suggestedActionToTourStep(action: SuggestedAction): TourStep {
   const targetId = (action.targetId || "").trim();
@@ -1848,49 +1586,56 @@ function smoothScrollElementIntoView(
 
 function runSpotlightWithRetries(
   action: SuggestedAction,
-  delays = [250, 650, 1100, 1700, 2400],
+  delays = [120, 320, 700, 1200, 1900, 2800],
   onSpotlightActive?: () => void,
 ) {
   const runId = beginSpotlightRun();
-  let found = false;
-  const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
+  let completed = false;
+  const mobileSettleDelay = isCoarsePointer() ? 300 : 0;
   const spotlightAfterScrollDelay =
-    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120);
+    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120);
+
+  const failSafely = () => {
+    if (!isCurrentSpotlightRun(runId) || completed) return;
+    completed = true;
+    clearActiveSpotlight();
+    console.warn("Guide spotlight target not found after retries:", {
+      targetId: action.targetId,
+      pageId: action.pageId,
+      pageUrl: action.pageUrl,
+    });
+  };
 
   delays.forEach((delay) => {
     scheduleSpotlightTimer(() => {
-      if (!isCurrentSpotlightRun(runId) || found) return;
+      if (!isCurrentSpotlightRun(runId) || completed) return;
 
-      const target = findTourTarget(action);
-      if (!hasUsableSpotlightRect(target)) return;
+      const initialTarget = findTourTarget(action);
+      if (!initialTarget || !initialTarget.isConnected || !isVisibleElement(initialTarget)) return;
 
-      found = true;
+      completed = true;
       scheduleSpotlightTimer(() => {
         if (!isCurrentSpotlightRun(runId)) return;
 
-        const scrollTarget = findTourTarget(action) || target;
-        if (!hasUsableSpotlightRect(scrollTarget)) {
-          found = false;
-          return;
-        }
-
-        smoothScrollElementIntoView(scrollTargetForSpotlight(scrollTarget));
+        smoothScrollElementIntoView(scrollTargetForSpotlight(initialTarget));
         scheduleSpotlightTimer(() => {
           if (!isCurrentSpotlightRun(runId)) return;
 
-          const attachTarget = findTourTarget(action) || scrollTarget;
-          if (!hasUsableSpotlightRect(attachTarget)) {
-            found = false;
+          const settledTarget = findTourTarget(action) || initialTarget;
+          if (!settledTarget || !settledTarget.isConnected || !isVisibleElement(settledTarget)) {
             clearActiveSpotlight();
             return;
           }
 
-          spotlightTarget(attachTarget);
-          onSpotlightActive?.();
+          const attached = spotlightTarget(settledTarget);
+          if (attached) onSpotlightActive?.();
+          else clearActiveSpotlight();
         }, spotlightAfterScrollDelay);
       }, mobileSettleDelay);
     }, delay + mobileSettleDelay);
   });
+
+  scheduleSpotlightTimer(failSafely, Math.max(...delays) + spotlightAfterScrollDelay + 900);
 }
 
 function softNavigateToPage(
@@ -1925,9 +1670,9 @@ function runSuggestedNavigation(
   }
 
   const target = findTourTarget(action);
-  if (target) {
+  if (target && target.isConnected && isVisibleElement(target)) {
     const runId = beginSpotlightRun();
-    const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
+    const mobileSettleDelay = isCoarsePointer() ? 300 : 0;
     scheduleSpotlightTimer(() => {
       if (!isCurrentSpotlightRun(runId)) return;
 
@@ -1936,32 +1681,25 @@ function runSuggestedNavigation(
         () => {
           if (!isCurrentSpotlightRun(runId)) return;
 
-          spotlightTarget(target);
-          onSpotlightActive?.();
+          const settledTarget = findTourTarget(action) || target;
+          if (!settledTarget || !settledTarget.isConnected || !isVisibleElement(settledTarget)) {
+            clearActiveSpotlight();
+            return;
+          }
+
+          const attached = spotlightTarget(settledTarget);
+          if (attached) onSpotlightActive?.();
+          else clearActiveSpotlight();
         },
-        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120),
+        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120),
       );
     }, mobileSettleDelay);
     return;
   }
 
-  console.warn("Guide navigation target not found:", {
-    targetId: action.targetId,
-    pageId: action.pageId,
-    pageUrl: action.pageUrl,
-    reason: action.reason,
-    visibleTargets: Array.from(
-      document.querySelectorAll<HTMLElement>(
-        "main section[id], main [data-tour-id], main article, main [role='region']",
-      ),
-    )
-      .slice(0, 40)
-      .map((node) => ({
-        id: node.id,
-        tourId: node.getAttribute("data-tour-id"),
-        heading: node.querySelector("h1,h2,h3")?.textContent?.trim(),
-      })),
-  });
+  // No immediate target: use the same bounded retry path as page navigation.
+  // The fail-safe clears all dimming if the target never appears.
+  runSpotlightWithRetries(action, undefined, onSpotlightActive);
 }
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
