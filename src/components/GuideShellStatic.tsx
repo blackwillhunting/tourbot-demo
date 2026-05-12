@@ -1292,6 +1292,7 @@ function getAdaptiveSpotlightMode(target: HTMLElement): SpotlightMode {
   if (isLargeCoherentArea(target)) return "area";
   return "card";
 }
+void getAdaptiveSpotlightMode;
 
 function expandedSpotlightRect(target: HTMLElement, padding: number) {
   const rect = target.getBoundingClientRect();
@@ -1325,6 +1326,7 @@ function visibleAreaRect(target: HTMLElement, padding = 14) {
     height: Math.max(150, bottom - top),
   };
 }
+void visibleAreaRect;
 
 function applySpotlightBox(layer: HTMLElement, rect: ReturnType<typeof expandedSpotlightRect>) {
   layer.style.top = `${rect.top}px`;
@@ -1340,6 +1342,7 @@ function createAreaFocusLayer(target: HTMLElement) {
   // without a visible target.
   return createSpotlightLayer("area", target);
 }
+void createAreaFocusLayer;
 
 function createSpotlightLayer(_mode: SpotlightMode, target: HTMLElement) {
   const layer = document.createElement("div");
