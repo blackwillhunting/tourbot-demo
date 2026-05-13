@@ -305,6 +305,11 @@ type StepNarrative = {
   pageId?: string;
   pageUrl?: string;
   targetText?: string;
+  /**
+   * Freeform markdown-lite narration for this step. Preferred over the
+   * legacy intro/bullets/closing memo shape when present.
+   */
+  body?: string;
   intro?: string;
   bullets?: string[];
   closing?: string;
@@ -503,7 +508,7 @@ async function callGuideAi(
       ? data.stepNarratives
       : [],
     refinementChips: Array.isArray(data.refinementChips)
-      ? data.refinementChips.filter(Boolean).slice(0, 6)
+      ? data.refinementChips.filter(Boolean).slice(0, 3)
       : [],
     commerceAction:
       typeof data.commerceAction === "string" ? data.commerceAction : undefined,
@@ -656,7 +661,6 @@ function getTargetCandidates(
     lower,
     phraseFromId(targetId),
     action?.targetText,
-    action?.pageId,
     ...(Array.isArray(action?.targetCandidates)
       ? (action?.targetCandidates ?? [])
       : []),
@@ -1030,24 +1034,29 @@ function answerPartsForGuideStep(
   index: number,
   total: number,
 ): AnswerParts {
+  void index;
+  void total;
+
   const narrative = step.stepNarrative;
   const label =
     narrative?.targetText ||
     step.targetText ||
     phraseFromId(step.targetId) ||
     "this section";
-  const intro =
-    narrative?.intro ||
-    (total > 1
-      ? `${index === 0 ? "Let’s start with" : "Next, let’s look at"} **${label}**.`
-      : `Here’s the most relevant section: **${label}**.`);
+  const bullets = Array.isArray(narrative?.bullets)
+    ? narrative?.bullets.filter(Boolean)
+    : [];
+  const hasNarrativeContent = Boolean(
+    narrative?.intro || bullets.length || narrative?.closing,
+  );
 
   return {
-    intro,
-    bullets: Array.isArray(narrative?.bullets)
-      ? narrative?.bullets.filter(Boolean)
-      : [],
-    closing: narrative?.closing || step.reason || "",
+    // Prefer backend-provided stepNarratives. Only use a tiny focus fallback
+    // when the backend did not send narrative content for this step. Do not
+    // expose step.reason here; it is planner/internal rationale, not customer copy.
+    intro: narrative?.intro || (hasNarrativeContent ? "" : `Now showing **${label}**.`),
+    bullets,
+    closing: narrative?.closing || "",
   };
 }
 
@@ -1058,6 +1067,28 @@ function answerBodyFromParts(parts: AnswerParts) {
     chunks.push(parts.bullets.map((item) => `- ${item}`).join("\n"));
   if (parts.closing) chunks.push(parts.closing);
   return chunks.join("\n\n").trim();
+}
+
+function guideStepNarrativeBody(step: GuidedAction) {
+  const body = step.stepNarrative?.body;
+  return typeof body === "string" ? body.trim() : "";
+}
+
+function responseForGuideStep(
+  step: GuidedAction,
+  index: number,
+  total: number,
+): { body: string; answerParts?: AnswerParts } {
+  const body = guideStepNarrativeBody(step);
+  if (body) {
+    return { body };
+  }
+
+  const answerParts = answerPartsForGuideStep(step, index, total);
+  return {
+    body: answerBodyFromParts(answerParts),
+    answerParts,
+  };
 }
 
 function guideStepLabel(step?: SuggestedAction | null) {
@@ -1364,10 +1395,9 @@ function createSpotlightLayer(_mode: SpotlightMode, target: HTMLElement) {
   return layer;
 }
 
-function spotlightTarget(rawTarget: HTMLElement) {
+function spotlightTarget(target: HTMLElement) {
   clearActiveSpotlight();
 
-  const target = effectiveSpotlightTarget(rawTarget);
   if (!target || !target.isConnected || !isVisibleElement(target)) {
     clearActiveSpotlight();
     return false;
@@ -1375,19 +1405,19 @@ function spotlightTarget(rawTarget: HTMLElement) {
 
   const overlay = document.createElement("div");
   overlay.setAttribute("data-guide-spotlight-overlay", "true");
-  overlay.setAttribute("data-guide-spotlight-mode", "dim");
   overlay.style.position = "fixed";
   overlay.style.inset = "0";
-  overlay.style.zIndex = "8997";
+  overlay.style.zIndex = "8998";
   overlay.style.pointerEvents = "none";
   overlay.style.background = "rgba(15, 23, 42, 0.34)";
   overlay.style.backdropFilter = "saturate(0.9)";
-  overlay.style.transition = "opacity 320ms ease";
+  overlay.style.transition = "opacity 220ms ease";
   overlay.style.opacity = "0";
   document.body.appendChild(overlay);
   activeSpotlightOverlay = overlay;
-
-  const focusLayer = createSpotlightLayer("card", target);
+  window.requestAnimationFrame(() => {
+    overlay.style.opacity = "1";
+  });
 
   const previousPosition = target.style.position;
   const previousZIndex = target.style.zIndex;
@@ -1399,36 +1429,18 @@ function spotlightTarget(rawTarget: HTMLElement) {
   const computedPosition = window.getComputedStyle(target).position;
 
   target.setAttribute("data-guide-spotlight-target", "true");
-  target.setAttribute("data-guide-spotlight-mode", "card");
-  target.style.position = computedPosition === "static" ? "relative" : previousPosition;
+  target.style.position =
+    computedPosition === "static" ? "relative" : previousPosition;
   target.style.zIndex = "8999";
-  target.style.transition = "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
-  target.style.outline = "3px solid rgba(255, 255, 255, 0.94)";
+  target.style.transition =
+    "box-shadow 220ms ease, outline 220ms ease, outline-offset 220ms ease";
+  target.style.outline = "3px solid rgba(255, 255, 255, 0.92)";
   target.style.outlineOffset = "8px";
   target.style.boxShadow =
     "0 24px 90px rgba(15, 23, 42, 0.36), 0 0 0 1px rgba(255, 255, 255, 0.72)";
   target.style.borderRadius = target.style.borderRadius || "24px";
 
-  const positionLayer = () => {
-    if (!target.isConnected || !isVisibleElement(target)) return;
-    applySpotlightBox(focusLayer, expandedSpotlightRect(target, 10));
-  };
-
-  const onViewportChange = () => positionLayer();
-  window.addEventListener("scroll", onViewportChange, { passive: true });
-  window.addEventListener("resize", onViewportChange);
-
-  window.requestAnimationFrame(() => {
-    positionLayer();
-    overlay.style.opacity = "1";
-    focusLayer.style.opacity = "1";
-    focusLayer.style.transform = "translateY(0)";
-  });
-
   activeSpotlightCleanup = () => {
-    window.removeEventListener("scroll", onViewportChange);
-    window.removeEventListener("resize", onViewportChange);
-
     if (activeSpotlightOverlay) {
       activeSpotlightOverlay.remove();
       activeSpotlightOverlay = null;
@@ -1451,49 +1463,6 @@ function spotlightTarget(rawTarget: HTMLElement) {
 
   return true;
 }
-function suggestedActionToTourStep(action: SuggestedAction): TourStep {
-  const targetId = (action.targetId || "").trim();
-  const pageUrl = (action.pageUrl || "").trim();
-  const title =
-    action.targetText ||
-    (targetId ? `Navigate to ${targetId}` : "Suggested destination");
-  const selector = getTargetCandidates(action)
-    .map((candidate) => `[data-tour-id="${candidate}"], #${candidate}`)
-    .join(", ");
-
-  return {
-    title,
-    summary:
-      action.reason || "Recommended destination based on the guide response.",
-    bridge: "",
-    targetId,
-    anchorId: targetId,
-    pageId: action.pageId || "",
-    pageUrl,
-    url: pageUrl,
-    href: pageUrl,
-    path: pageUrl,
-    route: pageUrl,
-    selector,
-    targetText: action.targetText || phraseFromId(targetId),
-    targetCandidates: getTargetCandidates(action),
-  } as unknown as TourStep;
-}
-
-function runGuideNavigation(
-  action?: SuggestedAction,
-  onRunStep?: (step: TourStep) => void,
-) {
-  if (!action || action.type !== "navigate" || !action.targetId) return;
-
-  if (onRunStep) {
-    onRunStep(suggestedActionToTourStep(action));
-    return;
-  }
-
-  runSuggestedNavigation(action);
-}
-void runGuideNavigation;
 
 function pageIntentLabels(action: SuggestedAction): string[] {
   const values = [
@@ -1586,59 +1555,241 @@ function smoothScrollElementIntoView(
 
   window.requestAnimationFrame(step);
 }
+void createSpotlightLayer;
 
-function runSpotlightWithRetries(
+
+function isTargetReadyForSpotlight(target: HTMLElement | null): target is HTMLElement {
+  return Boolean(target && target.isConnected && isVisibleElement(target));
+}
+
+function isTargetInSpotlightView(target: HTMLElement) {
+  if (!isTargetReadyForSpotlight(target)) return false;
+
+  const rect = target.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const safeTop = 84;
+  const safeBottom = Math.max(safeTop + 120, viewportHeight - 36);
+  const visibleHeight = Math.max(
+    0,
+    Math.min(rect.bottom, safeBottom) - Math.max(rect.top, safeTop),
+  );
+  const requiredVisibleHeight = Math.min(180, Math.max(80, rect.height * 0.28));
+  const targetCenter = rect.top + rect.height / 2;
+
+  return (
+    visibleHeight >= requiredVisibleHeight ||
+    (targetCenter >= safeTop && targetCenter <= safeBottom)
+  );
+}
+
+function findFreshSpotlightTarget(
   action: SuggestedAction,
-  delays = [120, 320, 700, 1200, 1900, 2800],
+  fallback?: HTMLElement | null,
+): HTMLElement | null {
+  const freshTarget = findTourTarget(action);
+  if (isTargetReadyForSpotlight(freshTarget)) return freshTarget;
+  if (isTargetReadyForSpotlight(fallback || null)) return fallback || null;
+  return null;
+}
+
+function findVisibleBorderedSpotlightTarget(action: SuggestedAction, fallback?: HTMLElement | null): HTMLElement | null {
+  const activeTarget = document.querySelector<HTMLElement>(
+    '[data-guide-spotlight-target="true"]',
+  );
+  if (isTargetReadyForSpotlight(activeTarget)) return activeTarget;
+  return findFreshSpotlightTarget(action, fallback);
+}
+
+function verifySpotlightVisibleOrRetry(
+  action: SuggestedAction,
+  fallbackTarget: HTMLElement,
+  runId: number,
+  attempt = 0,
   onSpotlightActive?: () => void,
 ) {
-  const runId = beginSpotlightRun();
-  let completed = false;
-  const mobileSettleDelay = isCoarsePointer() ? 300 : 0;
-  const spotlightAfterScrollDelay =
-    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120);
+  const maxAttempts = 2;
+  const verifyDelay = isCoarsePointer() ? 420 : 280;
+  const retryScrollDuration = isCoarsePointer() ? 1050 : 900;
 
-  const failSafely = () => {
-    if (!isCurrentSpotlightRun(runId) || completed) return;
-    completed = true;
+  scheduleSpotlightTimer(() => {
+    if (!isCurrentSpotlightRun(runId)) return;
+
+    const activeTarget = findVisibleBorderedSpotlightTarget(action, fallbackTarget);
+    if (!activeTarget) {
+      clearActiveSpotlight();
+      return;
+    }
+
+    if (isTargetInSpotlightView(activeTarget)) {
+      onSpotlightActive?.();
+      return;
+    }
+
+    if (attempt >= maxAttempts) {
+      console.warn("Guide spotlight target remained off-screen after retry:", {
+        targetId: action.targetId,
+        pageId: action.pageId,
+        pageUrl: action.pageUrl,
+      });
+      clearActiveSpotlight();
+      return;
+    }
+
     clearActiveSpotlight();
-    console.warn("Guide spotlight target not found after retries:", {
-      targetId: action.targetId,
-      pageId: action.pageId,
-      pageUrl: action.pageUrl,
+    const scrollTarget = scrollTargetForSpotlight(activeTarget);
+    smoothScrollElementIntoView(scrollTarget, {
+      duration: retryScrollDuration,
+      block: "center",
     });
-  };
 
-  delays.forEach((delay) => {
     scheduleSpotlightTimer(() => {
-      if (!isCurrentSpotlightRun(runId) || completed) return;
+      if (!isCurrentSpotlightRun(runId)) return;
 
-      const initialTarget = findTourTarget(action);
-      if (!initialTarget || !initialTarget.isConnected || !isVisibleElement(initialTarget)) return;
+      const retryTarget = findFreshSpotlightTarget(action, activeTarget);
+      if (!retryTarget) {
+        clearActiveSpotlight();
+        return;
+      }
 
-      completed = true;
+      const attached = spotlightTarget(retryTarget);
+      if (!attached) {
+        clearActiveSpotlight();
+        return;
+      }
+
+      verifySpotlightVisibleOrRetry(
+        action,
+        retryTarget,
+        runId,
+        attempt + 1,
+        onSpotlightActive,
+      );
+    }, retryScrollDuration + (isCoarsePointer() ? 260 : 180));
+  }, verifyDelay);
+}
+
+function scrollThenSpotlight(
+  action: SuggestedAction,
+  initialTarget: HTMLElement,
+  runId: number,
+  onSpotlightActive?: () => void,
+) {
+  if (!isCurrentSpotlightRun(runId)) return;
+
+  const scrollTarget = scrollTargetForSpotlight(initialTarget);
+  smoothScrollElementIntoView(scrollTarget);
+
+  const settleDelay = GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120);
+
+  scheduleSpotlightTimer(() => {
+    if (!isCurrentSpotlightRun(runId)) return;
+
+    const settledTarget = findFreshSpotlightTarget(action, initialTarget);
+    if (!settledTarget) {
+      clearActiveSpotlight();
+      return;
+    }
+
+    if (!isTargetInSpotlightView(settledTarget)) {
+      settledTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+
       scheduleSpotlightTimer(() => {
         if (!isCurrentSpotlightRun(runId)) return;
 
-        smoothScrollElementIntoView(scrollTargetForSpotlight(initialTarget));
+        const retryTarget = findFreshSpotlightTarget(action, settledTarget);
+        if (!retryTarget || !isTargetInSpotlightView(retryTarget)) {
+          clearActiveSpotlight();
+          console.warn("Guide spotlight target did not settle into view:", {
+            targetId: action.targetId,
+            pageId: action.pageId,
+            pageUrl: action.pageUrl,
+          });
+          return;
+        }
+
+        const attached = spotlightTarget(retryTarget);
+        if (attached) {
+          verifySpotlightVisibleOrRetry(
+            action,
+            retryTarget,
+            runId,
+            0,
+            onSpotlightActive,
+          );
+        } else {
+          clearActiveSpotlight();
+        }
+      }, 900);
+      return;
+    }
+
+    const attached = spotlightTarget(settledTarget);
+    if (attached) {
+      verifySpotlightVisibleOrRetry(
+        action,
+        settledTarget,
+        runId,
+        0,
+        onSpotlightActive,
+      );
+    } else {
+      clearActiveSpotlight();
+    }
+  }, settleDelay);
+}
+void scrollThenSpotlight;
+void findFreshSpotlightTarget;
+void isTargetInSpotlightView;
+void isTargetReadyForSpotlight;
+
+function runSpotlightWithRetries(
+  action: SuggestedAction,
+  delays = [250, 650, 1100, 1700, 2400],
+  onSpotlightActive?: () => void,
+) {
+  const runId = beginSpotlightRun();
+  let found = false;
+  const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
+  const spotlightAfterScrollDelay =
+    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120);
+
+  delays.forEach((delay) => {
+    scheduleSpotlightTimer(() => {
+      if (!isCurrentSpotlightRun(runId) || found) return;
+
+      const target = findTourTarget(action);
+      if (!target || !target.isConnected || !isVisibleElement(target)) return;
+
+      found = true;
+      scheduleSpotlightTimer(() => {
+        if (!isCurrentSpotlightRun(runId)) return;
+
+        smoothScrollElementIntoView(target);
         scheduleSpotlightTimer(() => {
           if (!isCurrentSpotlightRun(runId)) return;
 
-          const settledTarget = findTourTarget(action) || initialTarget;
+          const settledTarget = findTourTarget(action) || target;
           if (!settledTarget || !settledTarget.isConnected || !isVisibleElement(settledTarget)) {
             clearActiveSpotlight();
             return;
           }
 
           const attached = spotlightTarget(settledTarget);
-          if (attached) onSpotlightActive?.();
-          else clearActiveSpotlight();
+          if (attached) {
+            verifySpotlightVisibleOrRetry(
+              action,
+              settledTarget,
+              runId,
+              0,
+              onSpotlightActive,
+            );
+          } else {
+            clearActiveSpotlight();
+          }
         }, spotlightAfterScrollDelay);
       }, mobileSettleDelay);
     }, delay + mobileSettleDelay);
   });
-
-  scheduleSpotlightTimer(failSafely, Math.max(...delays) + spotlightAfterScrollDelay + 900);
 }
 
 function softNavigateToPage(
@@ -1675,11 +1826,11 @@ function runSuggestedNavigation(
   const target = findTourTarget(action);
   if (target && target.isConnected && isVisibleElement(target)) {
     const runId = beginSpotlightRun();
-    const mobileSettleDelay = isCoarsePointer() ? 300 : 0;
+    const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
     scheduleSpotlightTimer(() => {
       if (!isCurrentSpotlightRun(runId)) return;
 
-      smoothScrollElementIntoView(scrollTargetForSpotlight(target));
+      smoothScrollElementIntoView(target);
       scheduleSpotlightTimer(
         () => {
           if (!isCurrentSpotlightRun(runId)) return;
@@ -1691,18 +1842,41 @@ function runSuggestedNavigation(
           }
 
           const attached = spotlightTarget(settledTarget);
-          if (attached) onSpotlightActive?.();
-          else clearActiveSpotlight();
+          if (attached) {
+            verifySpotlightVisibleOrRetry(
+              action,
+              settledTarget,
+              runId,
+              0,
+              onSpotlightActive,
+            );
+          } else {
+            clearActiveSpotlight();
+          }
         },
-        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120),
+        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120),
       );
     }, mobileSettleDelay);
     return;
   }
 
-  // No immediate target: use the same bounded retry path as page navigation.
-  // The fail-safe clears all dimming if the target never appears.
-  runSpotlightWithRetries(action, undefined, onSpotlightActive);
+  console.warn("Guide navigation target not found:", {
+    targetId: action.targetId,
+    pageId: action.pageId,
+    pageUrl: action.pageUrl,
+    reason: action.reason,
+    visibleTargets: Array.from(
+      document.querySelectorAll<HTMLElement>(
+        "main section[id], main [data-tour-id], main article, main [role='region']",
+      ),
+    )
+      .slice(0, 40)
+      .map((node) => ({
+        id: node.id,
+        tourId: node.getAttribute("data-tour-id"),
+        heading: node.querySelector("h1,h2,h3")?.textContent?.trim(),
+      })),
+  });
 }
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -1820,8 +1994,26 @@ function StructuredAnswer({
 
   if (!hasStructuredContent) {
     return (
-      <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-1 prose-strong:font-semibold">
-        <ReactMarkdown>{fallback}</ReactMarkdown>
+      <div className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-strong:font-semibold text-sm leading-6 text-slate-900">
+        <ReactMarkdown
+          components={{
+            p: ({ children }) => <p className="my-2">{children}</p>,
+            strong: ({ children }) => (
+              <strong className="font-semibold text-slate-950">{children}</strong>
+            ),
+            em: ({ children }) => <em className="italic">{children}</em>,
+            ul: ({ children }) => (
+              <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>
+            ),
+            li: ({ children }) => <li className="pl-1">{children}</li>,
+            a: ({ children }) => <span>{children}</span>,
+          }}
+        >
+          {fallback}
+        </ReactMarkdown>
       </div>
     );
   }
@@ -2057,8 +2249,8 @@ export function GuideShellStatic({
   const forceWelcomeVisibleRef = useRef(false);
   const autoMinimizeDisabledRef = useRef(false);
   const submitInFlightRef = useRef(false);
-  const pendingRoomSaveRef = useRef<SavedCommerceItem | null>(null);
-  const pendingRoomSaveSubmitIdRef = useRef<string | null>(null);
+  const pendingTripSaveRef = useRef<SavedTripContext | null>(null);
+  const pendingTripSaveSubmitIdRef = useRef<string | null>(null);
   const confirmedBookingContextKeyRef = useRef("");
   const visibleContextRef = useRef<VisibleContext>({
     bookingContext: {},
@@ -2387,8 +2579,8 @@ export function GuideShellStatic({
     forceBottomOnNextPanelPaintRef.current = false;
     suppressNextDraftScrollRef.current = false;
     demoTypingDraftUpdateRef.current = false;
-    pendingRoomSaveRef.current = null;
-    pendingRoomSaveSubmitIdRef.current = null;
+    pendingTripSaveRef.current = null;
+    pendingTripSaveSubmitIdRef.current = null;
     confirmedBookingContextKeyRef.current = "";
     visibleContextRef.current = {
       bookingContext: {},
@@ -2883,10 +3075,10 @@ export function GuideShellStatic({
     );
 
     return chips.filter((chip) => {
-      const lower = chip.trim().toLowerCase();
-      if (datesSatisfied && lower === "select dates") return false;
-      if (guestsSatisfied && lower === "add guests") return false;
-      if (budgetSatisfied && lower === "set budget") return false;
+      const lower = normalizeCommerceChip(chip);
+      if (datesSatisfied && isDatesCompletionChip(lower)) return false;
+      if (guestsSatisfied && isGuestsCompletionChip(lower)) return false;
+      if (budgetSatisfied && isBudgetCompletionChip(lower)) return false;
       if (
         breakfastSatisfied &&
         (lower === "add breakfast" || lower === "show breakfast packages")
@@ -2955,52 +3147,70 @@ export function GuideShellStatic({
     return Boolean(key && confirmedBookingContextKeyRef.current === key);
   };
 
-  const savedRoomConfirmationParts = (room: SavedCommerceItem): AnswerParts => ({
-    intro: `✅ Your selection is now saved: **${room.title}**.`,
-    bullets: [
+  const savedTripConfirmationParts = (trip: SavedTripContext): AnswerParts => {
+    const primaryTitle =
+      trip.room?.title ||
+      trip.packages[0]?.title ||
+      trip.extras[0]?.title ||
+      "your selection";
+    const bullets = [
+      trip.room ? `Room: ${trip.room.title}` : "",
+      trip.packages.length
+        ? `Packages: ${trip.packages.map((pkg) => pkg.title).join(", ")}`
+        : "",
       `Dates: ${formatShellDateRange(shellCheckInDate, shellCheckOutDate)}`,
       `Guests: ${guestSummary(shellAdults, shellChildren)}`,
-    ],
-    closing:
-      "You can search for additional purchases or select Book to checkout.",
-  });
+    ].filter(Boolean);
 
-  const completePendingRoomSaveFromContextUpdate = (
+    return {
+      intro: `✅ Your selection is now saved: **${primaryTitle}**.`,
+      bullets,
+      closing:
+        "You can search for additional purchases or select Book to checkout.",
+    };
+  };
+
+  const setPendingTripSave = (trip: SavedTripContext) => {
+    pendingTripSaveRef.current = trip;
+    visibleContextRef.current = {
+      ...visibleContextRef.current,
+      pendingSave: trip,
+    };
+  };
+
+  const clearPendingTripSave = () => {
+    pendingTripSaveRef.current = null;
+    pendingTripSaveSubmitIdRef.current = null;
+    visibleContextRef.current = {
+      ...visibleContextRef.current,
+      pendingSave: null,
+    };
+  };
+
+  const completePendingTripSaveFromContextUpdate = (
     submittedId: string,
+    submittedContext: GuideConversationContext,
     extracted?: ExtractedBookingContext,
-  ): SavedCommerceItem | null => {
-    const pendingRoom = pendingRoomSaveRef.current;
-    if (!pendingRoom) return null;
+  ): SavedTripContext | null => {
+    const pendingTrip = pendingTripSaveRef.current;
+    if (!pendingTrip) return null;
 
     // Only auto-save for the exact backend response generated by the pending
     // save completion submit. This prevents stale pending saves from firing
     // after timeout/reopen or unrelated context updates.
-    if (pendingRoomSaveSubmitIdRef.current !== submittedId) return null;
+    if (pendingTripSaveSubmitIdRef.current !== submittedId) return null;
 
     const confirmedKey = bookingContextKeyFromSubmittedContext(
-      buildConversationContext(""),
+      submittedContext,
       extracted,
     );
-    if (!confirmedKey || confirmedBookingContextKeyRef.current !== confirmedKey) {
-      return null;
-    }
+    if (!confirmedKey) return null;
 
-    const bundledPackages = stayPlanPackagesForCurrentSelection();
-    setSavedTripContext((current) => {
-      const packages = [...current.packages];
-      bundledPackages.forEach((pkg) => {
-        if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
-      });
-      return {
-        ...current,
-        room: pendingRoom,
-        packages,
-      };
-    });
-    pendingRoomSaveRef.current = null;
-    pendingRoomSaveSubmitIdRef.current = null;
+    confirmedBookingContextKeyRef.current = confirmedKey;
+    mergeSavedTrip(pendingTrip);
+    clearPendingTripSave();
     setActiveCompletionWidget("saved-trip");
-    return pendingRoom;
+    return pendingTrip;
   };
 
   const submitDraft = async () => {
@@ -3045,12 +3255,12 @@ export function GuideShellStatic({
     suppressNextDraftScrollRef.current = true;
 
     const submittedId = makeId();
-    const isPendingRoomSaveContextSubmit = Boolean(
-      pendingRoomSaveRef.current && isCommerceContextUpdateDraft(trimmed),
+    const isPendingTripSaveContextSubmit = Boolean(
+      pendingTripSaveRef.current && isCommerceContextUpdateDraft(trimmed),
     );
-    pendingRoomSaveSubmitIdRef.current = isPendingRoomSaveContextSubmit
+    pendingTripSaveSubmitIdRef.current = isPendingTripSaveContextSubmit
       ? submittedId
-      : pendingRoomSaveSubmitIdRef.current;
+      : pendingTripSaveSubmitIdRef.current;
 
     pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
     const thinkingThread: ThreadItem[] = [
@@ -3083,21 +3293,24 @@ export function GuideShellStatic({
       mergeBackendVisibleContext(reply.visibleContext);
       const isBookingContextUpdateResponse =
         reply.commerceAction === "booking_context_update";
+      const isSaveResponse = reply.commerceAction === "save";
       const shouldTreatAsContextUpdate = Boolean(
         guideConfig?.mode === "commerce" &&
           (isBookingContextUpdateResponse ||
-            (isPendingRoomSaveContextSubmit &&
-              isCommerceContextUpdateDraft(trimmed))),
+            (isPendingTripSaveContextSubmit &&
+              (isCommerceContextUpdateDraft(trimmed) || isSaveResponse))),
       );
       if (shouldTreatAsContextUpdate) {
         markBookingContextConfirmed(conversationContext, reply.extractedBookingContext);
       }
-      const autoSavedPendingRoom = isBookingContextUpdateResponse
-        ? completePendingRoomSaveFromContextUpdate(
-            submittedId,
-            reply.extractedBookingContext,
-          )
-        : null;
+      const autoSavedPendingTrip =
+        isPendingTripSaveContextSubmit && shouldTreatAsContextUpdate
+          ? completePendingTripSaveFromContextUpdate(
+              submittedId,
+              conversationContext,
+              reply.extractedBookingContext,
+            )
+          : null;
       const remaining = Math.max(
         0,
         MIN_THINKING_MS - (performance.now() - startedAt),
@@ -3147,15 +3360,21 @@ export function GuideShellStatic({
         !preservePreviousGuideSteps &&
         nextGuideSteps.length > 1;
       const botMessageId = makeId();
-      const responseAnswerParts = autoSavedPendingRoom
-        ? savedRoomConfirmationParts(autoSavedPendingRoom)
+      const responseAnswerParts = autoSavedPendingTrip
+        ? savedTripConfirmationParts(autoSavedPendingTrip)
         : reply.answerParts;
+      // For guided step-throughs, display the current step narrative as the
+      // active response. This uses backend stepNarratives when present and only
+      // falls back to a small "Now showing..." focus line when they are absent.
+      const firstStepResponse = isMultiStepGuide
+        ? responseForGuideStep(nextGuideSteps[0], 0, nextGuideSteps.length)
+        : null;
       const firstStepParts = isMultiStepGuide
-        ? answerPartsForGuideStep(nextGuideSteps[0], 0, nextGuideSteps.length)
+        ? firstStepResponse?.answerParts
         : responseAnswerParts;
       const botBody = isMultiStepGuide
-        ? answerBodyFromParts(firstStepParts || {}) || reply.body
-        : autoSavedPendingRoom
+        ? firstStepResponse?.body || reply.body
+        : autoSavedPendingTrip
           ? answerBodyFromParts(responseAnswerParts || {}) || reply.body
           : reply.body;
 
@@ -3324,15 +3543,19 @@ export function GuideShellStatic({
     let nextThread = threadStateRef.current;
 
     if (currentGuideMessageId) {
-      const parts = answerPartsForGuideStep(
+      const stepResponse = responseForGuideStep(
         step,
         boundedIndex,
         guideSteps.length,
       );
-      const body = answerBodyFromParts(parts);
       nextThread = threadStateRef.current.map((item) =>
         item.id === currentGuideMessageId
-          ? { ...item, body, answerParts: parts, suggestedAction: step }
+          ? {
+              ...item,
+              body: stepResponse.body,
+              answerParts: stepResponse.answerParts,
+              suggestedAction: step,
+            }
           : item,
       );
       threadStateRef.current = nextThread;
@@ -3456,6 +3679,40 @@ export function GuideShellStatic({
       .filter((item): item is SavedCommerceItem => Boolean(item));
   };
 
+  const pendingTripFromSavedItem = (item: SavedCommerceItem): SavedTripContext => {
+    if (item.type === "room") {
+      return {
+        room: item,
+        packages: stayPlanPackagesForCurrentSelection(),
+        extras: [],
+      };
+    }
+
+    if (item.type === "package") {
+      const stayPlan = currentGuideStep
+        ? stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan
+        : activeStayPlan;
+      const bundledRoom = roomFromStayPlan(stayPlan);
+      const packages: SavedCommerceItem[] = [];
+
+      [...stayPlanPackagesForCurrentSelection(), item].forEach((pkg) => {
+        if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
+      });
+
+      return {
+        room: bundledRoom,
+        packages,
+        extras: [],
+      };
+    }
+
+    return {
+      room: null,
+      packages: [],
+      extras: [item],
+    };
+  };
+
   const saveCurrentGuideStep = () => {
     const item = currentGuideStepToSavedItem();
     if (!item) {
@@ -3463,9 +3720,12 @@ export function GuideShellStatic({
       return;
     }
 
-    if (item.type === "room") {
+    const pendingTrip = pendingTripFromSavedItem(item);
+    const requiresBookingContext = Boolean(pendingTrip.room);
+
+    if (requiresBookingContext) {
       if (!shellDatesApplied) {
-        pendingRoomSaveRef.current = item;
+        setPendingTripSave(pendingTrip);
         setActiveCompletionWidget("dates");
         setActiveDatePicker("check-in");
         if (isCoarsePointer()) openPanel();
@@ -3473,7 +3733,7 @@ export function GuideShellStatic({
       }
 
       if (!shellGuestsApplied) {
-        pendingRoomSaveRef.current = item;
+        setPendingTripSave(pendingTrip);
         setActiveCompletionWidget("guests");
         setActiveDatePicker(null);
         if (isCoarsePointer()) openPanel();
@@ -3481,7 +3741,7 @@ export function GuideShellStatic({
       }
 
       if (!isCurrentBookingContextConfirmed()) {
-        pendingRoomSaveRef.current = item;
+        setPendingTripSave(pendingTrip);
         setActiveCompletionWidget(null);
         setActiveDatePicker(null);
         if (isCoarsePointer()) openPanel();
@@ -3489,49 +3749,8 @@ export function GuideShellStatic({
       }
     }
 
-    setSavedTripContext((current) => {
-      if (item.type === "room") {
-        // Room recommendations can arrive as room + package stay plans.
-        // Saving the room should preserve the whole recommended combo so the
-        // traveler does not lose bundled breakfast/parking/business add-ons by
-        // saving from the room step.
-        const bundledPackages = stayPlanPackagesForCurrentSelection();
-        const packages = [...current.packages];
-        bundledPackages.forEach((pkg) => {
-          if (!packages.some((entry) => entry.id === pkg.id)) {
-            packages.push(pkg);
-          }
-        });
-        return { ...current, room: item, packages };
-      }
-
-      if (item.type === "package") {
-        const stayPlan = currentGuideStep
-          ? stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan
-          : activeStayPlan;
-        const bundledRoom = roomFromStayPlan(stayPlan);
-        const bundledPackages = stayPlanPackagesForCurrentSelection();
-        const packages = [...current.packages];
-
-        [...bundledPackages, item].forEach((pkg) => {
-          if (!packages.some((entry) => entry.id === pkg.id)) packages.push(pkg);
-        });
-
-        return {
-          ...current,
-          room: current.room || bundledRoom,
-          packages,
-        };
-      }
-
-      const existing = current.extras.some((entry) => entry.id === item.id);
-      return existing ? current : { ...current, extras: [...current.extras, item] };
-    });
-
-    if (item.type === "room") {
-      pendingRoomSaveRef.current = null;
-      pendingRoomSaveSubmitIdRef.current = null;
-    }
+    mergeSavedTrip(pendingTrip);
+    clearPendingTripSave();
     setActiveCompletionWidget("saved-trip");
     setActiveDatePicker(null);
     if (isCoarsePointer()) {
@@ -3704,6 +3923,35 @@ export function GuideShellStatic({
       .replace(/\s+/g, " ")
       .trim();
 
+  const isDatesCompletionChip = (lower: string) =>
+    [
+      "set dates",
+      "select dates",
+      "add dates",
+      "choose dates",
+      "pick dates",
+      "set date",
+      "select date",
+      "add date",
+      "choose date",
+      "pick date",
+    ].includes(lower);
+
+  const isGuestsCompletionChip = (lower: string) =>
+    [
+      "add guests",
+      "set guests",
+      "select guests",
+      "choose guests",
+      "add guest",
+      "set guest",
+      "select guest",
+      "choose guest",
+    ].includes(lower);
+
+  const isBudgetCompletionChip = (lower: string) =>
+    ["set budget", "add budget", "choose budget", "select budget"].includes(lower);
+
   const chipToPrompt = (chip: string) => {
     const clean = chip.trim();
     if (!clean) return "";
@@ -3713,9 +3961,9 @@ export function GuideShellStatic({
     // never be converted into composer text, especially during pending Save
     // flows where Select dates/Add guests must open the inline widgets.
     if (guideConfig?.mode === "commerce") {
-      if (lower === "select dates" || lower === "add dates") return "";
-      if (lower === "add guests" || lower === "select guests") return "";
-      if (lower === "set budget" || lower === "add budget") return "";
+      if (isDatesCompletionChip(lower)) return "";
+      if (isGuestsCompletionChip(lower)) return "";
+      if (isBudgetCompletionChip(lower)) return "";
     }
 
     if (lower === "add breakfast") return "Add breakfast to this stay.";
@@ -4013,7 +4261,7 @@ export function GuideShellStatic({
     if (clean) setLastRefinementChipClicked(clean);
 
     if (guideConfig?.mode === "commerce") {
-      if (lower === "select dates" || lower === "add dates") {
+      if (isDatesCompletionChip(lower)) {
         clearMinimizeTimer();
         if (shellState !== "panel") openPanel();
         setActiveCompletionWidget("dates");
@@ -4022,7 +4270,7 @@ export function GuideShellStatic({
         return;
       }
 
-      if (lower === "add guests" || lower === "select guests") {
+      if (isGuestsCompletionChip(lower)) {
         clearMinimizeTimer();
         if (shellState !== "panel") openPanel();
         setActiveCompletionWidget("guests");
@@ -4030,7 +4278,7 @@ export function GuideShellStatic({
         return;
       }
 
-      if (lower === "set budget" || lower === "add budget") {
+      if (isBudgetCompletionChip(lower)) {
         clearMinimizeTimer();
         if (shellState !== "panel") openPanel();
         setActiveCompletionWidget("budget");
