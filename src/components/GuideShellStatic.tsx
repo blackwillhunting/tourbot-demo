@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import type { TourStep } from "../App";
+//import type { TourStep } from "../App";
 
 const baseMotion = {
   initial: { opacity: 0, x: 80 },
