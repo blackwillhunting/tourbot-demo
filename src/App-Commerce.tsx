@@ -1664,16 +1664,10 @@ type DemoPreviewOption = {
 
 function DemoPreviewCard({
   title,
-  siteType,
-  contentType,
-  guideShows,
   options,
   onClose,
 }: {
   title: string;
-  siteType: string;
-  contentType: string;
-  guideShows: string;
   options: DemoPreviewOption[];
   onClose: () => void;
 }) {
@@ -1690,17 +1684,11 @@ function DemoPreviewCard({
           <Sparkles className="h-5 w-5" />
         </div>
         <div className="text-lg font-semibold tracking-tight sm:text-xl">{title}</div>
-        <p className="mt-2 text-sm leading-6 text-slate-200 sm:mt-3">{guideShows}</p>
       </div>
       <div className="space-y-3 px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
-        <div className="grid gap-2 text-sm leading-6 text-slate-600 sm:gap-3">
-          <div>
-            <span className="font-semibold text-slate-950">Website:</span> {siteType}
-          </div>
-          <div>
-            <span className="font-semibold text-slate-950">Content:</span> {contentType}
-          </div>
-        </div>
+        <p className="text-sm font-medium leading-6 text-slate-600">
+          Click below to start a demo.
+        </p>
         <div className="space-y-2">
           {options.map((option) => (
             <button
@@ -2007,9 +1995,6 @@ export default function AppCommerce() {
         {demoPreviewOpen && demoStatus === "idle" && (
           <DemoPreviewCard
             title="Guided Commerce Demo"
-            siteType="A resort-conference hotel website with property discovery, rooms, packages, amenities, and booking preload."
-            contentType="Core property knowledge, room inventory, package/deal signals, amenity routing, and a preloaded booking handoff."
-            guideShows="TourBot will answer property questions, narrow a broad stay field, recommend rooms/packages, collect missing details, and carry intent into booking."
             options={[
               {
                 label: "Natural Language Booking",

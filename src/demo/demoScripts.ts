@@ -13,6 +13,7 @@ export type DemoStep =
   | { action: "set-input-value"; target: DemoPointerTarget; value: string; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
   | { action: "click-through-guide-steps"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
   | { action: "click-next-back-if-multistep"; nextTarget?: DemoPointerTarget; backTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; minStepCount?: number }
+  | { action: "callout"; eyebrow?: string; title: string; body: string; buttonLabel?: string; placement?: "left" | "center" | "bottom"; emphasis?: "green-flash"; delayMs?: number }
   | { action: "open-shell"; delayMs?: number }
   | { action: "type-prompt"; prompt: string; delayMs?: number; charDelayMs?: number }
   | { action: "submit"; delayMs?: number }
@@ -72,6 +73,24 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     "Shows a natural-language booking path: room preference, view refinement, breakfast add-on, and booking-summary handoff.",
   defaultCharDelayMs: 30,
   steps: [
+    {
+      action: "callout",
+      eyebrow: "Demo site context",
+      title: "A resort site with real choice complexity.",
+      body: "Domi Coast is a 1,000+ room hotel resort with many room types, view tiers, towers, packages, and add-ons — the kind of DC Hilton-style property where guests can easily get lost comparing options.",
+      buttonLabel: "Continue",
+      placement: "left",
+      emphasis: "green-flash",
+    },
+    {
+      action: "callout",
+      eyebrow: "Natural Language Booking",
+      title: "Start with the trip, not the filters.",
+      body: "This demo shows TourBot replacing static browsing with guided buying. A guest describes the stay in plain English, and TourBot extracts the key details, recommends the right fit, and takes the visitor on a tour of the relevant site areas step by step.",
+      buttonLabel: "Start demo",
+      placement: "left",
+    },
+
     // Start from the welcome card and activate TourBot.
     { action: "click-target", target: "[data-demo-target='guide-open']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
@@ -84,6 +103,14 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    {
+      action: "callout",
+      eyebrow: "Ranked recommendation",
+      title: "TourBot turns vague intent into a specific stay option.",
+      body: "TourBot captured key travel details and turned vague intent into a specific stay option..",
+      buttonLabel: "Continue demo",
+      placement: "left",
+    },
 
     // 2) Refine the recommendation with a natural follow-up.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
@@ -93,7 +120,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
 
     // If the view-refinement response returns multiple room steps, show Next/Back.
     // If it returns only one room, skip this beat and continue to breakfast.
@@ -103,7 +130,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       backTarget: "[data-demo-target='guide-back']",
       hoverMs: 650,
       pulseMs: 560,
-      betweenClicksMs: 2600,
+      betweenClicksMs: 5000,
       delayMs: 900,
       targetWaitMs: 3600,
     },
@@ -116,15 +143,23 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
 
     // Move to the package step, then book the composed stay.
-    { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 2600, targetWaitMs: 3600 },
+    { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 5000, targetWaitMs: 3600 },
     { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 3600 },
 
     // Continue through TourBot's checkout gate, pause for the booking handoff, then minimize TourBot.
     { action: "click-dom-target", target: "[data-demo-target='guide-checkout-continue']", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 6000 },
-    { action: "wait", delayMs: 3000 },
+    { action: "wait", delayMs: 1200 },
+    {
+      action: "callout",
+      eyebrow: "Booking handoff",
+      title: "Known context carries forward.",
+      body: "The room, travel dates, guest count, and breakfast package are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
+      buttonLabel: "Finish demo",
+      placement: "left",
+    },
     { action: "click-target", target: "[data-demo-target='guide-minimize']", command: "minimize", hoverMs: 800, pulseMs: 650, delayMs: 1400, targetWaitMs: 3600 },
   ],
 };

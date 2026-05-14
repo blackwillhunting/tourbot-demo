@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import DemoPointer, { type DemoPointerPosition } from "./DemoPointer";
 import type {
   DemoScript,
@@ -20,6 +21,15 @@ type DemoResponseDetail = {
   message?: string;
   displayMode?: string;
   hasStayPlan?: boolean;
+};
+
+type DemoCalloutState = {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  buttonLabel: string;
+  placement?: "left" | "center" | "bottom";
+  emphasis?: "green-flash";
 };
 
 function wait(ms: number) {
@@ -294,6 +304,8 @@ export default function DemoController({
   const runningRef = useRef(false);
   const commandIdRef = useRef(1);
   const lastResponseRef = useRef<DemoResponseDetail>({});
+  const [callout, setCallout] = useState<DemoCalloutState | null>(null);
+  const calloutResumeRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -302,6 +314,8 @@ export default function DemoController({
       stopRef.current = true;
       runningRef.current = false;
       setPointerVisible(false);
+      setCallout(null);
+      calloutResumeRef.current = null;
       return;
     }
 
@@ -483,6 +497,21 @@ export default function DemoController({
         setDomInputValue(target, value);
       };
 
+      const showCallout = async (step: Extract<DemoStep, { action: "callout" }>) => {
+        return new Promise<void>((resolve) => {
+          calloutResumeRef.current = resolve;
+          setCallout({
+            eyebrow: step.eyebrow,
+            title: step.title,
+            body: step.body,
+            buttonLabel: step.buttonLabel || "Resume demo",
+            placement: step.placement || "left",
+            emphasis: step.emphasis,
+          });
+          onStatusChange("paused");
+        });
+      };
+
       const runStep = async (step: DemoStep) => {
         await waitWhilePaused(statusRef, stopRef);
         if (stopRef.current) return;
@@ -617,6 +646,10 @@ export default function DemoController({
             if (step.delayMs) await wait(step.delayMs);
             return;
           }
+          case "callout":
+            await showCallout(step);
+            if (step.delayMs) await wait(step.delayMs);
+            return;
           case "open-shell":
             send("open");
             await wait(step.delayMs ?? 700);
@@ -679,14 +712,96 @@ export default function DemoController({
     return () => {
       stopRef.current = true;
       runningRef.current = false;
+      calloutResumeRef.current = null;
     };
   }, []);
 
+  const resumeCallout = () => {
+    const resume = calloutResumeRef.current;
+    calloutResumeRef.current = null;
+    setCallout(null);
+    onStatusChange("running");
+    resume?.();
+  };
+
+  const calloutPlacementClass =
+    callout?.placement === "center"
+      ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+      : callout?.placement === "bottom"
+        ? "bottom-6 left-1/2 -translate-x-1/2"
+        : "bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-sm";
+
+  const calloutAccentClass =
+    callout?.emphasis === "green-flash"
+      ? "shadow-emerald-500/30 ring-emerald-400/30"
+      : "shadow-slate-950/20 ring-slate-950/[0.04]";
+
   return (
-    <DemoPointer
-      position={pointerPosition}
-      visible={pointerVisible && status !== "idle"}
-      pulseKey={pointerPulseKey}
-    />
+    <>
+      <DemoPointer
+        position={pointerPosition}
+        visible={pointerVisible && status !== "idle"}
+        pulseKey={pointerPulseKey}
+      />
+
+      <AnimatePresence>
+        {callout && status !== "idle" && (
+          <motion.div
+            key={`${callout.title}-${callout.body}`}
+            initial={{ opacity: 0, x: callout.placement === "left" ? -28 : 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+            exit={{ opacity: 0, x: callout.placement === "left" ? -20 : 0, y: 14, scale: 0.98 }}
+            transition={{ duration: 0.24, ease: "easeOut" }}
+            className={`fixed z-[9998] w-[min(calc(100vw-2rem),26rem)] overflow-hidden rounded-[24px] border border-white/70 bg-white/95 p-4 shadow-2xl ring-1 backdrop-blur-xl ${calloutAccentClass} ${calloutPlacementClass}`}
+          >
+            {callout.emphasis === "green-flash" && (
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-[24px] bg-emerald-400/70"
+                initial={{ opacity: 0.82 }}
+                animate={{ opacity: 0 }}
+                transition={{ duration: 1.05, ease: "easeOut" }}
+              />
+            )}
+            {callout.emphasis === "green-flash" && (
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute -inset-1 rounded-[26px] border-2 border-emerald-400/70"
+                initial={{ opacity: 0.9, scale: 0.98 }}
+                animate={{ opacity: 0, scale: 1.04 }}
+                transition={{ duration: 1.15, ease: "easeOut" }}
+              />
+            )}
+            <div className="relative z-10">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                  Demo paused
+                </div>
+                {callout.eyebrow && (
+                  <div className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    {callout.eyebrow}
+                  </div>
+                )}
+              </div>
+              <h3 className="text-base font-semibold tracking-tight text-slate-950 sm:text-lg">
+                {callout.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {callout.body}
+              </p>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={resumeCallout}
+                  className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  {callout.buttonLabel}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
