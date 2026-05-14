@@ -742,8 +742,8 @@ export default function DemoController({
     callout?.placement === "center"
       ? "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
       : callout?.placement === "bottom"
-        ? "bottom-6 left-1/2 -translate-x-1/2"
-        : "bottom-6 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-sm";
+        ? "bottom-24 left-1/2 -translate-x-1/2 sm:bottom-6"
+        : "bottom-24 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-sm";
 
   const calloutAccentClass =
     callout?.emphasis === "green-flash"
