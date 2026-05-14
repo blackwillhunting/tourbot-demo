@@ -2197,17 +2197,21 @@ function DraftRow({
 export function GuideShellStatic({
   demoCommand,
   guideConfig,
+  initialShellState = "welcome",
   suppressWelcomeCard = false,
   demoStatus = "idle",
 }: {
   demoCommand?: GuideShellDemoCommand | null;
   guideConfig?: GuideConfig;
+  initialShellState?: ShellState;
   suppressWelcomeCard?: boolean;
   demoStatus?: "idle" | "running" | "paused";
 } = {}) {
-  const restoredShellRef = useRef(readShellSession());
+  const restoredShellRef = useRef(
+    initialShellState === "welcome" ? readShellSession() : null,
+  );
   const [shellState, setShellState] = useState<ShellState>(
-    restoredShellRef.current?.shellState || "welcome",
+    restoredShellRef.current?.shellState || initialShellState,
   );
   const [thread, setThread] = useState<ThreadItem[]>(
     restoredShellRef.current?.thread || [],

@@ -412,6 +412,20 @@ export default function DemoController({
         if (stopRef.current) return;
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
+
+        if (
+          command === "open" &&
+          typeof target === "string" &&
+          target.includes("guide-launcher")
+        ) {
+          const launcher = document.querySelector<HTMLElement>(target);
+          if (launcher) {
+            launcher.click();
+            await wait(700);
+            return;
+          }
+        }
+
         send(command);
       };
 

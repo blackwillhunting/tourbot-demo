@@ -36,7 +36,7 @@ export const guidedDiscoveryDemo: DemoScript = {
     "Shows no-nav answer, single-destination spotlight, and multi-step guided navigation.",
   defaultCharDelayMs: 34,
   steps: [
-    { action: "click-target", target: "[data-demo-target='guide-open']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
+    { action: "click-target", target: "[data-demo-target='guide-launcher']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
     // 1) No-navigation response.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
@@ -91,8 +91,8 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       placement: "left",
     },
 
-    // Start from the welcome card and activate TourBot.
-    { action: "click-target", target: "[data-demo-target='guide-open']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
+    // Start from the minimized launcher and activate TourBot.
+    { action: "click-target", target: "[data-demo-target='guide-launcher']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
     // 1) Natural language stay request: dates, view preference, budget sensitivity, solo traveler.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
@@ -171,7 +171,8 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
     "Shows a sparse booking request: the guide recommends options and exposes passive completion chips for missing booking details.",
   defaultCharDelayMs: 30,
   steps: [
-    { action: "click-target", target: "[data-demo-target='guide-open']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
+    // Start from the minimized launcher and activate TourBot.
+    { action: "click-target", target: "[data-demo-target='guide-launcher']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
     {

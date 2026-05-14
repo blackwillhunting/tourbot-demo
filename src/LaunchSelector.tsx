@@ -240,14 +240,14 @@ export default function LaunchSelector() {
                 {isLastStep && (
                   <div className="mt-4 grid gap-3">
                     <DemoLaunchButton
-                      href="/informational"
+                      href="/informational?mode=self_drive"
                       icon={Map}
                       eyebrow="Informational self-drive path"
                       title="NexaPath Advisory"
                       description="For service sites where the goal is discovery, qualification, and lead direction."
                     />
                     <DemoLaunchButton
-                      href="/transactional"
+                      href="/transactional?mode=self_drive"
                       icon={Hotel}
                       eyebrow="Transactional self-drive path"
                       title="Domi Coast Resort"

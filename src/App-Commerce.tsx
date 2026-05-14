@@ -1773,6 +1773,11 @@ export default function AppCommerce() {
   const [checkInDate, setCheckInDate] = useState("2026-06-12");
   const [checkOutDate, setCheckOutDate] = useState("2026-06-15");
 
+  const isSelfDriveEntry = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("mode") === "self_drive";
+  }, []);
+
   const page = PAGES[currentPage];
   const pageIndex = pageOrder.indexOf(currentPage);
 
@@ -1786,6 +1791,26 @@ export default function AppCommerce() {
   const openDemoPreview = () => {
     setDemoClosingOpen(false);
     setDemoPreviewOpen(true);
+  };
+
+  useEffect(() => {
+    if (!isSelfDriveEntry) return;
+
+    const timer = window.setTimeout(() => {
+      setDemoClosingOpen(false);
+      setDemoPreviewOpen(true);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [isSelfDriveEntry]);
+
+  const closeDemoPreview = () => {
+    if (isSelfDriveEntry) {
+      window.location.href = "/";
+      return;
+    }
+
+    setDemoPreviewOpen(false);
   };
 
   const startSelectedDemo = (script: DemoScript) => {
@@ -2007,7 +2032,7 @@ export default function AppCommerce() {
                 onClick: () => startSelectedDemo(guidedCommerceAssistedCompletionDemo),
               },
             ]}
-            onClose={() => setDemoPreviewOpen(false)}
+            onClose={closeDemoPreview}
           />
         )}
         {demoClosingOpen && demoStatus === "idle" && (
@@ -2142,7 +2167,8 @@ export default function AppCommerce() {
       <GuideShellStatic
         demoCommand={guideDemoCommand}
         guideConfig={commerceGuideConfig}
-        suppressWelcomeCard={demoPreviewOpen || demoClosingOpen}
+        initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
+        suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
         demoStatus={demoStatus}
       />
     </div>
