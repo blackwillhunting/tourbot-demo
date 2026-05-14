@@ -126,25 +126,26 @@ function guideModeCopy(guideConfig?: GuideConfig): {
 } {
   if (guideConfig?.mode === "commerce") {
     return {
-      statusLabel: "Commerce self-drive ready",
+      statusLabel: "Turning websites into guided buying experiences",
       greeting:
-        "Hi — I’m TourBot. Activate me when you want this commerce playground to self-drive through best-fit rooms, packages, and booking context from what you share.",
+        "Hi — I’m TourBot. Tell me what you’re looking for, and I’ll guide you to the right fit on this site.",
       placeholder:
         "Describe your trip, preferences, dates, guests, or budget...",
       quickStarts: [
         {
-          label: "Rich intent",
+          label: "Solid view",
           prompt:
-            "I'm traveling from May 8 thru May 12 and need a simple room with breakfast, just me traveling",
+            "Travelling June 12th thru June 19th, want a room with a good view, not too pricey, just me staying.",
         },
         {
-          label: "Room options",
-          prompt: "Show me room options for a moderate budget.",
+          label: "Compare options",
+          prompt:
+            "Compare a few good room options for a moderate budget.",
         },
         {
-          label: "View + value",
+          label: "Add packages",
           prompt:
-            "I want a nice room with a view and breakfast, but not too expensive.",
+            "Show me useful packages I can add to my stay.",
         },
       ],
     };
@@ -400,6 +401,8 @@ type GuideAiResponse = {
   bookingUpdate?: { stayPlan?: StayPlan; [key: string]: unknown };
   extractedBookingContext?: ExtractedBookingContext;
   visibleContext?: VisibleContext;
+  missingFields?: string[];
+  resumePrompt?: string;
   followups?: string[];
 };
 
@@ -445,6 +448,8 @@ async function callGuideAi(
   navigationOrder?: string[];
   extractedBookingContext?: ExtractedBookingContext;
   visibleContext?: VisibleContext;
+  missingFields?: string[];
+  resumePrompt?: string;
 }> {
   const response = await fetch(GUIDE_AI_URL, {
     method: "POST",
@@ -523,6 +528,10 @@ async function callGuideAi(
       : [],
     extractedBookingContext: data.extractedBookingContext || responseBookingContext,
     visibleContext: responseVisibleContext,
+    missingFields: Array.isArray(data.missingFields)
+      ? data.missingFields.filter(Boolean).map(String)
+      : [],
+    resumePrompt: typeof data.resumePrompt === "string" ? data.resumePrompt : undefined,
   };
 }
 
@@ -2051,13 +2060,17 @@ function BotRow({
   answerParts,
   refinementChips,
   onChipClick,
+  status,
 }: {
   title?: string;
   body: string;
   answerParts?: AnswerParts;
   refinementChips?: string[];
   onChipClick?: (chip: string) => void;
+  status?: "thinking" | "done";
 }) {
+  const isThinking = status === "thinking";
+
   return (
     <motion.div
       initial={{ opacity: 0.92 }}
@@ -2070,8 +2083,14 @@ function BotRow({
           {title}
         </div>
       )}
-      <StructuredAnswer parts={answerParts} fallback={body} />
-      {refinementChips?.length ? (
+      {isThinking ? (
+        <div className="text-sm leading-6 text-slate-700">
+          <ThinkingText body={body} />
+        </div>
+      ) : (
+        <StructuredAnswer parts={answerParts} fallback={body} />
+      )}
+      {!isThinking && refinementChips?.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {refinementChips.map((chip) => {
             const demoTarget = `chip-${chip
@@ -2179,10 +2198,12 @@ export function GuideShellStatic({
   demoCommand,
   guideConfig,
   suppressWelcomeCard = false,
+  demoStatus = "idle",
 }: {
   demoCommand?: GuideShellDemoCommand | null;
   guideConfig?: GuideConfig;
   suppressWelcomeCard?: boolean;
+  demoStatus?: "idle" | "running" | "paused";
 } = {}) {
   const restoredShellRef = useRef(readShellSession());
   const [shellState, setShellState] = useState<ShellState>(
@@ -2251,7 +2272,10 @@ export function GuideShellStatic({
   const submitInFlightRef = useRef(false);
   const pendingTripSaveRef = useRef<SavedTripContext | null>(null);
   const pendingTripSaveSubmitIdRef = useRef<string | null>(null);
+  const pendingBookingResumePromptRef = useRef<string | null>(null);
+  const pendingBookingMissingFieldsRef = useRef<string[]>([]);
   const confirmedBookingContextKeyRef = useRef("");
+  const isDemoActive = demoStatus === "running" || demoStatus === "paused";
   const visibleContextRef = useRef<VisibleContext>({
     bookingContext: {},
     selectedRoomId: null,
@@ -2394,6 +2418,7 @@ export function GuideShellStatic({
     // Do not keep the panel open merely because commerce chips, saved-trip
     // tools, booking widgets, or pending-save state are visible.
     if (
+      isDemoActive ||
       isCoarsePointer() ||
       isBotTyping ||
       submitInFlightRef.current ||
@@ -2404,11 +2429,15 @@ export function GuideShellStatic({
     }
 
     minimizeTimerRef.current = window.setTimeout(() => {
-      if (!isBotTyping && !autoMinimizeDisabledRef.current) {
+      if (!isDemoActive && !isBotTyping && !autoMinimizeDisabledRef.current) {
         setShellState("launcher");
       }
     }, 1800);
   };
+
+  useEffect(() => {
+    if (isDemoActive) clearMinimizeTimer();
+  }, [isDemoActive]);
 
   const scrollThreadToBottom = (behavior: ScrollBehavior = "auto") => {
     const lane = laneRef.current;
@@ -2972,6 +3001,63 @@ export function GuideShellStatic({
     };
   };
 
+  const syncActiveCommerceFocusFromStep = (
+    step?: GuidedAction | SuggestedAction | null,
+    stayPlanOverride?: StayPlan | null,
+  ) => {
+    if (guideConfig?.mode !== "commerce" || !step?.targetId) return;
+
+    const targetId = step.targetId;
+    const stepStayPlan =
+      stayPlanOverride ||
+      stayPlanFromGuidedStep(step as GuidedAction) ||
+      activeStayPlan ||
+      null;
+    const previous = visibleContextRef.current || {};
+
+    if (targetId.startsWith("room-")) {
+      const roomFromStep =
+        stepStayPlan?.room?.targetId === targetId ? stepStayPlan.room : null;
+      const nextStayPlan: StayPlan = {
+        ...(stepStayPlan || {}),
+        room: {
+          ...(roomFromStep || {}),
+          targetId,
+          title:
+            roomFromStep?.title ||
+            step.targetText ||
+            phraseFromId(targetId),
+          nightlyRateUsd: roomFromStep?.nightlyRateUsd ?? null,
+        },
+        packages: stepStayPlan?.packages || [],
+      };
+
+      setActiveStayPlan(nextStayPlan);
+      visibleContextRef.current = {
+        ...previous,
+        selectedRoomId: targetId,
+        activeStayPlan: nextStayPlan,
+      };
+      return;
+    }
+
+    if (targetId.startsWith("package-")) {
+      const nextStayPlan: StayPlan | null = stepStayPlan
+        ? {
+            ...stepStayPlan,
+            packages: stepStayPlan.packages || [],
+          }
+        : null;
+
+      if (nextStayPlan) setActiveStayPlan(nextStayPlan);
+      visibleContextRef.current = {
+        ...previous,
+        suggestedPackageId: targetId,
+        ...(nextStayPlan ? { activeStayPlan: nextStayPlan } : {}),
+      };
+    }
+  };
+
   const roomFromStayPlan = (stayPlan?: StayPlan | null): SavedCommerceItem | null => {
     const room = stayPlan?.room;
     if (!room?.targetId) return null;
@@ -3101,15 +3187,6 @@ export function GuideShellStatic({
     return `${checkIn}|${checkOut}|${adults}|${children}`;
   };
 
-  const currentBookingContextKey = () =>
-    bookingContextKeyFromParts(
-      shellDatesApplied
-        ? { checkIn: shellCheckInDate, checkOut: shellCheckOutDate }
-        : null,
-      shellGuestsApplied
-        ? { adults: shellAdults, children: shellChildren }
-        : null,
-    );
 
   const bookingContextKeyFromSubmittedContext = (
     sentContext?: GuideConversationContext,
@@ -3140,11 +3217,6 @@ export function GuideShellStatic({
     if (key) {
       confirmedBookingContextKeyRef.current = key;
     }
-  };
-
-  const isCurrentBookingContextConfirmed = () => {
-    const key = currentBookingContextKey();
-    return Boolean(key && confirmedBookingContextKeyRef.current === key);
   };
 
   const savedTripConfirmationParts = (trip: SavedTripContext): AnswerParts => {
@@ -3209,16 +3281,42 @@ export function GuideShellStatic({
     confirmedBookingContextKeyRef.current = confirmedKey;
     mergeSavedTrip(pendingTrip);
     clearPendingTripSave();
+    const confirmationId = makeId();
+    const confirmationParts = savedTripConfirmationParts(pendingTrip);
+    const confirmationBody = answerBodyFromParts(confirmationParts);
+    const confirmationThread: ThreadItem[] = [
+      ...threadStateRef.current,
+      {
+        id: confirmationId,
+        role: "bot",
+        title: "Guide response",
+        body: confirmationBody,
+        answerParts: confirmationParts,
+      },
+    ];
+    threadStateRef.current = confirmationThread;
+    setThread(confirmationThread);
+    rememberShellSession("panel", confirmationThread);
     setActiveCompletionWidget("saved-trip");
     return pendingTrip;
   };
 
-  const submitDraft = async () => {
+  const submitGuideMessage = async (
+    message: string,
+    options: {
+      showUserRow?: boolean;
+      loadingBody?: string;
+      clearDraft?: boolean;
+    } = {},
+  ) => {
     if (submitInFlightRef.current) return;
 
-    const rawDraft = draftValue || textareaRef.current?.value || "";
-    const trimmed = rawDraft.trim();
+    const trimmed = message.trim();
     if (!trimmed || isBotTyping) return;
+
+    const showUserRow = options.showUserRow ?? true;
+    const loadingBody =
+      options.loadingBody || "Using your stay basics to find the right fit...";
 
     submitInFlightRef.current = true;
 
@@ -3250,6 +3348,13 @@ export function GuideShellStatic({
     }
     if (orderMutation === "start") {
       setActiveStayPlan(null);
+
+      visibleContextRef.current = {
+        ...(visibleContextRef.current || {}),
+        selectedRoomId: null,
+        suggestedPackageId: null,
+        activeStayPlan: null,
+      };
     }
 
     suppressNextDraftScrollRef.current = true;
@@ -3265,18 +3370,28 @@ export function GuideShellStatic({
     pendingRevealDistanceRef.current = MIN_REVEAL_DISTANCE_PX;
     const thinkingThread: ThreadItem[] = [
       ...threadStateRef.current,
-      {
-        id: submittedId,
-        role: "user",
-        body: trimmed,
-        status: "thinking",
-      },
+      showUserRow
+        ? {
+            id: submittedId,
+            role: "user",
+            body: trimmed,
+            status: "thinking",
+          }
+        : {
+            id: submittedId,
+            role: "bot",
+            title: "Guide response",
+            body: loadingBody,
+            status: "thinking",
+          },
     ];
     threadStateRef.current = thinkingThread;
     setThread(thinkingThread);
     rememberShellSession("panel", thinkingThread);
 
-    setDraftValue("");
+    if (options.clearDraft ?? showUserRow) {
+      setDraftValue("");
+    }
     setIsBotTyping(true);
 
     const startedAt = performance.now();
@@ -3317,6 +3432,59 @@ export function GuideShellStatic({
       );
       if (remaining > 0) {
         await wait(remaining);
+      }
+
+      const collectBookingContext =
+        reply.commerceAction === "collect_booking_context" ||
+        reply.displayMode === "collect_booking_context";
+      if (collectBookingContext) {
+        const missingFields = Array.isArray(reply.missingFields)
+          ? reply.missingFields.map(String)
+          : [];
+        pendingBookingResumePromptRef.current = reply.resumePrompt || trimmed;
+        pendingBookingMissingFieldsRef.current = missingFields;
+
+        const botMessageId = makeId();
+        const completedThread: ThreadItem[] = [
+          ...threadStateRef.current.map((item) =>
+            item.id === submittedId ? { ...item, status: "done" as const } : item,
+          ),
+          {
+            id: botMessageId,
+            role: "bot",
+            title: reply.title,
+            body: reply.body,
+            answerParts: reply.answerParts,
+            refinementChips: [],
+          },
+        ];
+        threadStateRef.current = completedThread;
+        setThread(completedThread);
+        rememberShellSession("panel", completedThread);
+
+        setGuideSteps([]);
+        setCurrentGuideStepIndex(0);
+        setCurrentGuideMessageId(null);
+        setLastRefinementChipClicked(null);
+
+        if (missingFields.includes("dates") && !shellDatesApplied) {
+          setActiveCompletionWidget("dates");
+          syncShellCalendarMonthToDate(shellCheckInDate);
+          setActiveDatePicker("check-in");
+        } else if (missingFields.includes("guests") && !shellGuestsApplied) {
+          setActiveCompletionWidget("guests");
+          setActiveDatePicker(null);
+        }
+
+        emitDemoResponseComplete({
+          ok: true,
+          hasNavigation: false,
+          stepCount: 0,
+          isMultiStep: false,
+          displayMode: reply.displayMode,
+          hasStayPlan: false,
+        });
+        return;
       }
 
       const visibleStayPlan = isStayPlan(reply.visibleContext?.activeStayPlan)
@@ -3394,7 +3562,9 @@ export function GuideShellStatic({
             reply.extractedBookingContext,
             conversationContext,
           ),
-          suggestedAction: reply.suggestedAction,
+          suggestedAction: isMultiStepGuide
+            ? nextGuideSteps[0]
+            : reply.suggestedAction,
         },
       ];
       threadStateRef.current = completedThread;
@@ -3404,10 +3574,34 @@ export function GuideShellStatic({
       setGuideSteps(nextGuideSteps);
       setCurrentGuideStepIndex(nextGuideStepIndex);
       setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : nextGuideMessageId);
-      if (replyStayPlan) {
+
+      const displayedGuideStep = nextGuideSteps[nextGuideStepIndex] || null;
+      if (displayedGuideStep?.targetId?.startsWith("room-") || displayedGuideStep?.targetId?.startsWith("package-")) {
+        syncActiveCommerceFocusFromStep(displayedGuideStep, replyStayPlan);
+      } else if (replyStayPlan) {
         setActiveStayPlan(replyStayPlan);
+
+        visibleContextRef.current = {
+          ...(visibleContextRef.current || {}),
+          selectedRoomId:
+            replyStayPlan.room?.targetId ||
+            visibleContextRef.current?.selectedRoomId ||
+            null,
+          suggestedPackageId:
+            replyStayPlan.packages?.find((pkg) => pkg?.targetId)?.targetId ||
+            visibleContextRef.current?.suggestedPackageId ||
+            null,
+          activeStayPlan: replyStayPlan,
+        };
       } else if (orderMutation === "start") {
         setActiveStayPlan(null);
+
+        visibleContextRef.current = {
+          ...(visibleContextRef.current || {}),
+          selectedRoomId: null,
+          suggestedPackageId: null,
+          activeStayPlan: null,
+        };
       }
       setLastRefinementChipClicked(null);
 
@@ -3464,6 +3658,29 @@ export function GuideShellStatic({
     }
   };
 
+  const submitDraft = async () => {
+    const rawDraft = draftValue || textareaRef.current?.value || "";
+    await submitGuideMessage(rawDraft, { showUserRow: true, clearDraft: true });
+  };
+
+  const resumePendingBookingPrompt = () => {
+    const prompt = pendingBookingResumePromptRef.current;
+    if (!prompt) return;
+
+    pendingBookingResumePromptRef.current = null;
+    pendingBookingMissingFieldsRef.current = [];
+    setActiveCompletionWidget(null);
+    setActiveDatePicker(null);
+
+    window.setTimeout(() => {
+      void submitGuideMessage(prompt, {
+        showUserRow: false,
+        loadingBody: "Using your stay basics to find the right fit...",
+        clearDraft: false,
+      });
+    }, 80);
+  };
+
   const handleDraftKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -3518,10 +3735,25 @@ export function GuideShellStatic({
   );
   const hasBookableSavedTrip = Boolean(savedTripContext.room?.targetId);
   const hasBookableActiveStayPlan = Boolean(activeStayPlan?.room?.targetId);
+  const hasSaveableCommerceState = Boolean(
+    guideConfig?.mode === "commerce" &&
+      (hasGuideSteps ||
+        hasBookableActiveStayPlan ||
+        hasBookableSavedTrip ||
+        (activeStayPlan?.packages?.length || 0) > 0 ||
+        savedTripContext.packages.length > 0),
+  );
   const showBookAction = Boolean(
     guideConfig?.mode === "commerce" &&
       guideConfig?.features?.bookingActions &&
       (guideSteps.some((step) => step?.targetId?.startsWith("room-")) ||
+        hasBookableActiveStayPlan ||
+        hasBookableSavedTrip),
+  );
+  const showSaveAction = Boolean(
+    guideConfig?.mode === "commerce" &&
+      (hasSaveableCommerceState ||
+        showBookAction ||
         hasBookableActiveStayPlan ||
         hasBookableSavedTrip),
   );
@@ -3539,6 +3771,7 @@ export function GuideShellStatic({
     clearActiveSpotlight();
     setSpotlightActive(false);
     setCurrentGuideStepIndex(boundedIndex);
+    syncActiveCommerceFocusFromStep(step);
 
     let nextThread = threadStateRef.current;
 
@@ -3613,7 +3846,22 @@ export function GuideShellStatic({
     savedTripContext.extras.length;
 
   const currentGuideStepToSavedItem = (): SavedCommerceItem | null => {
-    if (!currentGuideStep?.targetId) return null;
+    if (!currentGuideStep?.targetId) {
+      // The action strip can stay open after the spotlight steps are no longer
+      // active. In that state, Save should still use the active/saved stay
+      // rather than disappearing or becoming a no-op.
+      const activeRoom = roomFromStayPlan(activeStayPlan);
+      if (activeRoom) return activeRoom;
+      if (savedTripContext.room) return savedTripContext.room;
+
+      const activePackage = (activeStayPlan?.packages || [])
+        .map(packageToSavedItem)
+        .find(Boolean);
+      if (activePackage) return activePackage;
+      if (savedTripContext.packages[0]) return savedTripContext.packages[0];
+
+      return null;
+    }
 
     const targetId = currentGuideStep.targetId;
     const stayPlan = stayPlanFromGuidedStep(currentGuideStep) || activeStayPlan;
@@ -3740,13 +3988,6 @@ export function GuideShellStatic({
         return;
       }
 
-      if (!isCurrentBookingContextConfirmed()) {
-        setPendingTripSave(pendingTrip);
-        setActiveCompletionWidget(null);
-        setActiveDatePicker(null);
-        if (isCoarsePointer()) openPanel();
-        return;
-      }
     }
 
     mergeSavedTrip(pendingTrip);
@@ -3883,6 +4124,14 @@ export function GuideShellStatic({
       bookableStep?.targetId ||
       savedTripContext.room?.targetId ||
       null;
+    const packageIdsForBooking = Array.from(
+      new Set(
+        [
+          ...(fallbackStepStayPlan?.packages || []).map((item) => item?.targetId),
+          ...savedTripContext.packages.map((item) => item.targetId),
+        ].filter(Boolean) as string[],
+      ),
+    );
 
     if (guideConfig?.mode === "commerce" && forceCheckout) {
       setBookingPreloadConfirmed(true);
@@ -3896,10 +4145,8 @@ export function GuideShellStatic({
             targetId,
             step: bookableStep,
             stayPlan: fallbackStepStayPlan,
-            packageIds: fallbackStepStayPlan?.packages
-              ?.map((item) => item.targetId)
-              .filter(Boolean),
-            extras: fallbackStepStayPlan?.extras || [],
+            packageIds: packageIdsForBooking,
+            extras: fallbackStepStayPlan?.extras || savedTripContext.extras.map((item) => item.title),
             commerceContext: buildCommerceContext(),
           },
         }),
@@ -4507,7 +4754,7 @@ export function GuideShellStatic({
                 }
               >
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                  Self-drive starters
+                  Quick starts
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -4564,6 +4811,7 @@ export function GuideShellStatic({
                               body={item.body}
                               answerParts={item.answerParts}
                               refinementChips={item.refinementChips}
+                              status={item.status}
                               onChipClick={handleRefinementChipClick}
                             />
                           ),
@@ -4656,10 +4904,9 @@ export function GuideShellStatic({
                         </>
                       )}
 
-                      {guideConfig?.mode === "commerce" &&
-                        (hasGuideSteps || keepCommerceActionStripOpen) && (
+                      {showSaveAction && (
                         <>
-                          {hasGuideSteps && (
+                          {showSaveAction && (
                             <button
                               data-demo-target="guide-save"
                               type="button"
@@ -4847,6 +5094,28 @@ export function GuideShellStatic({
                                     shellCheckOutDate,
                                   );
                                   setShellDatesApplied(true);
+                                  visibleContextRef.current = {
+                                    ...(visibleContextRef.current || {}),
+                                    bookingContext: {
+                                      ...((visibleContextRef.current?.bookingContext as ExtractedBookingContext | undefined) || {}),
+                                      checkInDate: shellCheckInDate,
+                                      checkOutDate: shellCheckOutDate,
+                                      nights: savedTripNights() || undefined,
+                                    },
+                                  };
+
+                                  if (pendingBookingResumePromptRef.current) {
+                                    if (!shellGuestsApplied) {
+                                      setActiveCompletionWidget("guests");
+                                      setActiveDatePicker(null);
+                                    } else {
+                                      setActiveCompletionWidget(null);
+                                      setActiveDatePicker(null);
+                                      resumePendingBookingPrompt();
+                                    }
+                                    return;
+                                  }
+
                                   setActiveCompletionWidget(null);
                                   setActiveDatePicker(null);
                                   appendDraftInstruction(
@@ -4945,6 +5214,29 @@ export function GuideShellStatic({
                                     shellChildren,
                                   );
                                   setShellGuestsApplied(true);
+                                  visibleContextRef.current = {
+                                    ...(visibleContextRef.current || {}),
+                                    bookingContext: {
+                                      ...((visibleContextRef.current?.bookingContext as ExtractedBookingContext | undefined) || {}),
+                                      adults: shellAdults,
+                                      children: shellChildren,
+                                      guests: shellAdults + shellChildren,
+                                    },
+                                  };
+
+                                  if (pendingBookingResumePromptRef.current) {
+                                    if (!shellDatesApplied) {
+                                      setActiveCompletionWidget("dates");
+                                      syncShellCalendarMonthToDate(shellCheckInDate);
+                                      setActiveDatePicker("check-in");
+                                    } else {
+                                      setActiveCompletionWidget(null);
+                                      setActiveDatePicker(null);
+                                      resumePendingBookingPrompt();
+                                    }
+                                    return;
+                                  }
+
                                   setActiveCompletionWidget(null);
                                   appendDraftInstruction(
                                     `Add ${guestsLabel} for this stay.`,
@@ -5130,6 +5422,7 @@ export function GuideShellStatic({
                                 </div>
                               </div>
                               <button
+                                data-demo-target="guide-checkout-continue"
                                 type="button"
                                 onClick={() => bookCurrentGuideStep(true, true)}
                                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
@@ -5179,6 +5472,7 @@ export function GuideShellStatic({
                                 </div>
                               </div>
                               <button
+                                data-demo-target="guide-checkout-continue-sticky"
                                 type="button"
                                 onClick={() => bookCurrentGuideStep(true, true)}
                                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
@@ -5386,10 +5680,9 @@ export function GuideShellStatic({
                 </>
               )}
 
-              {guideConfig?.mode === "commerce" &&
-                (hasGuideSteps || keepCommerceActionStripOpen) && (
+              {showSaveAction && (
                 <>
-                  {hasGuideSteps && (
+                  {showSaveAction && (
                     <button
                       data-demo-target="guide-save"
                       type="button"

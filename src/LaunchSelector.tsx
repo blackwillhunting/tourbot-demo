@@ -101,14 +101,14 @@ export default function LaunchSelector() {
 
           <div className="mt-3 flex flex-col gap-2 sm:mt-6 sm:flex-row sm:flex-wrap sm:gap-3">
             <a
-              href="/discovery"
+              href="/informational"
               className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 sm:w-auto sm:text-sm"
             >
               Open Discovery Playground
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
             <a
-              href="/commerce"
+              href="/transactional"
               className="inline-flex w-full items-center justify-center rounded-2xl border border-slate-300 bg-white/80 px-4 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white sm:w-auto sm:text-sm"
             >
               Open Commerce Playground
@@ -122,7 +122,7 @@ export default function LaunchSelector() {
             eyebrow="Guided Discovery Playground"
             title="NexaPath Advisory"
             description="A self-drive B2B advisory playground where visitors can explore the site directly or activate TourBot to answer questions, select the right section, and walk them through a multi-step discovery path."
-            href="/discovery"
+            href="/informational"
             icon={Map}
             bullets={["B2B services", "Site navigation", "Multi-step tours"]}
           />
@@ -131,7 +131,7 @@ export default function LaunchSelector() {
             eyebrow="Guided Commerce Playground"
             title="Domi Coast Resort & Conference Hotel"
             description="A self-drive resort and conference-hotel playground where visitors can ask general property questions, explore rooms and experiences, compare options, refine missing details, and preload booking context."
-            href="/commerce"
+            href="/transactional"
             icon={Hotel}
             bullets={["Resort discovery", "Option ranking", "Booking preload"]}
           />

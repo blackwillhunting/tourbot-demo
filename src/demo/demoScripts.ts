@@ -12,6 +12,7 @@ export type DemoStep =
   | { action: "click-dom-target"; target: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
   | { action: "set-input-value"; target: DemoPointerTarget; value: string; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
   | { action: "click-through-guide-steps"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
+  | { action: "click-next-back-if-multistep"; nextTarget?: DemoPointerTarget; backTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; minStepCount?: number }
   | { action: "open-shell"; delayMs?: number }
   | { action: "type-prompt"; prompt: string; delayMs?: number; charDelayMs?: number }
   | { action: "submit"; delayMs?: number }
@@ -66,45 +67,65 @@ export const guidedDiscoveryDemo: DemoScript = {
 
 export const guidedCommerceRichIntentDemo: DemoScript = {
   id: "guided-commerce-rich-intent",
-  label: "Guided Commerce · Rich Intent",
+  label: "Natural Language Booking",
   description:
-    "Shows a high-context booking request: natural-language extraction, recommendation steps, and booking-summary preload.",
+    "Shows a natural-language booking path: room preference, view refinement, breakfast add-on, and booking-summary handoff.",
   defaultCharDelayMs: 30,
   steps: [
+    // Start from the welcome card and activate TourBot.
     { action: "click-target", target: "[data-demo-target='guide-open']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
+    // 1) Natural language stay request: dates, view preference, budget sensitivity, solo traveler.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
     {
       action: "type-prompt",
-      prompt: "I'm traveling from May 8 thru May 12 and need a simple room with breakfast, just me traveling",
+      prompt: "travelling June 12th thru June 19th, want a room with a good view, not too pricey, just me staying",
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
 
-    // First result should navigate immediately. Now show that a passive
-    // completion/refinement chip can change the recommendation path.
-    { action: "click-dom-target", target: "[data-demo-target='chip-set-budget']", hoverMs: 650, pulseMs: 560, delayMs: 1600, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='budget-luxury']", hoverMs: 650, pulseMs: 560, delayMs: 1350, targetWaitMs: 4200 },
-
-    // Budget selection preloads the composer. Submit it to refresh the guide
-    // recommendation using the retained travel context plus the Luxury signal.
+    // 2) Refine the recommendation with a natural follow-up.
+    { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
+    {
+      action: "type-prompt",
+      prompt: "show rooms with better views",
+      delayMs: 900,
+    },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
-    { action: "wait", delayMs: 2400 },
 
-    // Step through the upgraded room/package path, then book it.
-    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5800, targetWaitMs: 3600, maxClicks: 4 },
+    // If the view-refinement response returns multiple room steps, show Next/Back.
+    // If it returns only one room, skip this beat and continue to breakfast.
+    {
+      action: "click-next-back-if-multistep",
+      nextTarget: "[data-demo-target='guide-next']",
+      backTarget: "[data-demo-target='guide-back']",
+      hoverMs: 650,
+      pulseMs: 560,
+      betweenClicksMs: 2600,
+      delayMs: 900,
+      targetWaitMs: 3600,
+    },
 
-    // Book from the current guide path. GuideShellStatic resolves this to the
-    // current room step, or the first room step if the current step is a package.
-    { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 1600, targetWaitMs: 3600 },
+    // 3) Add breakfast as another natural-language follow-up.
+    { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
+    {
+      action: "type-prompt",
+      prompt: "add breakfast",
+      delayMs: 900,
+    },
+    { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
+    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
 
-    // Move the pointer away so the booking summary handoff is visible, then
-    // explicitly minimize the shell. The fake pointer does not fire real
-    // mouseleave events, so relying on hover timeout will not close the shell.
-    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 4400 },
-    { action: "minimize", delayMs: 1400 },
+    // Move to the package step, then book the composed stay.
+    { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 2600, targetWaitMs: 3600 },
+    { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 3600 },
+
+    // Continue through TourBot's checkout gate, pause for the booking handoff, then minimize TourBot.
+    { action: "click-dom-target", target: "[data-demo-target='guide-checkout-continue']", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 6000 },
+    { action: "wait", delayMs: 3000 },
+    { action: "click-target", target: "[data-demo-target='guide-minimize']", command: "minimize", hoverMs: 800, pulseMs: 650, delayMs: 1400, targetWaitMs: 3600 },
   ],
 };
 

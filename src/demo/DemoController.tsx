@@ -155,6 +155,63 @@ async function resolvePointerTargetWhenReady(
   return resolvePointerTarget(target);
 }
 
+function pointerPositionForElement(el: HTMLElement): DemoPointerPosition {
+  const rect = el.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+async function resolveDomTargetWhenReady(
+  target: string,
+  statusRef: MutableRefObject<DemoStatus>,
+  stopRef: MutableRefObject<boolean>,
+  timeoutMs = 3200,
+): Promise<{ el: HTMLElement; position: DemoPointerPosition } | null> {
+  const startedAt = Date.now();
+  let scrolledTarget = false;
+
+  while (!stopRef.current && Date.now() - startedAt < timeoutMs) {
+    await waitWhilePaused(statusRef, stopRef);
+
+    const el = document.querySelector<HTMLElement>(target);
+    if (el) {
+      const style = window.getComputedStyle(el);
+      const rect = el.getBoundingClientRect();
+      const hasBox = rect.width > 0 && rect.height > 0;
+      const isRendered =
+        hasBox && style.display !== "none" && style.visibility !== "hidden";
+
+      if (isRendered) {
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const isCenterInViewport =
+          centerX >= 0 &&
+          centerX <= viewportWidth &&
+          centerY >= 0 &&
+          centerY <= viewportHeight;
+
+        if (!isCenterInViewport && !scrolledTarget) {
+          scrolledTarget = true;
+          el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+          await wait(650);
+          continue;
+        }
+
+        return { el, position: pointerPositionForElement(el) };
+      }
+    }
+
+    await wait(80);
+  }
+
+  console.warn("Demo target was not available before timeout:", target);
+  return null;
+}
+
 async function waitWhilePaused(
   statusRef: MutableRefObject<DemoStatus>,
   stopRef: MutableRefObject<boolean>,
@@ -355,29 +412,38 @@ export default function DemoController({
         pulseMs?: number;
         targetWaitMs?: number;
       }) => {
-        setPointerVisible(true);
+        if (typeof target !== "string") {
+          setPointerVisible(true);
+          setPointerPosition(target);
+          await wait(hoverMs);
+          if (stopRef.current) return;
+          await pulsePointer(pulseMs);
+          return;
+        }
+
         await ensureMobileShellTargetAvailable(
           target,
           statusRef,
           stopRef,
           openMobileShellFromLauncher,
         );
-        const position = await resolvePointerTargetWhenReady(
+
+        const resolved = await resolveDomTargetWhenReady(
           target,
           statusRef,
           stopRef,
           targetWaitMs,
         );
-        if (stopRef.current) return;
-        setPointerPosition(position);
+        if (stopRef.current || !resolved) return;
+
+        setPointerVisible(true);
+        setPointerPosition(resolved.position);
         await wait(hoverMs);
         if (stopRef.current) return;
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
 
-        if (typeof target !== "string") return;
-        const el = document.querySelector<HTMLElement>(target);
-        el?.click();
+        resolved.el.click();
       };
 
       const setInputValueTarget = async ({
@@ -507,6 +573,46 @@ export default function DemoController({
 
               await wait(step.betweenClicksMs ?? 2600);
             }
+
+            if (step.delayMs) await wait(step.delayMs);
+            return;
+          }
+          case "click-next-back-if-multistep": {
+            const stepCount = Math.max(
+              0,
+              Number(lastResponseRef.current.stepCount || 0),
+            );
+            const minStepCount = Math.max(2, step.minStepCount ?? 2);
+            const nextTarget = step.nextTarget ?? "[data-demo-target='guide-next']";
+            const backTarget = step.backTarget ?? "[data-demo-target='guide-back']";
+            const hasMultipleSteps =
+              stepCount >= minStepCount ||
+              lastResponseRef.current.isMultiStep === true ||
+              (stepCount === 0 &&
+                typeof nextTarget === "string" &&
+                isVisibleTarget(nextTarget));
+
+            if (!hasMultipleSteps) {
+              if (step.delayMs) await wait(step.delayMs);
+              return;
+            }
+
+            await clickTarget({
+              target: nextTarget,
+              command: "next",
+              hoverMs: step.hoverMs ?? 650,
+              pulseMs: step.pulseMs ?? 520,
+              targetWaitMs: step.targetWaitMs ?? 3600,
+            });
+            await wait(step.betweenClicksMs ?? 2600);
+            if (stopRef.current) return;
+
+            await clickDomTarget({
+              target: backTarget,
+              hoverMs: step.hoverMs ?? 650,
+              pulseMs: step.pulseMs ?? 520,
+              targetWaitMs: step.targetWaitMs ?? 3600,
+            });
 
             if (step.delayMs) await wait(step.delayMs);
             return;

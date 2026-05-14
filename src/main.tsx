@@ -8,11 +8,11 @@ import "./index.css";
 function Router() {
   const path = window.location.pathname.replace(/\/$/, "") || "/";
 
-  if (path === "/commerce") {
+  if (path === "/transactional") {
     return <AppCommerce />;
   }
 
-  if (path === "/discovery") {
+  if (path === "/informational") {
     return <App />;
   }
 

@@ -1010,6 +1010,75 @@ function getRoomMeta(roomId?: string | null) {
   return roomBookingMeta[roomId] || null;
 }
 
+const packageBookingMeta: Record<
+  string,
+  { title: string; price: string; signal: string }
+> = Object.fromEntries(
+  PAGES.packages.sections.map((section) => [
+    section.id,
+    {
+      title: section.title,
+      price: section.price || "",
+      signal: section.eyebrow || "Package add-on",
+    },
+  ]),
+);
+
+function getPackageMeta(packageId?: string | null) {
+  if (!packageId) return null;
+  return packageBookingMeta[packageId] || null;
+}
+
+function normalizeBookingPackageIds(values?: Array<string | null | undefined> | null) {
+  const seen = new Set<string>();
+  return (values || [])
+    .map((value) => String(value || "").trim())
+    .filter((value) => value && Boolean(packageBookingMeta[value]))
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+}
+
+function parseBookingPrice(price?: string | null) {
+  const text = price || "";
+  const match = text.match(/\$([0-9,]+(?:\.\d+)?)/);
+  if (!match) return null;
+  const amount = Number(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(amount)) return null;
+  const unit = /stay/i.test(text) ? "per_stay" : "per_night";
+  return { amount, unit };
+}
+
+function formatBookingCurrency(value?: number | null) {
+  if (value == null || !Number.isFinite(value)) return "Pending";
+  return `$${Math.round(value).toLocaleString("en-US")}`;
+}
+
+function bookingNights(checkIn: string, checkOut: string) {
+  if (!checkIn || !checkOut) return null;
+  const start = new Date(`${checkIn}T00:00:00`);
+  const end = new Date(`${checkOut}T00:00:00`);
+  const nights = Math.round((end.getTime() - start.getTime()) / 86400000);
+  return nights > 0 ? nights : null;
+}
+
+function lineTotalForBookingPrice(price: string | undefined, nights: number | null) {
+  const parsed = parseBookingPrice(price);
+  if (!parsed) return null;
+  if (parsed.unit === "per_stay") return parsed.amount;
+  if (!nights) return null;
+  return parsed.amount * nights;
+}
+
+function bookingRateLabel(price?: string | null, nights?: number | null) {
+  const parsed = parseBookingPrice(price);
+  if (!parsed) return price || "Pending";
+  if (parsed.unit === "per_stay") return `$${parsed.amount}/stay`;
+  return nights ? `$${parsed.amount} × ${nights} night${nights === 1 ? "" : "s"}` : `$${parsed.amount}/night`;
+}
+
 function formatBookingDateRange(checkIn: string, checkOut: string) {
   if (!checkIn || !checkOut) return "Required";
   const [inYear, inMonth, inDay] = checkIn.split("-").map(Number);
@@ -1033,6 +1102,7 @@ function formatBookingDateRange(checkIn: string, checkOut: string) {
 function BookingMock({
   compact = false,
   selectedRoom,
+  selectedPackages = [],
   datesSelected = false,
   guestsSelected = false,
   activeFormSpotlight = null,
@@ -1043,6 +1113,7 @@ function BookingMock({
 }: {
   compact?: boolean;
   selectedRoom?: string | null;
+  selectedPackages?: string[];
   datesSelected?: boolean;
   guestsSelected?: boolean;
   activeFormSpotlight?: "guests" | null;
@@ -1052,11 +1123,22 @@ function BookingMock({
   checkOutDate: string;
 }) {
   const roomMeta = getRoomMeta(selectedRoom);
+  const packageItems = normalizeBookingPackageIds(selectedPackages)
+    .map((packageId) => ({ packageId, meta: getPackageMeta(packageId) }))
+    .filter((item): item is { packageId: string; meta: NonNullable<ReturnType<typeof getPackageMeta>> } => Boolean(item.meta));
   const missingItems = [
     !datesSelected ? "Select dates" : null,
     !guestsSelected ? "Add guests" : null,
   ].filter(Boolean) as string[];
   const dateLabel = formatBookingDateRange(checkInDate, checkOutDate);
+  const nights = datesSelected ? bookingNights(checkInDate, checkOutDate) : null;
+  const roomSubtotal = roomMeta ? lineTotalForBookingPrice(roomMeta.price, nights) : null;
+  const packageSubtotal = packageItems.reduce((total, item) => {
+    const lineTotal = lineTotalForBookingPrice(item.meta.price, nights);
+    return total + (lineTotal || 0);
+  }, 0);
+  const estimatedSubtotal = roomSubtotal == null ? null : roomSubtotal + packageSubtotal;
+  const nightsLabel = nights ? `${nights} night${nights === 1 ? "" : "s"}` : "Dates required";
 
   return (
     <div
@@ -1066,11 +1148,11 @@ function BookingMock({
     >
       <div
         data-tour-id="booking-panel-main"
-        className="flex items-center justify-between gap-3"
+        className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3"
       >
         <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Booking summary
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Reservation draft
           </div>
           <div className="mt-1 text-base font-semibold text-slate-950">
             {roomMeta?.title || "No room selected"}
@@ -1081,7 +1163,7 @@ function BookingMock({
             </div>
           )}
         </div>
-        <CreditCard className="h-5 w-5 text-slate-500" />
+        <CreditCard className="mt-1 h-5 w-5 text-slate-500" />
       </div>
 
       <div className="mt-2 space-y-1 text-[11px] sm:mt-4 sm:space-y-2 sm:text-sm">
@@ -1157,11 +1239,71 @@ function BookingMock({
 
         {!compact && (
           <div
-            data-tour-id="booking-estimate"
-            className="flex justify-between rounded-2xl bg-slate-50 px-3 py-2 text-slate-700"
+            data-tour-id="booking-package-summary"
+            className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-slate-700"
           >
-            <span>Estimate</span>
-            <strong>{roomMeta?.price || "Pending"}</strong>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Packages
+              </span>
+              <strong className="text-xs text-slate-900">
+                {packageItems.length ? `${packageItems.length} selected` : "None selected"}
+              </strong>
+            </div>
+            {packageItems.length ? (
+              <div className="space-y-1.5">
+                {packageItems.map(({ packageId, meta }) => {
+                  const lineTotal = lineTotalForBookingPrice(meta.price, nights);
+                  return (
+                    <div key={packageId} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold text-slate-900">{meta.title}</div>
+                        <div className="text-[11px] text-slate-500">{bookingRateLabel(meta.price, nights)}</div>
+                      </div>
+                      <strong className="shrink-0 text-xs text-slate-900">
+                        {lineTotal == null ? meta.price : formatBookingCurrency(lineTotal)}
+                      </strong>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-xs text-slate-500">No packages or add-ons have been added yet.</div>
+            )}
+          </div>
+        )}
+
+        {!compact && (
+          <div
+            data-tour-id="booking-estimate"
+            className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-slate-700 shadow-sm"
+          >
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              Stay charges
+            </div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <span>Room subtotal</span>
+                <strong className="text-slate-900">
+                  {roomMeta && nights ? `${bookingRateLabel(roomMeta.price, nights)} · ${formatBookingCurrency(roomSubtotal)}` : roomMeta?.price || "Pending"}
+                </strong>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Package subtotal</span>
+                <strong className="text-slate-900">
+                  {packageItems.length ? formatBookingCurrency(packageSubtotal) : "$0"}
+                </strong>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-1.5">
+                <span className="font-semibold text-slate-900">Estimated stay subtotal</span>
+                <strong className="text-sm text-slate-950">{formatBookingCurrency(estimatedSubtotal)}</strong>
+              </div>
+              <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
+                <span>Taxes & fees</span>
+                <strong className="font-semibold text-slate-500">Calculated at checkout</strong>
+              </div>
+              <div className="text-[11px] text-slate-500">{nightsLabel}</div>
+            </div>
           </div>
         )}
       </div>
@@ -1490,7 +1632,10 @@ function SectionCard({
                   </>
                 ) : (
                   <>
-                    <Button className="rounded-full px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm">
+                    <Button
+                      data-demo-target="booking-continue"
+                      className="rounded-full px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm"
+                    >
                       Continue booking
                     </Button>
                     <Button
@@ -1628,6 +1773,7 @@ export default function AppCommerce() {
   const [selectedRoom, setSelectedRoom] = useState<string | null>(
     "room-business-king",
   );
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
   const [datesSelected, setDatesSelected] = useState(false);
   const [guestsSelected, setGuestsSelected] = useState(false);
   const [guestLabel, setGuestLabel] = useState("1 guest");
@@ -1700,6 +1846,7 @@ export default function AppCommerce() {
 
   const onBookRoom = (section: Section) => {
     setSelectedRoom(section.id);
+    setSelectedPackages([]);
     openBookingPanel();
   };
 
@@ -1708,10 +1855,17 @@ export default function AppCommerce() {
       const detail =
         (event as CustomEvent<{
           targetId?: string | null;
+          packageIds?: Array<string | null | undefined>;
+          stayPlan?: {
+            packages?: Array<{ targetId?: string | null }>;
+          } | null;
           commerceContext?: {
             dates?: { checkIn?: string; checkOut?: string; label?: string } | null;
             guests?: { adults?: number; children?: number; label?: string } | null;
             budget?: { band?: string } | null;
+            savedTrip?: {
+              packages?: Array<{ targetId?: string | null }>;
+            } | null;
           };
         }>).detail || {};
       const targetId =
@@ -1721,6 +1875,11 @@ export default function AppCommerce() {
         : roomStepOrder.find((roomId) => targetId.startsWith(roomId)) ||
           selectedRoom ||
           "room-business-king";
+      const normalizedPackageIds = normalizeBookingPackageIds([
+        ...(detail.packageIds || []),
+        ...((detail.stayPlan?.packages || []).map((item) => item?.targetId)),
+        ...((detail.commerceContext?.savedTrip?.packages || []).map((item) => item?.targetId)),
+      ]);
 
       const context = detail.commerceContext || {};
       if (context.dates?.checkIn && context.dates?.checkOut) {
@@ -1741,6 +1900,7 @@ export default function AppCommerce() {
       }
 
       setSelectedRoom(normalizedRoomId);
+      setSelectedPackages(normalizedPackageIds);
       setActiveFormSpotlight(null);
       setBookingRailSpotlight(true);
       openBookingPanel();
@@ -1940,6 +2100,7 @@ export default function AppCommerce() {
             <BookingMock
               compact={currentPage !== "booking"}
               selectedRoom={selectedRoom}
+              selectedPackages={selectedPackages}
               datesSelected={datesSelected}
               guestsSelected={guestsSelected}
               guestLabel={guestLabel}
@@ -1997,6 +2158,7 @@ export default function AppCommerce() {
         demoCommand={guideDemoCommand}
         guideConfig={commerceGuideConfig}
         suppressWelcomeCard={demoPreviewOpen || demoClosingOpen}
+        demoStatus={demoStatus}
       />
     </div>
   );
