@@ -471,10 +471,10 @@ export default function LaunchSelector() {
 
         <div
           ref={stageScrollRef}
-          className="relative mt-3 min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain pb-2 sm:mt-6 sm:overflow-visible sm:pb-0"
+          className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
         >
           <div
-            className="w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm transition-[height] duration-700 ease-out sm:rounded-[36px]"
+            className="my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm transition-[height] duration-700 ease-out sm:my-0 sm:rounded-[36px]"
             style={ribbonHeight ? { height: ribbonHeight } : undefined}
           >
             <motion.div
