@@ -5451,8 +5451,11 @@ export function GuideShellStatic({
                               </div>
                             )}
 
-                            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
-                              {DEFAULT_UPSELL_SUGGESTIONS.map((suggestion) => (
+                            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-2 sm:gap-2">
+                              {DEFAULT_UPSELL_SUGGESTIONS.slice(
+                                0,
+                                isCoarsePointer() ? 4 : DEFAULT_UPSELL_SUGGESTIONS.length,
+                              ).map((suggestion) => (
                                 <button
                                   key={suggestion.label}
                                   type="button"
@@ -5462,12 +5465,12 @@ export function GuideShellStatic({
                                     setBookingPreloadConfirmed(false);
                                     appendDraftInstruction(suggestion.prompt);
                                   }}
-                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left transition hover:border-cyan-200 hover:bg-cyan-50 sm:rounded-xl sm:px-3 sm:py-3"
+                                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-center transition hover:border-cyan-200 hover:bg-cyan-50 sm:rounded-xl sm:px-3 sm:py-3 sm:text-left"
                                 >
                                   <div className="text-xs font-semibold text-slate-900 sm:text-sm">
                                     {suggestion.label}
                                   </div>
-                                  <div className="mt-0.5 text-[11px] leading-4 text-slate-500 sm:mt-1 sm:text-xs">
+                                  <div className="hidden mt-1 text-xs leading-4 text-slate-500 sm:block">
                                     {suggestion.helper}
                                   </div>
                                 </button>
