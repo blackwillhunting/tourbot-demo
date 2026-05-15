@@ -75,16 +75,16 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
   steps: [
     {
       action: "callout",
-      eyebrow: "Demo site context",
-      title: "Complex hotel resort",
-      body: "Domi Coast is a 1,000+ room hotel resort with many room types, view tiers, towers, and add-ons.",
+      eyebrow: "Background",
+      title: "What kind of site this is",
+      body: "This is a 1,000+ room hotel resort with many room types, view tiers, towers, and add-ons.",
       buttonLabel: "Continue",
       placement: "left",
       emphasis: "green-flash",
     },
     {
       action: "callout",
-      eyebrow: "Natural Language Booking",
+      eyebrow: "Kickoff",
       title: "What you are about to see",
       body: "A guest describes the stay, and TourBot extracts key details, optimizes fit, and tours focus areas.",
       buttonLabel: "Start demo",
@@ -105,8 +105,8 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
     {
       action: "callout",
-      eyebrow: "Ranked recommendation",
-      title: "TourBot optimizes and auto-scrolls",
+      eyebrow: "Ranked option",
+      title: "What just happened",
       body: "TourBot detected key travel details and turned stray needs into a specific stay option.",
       buttonLabel: "Continue demo",
       placement: "left",
@@ -131,7 +131,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       hoverMs: 650,
       pulseMs: 560,
       betweenClicksMs: 9000,
-      delayMs: 900,
+      delayMs: 5000,
       targetWaitMs: 3600,
     },
 
@@ -154,7 +154,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     { action: "wait", delayMs: 1200 },
     {
       action: "callout",
-      eyebrow: "Booking handoff",
+      eyebrow: "What is being handed off",
       title: "Known context carries forward.",
       body: "The room, travel dates, guest count, and breakfast package are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
       buttonLabel: "Finish demo",
