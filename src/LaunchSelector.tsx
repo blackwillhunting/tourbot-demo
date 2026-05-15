@@ -53,7 +53,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Intent becomes motion",
     message:
-      "**TourBot** figures out what the visitor wants, optimizes options, physically navigates the site, and suggests next steps.",
+      "**TourBot** figures out needs, optimizes options, physically scrolls the site, and suggests next steps.",
     icon: Route,
     iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
   },
@@ -67,14 +67,14 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Service sites",
     message:
-      "**TourBot** reveals deeper details, schedules appointments, and hands off intake summaries when the offer is less defined.",
+      "**TourBot** reveals deeper details, schedules appointments, and hands off intake summaries.",
     icon: CalendarCheck,
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
   {
     label: "Choose a demo",
     message:
-      "See **TourBot** guide a visitor through a path.",
+      "See **TourBot** guide a visitor.",
     icon: PlayCircle,
     iconClass: "bg-slate-950 text-white ring-slate-950/10",
     demoButtons: true,
