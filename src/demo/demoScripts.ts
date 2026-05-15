@@ -85,7 +85,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Natural Language Booking",
-      title: "Conversational booking",
+      title: "What you are about to see",
       body: "A guest describes the stay, and TourBot extracts key details, optimizes fit, and tours focus areas.",
       buttonLabel: "Start demo",
       placement: "left",
@@ -102,7 +102,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
     {
       action: "callout",
       eyebrow: "Ranked recommendation",
