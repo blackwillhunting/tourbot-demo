@@ -29,6 +29,64 @@ export type DemoScript = {
   steps: DemoStep[];
 };
 
+function usesMobileDemoEnding(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(max-width: 640px)").matches
+  );
+}
+
+function createGuidedCommerceBookingHandoffCallout(): DemoStep {
+  return {
+    action: "callout",
+    eyebrow: "What is being handed off",
+    title: "Known context carries forward.",
+    body: "The room, travel dates, guest count, and breakfast package are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
+    buttonLabel: "Finish demo",
+    placement: "left",
+  };
+}
+
+function createGuidedCommerceBookingHandoffSteps(): DemoStep[] {
+  const continueCheckoutStep: DemoStep = {
+    action: "click-dom-target",
+    target: "[data-demo-target='guide-checkout-continue']",
+    hoverMs: 800,
+    pulseMs: 650,
+    delayMs: 3000,
+    targetWaitMs: 6000,
+  };
+
+  if (usesMobileDemoEnding()) {
+    return [
+      // Mobile: explain the handoff before Continue because Continue closes
+      // the shell and reveals the booking summary as the final visual beat.
+      createGuidedCommerceBookingHandoffCallout(),
+      continueCheckoutStep,
+      { action: "wait", delayMs: 2200 },
+    ];
+  }
+
+  return [
+    // Desktop: Continue does not create the same redundant mobile reveal, so
+    // keep the original ending: Continue, explain the handoff, then minimize.
+    continueCheckoutStep,
+    { action: "wait", delayMs: 1200 },
+    createGuidedCommerceBookingHandoffCallout(),
+    {
+      action: "click-target",
+      target: "[data-demo-target='guide-minimize']",
+      command: "minimize",
+      hoverMs: 800,
+      pulseMs: 650,
+      delayMs: 1400,
+      targetWaitMs: 3600,
+    },
+  ];
+}
+
 export const guidedDiscoveryDemo: DemoScript = {
   id: "guided-discovery-assisted-learning",
   label: "Assisted Learning",
@@ -149,18 +207,10 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 9000, targetWaitMs: 3600 },
     { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 3600 },
 
-    // Continue through TourBot's checkout gate, pause for the booking handoff, then minimize TourBot.
-    { action: "click-dom-target", target: "[data-demo-target='guide-checkout-continue']", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 6000 },
-    { action: "wait", delayMs: 1200 },
-    {
-      action: "callout",
-      eyebrow: "What is being handed off",
-      title: "Known context carries forward.",
-      body: "The room, travel dates, guest count, and breakfast package are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
-      buttonLabel: "Finish demo",
-      placement: "left",
-    },
-    { action: "click-target", target: "[data-demo-target='guide-minimize']", command: "minimize", hoverMs: 800, pulseMs: 650, delayMs: 1400, targetWaitMs: 3600 },
+    // Use a device-aware booking handoff ending:
+    // desktop keeps the original Continue -> callout -> minimize flow;
+    // mobile shows the callout before Continue, then ends on the visible booking summary.
+    ...createGuidedCommerceBookingHandoffSteps(),
   ],
 };
 
