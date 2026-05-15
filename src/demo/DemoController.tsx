@@ -328,12 +328,16 @@ export default function DemoController({
         onGuideCommand({ id: commandIdRef.current, type, value });
       };
 
+      const timingMultiplier = isCoarsePointer() ? 1.5 : 1;
+      const scaledMs = (ms: number) => Math.round(ms * timingMultiplier);
+      const demoWait = (ms: number) => wait(scaledMs(ms));
+
       const typePrompt = async (prompt: string, charDelayMs: number) => {
         // Keep the existing GuideShellStatic contract: it receives repeated
         // { type: "type", value } commands. The value grows one character at a
         // time so the textarea visibly types instead of snapping to full text.
         send("type", "");
-        await wait(80);
+        await demoWait(80);
 
         let current = "";
         for (const char of prompt) {
@@ -342,13 +346,13 @@ export default function DemoController({
 
           current += char;
           send("type", current);
-          await wait(charDelayMs);
+          await demoWait(charDelayMs);
         }
       };
 
       const pulsePointer = async (pulseMs = 320) => {
         setPointerPulseKey((value) => value + 1);
-        await wait(pulseMs);
+        await demoWait(pulseMs);
       };
 
       const openMobileShellFromLauncher = async () => {
@@ -370,14 +374,14 @@ export default function DemoController({
         if (stopRef.current) return;
 
         setPointerPosition(position);
-        await wait(900);
+        await demoWait(900);
         if (stopRef.current) return;
 
         await pulsePointer(650);
         if (stopRef.current) return;
 
         launcher.click();
-        await wait(1150);
+        await demoWait(1150);
       };
 
       const clickTarget = async ({
@@ -408,7 +412,7 @@ export default function DemoController({
         );
         if (stopRef.current) return;
         setPointerPosition(position);
-        await wait(hoverMs);
+        await demoWait(hoverMs);
         if (stopRef.current) return;
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
@@ -421,7 +425,7 @@ export default function DemoController({
           const launcher = document.querySelector<HTMLElement>(target);
           if (launcher) {
             launcher.click();
-            await wait(700);
+            await demoWait(700);
             return;
           }
         }
@@ -443,7 +447,7 @@ export default function DemoController({
         if (typeof target !== "string") {
           setPointerVisible(true);
           setPointerPosition(target);
-          await wait(hoverMs);
+          await demoWait(hoverMs);
           if (stopRef.current) return;
           await pulsePointer(pulseMs);
           return;
@@ -466,7 +470,7 @@ export default function DemoController({
 
         setPointerVisible(true);
         setPointerPosition(resolved.position);
-        await wait(hoverMs);
+        await demoWait(hoverMs);
         if (stopRef.current) return;
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
@@ -502,7 +506,7 @@ export default function DemoController({
         );
         if (stopRef.current) return;
         setPointerPosition(position);
-        await wait(hoverMs);
+        await demoWait(hoverMs);
         if (stopRef.current) return;
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
@@ -532,7 +536,7 @@ export default function DemoController({
 
         switch (step.action) {
           case "wait":
-            await wait(step.delayMs);
+            await demoWait(step.delayMs);
             return;
           case "wait-for-response": {
             const detail = await waitForDemoResponse(
@@ -541,7 +545,7 @@ export default function DemoController({
               step.timeoutMs,
             );
             lastResponseRef.current = detail;
-            if (step.delayMs) await wait(step.delayMs);
+            if (step.delayMs) await demoWait(step.delayMs);
             return;
           }
           case "move-pointer": {
@@ -560,7 +564,7 @@ export default function DemoController({
             );
             if (stopRef.current) return;
             setPointerPosition(position);
-            await wait(step.delayMs ?? 700);
+            await demoWait(step.delayMs ?? 700);
             return;
           }
           case "click-target":
@@ -571,7 +575,7 @@ export default function DemoController({
               pulseMs: step.pulseMs,
               targetWaitMs: step.targetWaitMs,
             });
-            await wait(step.delayMs ?? 900);
+            await demoWait(step.delayMs ?? 900);
             return;
           case "click-dom-target":
             await clickDomTarget({
@@ -580,7 +584,7 @@ export default function DemoController({
               pulseMs: step.pulseMs,
               targetWaitMs: step.targetWaitMs,
             });
-            await wait(step.delayMs ?? 900);
+            await demoWait(step.delayMs ?? 900);
             return;
           case "set-input-value":
             await setInputValueTarget({
@@ -590,7 +594,7 @@ export default function DemoController({
               pulseMs: step.pulseMs,
               targetWaitMs: step.targetWaitMs,
             });
-            await wait(step.delayMs ?? 900);
+            await demoWait(step.delayMs ?? 900);
             return;
           case "click-through-guide-steps": {
             const stepCount = Math.max(
@@ -614,10 +618,10 @@ export default function DemoController({
                 targetWaitMs: step.targetWaitMs ?? 3600,
               });
 
-              await wait(step.betweenClicksMs ?? 2600);
+              await demoWait(step.betweenClicksMs ?? 2600);
             }
 
-            if (step.delayMs) await wait(step.delayMs);
+            if (step.delayMs) await demoWait(step.delayMs);
             return;
           }
           case "click-next-back-if-multistep": {
@@ -636,7 +640,7 @@ export default function DemoController({
                 isVisibleTarget(nextTarget));
 
             if (!hasMultipleSteps) {
-              if (step.delayMs) await wait(step.delayMs);
+              if (step.delayMs) await demoWait(step.delayMs);
               return;
             }
 
@@ -647,7 +651,7 @@ export default function DemoController({
               pulseMs: step.pulseMs ?? 520,
               targetWaitMs: step.targetWaitMs ?? 3600,
             });
-            await wait(step.betweenClicksMs ?? 2600);
+            await demoWait(step.betweenClicksMs ?? 2600);
             if (stopRef.current) return;
 
             await clickDomTarget({
@@ -657,39 +661,39 @@ export default function DemoController({
               targetWaitMs: step.targetWaitMs ?? 3600,
             });
 
-            if (step.delayMs) await wait(step.delayMs);
+            if (step.delayMs) await demoWait(step.delayMs);
             return;
           }
           case "callout":
             await showCallout(step);
-            if (step.delayMs) await wait(step.delayMs);
+            if (step.delayMs) await demoWait(step.delayMs);
             return;
           case "open-shell":
             send("open");
-            await wait(step.delayMs ?? 700);
+            await demoWait(step.delayMs ?? 700);
             return;
           case "type-prompt": {
             const charDelayMs =
               step.charDelayMs ?? script.defaultCharDelayMs ?? 34;
             await typePrompt(step.prompt, charDelayMs);
-            await wait(step.delayMs ?? 350);
+            await demoWait(step.delayMs ?? 350);
             return;
           }
           case "submit":
             send("submit");
-            await wait(step.delayMs ?? 4500);
+            await demoWait(step.delayMs ?? 4500);
             return;
           case "next":
             send("next");
-            await wait(step.delayMs ?? 2500);
+            await demoWait(step.delayMs ?? 2500);
             return;
           case "got-it":
             send("got-it");
-            await wait(step.delayMs ?? 700);
+            await demoWait(step.delayMs ?? 700);
             return;
           case "minimize":
             send("minimize");
-            await wait(step.delayMs ?? 700);
+            await demoWait(step.delayMs ?? 700);
             return;
         }
       };
@@ -703,7 +707,7 @@ export default function DemoController({
         runningRef.current = false;
         setPointerVisible(false);
         if (!stopRef.current) {
-          await wait(finishDelayMs);
+          await demoWait(finishDelayMs);
         }
         if (!stopRef.current) {
           onStatusChange("idle");
