@@ -134,7 +134,7 @@ function WizardBullet({ item }: { item: string }) {
         {subText && (
           <MarkdownText
             text={subText}
-            className="mt-0.5 block border-l border-slate-200 pl-2.5 text-[11px] leading-4 text-slate-500 sm:mt-1 sm:pl-3 sm:text-sm sm:leading-5"
+            className="mt-1 block border-l border-slate-300 pl-2.5 text-[12px] font-medium leading-5 text-slate-700 sm:mt-1 sm:border-slate-200 sm:pl-3 sm:text-sm sm:font-normal sm:leading-5 sm:text-slate-500"
           />
         )}
       </span>
@@ -164,13 +164,13 @@ function DemoLaunchButton({
         <Icon className="h-5 w-5" />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:text-[10px] sm:tracking-[0.18em] sm:text-slate-400">
           {eyebrow}
         </span>
         <span className="mt-0.5 block text-sm font-semibold tracking-tight sm:mt-1 sm:text-lg">
           {title}
         </span>
-        <span className="mt-0.5 block text-xs leading-4 text-slate-300 sm:mt-1 sm:text-sm sm:leading-5">
+        <span className="mt-0.5 block text-[13px] leading-5 text-slate-200 sm:mt-1 sm:text-sm sm:leading-5 sm:text-slate-300">
           {description}
         </span>
       </span>
@@ -204,10 +204,10 @@ export default function LaunchSelector() {
               <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold tracking-tight sm:text-lg">
+              <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
                 TourBot Demo
               </div>
-              <div className="text-[10px] leading-tight text-slate-500 sm:text-sm">
+              <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
                 Guided buying for visible and implied carts
               </div>
             </div>
@@ -238,7 +238,7 @@ export default function LaunchSelector() {
                   <div className="inline-flex rounded-2xl bg-white/80 p-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200/80 backdrop-blur sm:p-3">
                     <CardIcon className="h-5 w-5" />
                   </div>
-                  <div className="rounded-full border border-slate-200 bg-white/75 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500 shadow-sm sm:px-3 sm:py-1 sm:text-[10px] sm:tracking-[0.18em]">
+                  <div className="rounded-full border border-slate-300 bg-white/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-700 shadow-sm sm:border-slate-200 sm:bg-white/75 sm:px-3 sm:text-[10px] sm:tracking-[0.18em] sm:text-slate-500">
                     {current.eyebrow}
                   </div>
                 </div>
@@ -251,7 +251,7 @@ export default function LaunchSelector() {
                 className={`px-4 py-3 sm:px-7 ${step === 1 ? "sm:min-h-[300px] sm:py-7" : closeMode ? "sm:min-h-[260px] sm:py-6" : "sm:py-5"}`}
               >
 {current.intro && (
-  <p className="text-[13px] leading-5 text-slate-600 sm:text-base sm:leading-7">
+  <p className="text-sm leading-6 text-slate-700 sm:text-base sm:leading-7 sm:text-slate-600">
     <MarkdownText text={current.intro} />
   </p>
 )}
@@ -261,7 +261,7 @@ export default function LaunchSelector() {
 )}
 
 {current.bullets.length > 0 && (
-  <ul className="mt-0 space-y-2 text-[13px] leading-5 text-slate-700 sm:space-y-3 sm:text-base sm:leading-6">
+  <ul className="mt-0 space-y-2 text-sm leading-6 text-slate-800 sm:space-y-3 sm:text-base sm:leading-6 sm:text-slate-700">
     {current.bullets.map((item) => (
       <WizardBullet key={item} item={item} />
     ))}
@@ -269,7 +269,7 @@ export default function LaunchSelector() {
 )}
 
                 {current.closing && (
-                  <div className="mt-3 border-t border-slate-100 pt-2 text-[13px] font-medium leading-5 text-slate-700 sm:mt-5 sm:pt-3 sm:text-base sm:leading-6">
+                  <div className="mt-3 border-t border-slate-200 pt-2 text-sm font-semibold leading-6 text-slate-800 sm:mt-5 sm:border-slate-100 sm:pt-3 sm:text-base sm:font-medium sm:leading-6 sm:text-slate-700">
                     <MarkdownText text={current.closing} />
                   </div>
                 )}
