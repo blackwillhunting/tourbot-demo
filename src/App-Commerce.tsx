@@ -1841,7 +1841,7 @@ export default function AppCommerce() {
     }));
 
     if (isSelfDriveEntry) {
-      window.location.href = "/";
+      window.location.href = "/?close=transactional";
     }
   };
 
@@ -2034,7 +2034,7 @@ export default function AppCommerce() {
               },
               {
                 label: "Assisted Completion",
-                description: "A sparse stay request produces passive chips for dates, guests, budget, and refinement.",
+                description: "A sparse stay request triggers soft data retrieval to harden loose travel plans into solid options.",
                 onClick: () => startSelectedDemo(guidedCommerceAssistedCompletionDemo),
               },
             ]}
@@ -2176,6 +2176,7 @@ export default function AppCommerce() {
         initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
         suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
         demoStatus={demoStatus}
+        demoInteractionLocked={isSelfDriveEntry}
       />
     </div>
   );

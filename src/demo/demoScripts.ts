@@ -76,8 +76,8 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Demo site context",
-      title: "A resort site with real choice complexity.",
-      body: "Domi Coast is a 1,000+ room hotel resort with many room types, view tiers, towers, packages, and add-ons — the kind of DC Hilton-style property where guests can easily get lost comparing options.",
+      title: "Complex hotel resort",
+      body: "Domi Coast is a 1,000+ room hotel resort with many room types, view tiers, towers, and add-ons.",
       buttonLabel: "Continue",
       placement: "left",
       emphasis: "green-flash",
@@ -85,8 +85,8 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Natural Language Booking",
-      title: "Start with the trip, not the filters.",
-      body: "This demo shows TourBot replacing static browsing with guided buying. A guest describes the stay in plain English, and TourBot extracts the key details, recommends the right fit, and takes the visitor on a tour of the relevant site areas step by step.",
+      title: "Conversational booking",
+      body: "A guest describes the stay, and TourBot extracts key details, optimizes fit, and tours focus areas.",
       buttonLabel: "Start demo",
       placement: "left",
     },
@@ -106,8 +106,8 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Ranked recommendation",
-      title: "TourBot turns vague intent into a specific stay option.",
-      body: "TourBot captured key travel details and turned vague intent into a specific stay option..",
+      title: "TourBot optimizes and auto-scrolls",
+      body: "TourBot detected key travel details and turned stray needs into a specific stay option.",
       buttonLabel: "Continue demo",
       placement: "left",
     },
@@ -120,7 +120,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 9000, timeoutMs: 35000 },
 
     // If the view-refinement response returns multiple room steps, show Next/Back.
     // If it returns only one room, skip this beat and continue to breakfast.
@@ -130,7 +130,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
       backTarget: "[data-demo-target='guide-back']",
       hoverMs: 650,
       pulseMs: 560,
-      betweenClicksMs: 5000,
+      betweenClicksMs: 9000,
       delayMs: 900,
       targetWaitMs: 3600,
     },
@@ -146,7 +146,7 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
 
     // Move to the package step, then book the composed stay.
-    { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 5000, targetWaitMs: 3600 },
+    { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 9000, targetWaitMs: 3600 },
     { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 3600 },
 
     // Continue through TourBot's checkout gate, pause for the booking handoff, then minimize TourBot.
@@ -168,7 +168,7 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
   id: "guided-commerce-assisted-completion",
   label: "Guided Commerce · Assisted Completion",
   description:
-    "Shows a sparse booking request: the guide recommends options and exposes passive completion chips for missing booking details.",
+    "Shows a sparse booking request: TourBot softly obtains missing data and hardens loose travel plans into solid options.",
   defaultCharDelayMs: 30,
   steps: [
     // Start from the minimized launcher and activate TourBot.

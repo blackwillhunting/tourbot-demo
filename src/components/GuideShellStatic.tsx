@@ -2200,12 +2200,14 @@ export function GuideShellStatic({
   initialShellState = "welcome",
   suppressWelcomeCard = false,
   demoStatus = "idle",
+  demoInteractionLocked = false,
 }: {
   demoCommand?: GuideShellDemoCommand | null;
   guideConfig?: GuideConfig;
   initialShellState?: ShellState;
   suppressWelcomeCard?: boolean;
   demoStatus?: "idle" | "running" | "paused";
+  demoInteractionLocked?: boolean;
 } = {}) {
   const restoredShellRef = useRef(
     initialShellState === "welcome" ? readShellSession() : null,
@@ -4695,7 +4697,7 @@ export function GuideShellStatic({
         >
           <div
             data-demo-target="guide-shell"
-            className={`overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
+            className={`relative overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
             style={{
               height: panelHeight,
               maxHeight: keyboardCompressed
@@ -4705,6 +4707,12 @@ export function GuideShellStatic({
                   : floatingCardMaxHeight,
             }}
           >
+            {demoInteractionLocked && (
+              <div
+                className="absolute inset-0 z-[60] cursor-not-allowed"
+                aria-hidden="true"
+              />
+            )}
             <div className="flex h-full min-h-0 flex-col">
               <div
                 className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}
@@ -5573,7 +5581,7 @@ export function GuideShellStatic({
                         setKeyboardCompressed(false);
                     }, 120);
                   }}
-                  disabled={isBotTyping}
+                  disabled={isBotTyping || demoInteractionLocked}
                   hasFocus={draftFocus}
                   textareaRef={textareaRef}
                   placeholder={modeCopy.placeholder}
@@ -5649,8 +5657,17 @@ export function GuideShellStatic({
                 }
               : toastPosition
           }
-          className="flex max-w-[calc(100vw-24px)] items-center justify-end gap-2"
+          className="relative flex max-w-[calc(100vw-24px)] items-center justify-end gap-2"
         >
+          {demoInteractionLocked && (
+            <div
+              className="absolute inset-0 z-[80] cursor-not-allowed rounded-full"
+              aria-hidden="true"
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+            />
+          )}
           {coarsePointer && (showGuideActionStrip || showBookAction) && (
             <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur">
               {hasMultipleGuideSteps && (
@@ -5735,7 +5752,10 @@ export function GuideShellStatic({
 
               <button
                 data-demo-target="guide-open-answer"
-                onClick={openPanel}
+                onClick={(event) => {
+                  if (demoInteractionLocked && event.nativeEvent.isTrusted) return;
+                  openPanel();
+                }}
                 aria-label="Open message"
                 title="Open message"
                 className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
@@ -5747,14 +5767,17 @@ export function GuideShellStatic({
 
           <button
             data-demo-target="guide-launcher"
-            onClick={openPanel}
+            onClick={(event) => {
+              if (demoInteractionLocked && event.nativeEvent.isTrusted) return;
+              openPanel();
+            }}
             className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-3 shadow-xl transition hover:bg-slate-50 sm:gap-3 sm:px-4"
           >
             <span className="inline-flex rounded-full bg-slate-900 p-2 text-white animate-pulse">
               <Compass className="h-4 w-4" />
             </span>
             <span className="hidden text-sm font-medium text-slate-900 sm:inline">
-              TourBot active
+              TourBot
             </span>
           </button>
         </motion.div>

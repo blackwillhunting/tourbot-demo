@@ -10,45 +10,76 @@ type WizardStep = {
   closing?: string;
 };
 
-const steps: WizardStep[] = [
-{
-  eyebrow: "Guided buying",
-  title: "TourBot turns answers into tours.",
-  intro:
-    "TourBot doesn't just tell you, it navigates sites, spotlights, and _shows_ you.",
-  bullets: [
-    "**Static site** → you decipher layout, try to find, fumble.",
-    "**Standard chatbot** → you get a road map but have to read it yourself.",
-    "**TourBot** → you get a guided tour thru next steps.",
-  ],
-},
-{
-  eyebrow: "Two site patterns",
-  title: "Every business site has a cart.",
-  intro:
-    "Transactional sites show the cart. Informational sites hide it inside the next step: a lead, quote, consultation, assessment, or service-fit decision.",
-  bullets: [
-    "**Visible cart sites** — hotels, ecommerce, travel, tickets, reservations, quote flows.\n_Focus:_ compare options, add extras, reserve, buy, or check out.",
-    "**Implied cart sites** — consulting, law, agencies, healthcare, MSPs, B2B services.\n_Focus:_ identify fit and move toward an inquiry, quote, consultation, or service path.",
-  ],
-  closing:
-    "TourBot handles both: visible-cart _sales_ paths and implied-cart _lead_ paths.",
-},
+type CloseMode = "transactional" | "informational";
+
+const launchSteps: WizardStep[] = [
+  {
+    eyebrow: "Guided buying",
+    title: "TourBot turns answers into tours.",
+    intro:
+      "TourBot doesn't just tell you, it navigates sites, spotlights, and _shows_ you.",
+    bullets: [
+      "**Static site** → you decipher layout, try to find, fumble.",
+      "**Standard chatbot** → you get a road map but have to read it yourself.",
+      "**TourBot** → you get a guided tour thru next steps.",
+    ],
+  },
+  {
+    eyebrow: "Two site patterns",
+    title: "Every business site has a cart.",
+    intro:
+      "Transactional sites show the cart. Informational sites hide it inside the next step: a lead, quote, consultation, assessment, or service-fit decision.",
+    bullets: [
+      "**Visible cart sites** — hotels, ecommerce, travel, tickets, reservations, quote flows.\n_Focus:_ compare options, add extras, reserve, buy, or check out.",
+      "**Implied cart sites** — consulting, law, agencies, healthcare, MSPs, B2B services.\n_Focus:_ identify fit and move toward an inquiry, quote, consultation, or service path.",
+    ],
+    closing:
+      "TourBot handles both: visible-cart _sales_ paths and implied-cart _lead_ paths.",
+  },
   {
     eyebrow: "Self-drive demos",
-    title: "Choose a demo path.",
-    intro: "Choose a self-drive demo path below.",
-    bullets: [
-      "**Informational** — service discovery, qualification, and lead direction.",
-      "**Transactional** — option filtering, add-ons, and booking or sales completion.",
-    ],
+    title: "Live look-ins.",
+    intro: "Choose a self-drive experience below and see TourBot applied live to a site.",
+    bullets: [],
   },
 ];
 
+const closePages: Record<CloseMode, WizardStep> = {
+  transactional: {
+    eyebrow: "Transactional takeaway",
+    title: "TourBot turns browsing into buying.",
+    intro:
+      "TourBot turns buying intent into guided completion: it listens, fills in missing details through progressive chips, and keeps the shopper moving toward the sale.",
+    bullets: [
+      "**Progressive chips** steer next steps and expose overlooked features.",
+      "**Relevant add-ons and upsells** appear before checkout.",
+      "**Known choices carry forward** into a booking, checkout, or sales handoff.",
+    ],
+  },
+  informational: {
+    eyebrow: "Informational takeaway",
+    title: "TourBot turns discovery into qualified handoff.",
+    intro:
+      "On informational sites, the merchandise is often hidden. TourBot reveals the right service path, qualifies the visitor, and pulls the lead toward a real next step.",
+    bullets: [
+      "**Intake briefs** summarize the visitor’s need, fit, urgency, and context.",
+      "**Calendar integrations** can schedule appointments or route service requests.",
+      "**Conversation IDs and ticketing handoff** can connect live consultants.",
+    ],
+  },
+};
+
+function initialCloseMode(): CloseMode | null {
+  if (typeof window === "undefined") return null;
+  const close = new URLSearchParams(window.location.search).get("close");
+  if (close === "transactional" || close === "informational") return close;
+  return null;
+}
+
 function ProgressDots({ step }: { step: number }) {
   return (
-    <div className="flex items-center justify-center gap-2" aria-label={`Step ${step + 1} of ${steps.length}`}>
-      {steps.map((item, index) => (
+    <div className="flex items-center justify-center gap-2" aria-label={`Step ${step + 1} of ${launchSteps.length}`}>
+      {launchSteps.map((item, index) => (
         <span
           key={item.eyebrow}
           className={
@@ -149,15 +180,19 @@ function DemoLaunchButton({
 }
 
 export default function LaunchSelector() {
+  const closeMode = useMemo(() => initialCloseMode(), []);
   const [step, setStep] = useState(0);
-  const current = steps[step];
-  const isLastStep = step === steps.length - 1;
+  const current = closeMode ? closePages[closeMode] : launchSteps[step];
+  const isLastStep = !closeMode && step === launchSteps.length - 1;
+  const isDemoSelectStep = !closeMode && step === 2;
 
   const cardIcon = useMemo(() => {
+    if (closeMode === "transactional") return ShoppingCart;
+    if (closeMode === "informational") return Map;
     if (step === 0) return Sparkles;
     if (step === 1) return ShoppingCart;
     return Compass;
-  }, [step]);
+  }, [closeMode, step]);
   const CardIcon = cardIcon;
 
   return (
@@ -180,13 +215,13 @@ export default function LaunchSelector() {
 
           <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
             <Sparkles className="h-4 w-4 text-slate-500" />
-            Step {step + 1} of {steps.length}
+            {closeMode ? "Demo takeaway" : `Step ${step + 1} of ${launchSteps.length}`}
           </div>
         </div>
       </header>
 
       <section className="mx-auto flex h-[calc(100vh-57px)] max-w-5xl flex-col items-center justify-center px-4 py-3 sm:h-[calc(100vh-69px)] sm:px-6 sm:py-5">
-        <ProgressDots step={step} />
+        {!closeMode && <ProgressDots step={step} />}
 
         <div className="relative mt-3 w-full max-w-2xl sm:mt-5">
           <AnimatePresence mode="wait">
@@ -198,22 +233,22 @@ export default function LaunchSelector() {
               transition={{ duration: 0.24, ease: "easeOut" }}
               className="relative overflow-hidden rounded-[28px] border border-white/80 bg-white/94 shadow-[0_28px_80px_rgba(15,23,42,0.16),inset_0_2px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-950/[0.04] backdrop-blur-xl transition-transform duration-300 before:absolute before:-inset-6 before:-z-10 before:rounded-[40px] before:bg-indigo-900/[0.07] before:blur-3xl hover:-translate-y-0.5 hover:shadow-[0_34px_90px_rgba(15,23,42,0.18),inset_0_2px_0_rgba(255,255,255,0.85)] sm:rounded-[32px]"
             >
-              <div className="border-b border-slate-950/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 py-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-7 sm:py-5">
+              <div className="border-b border-slate-200/80 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-5 py-4 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:px-7 sm:py-5">
                 <div className="mb-3 flex items-center justify-between gap-4">
-                  <div className="inline-flex rounded-2xl bg-white/10 p-3 text-white backdrop-blur">
+                  <div className="inline-flex rounded-2xl bg-white/80 p-3 text-slate-700 shadow-sm ring-1 ring-slate-200/80 backdrop-blur">
                     <CardIcon className="h-5 w-5" />
                   </div>
-                  <div className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                  <div className="rounded-full border border-slate-200 bg-white/75 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 shadow-sm">
                     {current.eyebrow}
                   </div>
                 </div>
-                <h1 className="text-xl font-semibold leading-tight tracking-tight sm:text-3xl">
+                <h1 className="text-xl font-semibold leading-tight tracking-tight text-slate-950 sm:text-3xl">
                   {current.title}
                 </h1>
               </div>
 
               <div
-                className={`px-5 py-4 sm:px-7 ${step === 1 ? "sm:min-h-[300px] sm:py-7" : "sm:py-5"}`}
+                className={`px-5 py-4 sm:px-7 ${step === 1 ? "sm:min-h-[300px] sm:py-7" : closeMode ? "sm:min-h-[260px] sm:py-6" : "sm:py-5"}`}
               >
 {current.intro && (
   <p className="text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
@@ -221,15 +256,17 @@ export default function LaunchSelector() {
   </p>
 )}
 
-{step < 2 && (
+{current.bullets.length > 0 && (
   <div className="mx-auto my-4 h-px w-[88%] bg-slate-400/90" />
 )}
 
-<ul className={`${step < 2 ? "mt-0" : "mt-4"} space-y-3 text-sm leading-6 text-slate-700 sm:text-base`}>
-  {current.bullets.map((item) => (
-    <WizardBullet key={item} item={item} />
-  ))}
-</ul>
+{current.bullets.length > 0 && (
+  <ul className="mt-0 space-y-3 text-sm leading-6 text-slate-700 sm:text-base">
+    {current.bullets.map((item) => (
+      <WizardBullet key={item} item={item} />
+    ))}
+  </ul>
+)}
 
                 {current.closing && (
                   <div className="mt-5 border-t border-slate-100 pt-3 text-sm font-medium leading-6 text-slate-700 sm:text-base">
@@ -237,19 +274,19 @@ export default function LaunchSelector() {
                   </div>
                 )}
 
-                {isLastStep && (
+                {isDemoSelectStep && (
                   <div className="mt-4 grid gap-3">
                     <DemoLaunchButton
                       href="/informational?mode=self_drive"
                       icon={Map}
-                      eyebrow="Informational self-drive path"
+                      eyebrow="Informational self-drive experience"
                       title="NexaPath Advisory"
                       description="For service sites where the goal is discovery, qualification, and lead direction."
                     />
                     <DemoLaunchButton
                       href="/transactional?mode=self_drive"
                       icon={Hotel}
-                      eyebrow="Transactional self-drive path"
+                      eyebrow="Transactional self-drive experience"
                       title="Domi Coast Resort"
                       description="For commerce sites where the goal is option filtering and sales completion."
                     />
@@ -263,18 +300,24 @@ export default function LaunchSelector() {
         <div className="mt-3 flex w-full max-w-2xl items-center justify-between gap-3 sm:mt-4">
           <button
             type="button"
-            onClick={() => setStep((value) => Math.max(0, value - 1))}
-            disabled={step === 0}
+            onClick={() => {
+              if (closeMode) {
+                window.location.href = "/";
+                return;
+              }
+              setStep((value) => Math.max(0, value - 1));
+            }}
+            disabled={!closeMode && step === 0}
             className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {closeMode ? "Run another demo" : "Back"}
           </button>
 
-          {!isLastStep && (
+          {!closeMode && !isLastStep && (
             <button
               type="button"
-              onClick={() => setStep((value) => Math.min(steps.length - 1, value + 1))}
+              onClick={() => setStep((value) => Math.min(launchSteps.length - 1, value + 1))}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)]"
             >
               Next
