@@ -1,73 +1,139 @@
-import React, { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Compass, Hotel, Map, ShoppingCart, Sparkles } from "lucide-react";
-
-type WizardStep = {
-  eyebrow: string;
-  title: string;
-  intro?: string;
-  bullets: string[];
-  closing?: string;
-};
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { motion } from "framer-motion";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Bot,
+  CalendarCheck,
+  CheckCircle,
+  ClipboardCheck,
+  Compass,
+  Hotel,
+  Map,
+  PlayCircle,
+  Route,
+  Search,
+  ShoppingCart,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 
 type CloseMode = "transactional" | "informational";
 
-const launchSteps: WizardStep[] = [
+type WalkthroughMessage = {
+  label: string;
+  message: string;
+  icon: LucideIcon;
+  iconClass: string;
+  demoButtons?: boolean;
+};
+
+const launchMessages: WalkthroughMessage[] = [
   {
-    eyebrow: "Guided buying",
-    title: "TourBot turns answers into tours.",
-    intro:
-      "TourBot doesn't just tell you, it navigates sites, spotlights, and _shows_ you.",
-    bullets: [
-      "**Static site** → you decipher layout, try to find, fumble.",
-      "**Standard chatbot** → you get a road map but have to read it yourself.",
-      "**TourBot** → you get a guided tour thru next steps.",
-    ],
+    label: "Visitors wander",
+    message:
+      "Usually, people land on a website, scan around, and eventually try to find what they need.",
+    icon: Search,
+    iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
   },
   {
-    eyebrow: "Two site patterns",
-    title: "Every business site has a cart.",
-    intro:
-      "Transactional sites show the cart. Informational sites hide it inside the next step: a lead, quote, consultation, assessment, or service-fit decision.",
-    bullets: [
-      "**Visible cart sites** — hotels, ecommerce, travel, tickets, reservations, quote flows.\n_Focus:_ compare options, add extras, reserve, buy, or check out.",
-      "**Implied cart sites** — consulting, law, agencies, healthcare, MSPs, B2B services.\n_Focus:_ identify fit and move toward an inquiry, quote, consultation, or service path.",
-    ],
-    closing:
-      "TourBot handles both: visible-cart _sales_ paths and implied-cart _lead_ paths.",
+    label: "Road maps help",
+    message:
+      "A chatbot can give a road map. That helps, but the visitor still has to interpret the answer and navigate alone.",
+    icon: Bot,
+    iconClass: "bg-slate-100 text-slate-700 ring-slate-200/80",
   },
   {
-    eyebrow: "Self-drive demos",
-    title: "Live look-ins.",
-    intro: "Choose a self-drive demo:",
-    bullets: [],
+    label: "TourBot guides",
+    message:
+      "**TourBot** guides the visitor through the next steps on the site instead of leaving them with instructions.",
+    icon: Sparkles,
+    iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+  },
+  {
+    label: "Intent becomes motion",
+    message:
+      "**TourBot** figures out what the visitor wants, optimizes options, physically navigates the site, and suggests next steps.",
+    icon: Route,
+    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+  },
+  {
+    label: "Cart sites",
+    message:
+      "**TourBot** walks shoppers through choices, stores selections, and autofills those choices into booking or checkout.",
+    icon: ShoppingCart,
+    iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
+  },
+  {
+    label: "Service sites",
+    message:
+      "**TourBot** reveals deeper details, schedules appointments, and hands off intake summaries when the offer is less defined.",
+    icon: CalendarCheck,
+    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
+  },
+  {
+    label: "Choose a demo",
+    message:
+      "See **TourBot** guide a visitor through a path.",
+    icon: PlayCircle,
+    iconClass: "bg-slate-950 text-white ring-slate-950/10",
+    demoButtons: true,
   },
 ];
 
-const closePages: Record<CloseMode, WizardStep> = {
-  transactional: {
-    eyebrow: "Transactional takeaway",
-    title: "TourBot turns browsing into buying.",
-    intro:
-      "TourBot turns buying intent into guided completion: it listens, fills in missing details through progressive chips, and keeps the shopper moving toward the sale.",
-    bullets: [
-      "**Progressive chips** steer next steps and expose overlooked features.",
-      "**Relevant add-ons and upsells** appear before checkout.",
-      "**Known choices carry forward** into a booking, checkout, or sales handoff.",
-    ],
-  },
-  informational: {
-    eyebrow: "Informational takeaway",
-    title: "TourBot turns discovery into qualified handoff.",
-    intro:
-      "On informational sites, the merchandise is often hidden. TourBot reveals the right service path, qualifies the visitor, and pulls the lead toward a real next step.",
-    bullets: [
-      "**Intake briefs** summarize the visitor’s need, fit, urgency, and context.",
-      "**Calendar integrations** can schedule appointments or route service requests.",
-      "**Conversation IDs and ticketing handoff** can connect live consultants.",
-    ],
-  },
+const closeMessages: Record<CloseMode, WalkthroughMessage[]> = {
+  transactional: [
+    {
+      label: "Booking path",
+      message:
+        "**TourBot** translated dates, room preference, budget sensitivity, and breakfast into a staged hotel stay.",
+      icon: Hotel,
+      iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+    },
+    {
+      label: "Context carried forward",
+      message:
+        "Room choice, dates, guest count, and package moved with the visitor into the booking handoff.",
+      icon: ShoppingCart,
+      iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
+    },
+    {
+      label: "Less friction",
+      message:
+        "For transactional sites, **TourBot** keeps shoppers moving toward checkout instead of leaving them to rebuild their choices.",
+      icon: CheckCircle,
+      iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+    },
+  ],
+  informational: [
+    {
+      label: "Hidden cart revealed",
+      message:
+        "**TourBot** showed how a service-site visitor can move from vague discovery into a clearer service path.",
+      icon: Map,
+      iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
+    },
+    {
+      label: "Qualified handoff",
+      message:
+        "**TourBot** can capture fit, urgency, need, and next-step context before a form, calendar, ticket, or consultant handoff.",
+      icon: ClipboardCheck,
+      iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
+    },
+    {
+      label: "Discovery becomes action",
+      message:
+        "For informational sites, **TourBot** helps visitors understand the offer and move toward an inquiry, appointment, or qualified next step.",
+      icon: Sparkles,
+      iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+    },
+  ],
 };
+
+const THINKING_WIGGLE_DURATION = 1.35;
+const THINKING_WIGGLE_STAGGER = 0.018;
+const MESSAGE_WAVE_MS = 1360;
+const RIBBON_GLIDE_MS = 720;
 
 function initialCloseMode(): CloseMode | null {
   if (typeof window === "undefined") return null;
@@ -76,15 +142,24 @@ function initialCloseMode(): CloseMode | null {
   return null;
 }
 
-function ProgressDots({ step }: { step: number }) {
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function ProgressDots({ step, count }: { step: number; count: number }) {
   return (
-    <div className="flex items-center justify-center gap-2" aria-label={`Step ${step + 1} of ${launchSteps.length}`}>
-      {launchSteps.map((item, index) => (
+    <div
+      className="flex items-center justify-center gap-1.5 sm:gap-2"
+      aria-label={`Step ${step + 1} of ${count}`}
+    >
+      {Array.from({ length: count }).map((_, index) => (
         <span
-          key={item.eyebrow}
+          key={index}
           className={
             "h-1.5 rounded-full transition-all sm:h-2 " +
-            (index === step ? "w-7 bg-slate-950 shadow-[0_4px_12px_rgba(15,23,42,0.20)] sm:w-8" : "w-1.5 bg-slate-300 sm:w-2")
+            (index === step
+              ? "w-7 bg-slate-950 shadow-[0_4px_12px_rgba(15,23,42,0.20)] sm:w-8"
+              : "w-1.5 bg-slate-300 sm:w-2")
           }
         />
       ))}
@@ -92,54 +167,112 @@ function ProgressDots({ step }: { step: number }) {
   );
 }
 
-function MarkdownText({ text, className = "" }: { text: string; className?: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*|_[^_]+_)/g).filter(Boolean);
+type MarkdownSegment = {
+  kind: "text" | "strong" | "em";
+  text: string;
+};
+
+function parseInlineMarkdown(body: string): MarkdownSegment[] {
+  return body
+    .split(/(\*\*[^*]+\*\*|_[^_]+_)/g)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return { kind: "strong", text: part.slice(2, -2) };
+      }
+
+      if (part.startsWith("_") && part.endsWith("_")) {
+        return { kind: "em", text: part.slice(1, -1) };
+      }
+
+      return { kind: "text", text: part };
+    });
+}
+
+function markdownSegmentClass(kind: MarkdownSegment["kind"]) {
+  if (kind === "strong") return "font-semibold text-slate-950";
+  if (kind === "em") return "italic text-slate-600";
+  return "";
+}
+
+function MarkdownText({ body }: { body: string }) {
+  const segments = parseInlineMarkdown(body);
 
   return (
-    <span className={className}>
-      {parts.map((part, index) => {
-        if (part.startsWith("**") && part.endsWith("**")) {
-          return (
-            <strong key={`${part}-${index}`} className="font-semibold text-slate-950">
-              {part.slice(2, -2)}
-            </strong>
-          );
-        }
-
-        if (part.startsWith("_") && part.endsWith("_")) {
-          return (
-            <em key={`${part}-${index}`} className="italic text-slate-600">
-              {part.slice(1, -1)}
-            </em>
-          );
-        }
-
-        return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
+      {segments.map((segment, index) => {
+        const className = markdownSegmentClass(segment.kind);
+        if (!className) return <span key={`${segment.text}-${index}`}>{segment.text}</span>;
+        return (
+          <span key={`${segment.text}-${index}`} className={className}>
+            {segment.text}
+          </span>
+        );
       })}
     </span>
   );
 }
 
-function WizardBullet({ item }: { item: string }) {
-  const [mainLine, ...subLines] = item.split("\n");
-  const subText = subLines.join(" ").trim();
+function ThinkingText({ body }: { body: string }) {
+  const segments = parseInlineMarkdown(body);
+  let characterIndex = 0;
 
   return (
-    <li className="flex gap-2.5 sm:gap-3">
-      <span className="mt-2 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white shadow-[0_1px_4px_rgba(15,23,42,0.16)] sm:mt-2.5 sm:h-4 sm:w-4">
-        <span className="h-1 w-1 rounded-full bg-slate-900 sm:h-1.5 sm:w-1.5" />
-      </span>
-      <span className="min-w-0">
-        <MarkdownText text={mainLine} className="block" />
-        {subText && (
-          <MarkdownText
-            text={subText}
-            className="mt-1 block border-l border-slate-300 pl-2.5 text-[12px] font-medium leading-5 text-slate-700 sm:mt-1 sm:border-slate-200 sm:pl-3 sm:text-sm sm:font-normal sm:leading-5 sm:text-slate-500"
-          />
-        )}
-      </span>
-    </li>
+    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
+      {segments.map((segment, segmentIndex) => {
+        const segmentClass = markdownSegmentClass(segment.kind);
+        const tokens = segment.text.match(/\S+|\s+/g) || [];
+
+        return tokens.map((token, tokenIndex) => {
+          const key = `${segmentIndex}-${tokenIndex}-${token}`;
+
+          if (/^\s+$/.test(token)) {
+            characterIndex += token.length;
+            return token.includes("\n") ? (
+              <span key={`space-${key}`}>{token}</span>
+            ) : (
+              <span key={`space-${key}`}> </span>
+            );
+          }
+
+          const startIndex = characterIndex;
+          characterIndex += token.length;
+
+          return (
+            <span
+              key={key}
+              className={`inline-block whitespace-nowrap align-baseline ${segmentClass}`.trim()}
+            >
+              {token.split("").map((char, index) => (
+                <motion.span
+                  key={`${char}-${key}-${index}`}
+                  className="inline-block"
+                  animate={{
+                    y: [0, -2.75, 0, 1.65, 0],
+                    opacity: [0.58, 1, 0.76, 1, 0.58],
+                  }}
+                  transition={{
+                    duration: THINKING_WIGGLE_DURATION,
+                    repeat: Infinity,
+                    delay: (startIndex + index) * THINKING_WIGGLE_STAGGER,
+                    ease: "easeInOut",
+                  }}
+                >
+                  {char}
+                </motion.span>
+              ))}
+            </span>
+          );
+        });
+      })}
+    </span>
   );
+}
+
+function toneClass(step: number) {
+  return step % 2 === 0
+    ? "bg-white/80 text-slate-950"
+    : "bg-sky-50/85 text-slate-950";
 }
 
 function DemoLaunchButton({
@@ -150,7 +283,7 @@ function DemoLaunchButton({
   description,
 }: {
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   eyebrow: string;
   title: string;
   description: string;
@@ -158,45 +291,156 @@ function DemoLaunchButton({
   return (
     <a
       href={href}
-      className="group flex w-full items-start gap-3 rounded-[20px] bg-slate-950 p-2.5 text-left text-white shadow-[0_14px_34px_rgba(15,23,42,0.24),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_18px_42px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.14)] sm:gap-4 sm:rounded-[22px] sm:p-4"
+      className="group flex items-center gap-3 rounded-[22px] bg-slate-950 px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(15,23,42,0.20)] transition hover:-translate-y-0.5 hover:bg-slate-800 sm:px-5 sm:py-4"
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition group-hover:bg-white/15 sm:h-10 sm:w-10">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition group-hover:bg-white/15">
         <Icon className="h-5 w-5" />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-300 sm:text-[10px] sm:tracking-[0.18em] sm:text-slate-400">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
           {eyebrow}
         </span>
-        <span className="mt-0.5 block text-sm font-semibold tracking-tight sm:mt-1 sm:text-lg">
+        <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
           {title}
         </span>
-        <span className="mt-0.5 block text-[13px] leading-5 text-slate-200 sm:mt-1 sm:text-sm sm:leading-5 sm:text-slate-300">
+        <span className="mt-0.5 block text-[13px] leading-5 text-slate-200 sm:text-sm sm:text-slate-300">
           {description}
         </span>
       </span>
-      <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-white" />
+      <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-white" />
     </a>
+  );
+}
+
+function LaunchMessage({
+  message,
+  step,
+  isWaving,
+}: {
+  message: WalkthroughMessage;
+  step: number;
+  isWaving: boolean;
+}) {
+  const Icon = message.icon;
+
+  return (
+    <div className={`w-full ${toneClass(step)} px-5 py-7 sm:px-10 sm:py-10`}>
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${message.iconClass} sm:h-11 sm:w-11`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            {message.label}
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          {isWaving ? <ThinkingText body={message.message} /> : <MarkdownText body={message.message} />}
+        </div>
+
+        {message.demoButtons && (
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+            <DemoLaunchButton
+              href="/informational?mode=self_drive"
+              icon={Map}
+              eyebrow="Informational"
+              title="NexaPath"
+              description="Services demo"
+            />
+            <DemoLaunchButton
+              href="/transactional?mode=self_drive"
+              icon={Hotel}
+              eyebrow="Transactional"
+              title="Domi Coast"
+              description="Hotel demo"
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function LaunchSelector() {
   const closeMode = useMemo(() => initialCloseMode(), []);
+  const messages = closeMode ? closeMessages[closeMode] : launchMessages;
   const [step, setStep] = useState(0);
-  const current = closeMode ? closePages[closeMode] : launchSteps[step];
-  const isLastStep = !closeMode && step === launchSteps.length - 1;
-  const isDemoSelectStep = !closeMode && step === 2;
+  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const [ribbonY, setRibbonY] = useState(0);
+  const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
+  const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const stageScrollRef = useRef<HTMLDivElement | null>(null);
+  const current = messages[step];
+  const isLastStep = step === messages.length - 1;
+  const isWaving = wavingIndex !== null;
 
-  const cardIcon = useMemo(() => {
-    if (closeMode === "transactional") return ShoppingCart;
-    if (closeMode === "informational") return Map;
-    if (step === 0) return Sparkles;
-    if (step === 1) return ShoppingCart;
-    return Compass;
-  }, [closeMode, step]);
-  const CardIcon = cardIcon;
+  const stepLabel = closeMode
+    ? `Takeaway ${step + 1} of ${messages.length}`
+    : `Step ${step + 1} of ${messages.length}`;
+
+  useLayoutEffect(() => {
+    const active = segmentRefs.current[step];
+    if (!active) return;
+
+    setRibbonY(-active.offsetTop);
+    setRibbonHeight(active.offsetHeight);
+  }, [step, messages.length]);
+
+  useEffect(() => {
+    const measureActiveSegment = () => {
+      const active = segmentRefs.current[step];
+      if (!active) return;
+      setRibbonY(-active.offsetTop);
+      setRibbonHeight(active.offsetHeight);
+    };
+
+    window.addEventListener("resize", measureActiveSegment);
+    return () => window.removeEventListener("resize", measureActiveSegment);
+  }, [step]);
+
+  useEffect(() => {
+    stageScrollRef.current?.scrollTo({ top: 0 });
+  }, [step]);
+
+  const goHome = () => {
+    window.location.href = "/";
+  };
+
+  const goBack = () => {
+    if (isWaving) return;
+
+    if (step === 0) {
+      if (closeMode) goHome();
+      return;
+    }
+
+    setStep((value) => Math.max(0, value - 1));
+  };
+
+  const goNext = async () => {
+    if (isWaving) return;
+
+    if (closeMode && isLastStep) {
+      goHome();
+      return;
+    }
+
+    if (isLastStep) return;
+
+    setWavingIndex(step);
+    await wait(MESSAGE_WAVE_MS);
+    setStep((value) => Math.min(messages.length - 1, value + 1));
+    await wait(RIBBON_GLIDE_MS);
+    setWavingIndex(null);
+  };
+
+  const showNextButton = closeMode || !current.demoButtons;
+  const backLabel = closeMode && step === 0 ? "Run another demo" : "Back";
+  const nextLabel = closeMode && isLastStep ? "Run another demo" : "Next";
 
   return (
-    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
       <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
@@ -213,116 +457,71 @@ export default function LaunchSelector() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+          <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
             <Sparkles className="h-4 w-4 text-slate-500" />
-            {closeMode ? "Demo takeaway" : `Step ${step + 1} of ${launchSteps.length}`}
+            {stepLabel}
           </div>
         </div>
       </header>
 
       <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div className="shrink-0">
-          {!closeMode && <ProgressDots step={step} />}
+          <ProgressDots step={step} count={messages.length} />
         </div>
 
-        <div className="relative mt-2 min-h-0 w-full max-w-2xl overflow-y-auto overscroll-contain pb-2 sm:mt-5 sm:overflow-visible sm:pb-0">
-          <AnimatePresence mode="wait">
+        <div
+          ref={stageScrollRef}
+          className="relative mt-3 min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain pb-2 sm:mt-6 sm:overflow-visible sm:pb-0"
+        >
+          <div
+            className="w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm transition-[height] duration-700 ease-out sm:rounded-[36px]"
+            style={ribbonHeight ? { height: ribbonHeight } : undefined}
+          >
             <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 28, scale: 0.985 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -28, scale: 0.985 }}
-              transition={{ duration: 0.24, ease: "easeOut" }}
-              className="relative overflow-hidden rounded-[24px] border border-white/80 bg-white/94 shadow-[0_20px_58px_rgba(15,23,42,0.14),inset_0_2px_0_rgba(255,255,255,0.85)] ring-1 ring-slate-950/[0.04] backdrop-blur-xl transition-transform duration-300 before:absolute before:-inset-6 before:-z-10 before:rounded-[40px] before:bg-indigo-900/[0.07] before:blur-3xl hover:-translate-y-0.5 hover:shadow-[0_34px_90px_rgba(15,23,42,0.18),inset_0_2px_0_rgba(255,255,255,0.85)] sm:rounded-[32px] sm:shadow-[0_28px_80px_rgba(15,23,42,0.16),inset_0_2px_0_rgba(255,255,255,0.85)]"
+              animate={{ y: ribbonY }}
+              initial={false}
+              transition={{
+                duration: RIBBON_GLIDE_MS / 1000,
+                ease: [0.22, 1, 0.36, 1],
+              }}
             >
-              <div className="border-b border-slate-200/80 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 px-4 py-3 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:px-7 sm:py-5">
-                <div className="mb-2 flex items-center justify-between gap-3 sm:mb-3 sm:gap-4">
-                  <div className="inline-flex rounded-2xl bg-white/80 p-2.5 text-slate-700 shadow-sm ring-1 ring-slate-200/80 backdrop-blur sm:p-3">
-                    <CardIcon className="h-5 w-5" />
-                  </div>
-                  <div className="rounded-full border border-slate-300 bg-white/85 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-700 shadow-sm sm:border-slate-200 sm:bg-white/75 sm:px-3 sm:text-[10px] sm:tracking-[0.18em] sm:text-slate-500">
-                    {current.eyebrow}
-                  </div>
+              {messages.map((message, index) => (
+                <div
+                  key={`${closeMode || "launch"}-${message.label}-${index}`}
+                  ref={(node) => {
+                    segmentRefs.current[index] = node;
+                  }}
+                >
+                  <LaunchMessage
+                    message={message}
+                    step={index}
+                    isWaving={wavingIndex === index}
+                  />
                 </div>
-                <h1 className="text-lg font-semibold leading-tight tracking-tight text-slate-950 sm:text-3xl">
-                  {current.title}
-                </h1>
-              </div>
-
-              <div
-                className={`px-4 py-3 sm:px-7 ${step === 1 ? "sm:min-h-[300px] sm:py-7" : closeMode ? "sm:min-h-[260px] sm:py-6" : "sm:py-5"}`}
-              >
-{current.intro && (
-  <p className="text-sm leading-6 text-slate-700 sm:text-base sm:leading-7 sm:text-slate-600">
-    <MarkdownText text={current.intro} />
-  </p>
-)}
-
-{current.bullets.length > 0 && (
-  <div className="mx-auto my-3 h-px w-[88%] bg-slate-400/90 sm:my-4" />
-)}
-
-{current.bullets.length > 0 && (
-  <ul className="mt-0 space-y-2 text-sm leading-6 text-slate-800 sm:space-y-3 sm:text-base sm:leading-6 sm:text-slate-700">
-    {current.bullets.map((item) => (
-      <WizardBullet key={item} item={item} />
-    ))}
-  </ul>
-)}
-
-                {current.closing && (
-                  <div className="mt-3 border-t border-slate-200 pt-2 text-sm font-semibold leading-6 text-slate-800 sm:mt-5 sm:border-slate-100 sm:pt-3 sm:text-base sm:font-medium sm:leading-6 sm:text-slate-700">
-                    <MarkdownText text={current.closing} />
-                  </div>
-                )}
-
-                {isDemoSelectStep && (
-                  <div className="mt-3 grid gap-2.5 sm:mt-4 sm:gap-3">
-                    <DemoLaunchButton
-                      href="/informational?mode=self_drive"
-                      icon={Map}
-                      eyebrow="Informational Use Case"
-                      title="NexaPath Advisory"
-                      description="Service-site demo"
-                    />
-                    <DemoLaunchButton
-                      href="/transactional?mode=self_drive"
-                      icon={Hotel}
-                      eyebrow="Transactional Use Case"
-                      title="Domi Coast Resort"
-                      description="Hotel demo"
-                    />
-                  </div>
-                )}
-              </div>
+              ))}
             </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
 
-        <div className="mt-2 flex w-full max-w-2xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-4 sm:pb-0">
+        <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
           <button
             type="button"
-            onClick={() => {
-              if (closeMode) {
-                window.location.href = "/";
-                return;
-              }
-              setStep((value) => Math.max(0, value - 1));
-            }}
+            onClick={goBack}
             disabled={!closeMode && step === 0}
-            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+            className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {closeMode ? "Run another demo" : "Back"}
+            {backLabel}
           </button>
 
-          {!closeMode && !isLastStep && (
+          {showNextButton && (
             <button
               type="button"
-              onClick={() => setStep((value) => Math.min(launchSteps.length - 1, value + 1))}
-              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] sm:px-5 sm:py-2.5"
+              onClick={goNext}
+              disabled={isWaving}
+              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
             >
-              Next
+              {nextLabel}
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
           )}
