@@ -39,7 +39,7 @@ const launchSteps: WizardStep[] = [
   {
     eyebrow: "Self-drive demos",
     title: "Live look-ins.",
-    intro: "Choose a self-drive experience below and see TourBot applied live to a site.",
+    intro: "Choose a self-drive demo:",
     bullets: [],
   },
 ];
@@ -196,8 +196,8 @@ export default function LaunchSelector() {
   const CardIcon = cardIcon;
 
   return (
-    <main className="h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_45%,_#f8fafc_100%)] text-slate-950">
-      <header className="border-b border-white/70 bg-white/70 backdrop-blur-xl">
+    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef2ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+      <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
@@ -220,10 +220,12 @@ export default function LaunchSelector() {
         </div>
       </header>
 
-      <section className="mx-auto flex h-[calc(100vh-46px)] max-w-5xl flex-col items-center justify-center px-3 py-2 sm:h-[calc(100vh-69px)] sm:px-6 sm:py-5">
-        {!closeMode && <ProgressDots step={step} />}
+      <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+        <div className="shrink-0">
+          {!closeMode && <ProgressDots step={step} />}
+        </div>
 
-        <div className="relative mt-2 w-full max-w-2xl sm:mt-5">
+        <div className="relative mt-2 min-h-0 w-full max-w-2xl overflow-y-auto overscroll-contain pb-2 sm:mt-5 sm:overflow-visible sm:pb-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -279,16 +281,16 @@ export default function LaunchSelector() {
                     <DemoLaunchButton
                       href="/informational?mode=self_drive"
                       icon={Map}
-                      eyebrow="Informational self-drive experience"
+                      eyebrow="Informational Use Case"
                       title="NexaPath Advisory"
-                      description="An informational service-site demo"
+                      description="Service-site demo"
                     />
                     <DemoLaunchButton
                       href="/transactional?mode=self_drive"
                       icon={Hotel}
-                      eyebrow="Transactional self-drive experience"
+                      eyebrow="Transactional Use Case"
                       title="Domi Coast Resort"
-                      description="A transactional commerce-site demo"
+                      description="Hotel demo"
                     />
                   </div>
                 )}
@@ -297,7 +299,7 @@ export default function LaunchSelector() {
           </AnimatePresence>
         </div>
 
-        <div className="mt-2 flex w-full max-w-2xl items-center justify-between gap-3 sm:mt-4">
+        <div className="mt-2 flex w-full max-w-2xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-4 sm:pb-0">
           <button
             type="button"
             onClick={() => {
