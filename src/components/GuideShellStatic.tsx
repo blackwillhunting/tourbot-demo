@@ -2316,6 +2316,8 @@ export function GuideShellStatic({
 
   const coarsePointer = isCoarsePointer();
   const isMobileBookingUpsell = coarsePointer && activeCompletionWidget === "upsell";
+  const isMobileSavedTrip = coarsePointer && activeCompletionWidget === "saved-trip";
+  const isMobileCommerceDrawer = isMobileBookingUpsell || isMobileSavedTrip;
   const constrainedViewportHeight = Math.max(300, visualViewportHeight);
   const floatingCardMaxHeight = `${Math.max(280, constrainedViewportHeight - 32)}px`;
   const keyboardPanelMaxHeight = Math.max(240, constrainedViewportHeight - 20);
@@ -4856,7 +4858,7 @@ export function GuideShellStatic({
                 }}
                 className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
               >
-                {showGuideActionStrip && !isMobileBookingUpsell && (
+                {showGuideActionStrip && !isMobileCommerceDrawer && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0 flex-1 text-xs text-slate-500">
                       {hasGuideSteps ? (
@@ -4998,7 +5000,7 @@ export function GuideShellStatic({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
-                        className={`mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${isMobileBookingUpsell ? "max-h-[min(46dvh,310px)] p-2" : "max-h-[min(54dvh,390px)] p-1.5"}`}
+                        className={`mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${isMobileCommerceDrawer ? "max-h-[min(46dvh,310px)] p-2" : "max-h-[min(54dvh,390px)] p-1.5"}`}
                       >
                         <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
                           <div>
@@ -5278,6 +5280,122 @@ export function GuideShellStatic({
                         )}
 
                         {activeCompletionWidget === "saved-trip" && (
+                          isMobileSavedTrip ? (
+                            <div className="space-y-2">
+                              <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                      Saved stay
+                                    </div>
+                                    <div className="mt-1 truncate text-sm font-semibold text-slate-900">
+                                      {savedTripContext.room?.title || "No room saved yet"}
+                                    </div>
+                                    <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                                      {savedTripContext.room?.priceLabel || "Save a room recommendation before checkout."}
+                                    </div>
+                                  </div>
+                                  {savedTripContext.room && (
+                                    <button
+                                      type="button"
+                                      aria-label="Remove selected room"
+                                      onClick={() => removeSavedTripItem("room", savedTripContext.room?.id || "")}
+                                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-50 hover:text-rose-600"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+
+                              {savedTripContext.packages.length > 0 && (
+                                <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                    Packages
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    {savedTripContext.packages.slice(0, 3).map((item) => (
+                                      <div
+                                        key={item.id}
+                                        className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5"
+                                      >
+                                        <div className="min-w-0">
+                                          <div className="truncate text-xs font-semibold text-slate-900">
+                                            {item.title}
+                                          </div>
+                                          {item.priceLabel && (
+                                            <div className="mt-0.5 text-[11px] text-slate-500">
+                                              {item.priceLabel}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <button
+                                          type="button"
+                                          aria-label={`Remove ${item.title}`}
+                                          onClick={() => removeSavedTripItem("package", item.id)}
+                                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-white hover:text-rose-600"
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {savedTripContext.packages.length > 3 && (
+                                      <div className="text-[11px] font-medium text-slate-500">
+                                        +{savedTripContext.packages.length - 3} more saved add-on{savedTripContext.packages.length - 3 === 1 ? "" : "s"}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("dates"); syncShellCalendarMonthToDate(shellCheckInDate); setActiveDatePicker("check-in"); }}
+                                  className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition ${shellDatesApplied ? "bg-emerald-50 text-emerald-800" : "border border-dashed border-slate-300 bg-white text-slate-600"}`}
+                                >
+                                  {shellDatesApplied ? "Dates set" : "Dates"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("guests"); }}
+                                  className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition ${shellGuestsApplied ? "bg-emerald-50 text-emerald-800" : "border border-dashed border-slate-300 bg-white text-slate-600"}`}
+                                >
+                                  {shellGuestsApplied ? "Guests set" : "Guests"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("budget"); }}
+                                  className={`rounded-lg px-2 py-2 text-center text-[11px] font-semibold transition ${shellBudgetBand ? "bg-emerald-50 text-emerald-800" : "border border-dashed border-slate-300 bg-white text-slate-600"}`}
+                                >
+                                  {shellBudgetBand ? "Budget set" : "Budget"}
+                                </button>
+                              </div>
+
+                              <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold text-slate-900">
+                                    Ready to checkout?
+                                  </div>
+                                  <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                                    {estimateSavedTripSubtotal() !== null
+                                      ? `$${estimateSavedTripSubtotal()?.toLocaleString()} before taxes and fees.`
+                                      : "Continue with your saved stay."}
+                                  </div>
+                                </div>
+                                <button
+                                  data-demo-target="guide-save-view-continue"
+                                  type="button"
+                                  onClick={() => bookCurrentGuideStep(true, true)}
+                                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-cyan-950 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
+                                >
+                                  <ShoppingBag className="h-3.5 w-3.5" />
+                                  Continue
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+
                           <div className="space-y-2 sm:space-y-3">
                             <div className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3">
                               <div className="mb-2 flex items-center justify-between gap-2">
@@ -5430,6 +5548,7 @@ export function GuideShellStatic({
                                 : "Estimate appears here after a saved room has a nightly rate and dates are applied."}
                             </div>
                           </div>
+                          )
                         )}
 
                         {activeCompletionWidget === "upsell" && (
