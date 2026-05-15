@@ -281,14 +281,14 @@ export default function LaunchSelector() {
                       icon={Map}
                       eyebrow="Informational self-drive experience"
                       title="NexaPath Advisory"
-                      description="For service sites where the goal is discovery, qualification, and lead direction."
+                      description="An informational service-site demo"
                     />
                     <DemoLaunchButton
                       href="/transactional?mode=self_drive"
                       icon={Hotel}
                       eyebrow="Transactional self-drive experience"
                       title="Domi Coast Resort"
-                      description="For commerce sites where the goal is option filtering and sales completion."
+                      description="A transactional commerce-site demo"
                     />
                   </div>
                 )}
