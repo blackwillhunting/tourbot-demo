@@ -78,20 +78,50 @@ function isCoarsePointer() {
   return Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 }
 
+function isVisibleElementBox(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const style = window.getComputedStyle(el);
+
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    style.display !== "none" &&
+    style.visibility !== "hidden" &&
+    style.opacity !== "0"
+  );
+}
+
+function isElementTopmostAtCenter(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  if (
+    centerX < 0 ||
+    centerX > viewportWidth ||
+    centerY < 0 ||
+    centerY > viewportHeight
+  ) {
+    return true;
+  }
+
+  const topmost = document.elementFromPoint(centerX, centerY);
+  if (!topmost) return true;
+
+  return el === topmost || el.contains(topmost) || topmost.contains(el);
+}
+
 function visibleElementForSelector(selector: string): HTMLElement | null {
   try {
     const elements = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    const visible = elements.filter(isVisibleElementBox);
+
     return (
-      elements.find((el) => {
-        const rect = el.getBoundingClientRect();
-        const style = window.getComputedStyle(el);
-        return (
-          rect.width > 0 &&
-          rect.height > 0 &&
-          style.display !== "none" &&
-          style.visibility !== "hidden"
-        );
-      }) || null
+      visible.find(isElementTopmostAtCenter) ||
+      visible[visible.length - 1] ||
+      null
     );
   } catch {
     return null;

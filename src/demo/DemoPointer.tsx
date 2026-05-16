@@ -35,7 +35,7 @@ export default function DemoPointer({
           }}
           exit={{ opacity: 0, scale: 0.85 }}
           transition={{ duration: 0.42, ease: "easeOut" }}
-          className="pointer-events-none fixed left-0 top-0 z-[10000]"
+          className="pointer-events-none fixed left-0 top-0 z-[10040]"
         >
           <div className="relative">
             <AnimatePresence>
