@@ -38,7 +38,11 @@ function usesMobileDemoEnding(): boolean {
   );
 }
 
-function createGuidedCommerceBookingHandoffSteps(): DemoStep[] {
+function createGuidedCommerceBookingHandoffSteps({
+  includeFinalCallout = true,
+}: {
+  includeFinalCallout?: boolean;
+} = {}): DemoStep[] {
   const steps: DemoStep[] = [
     {
       action: "click-dom-target",
@@ -49,15 +53,18 @@ function createGuidedCommerceBookingHandoffSteps(): DemoStep[] {
       targetWaitMs: 6000,
     },
     { action: "wait", delayMs: 1200 },
-    {
+  ];
+
+  if (includeFinalCallout) {
+    steps.push({
       action: "callout",
       eyebrow: "Prefilled link",
       title: "What is being handed off",
-      body: "The room, travel dates, guest count, and breakfast package are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
+      body: "The room, travel dates, guest count, and selected add-ons are now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
       buttonLabel: "Finish demo",
       placement: "left",
-    },
-  ];
+    });
+  }
 
   if (!usesMobileDemoEnding()) {
     steps.push({
@@ -66,7 +73,7 @@ function createGuidedCommerceBookingHandoffSteps(): DemoStep[] {
       command: "minimize",
       hoverMs: 800,
       pulseMs: 650,
-      delayMs: 1400,
+      delayMs: includeFinalCallout ? 1400 : 1800,
       targetWaitMs: 3600,
     });
   }
@@ -212,22 +219,44 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
   id: "guided-commerce-assisted-completion",
   label: "Guided Commerce · Assisted Completion",
   description:
-    "Shows a sparse booking request: TourBot softly obtains missing data and hardens loose travel plans into solid options.",
+    "Shows a judgement-safe assisted completion path: range comparison, date and guest selectors, budgeted add-on reasoning, and booking handoff.",
   defaultCharDelayMs: 30,
   steps: [
+    {
+      action: "callout",
+      eyebrow: "Assisted completion",
+      title: "What you are about to see",
+      body: "The guest gives TourBot an incomplete booking request. TourBot uses the site's own selectors to collect missing dates and guests, then turns the loose request into a booking-ready stay.",
+      buttonLabel: "Start demo",
+      placement: "left",
+      emphasis: "green-flash",
+    },
+
     // Start from the minimized launcher and activate TourBot.
     { action: "click-target", target: "[data-demo-target='guide-launcher']", command: "open", hoverMs: 800, pulseMs: 650, delayMs: 1100, targetWaitMs: 3600 },
 
+    // 1) Deterministic range request: cheapest and most expensive are stable anchors,
+    // but the script remains safe by stepping through whatever TourBot returns.
     { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
     {
       action: "type-prompt",
-      prompt: "I need a nice room with a view and breakfast, but not too expensive.",
+      prompt: "I'm planning a stay. Show me your cheapest room and your most expensive room.",
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
 
-    // Complete missing booking context through passive chips.
+    {
+      action: "callout",
+      eyebrow: "Guided inputs",
+      title: "Missing details become selectors",
+      body: "Instead of forcing the guest to type every field, TourBot can open the right site controls at the right time: dates, guests, and booking constraints.",
+      buttonLabel: "Continue",
+      placement: "left",
+    },
+
+    // Complete missing booking context through selectors. These selectors append
+    // structured data into the composer so the next submit refreshes the plan.
     { action: "click-dom-target", target: "[data-demo-target='chip-select-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 4200 },
     { action: "click-dom-target", target: "[data-demo-target='date-check-in-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1400, targetWaitMs: 4200 },
     { action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 4200 },
@@ -240,16 +269,40 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
     { action: "click-dom-target", target: "[data-demo-target='guest-children-plus']", hoverMs: 650, pulseMs: 520, delayMs: 1300, targetWaitMs: 3200 },
     { action: "click-dom-target", target: "[data-demo-target='apply-guests']", hoverMs: 700, pulseMs: 600, delayMs: 1800, targetWaitMs: 3200 },
 
-    // Dates and guests append into the composer. Submit once to refresh the path.
+    // Submit once after dates and guests are appended so TourBot refreshes the path.
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 2800, timeoutMs: 35000 },
-    { action: "wait", delayMs: 2400 },
+    { action: "wait-for-response", delayMs: 5200, timeoutMs: 35000 },
 
-    // Step through any returned recommendations, book the best fit, then clear the shell.
-    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5800, targetWaitMs: 3600, maxClicks: 4 },
-    { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 1600, targetWaitMs: 3600 },
-    { action: "move-pointer", target: { x: 120, y: 240, label: "booking preloaded" }, delayMs: 4400 },
-    { action: "minimize", delayMs: 1400 },
+    // Step through any returned options. This stays in sync even if the model
+    // chooses a slightly different set of rooms.
+    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5600, targetWaitMs: 3600, maxClicks: 6 },
+
+    // 2) Constraint + add-on composition. The room/add-on choices may vary, but
+    // the script only relies on TourBot controls and the returned guide steps.
+    { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
+    {
+      action: "type-prompt",
+      prompt: "I don't want the room to cost more than $350/night. What's the cheapest way to include parking?",
+      delayMs: 900,
+    },
+    { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
+    { action: "wait-for-response", delayMs: 6500, timeoutMs: 35000 },
+    { action: "click-through-guide-steps", target: "[data-demo-target='guide-next']", hoverMs: 650, pulseMs: 560, betweenClicksMs: 5600, targetWaitMs: 3600, maxClicks: 5 },
+
+    // 3) Natural booking intent. Backend safely interprets this as a booking
+    // handoff setup, not a live reservation or payment.
+    { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
+    {
+      action: "type-prompt",
+      prompt: "Reserve this.",
+      delayMs: 900,
+    },
+    { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
+    { action: "wait-for-response", delayMs: 3600, timeoutMs: 35000 },
+
+    // Continue through TourBot's checkout gate. This variant intentionally skips
+    // the final pause card so the demo uses only the two explanatory cards above.
+    ...createGuidedCommerceBookingHandoffSteps({ includeFinalCallout: false }),
   ],
 };
 
