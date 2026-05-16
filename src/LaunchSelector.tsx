@@ -67,7 +67,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Service sites",
     message:
-      "**TourBot** reveals deeper details, connects visitors to staff directly, sets appointments, and hands off intake summaries.",
+      "**TourBot** reveals deeper details, connects visitors to staff live, sets appointments, and hands off intake summaries.",
     icon: CalendarCheck,
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
