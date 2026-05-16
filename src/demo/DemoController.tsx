@@ -795,7 +795,7 @@ export default function DemoController({
             animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
             exit={{ opacity: 0, x: callout.placement === "left" ? -20 : 0, y: 14, scale: 0.98 }}
             transition={{ duration: 0.24, ease: "easeOut" }}
-            className={`fixed z-[9998] w-[min(calc(100vw-2rem),26rem)] overflow-hidden rounded-[24px] border border-white/70 bg-white/95 p-4 shadow-2xl ring-1 backdrop-blur-xl ${calloutAccentClass} ${calloutPlacementClass}`}
+            className={`fixed z-[10050] w-[min(calc(100vw-2rem),26rem)] overflow-hidden rounded-[24px] border border-white/70 bg-white/95 p-4 shadow-2xl ring-1 backdrop-blur-xl ${calloutAccentClass} ${calloutPlacementClass}`}
           >
             {callout.emphasis === "green-flash" && (
               <motion.div
