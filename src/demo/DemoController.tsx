@@ -78,17 +78,28 @@ function isCoarsePointer() {
   return Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 }
 
+function visibleElementForSelector(selector: string): HTMLElement | null {
+  try {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(selector));
+    return (
+      elements.find((el) => {
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        return (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          style.display !== "none" &&
+          style.visibility !== "hidden"
+        );
+      }) || null
+    );
+  } catch {
+    return null;
+  }
+}
+
 function isVisibleTarget(selector: string) {
-  const el = document.querySelector<HTMLElement>(selector);
-  if (!el) return false;
-  const rect = el.getBoundingClientRect();
-  const style = window.getComputedStyle(el);
-  return (
-    rect.width > 0 &&
-    rect.height > 0 &&
-    style.display !== "none" &&
-    style.visibility !== "hidden"
-  );
+  return Boolean(visibleElementForSelector(selector));
 }
 
 function isShellInternalTarget(selector: string) {
@@ -173,6 +184,27 @@ function pointerPositionForElement(el: HTMLElement): DemoPointerPosition {
   };
 }
 
+function activateDomElement(el: HTMLElement) {
+  el.focus?.({ preventScroll: true });
+
+  const eventInit: MouseEventInit = {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+  };
+
+  try {
+    el.dispatchEvent(new PointerEvent("pointerdown", eventInit));
+    el.dispatchEvent(new PointerEvent("pointerup", eventInit));
+  } catch {
+    // PointerEvent may not be constructible in every browser/test shell.
+  }
+
+  el.dispatchEvent(new MouseEvent("mousedown", eventInit));
+  el.dispatchEvent(new MouseEvent("mouseup", eventInit));
+  el.dispatchEvent(new MouseEvent("click", eventInit));
+}
+
 async function resolveDomTargetWhenReady(
   target: string,
   statusRef: MutableRefObject<DemoStatus>,
@@ -185,34 +217,27 @@ async function resolveDomTargetWhenReady(
   while (!stopRef.current && Date.now() - startedAt < timeoutMs) {
     await waitWhilePaused(statusRef, stopRef);
 
-    const el = document.querySelector<HTMLElement>(target);
+    const el = visibleElementForSelector(target);
     if (el) {
-      const style = window.getComputedStyle(el);
       const rect = el.getBoundingClientRect();
-      const hasBox = rect.width > 0 && rect.height > 0;
-      const isRendered =
-        hasBox && style.display !== "none" && style.visibility !== "hidden";
+      const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const isCenterInViewport =
+        centerX >= 0 &&
+        centerX <= viewportWidth &&
+        centerY >= 0 &&
+        centerY <= viewportHeight;
 
-      if (isRendered) {
-        const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-        const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        const isCenterInViewport =
-          centerX >= 0 &&
-          centerX <= viewportWidth &&
-          centerY >= 0 &&
-          centerY <= viewportHeight;
-
-        if (!isCenterInViewport && !scrolledTarget) {
-          scrolledTarget = true;
-          el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-          await wait(650);
-          continue;
-        }
-
-        return { el, position: pointerPositionForElement(el) };
+      if (!isCenterInViewport && !scrolledTarget) {
+        scrolledTarget = true;
+        el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        await wait(650);
+        continue;
       }
+
+      return { el, position: pointerPositionForElement(el) };
     }
 
     await wait(80);
@@ -475,7 +500,7 @@ export default function DemoController({
         await pulsePointer(pulseMs);
         if (stopRef.current) return;
 
-        resolved.el.click();
+        activateDomElement(resolved.el);
       };
 
       const setInputValueTarget = async ({

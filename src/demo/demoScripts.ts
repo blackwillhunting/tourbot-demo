@@ -224,12 +224,20 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
   steps: [
     {
       action: "callout",
-      eyebrow: "Assisted completion",
-      title: "What you are about to see",
-      body: "The guest gives TourBot an incomplete booking request. TourBot uses the site's own selectors to collect missing dates and guests, then turns the loose request into a booking-ready stay.",
-      buttonLabel: "Start demo",
+      eyebrow: "Background",
+      title: "What kind of site this is",
+      body: "This is a 1,000+ room hotel resort with many room types, view tiers, towers, and add-ons.",
+      buttonLabel: "Continue",
       placement: "left",
       emphasis: "green-flash",
+    },
+    {
+      action: "callout",
+      eyebrow: "Assisted completion",
+      title: "What you are about to see",
+      body: "A guest starts with incomplete request, and TourBot gathers data, applies contraints and tours focus areas.",
+      buttonLabel: "Start demo",
+      placement: "left",
     },
 
     // Start from the minimized launcher and activate TourBot.
@@ -244,7 +252,7 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
       delayMs: 900,
     },
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
-    { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
+    { action: "wait-for-response", delayMs: 3000, timeoutMs: 35000 },
 
     {
       action: "callout",
@@ -255,22 +263,24 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
       placement: "left",
     },
 
-    // Complete missing booking context through selectors. These selectors append
-    // structured data into the composer so the next submit refreshes the plan.
-    { action: "click-dom-target", target: "[data-demo-target='chip-select-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='date-check-in-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1400, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='date-check-out-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1400, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14']", hoverMs: 700, pulseMs: 600, delayMs: 1600, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='apply-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1800, targetWaitMs: 3200 },
+    // Complete missing booking context through selectors. The date chip opens the
+    // check-in calendar automatically on July 2026 with no dates preselected,
+    // so the script goes straight to the day.
+    // The chip selector accepts both likely labels to stay safe if the backend
+    // says "Select dates" or "Set dates".
+{ action: "click-dom-target", target: "[data-demo-target='chip-select-dates'], [data-demo-target='chip-set-dates']", hoverMs: 250, pulseMs: 220, delayMs: 0, targetWaitMs: 1500 },
+{ action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10'], [data-demo-date='2026-07-10']", hoverMs: 450, pulseMs: 420, delayMs: 500, targetWaitMs: 6000 },
+    { action: "click-dom-target", target: "[data-demo-target='date-check-out-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1400, targetWaitMs: 5200 },
+    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14'], [data-demo-date='2026-07-14']", hoverMs: 700, pulseMs: 600, delayMs: 1600, targetWaitMs: 6000 },
+    { action: "click-dom-target", target: "[data-demo-target='apply-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1800, targetWaitMs: 4200 },
 
-    { action: "click-dom-target", target: "[data-demo-target='chip-add-guests']", hoverMs: 700, pulseMs: 600, delayMs: 1500, targetWaitMs: 4200 },
-    { action: "click-dom-target", target: "[data-demo-target='guest-adults-plus']", hoverMs: 650, pulseMs: 520, delayMs: 1200, targetWaitMs: 3200 },
+{ action: "click-dom-target", target: "[data-demo-target='chip-add-guests']", hoverMs: 250, pulseMs: 220, delayMs: 0, targetWaitMs: 1500 },
+{ action: "click-dom-target", target: "[data-demo-target='guest-adults-plus']", hoverMs: 420, pulseMs: 380, delayMs: 450, targetWaitMs: 3200 },
     { action: "click-dom-target", target: "[data-demo-target='guest-children-plus']", hoverMs: 650, pulseMs: 520, delayMs: 1300, targetWaitMs: 3200 },
     { action: "click-dom-target", target: "[data-demo-target='apply-guests']", hoverMs: 700, pulseMs: 600, delayMs: 1800, targetWaitMs: 3200 },
 
-    // Submit once after dates and guests are appended so TourBot refreshes the path.
-    { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
+    // Applying guests resumes the pending booking prompt automatically, so no
+    // separate submit click is needed here.
     { action: "wait-for-response", delayMs: 5200, timeoutMs: 35000 },
 
     // Step through any returned options. This stays in sync even if the model
@@ -301,7 +311,7 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
     { action: "wait-for-response", delayMs: 3600, timeoutMs: 35000 },
 
     // Continue through TourBot's checkout gate. This variant intentionally skips
-    // the final pause card so the demo uses only the two explanatory cards above.
+    // the final handoff pause card because the demo has already explained the setup.
     ...createGuidedCommerceBookingHandoffSteps({ includeFinalCallout: false }),
   ],
 };

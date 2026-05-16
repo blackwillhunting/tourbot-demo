@@ -2253,8 +2253,8 @@ export function GuideShellStatic({
   >(null);
   const [activeCompletionWidget, setActiveCompletionWidget] =
     useState<CompletionWidget>(null);
-  const [shellCheckInDate, setShellCheckInDate] = useState("2026-06-12");
-  const [shellCheckOutDate, setShellCheckOutDate] = useState("2026-06-15");
+  const [shellCheckInDate, setShellCheckInDate] = useState("");
+  const [shellCheckOutDate, setShellCheckOutDate] = useState("");
   const [shellDatesApplied, setShellDatesApplied] = useState(false);
   const [activeDatePicker, setActiveDatePicker] =
     useState<DatePickerKind>(null);
@@ -4258,14 +4258,6 @@ export function GuideShellStatic({
     return clean.endsWith(".") || clean.endsWith("?") ? clean : `${clean}.`;
   };
 
-  const addDaysToIsoDate = (value: string, days: number) => {
-    const [year, month, day] = value.split("-").map(Number);
-    const date = new Date(year, month - 1, day + days);
-    const nextYear = date.getFullYear();
-    const nextMonth = String(date.getMonth() + 1).padStart(2, "0");
-    const nextDay = String(date.getDate()).padStart(2, "0");
-    return `${nextYear}-${nextMonth}-${nextDay}`;
-  };
 
   const syncShellCalendarMonthToDate = (value: string) => {
     if (!value) return;
@@ -4277,7 +4269,10 @@ export function GuideShellStatic({
   const openShellDatePicker = (kind: Exclude<DatePickerKind, null>) => {
     const value = kind === "check-in" ? shellCheckInDate : shellCheckOutDate;
     syncShellCalendarMonthToDate(value);
-    setActiveDatePicker((current) => (current === kind ? null : kind));
+    // Keep this idempotent for demos and guided flows. Clicking the active
+    // date launcher should confirm that calendar is open, not collapse it out
+    // from under the fake pointer.
+    setActiveDatePicker(kind);
   };
 
   const closeMobileDateSheet = () => {
@@ -4290,8 +4285,8 @@ export function GuideShellStatic({
   ) => {
     if (kind === "check-in") {
       setShellCheckInDate(value);
-      if (!shellCheckOutDate || shellCheckOutDate <= value) {
-        setShellCheckOutDate(addDaysToIsoDate(value, 1));
+      if (shellCheckOutDate && shellCheckOutDate <= value) {
+        setShellCheckOutDate("");
       }
     } else {
       setShellCheckOutDate(value);
@@ -4299,16 +4294,9 @@ export function GuideShellStatic({
 
     setShellDatesApplied(false);
 
-    if (isCoarsePointer() && kind === "check-in") {
-      const nextCheckout =
-        !shellCheckOutDate || shellCheckOutDate <= value
-          ? addDaysToIsoDate(value, 1)
-          : shellCheckOutDate;
-      syncShellCalendarMonthToDate(nextCheckout);
-      setActiveDatePicker("check-out");
-      return;
-    }
-
+    // Keep the demo path explicit and visible: after choosing a check-in
+    // date, close the sheet/calendar so the fake pointer can move to the
+    // check-out launcher and visibly reopen the check-out calendar.
     setActiveDatePicker(null);
   };
 
@@ -4381,6 +4369,7 @@ export function GuideShellStatic({
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button
+              data-demo-target="calendar-prev-month"
               type="button"
               onClick={() => shiftShellCalendarMonth(-1)}
               className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
@@ -4390,6 +4379,7 @@ export function GuideShellStatic({
               ←
             </button>
             <button
+              data-demo-target="calendar-next-month"
               type="button"
               onClick={() => shiftShellCalendarMonth(1)}
               className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
@@ -4435,9 +4425,7 @@ export function GuideShellStatic({
           {days.map((day) => {
             const value = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const isSelected = selected === value;
-            const isDemoTarget =
-              (kind === "check-in" && value === "2026-07-10") ||
-              (kind === "check-out" && value === "2026-07-14");
+            const demoTarget = `calendar-${kind}-${value}`;
             const disabled = Boolean(
               kind === "check-out" &&
               shellCheckInDate &&
@@ -4447,16 +4435,16 @@ export function GuideShellStatic({
             return (
               <button
                 key={value}
-                data-demo-target={
-                  isDemoTarget ? `calendar-${kind}-${value}` : undefined
-                }
+                data-demo-target={demoTarget}
+                data-demo-date={value}
                 type="button"
                 disabled={disabled}
                 onClick={() => selectShellCalendarDate(kind, value)}
+                aria-label={`${kind === "check-in" ? "Check-in" : "Check-out"} ${value}`}
                 className={`${
                   isSheet
-                    ? "rounded-xl px-0 py-1.5 text-sm font-semibold leading-6"
-                    : "rounded-md px-0 py-0.5 text-[10px] font-semibold leading-5 sm:rounded-xl sm:py-2 sm:text-xs"
+                    ? "min-h-9 rounded-xl px-0 py-1.5 text-sm font-semibold leading-6"
+                    : "min-h-6 rounded-md px-0 py-0.5 text-[10px] font-semibold leading-5 sm:min-h-9 sm:rounded-xl sm:py-2 sm:text-xs"
                 } transition ${
                   isSelected
                     ? "bg-slate-950 text-white shadow-sm"
