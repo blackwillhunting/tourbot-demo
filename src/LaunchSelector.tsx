@@ -142,6 +142,13 @@ function initialCloseMode(): CloseMode | null {
   return null;
 }
 
+function initialLaunchStep(closeMode: CloseMode | null) {
+  if (closeMode || typeof window === "undefined") return 0;
+
+  const start = new URLSearchParams(window.location.search).get("start");
+  return start === "demos" ? launchMessages.length - 1 : 0;
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -365,7 +372,7 @@ function LaunchMessage({
 export default function LaunchSelector() {
   const closeMode = useMemo(() => initialCloseMode(), []);
   const messages = closeMode ? closeMessages[closeMode] : launchMessages;
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => initialLaunchStep(closeMode));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -404,7 +411,7 @@ export default function LaunchSelector() {
   }, [step]);
 
   const goHome = () => {
-    window.location.href = "/";
+    window.location.href = "/?start=demos";
   };
 
   const goBack = () => {
