@@ -49,6 +49,7 @@ const REOPEN_GLIDE_SETTLE_DELAYS_MS = [80, 220, 420, 700];
 const GUIDE_AI_URL =
   "https://ttoolbot-backend-aebdaegjbjckcrdg.canadacentral-01.azurewebsites.net/api/guide_ai";
 const MIN_THINKING_MS = 900;
+const PREPARE_BOOKING_PANEL_DELAY_MS = 2000;
 const GUIDE_SHELL_SESSION_KEY = "guide_shell_session";
 const GUIDE_PENDING_SPOTLIGHT_KEY = "guide_pending_spotlight";
 const GUIDE_DEMO_RESPONSE_COMPLETE_EVENT = "guide-demo-response-complete";
@@ -3507,6 +3508,11 @@ export function GuideShellStatic({
         return;
       }
 
+      const shouldOpenPreparedBookingPanel = Boolean(
+        guideConfig?.mode === "commerce" &&
+          (reply.commerceAction === "prepare_booking" ||
+            reply.displayMode === "prepare_booking")
+      );
       const visibleStayPlan = isStayPlan(reply.visibleContext?.activeStayPlan)
         ? reply.visibleContext?.activeStayPlan
         : null;
@@ -3623,6 +3629,17 @@ export function GuideShellStatic({
           activeStayPlan: null,
         };
       }
+
+      if (shouldOpenPreparedBookingPanel) {
+        window.setTimeout(() => {
+          clearMinimizeTimer();
+          if (shellState !== "panel") openPanel();
+          setBookingPreloadConfirmed(false);
+          setActiveCompletionWidget("upsell");
+          setActiveDatePicker(null);
+        }, PREPARE_BOOKING_PANEL_DELAY_MS);
+      }
+
       setLastRefinementChipClicked(null);
 
       const hasNavigation =

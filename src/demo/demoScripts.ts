@@ -190,9 +190,16 @@ export const guidedCommerceRichIntentDemo: DemoScript = {
     { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
     { action: "wait-for-response", delayMs: 5000, timeoutMs: 35000 },
 
-    // Move to the package step, then book the composed stay.
+    // Move to the package step, then ask TourBot to prepare the booking handoff.
     { action: "click-target", target: "[data-demo-target='guide-next']", command: "next", hoverMs: 650, pulseMs: 560, delayMs: 9000, targetWaitMs: 3600 },
-    { action: "click-target", target: "[data-demo-target='guide-book']", command: "book", hoverMs: 800, pulseMs: 650, delayMs: 3000, targetWaitMs: 3600 },
+    { action: "move-pointer", target: "[data-demo-target='guide-textarea']", delayMs: 900 },
+    {
+      action: "type-prompt",
+      prompt: "Book this stay.",
+      delayMs: 900,
+    },
+    { action: "click-target", target: "[data-demo-target='guide-submit']", command: "submit", hoverMs: 500, pulseMs: 620, delayMs: 1100, targetWaitMs: 2600 },
+    { action: "wait-for-response", delayMs: 3000, timeoutMs: 35000 },
 
     // Continue through TourBot's checkout gate, pause for the booking handoff,
     // then minimize TourBot on desktop only. On phones, Continue already
