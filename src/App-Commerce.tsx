@@ -1687,7 +1687,7 @@ function DemoPreviewCard({
       </div>
       <div className="space-y-3 px-4 py-4">
         <p className="text-sm font-medium leading-6 text-slate-600">
-          Click below to start a demo.
+          Choose a demo.
         </p>
         <div className="space-y-2">
           {options.map((option) => (
@@ -2025,16 +2025,16 @@ export default function AppCommerce() {
       <AnimatePresence>
         {demoPreviewOpen && demoStatus === "idle" && (
           <DemoPreviewCard
-            title="Guided Commerce Demo"
+            title="Guided Commerce"
             options={[
               {
                 label: "Natural Language Booking",
-                description: "A rich resort request becomes a recommended room, package, and preloaded booking summary.",
+                description: "Visitor gives detailed request, TourBot extracts.",
                 onClick: () => startSelectedDemo(guidedCommerceRichIntentDemo),
               },
               {
                 label: "Assisted Completion",
-                description: "A sparse stay request triggers soft data retrieval to harden loose travel plans into solid options.",
+                description: "Visitor gives general request, TourBot gathers.",
                 onClick: () => startSelectedDemo(guidedCommerceAssistedCompletionDemo),
               },
             ]}
