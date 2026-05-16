@@ -46,7 +46,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "TourBot guides",
     message:
-      "**TourBot** guides the visitor through the next steps on the site instead of leaving them with instructions.",
+      "**TourBot** is an AI guided-commerce agent that doesn't just tell the visitor what to do, it walks them thru it.",
     icon: Sparkles,
     iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
   },
@@ -67,7 +67,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Service sites",
     message:
-      "**TourBot** reveals deeper details, connects visitors and operators directly, schedules appointments, and hands off intake summaries.",
+      "**TourBot** reveals deeper details, connects visitors to staff directly, sets appointments, and hands off intake summaries.",
     icon: CalendarCheck,
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
