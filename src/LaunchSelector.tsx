@@ -6,10 +6,10 @@ import {
   Bot,
   CalendarCheck,
   CheckCircle,
-  ClipboardCheck,
   Compass,
   Hotel,
-  Map,
+  ListChecks,
+  MessageSquare,
   PlayCircle,
   Route,
   Search,
@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-type CloseMode = "transactional" | "informational";
+type CloseMode = "transactional" | "carryout";
 
 type WalkthroughMessage = {
   label: string;
@@ -58,18 +58,18 @@ const launchMessages: WalkthroughMessage[] = [
     iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
   },
   {
-    label: "Cart sites",
+    label: "Carryout ordering sites",
     message:
-      "**TourBot** walks shoppers through choices, stores selections, and autofills those choices into booking or checkout.",
+      "**TourBot** turns “I want…” into a ready-to-checkout order — fast, accurate, and easier than browsing the whole menu.",
     icon: ShoppingCart,
-    iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
+    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
   {
-    label: "Service sites",
+    label: "Choice-heavy booking sites",
     message:
-      "**TourBot** reveals deeper details, connects visitors to staff live, sets appointments, and hands off intake summaries.",
+      "**TourBot** walks shoppers through choices, stores selections, and autofills those choices into booking or checkout.",
     icon: CalendarCheck,
-    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
+    iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
   },
   {
     label: "Choose a demo",
@@ -105,26 +105,26 @@ const closeMessages: Record<CloseMode, WalkthroughMessage[]> = {
       iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
     },
   ],
-  informational: [
+  carryout: [
     {
-      label: "Hidden cart revealed",
+      label: "Order captured",
       message:
-        "**TourBot** showed how a service-site visitor can move from vague discovery into a clearer service path.",
-      icon: Map,
+        "**TourBot** turned a plain-English food request into a structured order with menu items, quantities, and preferences.",
+      icon: MessageSquare,
       iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
     },
     {
-      label: "Qualified handoff",
+      label: "Modifiers applied",
       message:
-        "**TourBot** can capture fit, urgency, need, and next-step context before a form, calendar, ticket, or consultant handoff.",
-      icon: ClipboardCheck,
+        "**TourBot** handled the details that usually slow ordering down — spice level, removals, extras, sides, drinks, and substitutions.",
+      icon: ListChecks,
       iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
     },
     {
-      label: "Discovery becomes action",
+      label: "Ready cart",
       message:
-        "For informational sites, **TourBot** helps visitors understand the offer and move toward an inquiry, appointment, or qualified next step.",
-      icon: Sparkles,
+        "For carryout sites, **TourBot** helps customers go from “I want…” to a ready-to-checkout order without browsing the full menu.",
+      icon: ShoppingCart,
       iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
     },
   ],
@@ -138,7 +138,8 @@ const RIBBON_GLIDE_MS = 720;
 function initialCloseMode(): CloseMode | null {
   if (typeof window === "undefined") return null;
   const close = new URLSearchParams(window.location.search).get("close");
-  if (close === "transactional" || close === "informational") return close;
+  if (close === "transactional") return "transactional";
+  if (close === "carryout" || close === "informational") return "carryout";
   return null;
 }
 
@@ -350,17 +351,17 @@ function LaunchMessage({
           <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
             <DemoLaunchButton
               href="/informational?mode=self_drive"
-              icon={Map}
-              eyebrow="Informational"
-              title="NexaPath"
-              description="Services demo"
+              icon={ShoppingCart}
+              eyebrow="Ordering"
+              title="BurgerRush"
+              description="Food ordering demo"
             />
             <DemoLaunchButton
               href="/transactional?mode=self_drive"
-              icon={Hotel}
-              eyebrow="Transactional"
+              icon={CalendarCheck}
+              eyebrow="Booking"
               title="Domi Coast"
-              description="Hotel demo"
+              description="Hotel booking demo"
             />
           </div>
         )}
@@ -459,7 +460,7 @@ export default function LaunchSelector() {
                 TourBot Demo
               </div>
               <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
-                Guided buying for visible and implied carts
+                Natural language navigation and buying
               </div>
             </div>
           </div>
