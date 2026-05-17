@@ -53,7 +53,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Intent becomes motion",
     message:
-      "**TourBot** figures out needs, optimizes options, physically scrolls the site, and suggests next steps.",
+      "**TourBot** figures out needs, optimizes options, physically navigates the site to show you, and suggests next steps.",
     icon: Route,
     iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
   },
