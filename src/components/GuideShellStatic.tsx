@@ -3154,19 +3154,33 @@ export function GuideShellStatic({
   };
 
   const mergeBackendVisibleContext = (context?: VisibleContext | null) => {
-    if (!context || guideConfig?.mode !== "commerce") return;
+    if (!context) return;
 
+    const previousBookingContext =
+      (visibleContextRef.current.bookingContext as ExtractedBookingContext | undefined) || {};
+    const nextBookingContext =
+      context.bookingContext && typeof context.bookingContext === "object"
+        ? (context.bookingContext as ExtractedBookingContext)
+        : undefined;
+
+    // Hidden-cart needs the same context carry-forward as visible cart.
+    // Keep mode-specific UI side effects below, but always preserve backend state
+    // such as visibleContext.hiddenCart.intakeProgress between turns.
     visibleContextRef.current = {
       ...visibleContextRef.current,
       ...context,
-      bookingContext: {
-        ...((visibleContextRef.current.bookingContext as ExtractedBookingContext | undefined) || {}),
-        ...((context.bookingContext as ExtractedBookingContext | undefined) || {}),
-      },
+      bookingContext: nextBookingContext
+        ? {
+            ...previousBookingContext,
+            ...nextBookingContext,
+          }
+        : visibleContextRef.current.bookingContext,
     };
 
-    if (context.bookingContext && typeof context.bookingContext === "object") {
-      mergeExtractedBookingContext(context.bookingContext as ExtractedBookingContext);
+    if (guideConfig?.mode !== "commerce") return;
+
+    if (nextBookingContext) {
+      mergeExtractedBookingContext(nextBookingContext);
     }
 
     if (isStayPlan(context.activeStayPlan)) {
