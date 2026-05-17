@@ -3594,20 +3594,31 @@ export function GuideShellStatic({
         !shouldTreatAsContextUpdate &&
         !preservePreviousGuideSteps &&
         nextGuideSteps.length > 1;
+      const isHiddenCartReadyHandoff = Boolean(
+        guideConfig?.mode === "hidden_cart" &&
+          (reply.commerceAction === "hidden_cart_ready_handoff" ||
+            reply.commerceAction === "prepare_intake_review" ||
+            reply.displayMode === "prepare_intake_review" ||
+            reply.displayMode === "hidden_cart_ready_handoff"),
+      );
+      const shouldPreserveTopLevelAnswer = isHiddenCartReadyHandoff;
+      const shouldDriveThreadFromGuideSteps =
+        isMultiStepGuide && !shouldPreserveTopLevelAnswer;
       const botMessageId = makeId();
       const responseAnswerParts = autoSavedPendingTrip
         ? savedTripConfirmationParts(autoSavedPendingTrip)
         : reply.answerParts;
-      // For guided step-throughs, display the current step narrative as the
-      // active response. This uses backend stepNarratives when present and only
-      // falls back to a small "Now showing..." focus line when they are absent.
-      const firstStepResponse = isMultiStepGuide
+      // Discovery and visible-cart tours can use the active step narrative as
+      // the visible answer. Hidden-cart ready handoffs are different: the
+      // conversion moment is the top-level intake recommendation, so guided
+      // steps should support navigation without replacing that recommendation.
+      const firstStepResponse = shouldDriveThreadFromGuideSteps
         ? responseForGuideStep(nextGuideSteps[0], 0, nextGuideSteps.length)
         : null;
-      const firstStepParts = isMultiStepGuide
+      const firstStepParts = shouldDriveThreadFromGuideSteps
         ? firstStepResponse?.answerParts
         : responseAnswerParts;
-      const botBody = isMultiStepGuide
+      const botBody = shouldDriveThreadFromGuideSteps
         ? firstStepResponse?.body || reply.body
         : autoSavedPendingTrip
           ? answerBodyFromParts(responseAnswerParts || {}) || reply.body
@@ -3640,7 +3651,9 @@ export function GuideShellStatic({
 
       setGuideSteps(nextGuideSteps);
       setCurrentGuideStepIndex(nextGuideStepIndex);
-      setCurrentGuideMessageId(isMultiStepGuide ? botMessageId : nextGuideMessageId);
+      setCurrentGuideMessageId(
+        shouldDriveThreadFromGuideSteps ? botMessageId : nextGuideMessageId,
+      );
 
       const displayedGuideStep = nextGuideSteps[nextGuideStepIndex] || null;
       if (displayedGuideStep?.targetId?.startsWith("room-") || displayedGuideStep?.targetId?.startsWith("package-")) {
