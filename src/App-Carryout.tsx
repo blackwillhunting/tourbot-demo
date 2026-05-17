@@ -843,7 +843,7 @@ export default function AppCarryout() {
           packIds: {
             catalog: "carryout_cart_catalog",
           },
-        } as any}
+        }}
       />
     </div>
   );

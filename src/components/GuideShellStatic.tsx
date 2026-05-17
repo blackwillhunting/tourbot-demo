@@ -101,10 +101,31 @@ type AnswerParts = {
   closing?: string;
 };
 
+type CarryoutQualifierOption = {
+  label?: string | null;
+  value?: string | null;
+  qualifierId?: string | null;
+  selected?: boolean;
+  state?: "selected" | "available" | "missing" | string;
+  priceDelta?: number | null;
+};
+
+type CarryoutQualifierGroup = {
+  kind?: "qualifier" | string;
+  qualifierId?: string | null;
+  label?: string | null;
+  required?: boolean;
+  missing?: boolean;
+  selectedValue?: string | null;
+  selectedLabel?: string | null;
+  options?: CarryoutQualifierOption[];
+};
+
 export type GuideMode = "discovery" | "commerce" | "hidden_cart";
 
 export type GuideConfig = {
   mode?: GuideMode;
+  catalogMode?: string;
   label?: string;
   features?: {
     refinementChips?: boolean;
@@ -327,6 +348,7 @@ type SuggestedAction = {
   reason?: string;
   targetText?: string;
   targetCandidates?: string[];
+  qualifierGroups?: CarryoutQualifierGroup[];
 };
 
 type StepNarrative = {
@@ -344,6 +366,7 @@ type StepNarrative = {
   closing?: string;
   offerComposition?: unknown;
   stayPlan?: StayPlan;
+  qualifierGroups?: CarryoutQualifierGroup[];
 };
 
 type GuidedAction = SuggestedAction & {
@@ -358,6 +381,7 @@ type ThreadItem = {
   body: string;
   answerParts?: AnswerParts;
   refinementChips?: string[];
+  qualifierGroups?: CarryoutQualifierGroup[];
   suggestedAction?: SuggestedAction;
   status?: "thinking" | "done";
 };
@@ -540,9 +564,12 @@ async function callGuideAi(
     stepNarratives: Array.isArray(data.stepNarratives)
       ? data.stepNarratives
       : [],
-    refinementChips: Array.isArray(data.refinementChips)
-      ? data.refinementChips.filter(Boolean).slice(0, 3)
-      : [],
+    refinementChips:
+      guideConfig?.catalogMode === "carryout_ordering"
+        ? []
+        : Array.isArray(data.refinementChips)
+          ? data.refinementChips.filter(Boolean).slice(0, 3)
+          : [],
     commerceAction:
       typeof data.commerceAction === "string" ? data.commerceAction : undefined,
     displayMode: typeof data.displayMode === "string" ? data.displayMode : undefined,
@@ -1115,16 +1142,18 @@ function responseForGuideStep(
   step: GuidedAction,
   index: number,
   total: number,
-): { body: string; answerParts?: AnswerParts } {
+): { body: string; answerParts?: AnswerParts; qualifierGroups?: CarryoutQualifierGroup[] } {
+  const qualifierGroups = carryoutQualifierGroupsForStep(step);
   const body = guideStepNarrativeBody(step);
   if (body) {
-    return { body };
+    return { body, qualifierGroups };
   }
 
   const answerParts = answerPartsForGuideStep(step, index, total);
   return {
     body: answerBodyFromParts(answerParts),
     answerParts,
+    qualifierGroups,
   };
 }
 
@@ -2093,11 +2122,96 @@ function StructuredAnswer({
   );
 }
 
+
+function carryoutQualifierGroupsForStep(step?: GuidedAction | null): CarryoutQualifierGroup[] {
+  const fromNarrative = step?.stepNarrative?.qualifierGroups;
+  if (Array.isArray(fromNarrative)) return fromNarrative;
+  const fromStep = step?.qualifierGroups;
+  return Array.isArray(fromStep) ? fromStep : [];
+}
+
+function formatPriceDelta(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value === 0) return "";
+  const sign = value > 0 ? "+" : "-";
+  return ` ${sign}$${Math.abs(value).toFixed(2)}`;
+}
+
+function CarryoutQualifierControls({ groups }: { groups?: CarryoutQualifierGroup[] }) {
+  const visibleGroups = Array.isArray(groups)
+    ? groups.filter((group) => Array.isArray(group.options) && group.options.length > 0)
+    : [];
+
+  if (!visibleGroups.length) return null;
+
+  return (
+    <div className="mt-3 space-y-3 rounded-2xl border border-emerald-100 bg-white/80 p-3 shadow-sm">
+      {visibleGroups.map((group) => (
+        <CarryoutQualifierGroupView
+          key={group.qualifierId || group.label || "qualifier"}
+          group={group}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CarryoutQualifierGroupView({ group }: { group: CarryoutQualifierGroup }) {
+  const initialSelected =
+    group.selectedValue ||
+    group.options?.find((option) => option.selected || option.state === "selected")?.value ||
+    "";
+  const [selectedValue, setSelectedValue] = useState(String(initialSelected || ""));
+  const isMissing = Boolean(group.missing && !selectedValue);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+        <span>{group.label || "Qualifier"}</span>
+        {isMissing ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+            Required
+          </span>
+        ) : selectedValue ? (
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+            Selected
+          </span>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(group.options || []).map((option) => {
+          const value = String(option.value || option.label || "");
+          const selected = Boolean(value && value === selectedValue);
+          return (
+            <button
+              key={`${group.qualifierId || group.label}-${value}`}
+              type="button"
+              onClick={() => setSelectedValue(value)}
+              aria-pressed={selected}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
+                selected
+                  ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-100"
+                  : isMissing
+                    ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {selected ? "✓ " : ""}
+              {option.label || value}
+              {formatPriceDelta(option.priceDelta)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function BotRow({
   title,
   body,
   answerParts,
   refinementChips,
+  qualifierGroups,
   onChipClick,
   status,
 }: {
@@ -2105,6 +2219,7 @@ function BotRow({
   body: string;
   answerParts?: AnswerParts;
   refinementChips?: string[];
+  qualifierGroups?: CarryoutQualifierGroup[];
   onChipClick?: (chip: string) => void;
   status?: "thinking" | "done";
 }) {
@@ -2129,6 +2244,7 @@ function BotRow({
       ) : (
         <StructuredAnswer parts={answerParts} fallback={body} />
       )}
+      {!isThinking ? <CarryoutQualifierControls groups={qualifierGroups} /> : null}
       {!isThinking && refinementChips?.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {refinementChips.map((chip) => {
@@ -3200,6 +3316,9 @@ export function GuideShellStatic({
     extracted?: ExtractedBookingContext | null,
     sentContext?: GuideConversationContext,
   ) => {
+    if (guideConfig?.catalogMode === "carryout_ordering") {
+      return [];
+    }
     if (!Array.isArray(chips) || guideConfig?.mode !== "commerce") {
       return chips || [];
     }
@@ -3640,6 +3759,9 @@ export function GuideShellStatic({
             reply.extractedBookingContext,
             conversationContext,
           ),
+          qualifierGroups: shouldDriveThreadFromGuideSteps
+            ? firstStepResponse?.qualifierGroups
+            : [],
           suggestedAction: isMultiStepGuide
             ? nextGuideSteps[0]
             : reply.suggestedAction,
@@ -3878,6 +4000,7 @@ export function GuideShellStatic({
               ...item,
               body: stepResponse.body,
               answerParts: stepResponse.answerParts,
+              qualifierGroups: stepResponse.qualifierGroups,
               suggestedAction: step,
             }
           : item,
@@ -4896,6 +5019,7 @@ export function GuideShellStatic({
                               body={item.body}
                               answerParts={item.answerParts}
                               refinementChips={item.refinementChips}
+                              qualifierGroups={item.qualifierGroups}
                               status={item.status}
                               onChipClick={handleRefinementChipClick}
                             />
