@@ -3280,15 +3280,23 @@ export function GuideShellStatic({
     const value = String(option.value || option.label || "");
     if (!qualifierId || !value) return;
 
-    const targetLineKey = String(
+    const explicitLineKey = String(
       group.lineItemId ||
         option.lineItemId ||
         group.itemId ||
         option.itemId ||
-        group.targetId ||
-        option.targetId ||
         "",
     );
+    const fallbackTargetKey = String(group.targetId || option.targetId || "");
+    const targetLineKey = explicitLineKey || fallbackTargetKey;
+    const allowTargetFallback = !explicitLineKey && Boolean(fallbackTargetKey);
+
+    const qualifierGroupMatches = (candidate: CarryoutQualifierGroup) =>
+      candidate.qualifierId === qualifierId &&
+      (!targetLineKey ||
+        candidate.lineItemId === targetLineKey ||
+        candidate.itemId === targetLineKey ||
+        (allowTargetFallback && candidate.targetId === targetLineKey));
 
     const applyToLine = (line: CarryoutPreCartLine): CarryoutPreCartLine => {
       const lineKey = carryoutLineKey(line);
@@ -3296,7 +3304,7 @@ export function GuideShellStatic({
         !targetLineKey ||
         targetLineKey === lineKey ||
         targetLineKey === line.id ||
-        targetLineKey === line.targetId;
+        (allowTargetFallback && targetLineKey === line.targetId);
       if (!matches) return line;
 
       const selectedQualifier: CarryoutSelectedQualifier = {
@@ -3389,11 +3397,7 @@ export function GuideShellStatic({
       currentSteps.map((step) => ({
         ...step,
         qualifierGroups: (step.qualifierGroups || []).map((candidate) =>
-          candidate.qualifierId === qualifierId &&
-          (candidate.lineItemId === targetLineKey ||
-            candidate.itemId === targetLineKey ||
-            candidate.targetId === targetLineKey ||
-            !targetLineKey)
+          qualifierGroupMatches(candidate)
             ? {
                 ...candidate,
                 missing: false,
@@ -3418,11 +3422,7 @@ export function GuideShellStatic({
               ...step.stepNarrative,
               qualifierGroups: (step.stepNarrative.qualifierGroups || []).map(
                 (candidate) =>
-                  candidate.qualifierId === qualifierId &&
-                  (candidate.lineItemId === targetLineKey ||
-                    candidate.itemId === targetLineKey ||
-                    candidate.targetId === targetLineKey ||
-                    !targetLineKey)
+                  qualifierGroupMatches(candidate)
                     ? {
                         ...candidate,
                         missing: false,
