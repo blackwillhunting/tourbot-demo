@@ -354,14 +354,14 @@ function LaunchMessage({
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="BurgerRush"
-              description="Food ordering demo"
+              description="Food ordering demos"
             />
             <DemoLaunchButton
               href="/transactional?mode=self_drive"
               icon={CalendarCheck}
               eyebrow="Booking"
               title="Domi Coast"
-              description="Hotel booking demo"
+              description="Hotel booking demos"
             />
           </div>
         )}
