@@ -1085,11 +1085,14 @@ function readShellSession(): {
   }
 }
 
-function normalizeGuideSteps(reply: {
-  suggestedAction?: SuggestedAction;
-  rankedDestinations?: SuggestedAction[];
-  stepNarratives?: StepNarrative[];
-}): GuidedAction[] {
+function normalizeGuideSteps(
+  reply: {
+    suggestedAction?: SuggestedAction;
+    rankedDestinations?: SuggestedAction[];
+    stepNarratives?: StepNarrative[];
+  },
+  keepDuplicateTargets = false,
+): GuidedAction[] {
   const rawSteps =
     Array.isArray(reply.rankedDestinations) &&
     reply.rankedDestinations.length > 0
@@ -1102,7 +1105,7 @@ function normalizeGuideSteps(reply: {
   if (Array.isArray(reply.stepNarratives)) {
     reply.stepNarratives.forEach((narrative) => {
       const key = (narrative?.targetId || "").toLowerCase();
-      if (key) narrativesByTarget.set(key, narrative);
+      if (key && !narrativesByTarget.has(key)) narrativesByTarget.set(key, narrative);
     });
   }
 
@@ -1110,6 +1113,7 @@ function normalizeGuideSteps(reply: {
   return rawSteps
     .filter((step) => step && step.type === "navigate" && step.targetId)
     .filter((step) => {
+      if (keepDuplicateTargets) return true;
       const key =
         `${step.pageUrl || step.pageId || ""}::${step.targetId || ""}`.toLowerCase();
       if (seen.has(key)) return false;
@@ -1117,11 +1121,15 @@ function normalizeGuideSteps(reply: {
       return true;
     })
     .slice(0, MAX_GUIDED_STEPS)
-    .map((step) => ({
+    .map((step, index) => ({
       ...step,
-      stepNarrative: narrativesByTarget.get(
-        (step.targetId || "").toLowerCase(),
-      ),
+      // Carryout can intentionally include duplicate targetIds for repeated
+      // items. In that case the arrays are positionally aligned, so use the
+      // narrative at the same index rather than a targetId map that collapses
+      // duplicates.
+      stepNarrative: keepDuplicateTargets
+        ? reply.stepNarratives?.[index] || narrativesByTarget.get((step.targetId || "").toLowerCase())
+        : narrativesByTarget.get((step.targetId || "").toLowerCase()),
     }));
 }
 
@@ -4055,7 +4063,7 @@ export function GuideShellStatic({
         null;
       const normalizedGuideSteps = shouldTreatAsContextUpdate
         ? []
-        : normalizeGuideSteps(reply).map((step) => {
+        : normalizeGuideSteps(reply, isCarryoutOrdering).map((step) => {
         if (!replyStayPlan) return step;
         return {
           ...step,
@@ -4361,8 +4369,21 @@ export function GuideShellStatic({
     const step = guideSteps[boundedIndex];
     if (!step) return;
 
-    clearActiveSpotlight();
-    setSpotlightActive(false);
+    const previousStep = guideSteps[currentGuideStepIndex];
+    const previousPhysicalTarget = `${previousStep?.pageUrl || previousStep?.pageId || ""}::${previousStep?.targetId || ""}`;
+    const nextPhysicalTarget = `${step.pageUrl || step.pageId || ""}::${step.targetId || ""}`;
+    const reuseCurrentCarryoutSpotlight = Boolean(
+      isCarryoutOrdering &&
+        spotlightActive &&
+        previousStep &&
+        boundedIndex !== currentGuideStepIndex &&
+        previousPhysicalTarget === nextPhysicalTarget,
+    );
+
+    if (!reuseCurrentCarryoutSpotlight) {
+      clearActiveSpotlight();
+      setSpotlightActive(false);
+    }
     setCurrentGuideStepIndex(boundedIndex);
     syncActiveCommerceFocusFromStep(step);
 
@@ -4395,6 +4416,11 @@ export function GuideShellStatic({
 
     if (collapseOnMobile) {
       collapsePanelForMobileAction(nextThread);
+    }
+
+    if (reuseCurrentCarryoutSpotlight) {
+      setSpotlightActive(true);
+      return;
     }
 
     window.setTimeout(
