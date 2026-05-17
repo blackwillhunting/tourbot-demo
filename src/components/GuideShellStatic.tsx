@@ -105,6 +105,9 @@ type CarryoutQualifierOption = {
   label?: string | null;
   value?: string | null;
   qualifierId?: string | null;
+  itemId?: string | null;
+  lineItemId?: string | null;
+  targetId?: string | null;
   selected?: boolean;
   state?: "selected" | "available" | "missing" | string;
   priceDelta?: number | null;
@@ -114,11 +117,67 @@ type CarryoutQualifierGroup = {
   kind?: "qualifier" | string;
   qualifierId?: string | null;
   label?: string | null;
+  itemId?: string | null;
+  lineItemId?: string | null;
+  targetId?: string | null;
   required?: boolean;
   missing?: boolean;
   selectedValue?: string | null;
   selectedLabel?: string | null;
   options?: CarryoutQualifierOption[];
+};
+
+type CarryoutSelectedQualifier = {
+  qualifierId?: string | null;
+  label?: string | null;
+  value?: string | null;
+  valueLabel?: string | null;
+  targetId?: string | null;
+};
+
+type CarryoutMissingQualifier = {
+  qualifierId?: string | null;
+  label?: string | null;
+  targetId?: string | null;
+};
+
+type CarryoutPreCartLine = {
+  id?: string | null;
+  itemId?: string | null;
+  lineItemId?: string | null;
+  type?: "offer" | "bundle" | string;
+  title?: string | null;
+  targetId?: string | null;
+  quantity?: number | null;
+  knownSelections?: string[];
+  qualifiers?: CarryoutSelectedQualifier[];
+  modifiers?: Array<{ label?: string | null; priceDelta?: number | null }>;
+  upgrades?: Array<{ label?: string | null; priceDelta?: number | null }>;
+  missingQualifiers?: CarryoutMissingQualifier[];
+  qualifierGroups?: CarryoutQualifierGroup[];
+  lineSubtotal?: number | null;
+  priceStatus?: string | null;
+  status?: "ready" | "pending" | string;
+};
+
+type CarryoutPreCartState = {
+  type?: string;
+  status?: string;
+  nextAction?: string;
+  completeItems?: CarryoutPreCartLine[];
+  pendingItems?: CarryoutPreCartLine[];
+  cannotMatchItems?: unknown[];
+  currentQualifierControls?: CarryoutQualifierGroup[];
+  savedBadgeCount?: number;
+  navigationOrder?: string[];
+  totals?: {
+    status?: string;
+    subtotal?: number | null;
+    estimatedTax?: number | null;
+    estimatedTotal?: number | null;
+    finalTotalAvailable?: boolean;
+    currency?: string | null;
+  };
 };
 
 export type GuideMode = "discovery" | "commerce" | "hidden_cart";
@@ -245,6 +304,7 @@ type CommerceSessionContext = {
   budget?: { band: string } | null;
   breakfast?: { requested: boolean; label: string } | null;
   savedTrip?: SavedTripContext | null;
+  carryoutOrder?: CarryoutPreCartState | null;
 };
 
 type ExtractedBookingContext = {
@@ -266,6 +326,7 @@ type VisibleContext = {
   savedItems?: unknown[];
   pendingSave?: unknown;
   lastPlannerIntent?: unknown;
+  carryoutOrder?: CarryoutPreCartState | null;
   [key: string]: unknown;
 };
 
@@ -2136,7 +2197,13 @@ function formatPriceDelta(value?: number | null) {
   return ` ${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
-function CarryoutQualifierControls({ groups }: { groups?: CarryoutQualifierGroup[] }) {
+function CarryoutQualifierControls({
+  groups,
+  onQualifierSelect,
+}: {
+  groups?: CarryoutQualifierGroup[];
+  onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+}) {
   const visibleGroups = Array.isArray(groups)
     ? groups.filter((group) => Array.isArray(group.options) && group.options.length > 0)
     : [];
@@ -2147,20 +2214,32 @@ function CarryoutQualifierControls({ groups }: { groups?: CarryoutQualifierGroup
     <div className="mt-3 space-y-3 rounded-2xl border border-emerald-100 bg-white/80 p-3 shadow-sm">
       {visibleGroups.map((group) => (
         <CarryoutQualifierGroupView
-          key={group.qualifierId || group.label || "qualifier"}
+          key={`${group.lineItemId || group.itemId || "line"}-${group.qualifierId || group.label || "qualifier"}`}
           group={group}
+          onQualifierSelect={onQualifierSelect}
         />
       ))}
     </div>
   );
 }
 
-function CarryoutQualifierGroupView({ group }: { group: CarryoutQualifierGroup }) {
+function CarryoutQualifierGroupView({
+  group,
+  onQualifierSelect,
+}: {
+  group: CarryoutQualifierGroup;
+  onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+}) {
   const initialSelected =
     group.selectedValue ||
     group.options?.find((option) => option.selected || option.state === "selected")?.value ||
     "";
   const [selectedValue, setSelectedValue] = useState(String(initialSelected || ""));
+
+  useEffect(() => {
+    setSelectedValue(String(initialSelected || ""));
+  }, [initialSelected, group.lineItemId, group.qualifierId]);
+
   const isMissing = Boolean(group.missing && !selectedValue);
 
   return (
@@ -2185,7 +2264,10 @@ function CarryoutQualifierGroupView({ group }: { group: CarryoutQualifierGroup }
             <button
               key={`${group.qualifierId || group.label}-${value}`}
               type="button"
-              onClick={() => setSelectedValue(value)}
+              onClick={() => {
+                setSelectedValue(value);
+                onQualifierSelect?.(group, option);
+              }}
               aria-pressed={selected}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
                 selected
@@ -2213,6 +2295,7 @@ function BotRow({
   refinementChips,
   qualifierGroups,
   onChipClick,
+  onQualifierSelect,
   status,
 }: {
   title?: string;
@@ -2221,6 +2304,7 @@ function BotRow({
   refinementChips?: string[];
   qualifierGroups?: CarryoutQualifierGroup[];
   onChipClick?: (chip: string) => void;
+  onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   status?: "thinking" | "done";
 }) {
   const isThinking = status === "thinking";
@@ -2244,7 +2328,12 @@ function BotRow({
       ) : (
         <StructuredAnswer parts={answerParts} fallback={body} />
       )}
-      {!isThinking ? <CarryoutQualifierControls groups={qualifierGroups} /> : null}
+      {!isThinking ? (
+        <CarryoutQualifierControls
+          groups={qualifierGroups}
+          onQualifierSelect={onQualifierSelect}
+        />
+      ) : null}
       {!isThinking && refinementChips?.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {refinementChips.map((chip) => {
@@ -2364,6 +2453,8 @@ export function GuideShellStatic({
   demoStatus?: "idle" | "running" | "paused";
   demoInteractionLocked?: boolean;
 } = {}) {
+  const isCarryoutOrdering = guideConfig?.catalogMode === "carryout_ordering";
+
   const restoredShellRef = useRef(
     initialShellState === "welcome" ? readShellSession() : null,
   );
@@ -2391,6 +2482,8 @@ export function GuideShellStatic({
     packages: [],
     extras: [],
   });
+  const [carryoutPreCart, setCarryoutPreCart] =
+    useState<CarryoutPreCartState | null>(null);
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
     string | null
   >(null);
@@ -3078,6 +3171,275 @@ export function GuideShellStatic({
     return match || "";
   };
 
+
+  const carryoutLineKey = (line?: CarryoutPreCartLine | null) =>
+    String(line?.lineItemId || line?.id || line?.targetId || "");
+
+  const normalizeCarryoutLine = (
+    line: CarryoutPreCartLine,
+    fallbackStatus: "ready" | "pending",
+  ): CarryoutPreCartLine => {
+    const missing = Array.isArray(line.missingQualifiers)
+      ? line.missingQualifiers
+      : [];
+    const status = missing.length > 0 ? "pending" : fallbackStatus;
+    return {
+      ...line,
+      status,
+      quantity:
+        typeof line.quantity === "number" && Number.isFinite(line.quantity)
+          ? line.quantity
+          : 1,
+      lineItemId:
+        line.lineItemId || line.id || line.targetId || makeId(),
+      knownSelections: Array.isArray(line.knownSelections)
+        ? line.knownSelections.filter(Boolean).map(String)
+        : [],
+      qualifiers: Array.isArray(line.qualifiers) ? line.qualifiers : [],
+      missingQualifiers: missing,
+      qualifierGroups: Array.isArray(line.qualifierGroups)
+        ? line.qualifierGroups
+        : [],
+    };
+  };
+
+  const normalizeCarryoutOrderState = (
+    value?: CarryoutPreCartState | null,
+  ): CarryoutPreCartState | null => {
+    if (!value || typeof value !== "object") return null;
+    const completeItems = Array.isArray(value.completeItems)
+      ? value.completeItems.map((line) => normalizeCarryoutLine(line, "ready"))
+      : [];
+    const pendingItems = Array.isArray(value.pendingItems)
+      ? value.pendingItems.map((line) => normalizeCarryoutLine(line, "pending"))
+      : [];
+    return {
+      ...value,
+      completeItems,
+      pendingItems,
+      savedBadgeCount: completeItems.length + pendingItems.length,
+    };
+  };
+
+  const carryoutReadyLines = (carryoutPreCart?.completeItems || []).map(
+    (line) => normalizeCarryoutLine(line, "ready"),
+  );
+  const carryoutPendingLines = (carryoutPreCart?.pendingItems || []).map(
+    (line) => normalizeCarryoutLine(line, "pending"),
+  );
+  const carryoutAllLines = [...carryoutReadyLines, ...carryoutPendingLines];
+  const carryoutItemCount = carryoutAllLines.length;
+  const hasCarryoutItems = carryoutItemCount > 0;
+  const hasPendingCarryoutItems = carryoutPendingLines.length > 0;
+
+  const syncCarryoutPreCart = (nextOrder?: CarryoutPreCartState | null) => {
+    const normalized = normalizeCarryoutOrderState(nextOrder || null);
+    if (!normalized) return;
+    setCarryoutPreCart(normalized);
+    visibleContextRef.current = {
+      ...(visibleContextRef.current || {}),
+      carryoutOrder: normalized,
+    };
+  };
+
+  const formatCarryoutLinePrice = (line: CarryoutPreCartLine) => {
+    const price = line.lineSubtotal;
+    return typeof price === "number" && Number.isFinite(price)
+      ? `$${price.toFixed(2)}`
+      : line.status === "pending"
+        ? "Pending"
+        : "Ready";
+  };
+
+  const carryoutMissingSummary = (line: CarryoutPreCartLine) => {
+    const missing = Array.isArray(line.missingQualifiers)
+      ? line.missingQualifiers
+      : [];
+    if (!missing.length) return "Ready";
+    return `Needs ${missing
+      .map((item) => item.label || item.qualifierId || "choice")
+      .filter(Boolean)
+      .join(", ")}`;
+  };
+
+  const updateCarryoutLineQualifier = (
+    group: CarryoutQualifierGroup,
+    option: CarryoutQualifierOption,
+  ) => {
+    const qualifierId = String(
+      group.qualifierId || option.qualifierId || "",
+    );
+    const value = String(option.value || option.label || "");
+    if (!qualifierId || !value) return;
+
+    const targetLineKey = String(
+      group.lineItemId ||
+        option.lineItemId ||
+        group.itemId ||
+        option.itemId ||
+        group.targetId ||
+        option.targetId ||
+        "",
+    );
+
+    const applyToLine = (line: CarryoutPreCartLine): CarryoutPreCartLine => {
+      const lineKey = carryoutLineKey(line);
+      const matches =
+        !targetLineKey ||
+        targetLineKey === lineKey ||
+        targetLineKey === line.id ||
+        targetLineKey === line.targetId;
+      if (!matches) return line;
+
+      const selectedQualifier: CarryoutSelectedQualifier = {
+        qualifierId,
+        label: group.label || qualifierId,
+        value,
+        valueLabel: option.label || value,
+        targetId: group.targetId || option.targetId || line.targetId,
+      };
+      const qualifiers = [
+        ...(line.qualifiers || []).filter(
+          (qualifier) => qualifier.qualifierId !== qualifierId,
+        ),
+        selectedQualifier,
+      ];
+      const missingQualifiers = (line.missingQualifiers || []).filter(
+        (missing) => missing.qualifierId !== qualifierId,
+      );
+      const qualifierGroups = (line.qualifierGroups || []).map((candidate) => {
+        if (candidate.qualifierId !== qualifierId) return candidate;
+        return {
+          ...candidate,
+          missing: false,
+          selectedValue: value,
+          selectedLabel: option.label || value,
+          options: (candidate.options || []).map((candidateOption) => {
+            const candidateValue = String(
+              candidateOption.value || candidateOption.label || "",
+            );
+            const selected = candidateValue === value;
+            return {
+              ...candidateOption,
+              selected,
+              state: selected ? "selected" : "available",
+            };
+          }),
+        };
+      });
+
+      const knownSelections = Array.from(
+        new Set([
+          ...(line.knownSelections || []),
+          option.label || value,
+        ].filter(Boolean).map(String)),
+      );
+
+      return {
+        ...line,
+        qualifiers,
+        missingQualifiers,
+        qualifierGroups,
+        knownSelections,
+        status: missingQualifiers.length ? "pending" : "ready",
+      };
+    };
+
+    setCarryoutPreCart((current) => {
+      if (!current) return current;
+      const allLines = [
+        ...(current.completeItems || []),
+        ...(current.pendingItems || []),
+      ].map(applyToLine);
+      const completeItems = allLines.filter(
+        (line) => !(line.missingQualifiers || []).length,
+      );
+      const pendingItems = allLines.filter(
+        (line) => (line.missingQualifiers || []).length,
+      );
+      const next: CarryoutPreCartState = {
+        ...current,
+        status: pendingItems.length ? "needs_qualifier" : "ready_cart",
+        completeItems,
+        pendingItems,
+        savedBadgeCount: allLines.length,
+        totals: {
+          ...(current.totals || {}),
+          finalTotalAvailable: Boolean(
+            !pendingItems.length && current.totals?.estimatedTotal,
+          ),
+        },
+      };
+      visibleContextRef.current = {
+        ...(visibleContextRef.current || {}),
+        carryoutOrder: next,
+      };
+      return next;
+    });
+
+    setGuideSteps((currentSteps) =>
+      currentSteps.map((step) => ({
+        ...step,
+        qualifierGroups: (step.qualifierGroups || []).map((candidate) =>
+          candidate.qualifierId === qualifierId &&
+          (candidate.lineItemId === targetLineKey ||
+            candidate.itemId === targetLineKey ||
+            candidate.targetId === targetLineKey ||
+            !targetLineKey)
+            ? {
+                ...candidate,
+                missing: false,
+                selectedValue: value,
+                selectedLabel: option.label || value,
+                options: (candidate.options || []).map((candidateOption) => {
+                  const candidateValue = String(
+                    candidateOption.value || candidateOption.label || "",
+                  );
+                  const selected = candidateValue === value;
+                  return {
+                    ...candidateOption,
+                    selected,
+                    state: selected ? "selected" : "available",
+                  };
+                }),
+              }
+            : candidate,
+        ),
+        stepNarrative: step.stepNarrative
+          ? {
+              ...step.stepNarrative,
+              qualifierGroups: (step.stepNarrative.qualifierGroups || []).map(
+                (candidate) =>
+                  candidate.qualifierId === qualifierId &&
+                  (candidate.lineItemId === targetLineKey ||
+                    candidate.itemId === targetLineKey ||
+                    candidate.targetId === targetLineKey ||
+                    !targetLineKey)
+                    ? {
+                        ...candidate,
+                        missing: false,
+                        selectedValue: value,
+                        selectedLabel: option.label || value,
+                        options: (candidate.options || []).map((candidateOption) => {
+                          const candidateValue = String(
+                            candidateOption.value || candidateOption.label || "",
+                          );
+                          const selected = candidateValue === value;
+                          return {
+                            ...candidateOption,
+                            selected,
+                            state: selected ? "selected" : "available",
+                          };
+                        }),
+                      }
+                    : candidate,
+              ),
+            }
+          : step.stepNarrative,
+      })),
+    );
+  };
+
   const mergeExtractedBookingContext = (
     context?: ExtractedBookingContext | null,
   ) => {
@@ -3162,6 +3524,10 @@ export function GuideShellStatic({
       savedItems: Array.isArray(previous.savedItems) ? previous.savedItems : [],
       pendingSave: previous.pendingSave ?? null,
       lastPlannerIntent: previous.lastPlannerIntent ?? null,
+      carryoutOrder:
+        isCarryoutOrdering
+          ? carryoutPreCart || previous.carryoutOrder || null
+          : previous.carryoutOrder || null,
     };
   };
 
@@ -3292,6 +3658,10 @@ export function GuideShellStatic({
           }
         : visibleContextRef.current.bookingContext,
     };
+
+    if (isCarryoutOrdering) {
+      syncCarryoutPreCart(context.carryoutOrder || null);
+    }
 
     if (guideConfig?.mode !== "commerce") return;
 
@@ -3721,7 +4091,6 @@ export function GuideShellStatic({
             reply.displayMode === "hidden_cart_ready_handoff"),
       );
       const shouldPreserveTopLevelAnswer = isHiddenCartReadyHandoff;
-      const isCarryoutOrdering = guideConfig?.catalogMode === "carryout_ordering";
       const hasGuideSteps = nextGuideSteps.length > 0;
       const shouldDriveThreadFromGuideSteps =
         ((isMultiStepGuide || (isCarryoutOrdering && hasGuideSteps)) &&
@@ -3932,11 +4301,13 @@ export function GuideShellStatic({
   const hasCommerceRefinementChips = Boolean(
     guideConfig?.mode === "commerce" && latestBotRefinementChips.length > 0,
   );
-  const hasSavedTripItems = Boolean(
-    savedTripContext.room ||
-      savedTripContext.packages.length > 0 ||
-      savedTripContext.extras.length > 0,
-  );
+  const hasSavedTripItems = isCarryoutOrdering
+    ? hasCarryoutItems
+    : Boolean(
+        savedTripContext.room ||
+          savedTripContext.packages.length > 0 ||
+          savedTripContext.extras.length > 0,
+      );
   // Hard rule: commerce action tools stay visible for answer-only commerce
   // turns when the user still has visible trip state or refinement actions.
   // This prevents informational follow-ups like "what amenities do you offer?"
@@ -3953,25 +4324,31 @@ export function GuideShellStatic({
   const hasBookableActiveStayPlan = Boolean(activeStayPlan?.room?.targetId);
   const hasSaveableCommerceState = Boolean(
     guideConfig?.mode === "commerce" &&
-      (hasGuideSteps ||
-        hasBookableActiveStayPlan ||
-        hasBookableSavedTrip ||
-        (activeStayPlan?.packages?.length || 0) > 0 ||
-        savedTripContext.packages.length > 0),
+      (isCarryoutOrdering
+        ? hasCarryoutItems || hasGuideSteps
+        : hasGuideSteps ||
+          hasBookableActiveStayPlan ||
+          hasBookableSavedTrip ||
+          (activeStayPlan?.packages?.length || 0) > 0 ||
+          savedTripContext.packages.length > 0),
   );
   const showBookAction = Boolean(
     guideConfig?.mode === "commerce" &&
       guideConfig?.features?.bookingActions &&
-      (guideSteps.some((step) => step?.targetId?.startsWith("room-")) ||
-        hasBookableActiveStayPlan ||
-        hasBookableSavedTrip),
+      (isCarryoutOrdering
+        ? hasCarryoutItems
+        : guideSteps.some((step) => step?.targetId?.startsWith("room-")) ||
+          hasBookableActiveStayPlan ||
+          hasBookableSavedTrip),
   );
   const showSaveAction = Boolean(
     guideConfig?.mode === "commerce" &&
-      (hasSaveableCommerceState ||
-        showBookAction ||
-        hasBookableActiveStayPlan ||
-        hasBookableSavedTrip),
+      (isCarryoutOrdering
+        ? hasCarryoutItems || hasGuideSteps
+        : hasSaveableCommerceState ||
+          showBookAction ||
+          hasBookableActiveStayPlan ||
+          hasBookableSavedTrip),
   );
 
   const navigateToGuideStep = (nextIndex: number, collapseOnMobile = false) => {
@@ -4058,9 +4435,11 @@ export function GuideShellStatic({
   };
 
   const savedTripItemCount = () =>
-    (savedTripContext.room ? 1 : 0) +
-    savedTripContext.packages.length +
-    savedTripContext.extras.length;
+    isCarryoutOrdering
+      ? carryoutItemCount
+      : (savedTripContext.room ? 1 : 0) +
+        savedTripContext.packages.length +
+        savedTripContext.extras.length;
 
   const currentGuideStepToSavedItem = (): SavedCommerceItem | null => {
     if (!currentGuideStep?.targetId) {
@@ -4179,6 +4558,12 @@ export function GuideShellStatic({
   };
 
   const saveCurrentGuideStep = () => {
+    if (isCarryoutOrdering) {
+      if (shellState !== "panel") openPanel();
+      setActiveCompletionWidget("saved-trip");
+      return;
+    }
+
     const item = currentGuideStepToSavedItem();
     if (!item) {
       setActiveCompletionWidget("saved-trip");
@@ -4264,6 +4649,7 @@ export function GuideShellStatic({
       ? { requested: true, label: "Breakfast requested" }
       : null,
     savedTrip: savedTripContext,
+    carryoutOrder: isCarryoutOrdering ? carryoutPreCart : null,
   });
 
   const stayPlanFromSavedTrip = (): StayPlan | null => {
@@ -4299,6 +4685,14 @@ export function GuideShellStatic({
   };
 
   const bookCurrentGuideStep = (collapseOnMobile = false, forceCheckout = false) => {
+    if (isCarryoutOrdering) {
+      clearMinimizeTimer();
+      if (shellState !== "panel") openPanel();
+      setActiveCompletionWidget("saved-trip");
+      setBookingPreloadConfirmed(!hasPendingCarryoutItems && hasCarryoutItems);
+      return;
+    }
+
     if (guideConfig?.mode === "commerce" && !forceCheckout) {
       clearMinimizeTimer();
       if (shellState !== "panel") openPanel();
@@ -4377,6 +4771,223 @@ export function GuideShellStatic({
     }
 
     dispatchBook();
+  };
+
+
+
+  const jumpToCarryoutLine = (line: CarryoutPreCartLine) => {
+    const targetId = String(line.targetId || line.id || "");
+    if (!targetId) return;
+
+    clearMinimizeTimer();
+    setActiveCompletionWidget(null);
+    setActiveDatePicker(null);
+
+    const stepIndex = guideSteps.findIndex(
+      (step) => step.targetId === targetId,
+    );
+    if (stepIndex >= 0) {
+      navigateToGuideStep(stepIndex, true);
+      return;
+    }
+
+    const action: GuidedAction = {
+      type: "navigate",
+      targetId,
+      targetText: line.title || phraseFromId(targetId),
+      qualifierGroups: line.qualifierGroups || [],
+    };
+    if (isCoarsePointer()) collapsePanelForMobileAction();
+    window.setTimeout(
+      () => runSuggestedNavigation(action, threadStateRef.current, () => setSpotlightActive(true)),
+      100,
+    );
+  };
+
+  const renderCarryoutPreCartPanel = () => {
+    const subtotal = carryoutPreCart?.totals?.subtotal;
+    const estimatedTotal = carryoutPreCart?.totals?.estimatedTotal;
+    const hasFinalTotal = Boolean(
+      carryoutPreCart?.totals?.finalTotalAvailable && estimatedTotal,
+    );
+
+    const renderLine = (line: CarryoutPreCartLine, status: "ready" | "pending") => {
+      const pending = status === "pending";
+      const qty = typeof line.quantity === "number" && line.quantity > 1 ? `${line.quantity} × ` : "";
+      return (
+        <div
+          key={carryoutLineKey(line)}
+          className={`rounded-xl border bg-white p-2.5 shadow-sm ${
+            pending ? "border-amber-200" : "border-emerald-100"
+          }`}
+        >
+          <div className="flex items-start justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => pending && jumpToCarryoutLine(line)}
+              className={`min-w-0 flex-1 text-left ${pending ? "cursor-pointer" : "cursor-default"}`}
+            >
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-sm font-semibold text-slate-900">
+                  {qty}{line.title || phraseFromId(line.targetId || line.id || "Item")}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${
+                    pending
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
+                  {pending ? "Needs choices" : "Ready"}
+                </span>
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                {carryoutMissingSummary(line)}
+              </div>
+              {(line.knownSelections || []).length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {(line.knownSelections || []).slice(0, 5).map((selection) => (
+                    <span
+                      key={`${carryoutLineKey(line)}-${selection}`}
+                      className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                    >
+                      {selection}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {pending && (
+                <div className="mt-1 text-[11px] font-semibold text-amber-700">
+                  Tap to choose now
+                </div>
+              )}
+            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+                {formatCarryoutLinePrice(line)}
+              </span>
+              <button
+                type="button"
+                aria-label={`Remove ${line.title || "item"}`}
+                onClick={() => {
+                  const key = carryoutLineKey(line);
+                  setCarryoutPreCart((current) => {
+                    if (!current) return current;
+                    const completeItems = (current.completeItems || []).filter(
+                      (candidate) => carryoutLineKey(candidate) !== key,
+                    );
+                    const pendingItems = (current.pendingItems || []).filter(
+                      (candidate) => carryoutLineKey(candidate) !== key,
+                    );
+                    const next = {
+                      ...current,
+                      completeItems,
+                      pendingItems,
+                      savedBadgeCount: completeItems.length + pendingItems.length,
+                      status: pendingItems.length ? "needs_qualifier" : "ready_cart",
+                    };
+                    visibleContextRef.current = {
+                      ...(visibleContextRef.current || {}),
+                      carryoutOrder: next,
+                    };
+                    return next;
+                  });
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-2 sm:space-y-3">
+        <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${
+          hasPendingCarryoutItems
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-emerald-200 bg-emerald-50 text-emerald-900"
+        }`}>
+          {hasCarryoutItems
+            ? hasPendingCarryoutItems
+              ? `${carryoutPendingLines.length} item${carryoutPendingLines.length === 1 ? "" : "s"} need choices before checkout.`
+              : "All items are ready for checkout."
+            : "Tell TourBot your order and matched items will appear here automatically."}
+        </div>
+
+        {hasCarryoutItems ? (
+          <div className="space-y-2">
+            {carryoutPendingLines.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Needs choices
+                </div>
+                {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
+              </div>
+            )}
+            {carryoutReadyLines.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                  Ready items
+                </div>
+                {carryoutReadyLines.map((line) => renderLine(line, "ready"))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
+            No food items saved yet.
+          </div>
+        )}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-slate-900">
+                {hasPendingCarryoutItems ? "Complete choices first" : "Ready to checkout?"}
+              </div>
+              <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+                {hasFinalTotal
+                  ? `Estimated total: $${Number(estimatedTotal).toFixed(2)}`
+                  : typeof subtotal === "number"
+                    ? `Current subtotal: $${subtotal.toFixed(2)}`
+                    : hasPendingCarryoutItems
+                      ? "Choose the pending item options to finish the draft cart."
+                      : "Checkout handoff is ready once items are complete."}
+              </div>
+            </div>
+            <button
+              data-demo-target="guide-carryout-checkout"
+              type="button"
+              disabled={!hasCarryoutItems}
+              onClick={() => {
+                if (hasPendingCarryoutItems) {
+                  const firstPending = carryoutPendingLines[0];
+                  if (firstPending) jumpToCarryoutLine(firstPending);
+                  return;
+                }
+                setBookingPreloadConfirmed(true);
+              }}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                hasPendingCarryoutItems
+                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  : "bg-cyan-950 text-white hover:bg-cyan-900"
+              }`}
+            >
+              <ShoppingBag className="h-3.5 w-3.5" />
+              {hasPendingCarryoutItems ? "Finish" : "Checkout"}
+            </button>
+          </div>
+          {bookingPreloadConfirmed && !hasPendingCarryoutItems && (
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[11px] leading-4 text-emerald-900">
+              Carryout checkout is ready with the current pre-cart.
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const normalizeCommerceChip = (chip: string) =>
@@ -4707,6 +5318,14 @@ export function GuideShellStatic({
     }, 40);
   };
 
+
+  const handleCarryoutQualifierSelect = (
+    group: CarryoutQualifierGroup,
+    option: CarryoutQualifierOption,
+  ) => {
+    updateCarryoutLineQualifier(group, option);
+  };
+
   const handleRefinementChipClick = (chip: string) => {
     const clean = chip.trim();
     const lower = normalizeCommerceChip(clean);
@@ -5025,6 +5644,7 @@ export function GuideShellStatic({
                               qualifierGroups={item.qualifierGroups}
                               status={item.status}
                               onChipClick={handleRefinementChipClick}
+                              onQualifierSelect={handleCarryoutQualifierSelect}
                             />
                           ),
                         )
@@ -5118,7 +5738,7 @@ export function GuideShellStatic({
 
                       {showSaveAction && (
                         <>
-                          {showSaveAction && (
+                          {showSaveAction && !isCarryoutOrdering && (
                             <button
                               data-demo-target="guide-save"
                               type="button"
@@ -5133,8 +5753,8 @@ export function GuideShellStatic({
                           <button
                             data-demo-target="guide-view"
                             type="button"
-                            aria-label="View saved trip"
-                            title="View"
+                            aria-label={isCarryoutOrdering ? "View pre-cart" : "View saved trip"}
+                            title={isCarryoutOrdering ? "Pre-cart" : "View"}
                             onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("saved-trip"); }}
                             className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
                           >
@@ -5152,8 +5772,8 @@ export function GuideShellStatic({
                         <button
                           data-demo-target="guide-book"
                           type="button"
-                          aria-label="Book selected stay"
-                          title="Book"
+                          aria-label={isCarryoutOrdering ? "Checkout pre-cart" : "Book selected stay"}
+                          title={isCarryoutOrdering ? "Checkout" : "Book"}
                           onClick={() => bookCurrentGuideStep(true)}
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-950 text-white shadow-sm transition hover:bg-cyan-900"
                         >
@@ -5196,7 +5816,9 @@ export function GuideShellStatic({
                                 : activeCompletionWidget === "guests"
                                   ? "Add guests"
                                   : activeCompletionWidget === "saved-trip"
-                                    ? "Saved trip"
+                                    ? isCarryoutOrdering
+                                      ? "Pre-cart"
+                                      : "Saved trip"
                                     : activeCompletionWidget === "upsell"
                                       ? "Enhance your stay"
                                       : "Set budget"}
@@ -5207,7 +5829,9 @@ export function GuideShellStatic({
                                 : activeCompletionWidget === "guests"
                                   ? "Set the guest count so the guide can preserve capacity context."
                                   : activeCompletionWidget === "saved-trip"
-                                    ? "Review selected room, packages, and trip details."
+                                    ? isCarryoutOrdering
+                                      ? "Review food items, complete pending choices, and continue to checkout."
+                                      : "Review selected room, packages, and trip details."
                                     : activeCompletionWidget === "upsell"
                                       ? isMobileBookingUpsell
                                         ? "Pick an add-on, or continue to checkout."
@@ -5466,7 +6090,9 @@ export function GuideShellStatic({
                         )}
 
                         {activeCompletionWidget === "saved-trip" && (
-                          isMobileSavedTrip ? (
+                          isCarryoutOrdering ? (
+                            renderCarryoutPreCartPanel()
+                          ) : isMobileSavedTrip ? (
                             <div className="space-y-2">
                               <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
                                 <div className="flex items-center justify-between gap-2">
@@ -6025,7 +6651,7 @@ export function GuideShellStatic({
 
               {showSaveAction && (
                 <>
-                  {showSaveAction && (
+                  {showSaveAction && !isCarryoutOrdering && (
                     <button
                       data-demo-target="guide-save"
                       type="button"
@@ -6040,8 +6666,8 @@ export function GuideShellStatic({
                   <button
                     data-demo-target="guide-view"
                     type="button"
-                    aria-label="View saved trip"
-                    title="View"
+                    aria-label={isCarryoutOrdering ? "View pre-cart" : "View saved trip"}
+                    title={isCarryoutOrdering ? "Pre-cart" : "View"}
                     onClick={() => {
                       clearMinimizeTimer();
                       openPanel();
@@ -6063,8 +6689,8 @@ export function GuideShellStatic({
                 <button
                   data-demo-target="guide-book"
                   type="button"
-                  aria-label="Book selected stay"
-                  title="Book"
+                  aria-label={isCarryoutOrdering ? "Checkout pre-cart" : "Book selected stay"}
+                  title={isCarryoutOrdering ? "Checkout" : "Book"}
                   onClick={() => bookCurrentGuideStep(true)}
                   className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-950 text-white shadow-sm transition hover:bg-cyan-900"
                 >
