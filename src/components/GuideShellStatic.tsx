@@ -3721,8 +3721,11 @@ export function GuideShellStatic({
             reply.displayMode === "hidden_cart_ready_handoff"),
       );
       const shouldPreserveTopLevelAnswer = isHiddenCartReadyHandoff;
+      const isCarryoutOrdering = guideConfig?.catalogMode === "carryout_ordering";
+      const hasGuideSteps = nextGuideSteps.length > 0;
       const shouldDriveThreadFromGuideSteps =
-        isMultiStepGuide && !shouldPreserveTopLevelAnswer;
+        ((isMultiStepGuide || (isCarryoutOrdering && hasGuideSteps)) &&
+          !shouldPreserveTopLevelAnswer);
       const botMessageId = makeId();
       const responseAnswerParts = autoSavedPendingTrip
         ? savedTripConfirmationParts(autoSavedPendingTrip)
