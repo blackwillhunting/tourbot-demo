@@ -101,7 +101,7 @@ type AnswerParts = {
   closing?: string;
 };
 
-export type GuideMode = "discovery" | "commerce";
+export type GuideMode = "discovery" | "commerce" | "hidden_cart";
 
 export type GuideConfig = {
   mode?: GuideMode;
@@ -125,6 +125,33 @@ function guideModeCopy(guideConfig?: GuideConfig): {
   placeholder: string;
   quickStarts: GuideQuickStart[];
 } {
+  if (guideConfig?.mode === "hidden_cart") {
+    return {
+      statusLabel: "Guided service discovery ready",
+      greeting:
+        "Hi — I’m TourBot. Tell me what problem you’re trying to solve, and I’ll help shape the right service path.",
+      placeholder:
+        "Describe your challenge, service need, regulation, risk, or modernization goal...",
+      quickStarts: [
+        {
+          label: "AI safely",
+          prompt:
+            "We are a hedge fund trying to modernize our operations and use AI safely.",
+        },
+        {
+          label: "DORA risk",
+          prompt:
+            "We need help with DORA and third-party risk.",
+        },
+        {
+          label: "Better support",
+          prompt:
+            "We need better infrastructure and more reliable support.",
+        },
+      ],
+    };
+  }
+
   if (guideConfig?.mode === "commerce") {
     return {
       statusLabel: "Turning websites into guided buying experiences",

@@ -1566,6 +1566,15 @@ export default function App() {
         finishDelayMs={5000}
       />
       <GuideShellStatic
+        guideConfig={{
+          mode: "hidden_cart",
+          label: "NexaPath Advisory",
+          features: {
+            refinementChips: true,
+            navigation: true,
+            bookingActions: false,
+          },
+        }}
         demoCommand={guideDemoCommand}
         initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
         suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
