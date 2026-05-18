@@ -422,6 +422,11 @@ type SuggestedAction = {
   reason?: string;
   targetText?: string;
   targetCandidates?: string[];
+  lineItemId?: string | null;
+  itemId?: string | null;
+  stepId?: string | null;
+  reviewIndex?: number | null;
+  reviewCount?: number | null;
   qualifierGroups?: CarryoutQualifierGroup[];
 };
 
@@ -430,6 +435,11 @@ type StepNarrative = {
   pageId?: string;
   pageUrl?: string;
   targetText?: string;
+  lineItemId?: string | null;
+  itemId?: string | null;
+  stepId?: string | null;
+  reviewIndex?: number | null;
+  reviewCount?: number | null;
   /**
    * Freeform markdown-lite narration for this step. Preferred over the
    * legacy intro/bullets/closing memo shape when present.
@@ -3220,6 +3230,56 @@ export function GuideShellStatic({
   const carryoutLineKey = (line?: CarryoutPreCartLine | null) =>
     String(line?.lineItemId || line?.id || line?.targetId || "");
 
+  const carryoutStepLineKeys = (step?: GuidedAction | null) => {
+    if (!step) return [];
+    const keys = new Set<string>();
+    const addKey = (value?: string | null) => {
+      const key = String(value || "").trim();
+      if (key) keys.add(key);
+    };
+
+    addKey(step.lineItemId);
+    addKey(step.stepNarrative?.lineItemId);
+
+    const collectGroups = (groups?: CarryoutQualifierGroup[]) => {
+      (groups || []).forEach((group) => {
+        addKey(group.lineItemId);
+      });
+    };
+
+    collectGroups(step.qualifierGroups);
+    collectGroups(step.stepNarrative?.qualifierGroups);
+
+    return Array.from(keys);
+  };
+
+  const findCarryoutStepIndexForLine = (
+    line: CarryoutPreCartLine,
+    steps: GuidedAction[] = guideSteps,
+  ) => {
+    const key = carryoutLineKey(line);
+    const targetId = String(line.targetId || line.id || "").trim();
+
+    if (key) {
+      const exactIndex = steps.findIndex((step) =>
+        carryoutStepLineKeys(step).includes(key),
+      );
+      if (exactIndex >= 0) return exactIndex;
+    }
+
+    // Fallback to targetId only when it is unambiguous. Repeated items can share
+    // a targetId, so lineItemId remains the source of truth when present.
+    if (targetId) {
+      const targetIndexes = steps
+        .map((step, index) => ({ step, index }))
+        .filter(({ step }) => step.targetId === targetId)
+        .map(({ index }) => index);
+      if (targetIndexes.length === 1) return targetIndexes[0];
+    }
+
+    return -1;
+  };
+
   const normalizeCarryoutLine = (
     line: CarryoutPreCartLine,
     fallbackStatus: "ready" | "pending",
@@ -4902,9 +4962,7 @@ export function GuideShellStatic({
     setActiveCompletionWidget(null);
     setActiveDatePicker(null);
 
-    const stepIndex = guideSteps.findIndex(
-      (step) => step.targetId === targetId,
-    );
+    const stepIndex = findCarryoutStepIndexForLine(line);
     if (stepIndex >= 0) {
       navigateToGuideStep(stepIndex, true);
       return;
@@ -4914,6 +4972,8 @@ export function GuideShellStatic({
       type: "navigate",
       targetId,
       targetText: line.title || phraseFromId(targetId),
+      lineItemId: line.lineItemId || line.id || null,
+      itemId: line.id || line.itemId || null,
       qualifierGroups: line.qualifierGroups || [],
     };
     if (isCoarsePointer()) collapsePanelForMobileAction();
@@ -4921,6 +4981,133 @@ export function GuideShellStatic({
       () => runSuggestedNavigation(action, threadStateRef.current, () => setSpotlightActive(true)),
       MOBILE_ACTION_NAV_START_DELAY_MS,
     );
+  };
+
+  const removeCarryoutLine = (line: CarryoutPreCartLine) => {
+    const lineKey = carryoutLineKey(line);
+    if (!lineKey) return;
+
+    const targetId = String(line.targetId || line.id || "").trim();
+
+    setCarryoutOrderConfirmed(false);
+    setBookingPreloadConfirmed(false);
+    setMobileCarryoutSheetVisible(false);
+    setMobileCarryoutSheetCollapsed(false);
+    clearMobileCarryoutSheetTimer();
+
+    setCarryoutPreCart((current) => {
+      if (!current) return current;
+
+      const completeItems = (current.completeItems || []).filter(
+        (candidate) => carryoutLineKey(candidate) !== lineKey,
+      );
+      const pendingItems = (current.pendingItems || []).filter(
+        (candidate) => carryoutLineKey(candidate) !== lineKey,
+      );
+      const savedBadgeCount = completeItems.length + pendingItems.length;
+      const next: CarryoutPreCartState = {
+        ...current,
+        completeItems,
+        pendingItems,
+        savedBadgeCount,
+        status: savedBadgeCount
+          ? pendingItems.length
+            ? "needs_qualifier"
+            : "ready_cart"
+          : "empty",
+        nextAction: savedBadgeCount
+          ? pendingItems.length
+            ? "ask_qualifier"
+            : "show_ready_cart"
+          : "empty",
+        totals: savedBadgeCount
+          ? current.totals
+          : {
+              ...(current.totals || {}),
+              status: "empty",
+              subtotal: null,
+              estimatedTax: null,
+              estimatedTotal: null,
+              finalTotalAvailable: false,
+            },
+      };
+
+      visibleContextRef.current = {
+        ...(visibleContextRef.current || {}),
+        carryoutOrder: next,
+      };
+      return next;
+    });
+
+    const currentSteps = guideSteps;
+    const explicitMatchExists = currentSteps.some((step) =>
+      carryoutStepLineKeys(step).includes(lineKey),
+    );
+    const targetMatchCount = targetId
+      ? currentSteps.filter((step) => step.targetId === targetId).length
+      : 0;
+
+    const shouldRemoveStep = (step: GuidedAction) => {
+      if (explicitMatchExists) {
+        return carryoutStepLineKeys(step).includes(lineKey);
+      }
+      return Boolean(targetId && targetMatchCount === 1 && step.targetId === targetId);
+    };
+
+    const removedBeforeCurrent = currentSteps
+      .slice(0, currentGuideStepIndex)
+      .filter(shouldRemoveStep).length;
+    const currentStepWasRemoved = Boolean(
+      currentSteps[currentGuideStepIndex] &&
+        shouldRemoveStep(currentSteps[currentGuideStepIndex]),
+    );
+    const nextGuideSteps = currentSteps.filter((step) => !shouldRemoveStep(step));
+
+    if (nextGuideSteps.length !== currentSteps.length) {
+      const nextIndex = nextGuideSteps.length
+        ? currentStepWasRemoved
+          ? Math.min(currentGuideStepIndex, nextGuideSteps.length - 1)
+          : Math.max(0, currentGuideStepIndex - removedBeforeCurrent)
+        : 0;
+
+      setGuideSteps(nextGuideSteps);
+      setCurrentGuideStepIndex(nextIndex);
+
+      if (!nextGuideSteps.length) {
+        clearActiveSpotlight();
+        setSpotlightActive(false);
+        setCurrentGuideMessageId(null);
+      } else if (currentGuideMessageId) {
+        const nextStep = nextGuideSteps[nextIndex];
+        const stepResponse = responseForGuideStep(
+          nextStep,
+          nextIndex,
+          nextGuideSteps.length,
+        );
+        const nextThread = threadStateRef.current.map((item) =>
+          item.id === currentGuideMessageId
+            ? {
+                ...item,
+                body: stepResponse.body,
+                answerParts: stepResponse.answerParts,
+                qualifierGroups: stepResponse.qualifierGroups,
+                suggestedAction: nextStep,
+              }
+            : item,
+        );
+        threadStateRef.current = nextThread;
+        setThread(nextThread);
+        rememberShellSession(
+          shellState === "launcher" ? "launcher" : "panel",
+          nextThread,
+        );
+
+        if (currentStepWasRemoved) {
+          clearActiveSpotlight();
+          setSpotlightActive(false);
+        }
+      }
+    }
   };
 
   const renderCarryoutPreCartPanel = () => {
@@ -5018,32 +5205,7 @@ export function GuideShellStatic({
               <button
                 type="button"
                 aria-label={`Remove ${line.title || "item"}`}
-                onClick={() => {
-                  const key = carryoutLineKey(line);
-                  setCarryoutOrderConfirmed(false);
-                  setBookingPreloadConfirmed(false);
-                  setCarryoutPreCart((current) => {
-                    if (!current) return current;
-                    const completeItems = (current.completeItems || []).filter(
-                      (candidate) => carryoutLineKey(candidate) !== key,
-                    );
-                    const pendingItems = (current.pendingItems || []).filter(
-                      (candidate) => carryoutLineKey(candidate) !== key,
-                    );
-                    const next = {
-                      ...current,
-                      completeItems,
-                      pendingItems,
-                      savedBadgeCount: completeItems.length + pendingItems.length,
-                      status: pendingItems.length ? "needs_qualifier" : "ready_cart",
-                    };
-                    visibleContextRef.current = {
-                      ...(visibleContextRef.current || {}),
-                      carryoutOrder: next,
-                    };
-                    return next;
-                  });
-                }}
+                onClick={() => removeCarryoutLine(line)}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
               >
                 <Trash2 className="h-3.5 w-3.5" />
