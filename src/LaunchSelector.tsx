@@ -105,29 +105,29 @@ const closeMessages: Record<CloseMode, WalkthroughMessage[]> = {
       iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
     },
   ],
-  carryout: [
-    {
-      label: "Order captured",
-      message:
-        "**TourBot** turned a plain-English food request into a structured order with menu items, quantities, and preferences.",
-      icon: MessageSquare,
-      iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
-    },
-    {
-      label: "Modifiers applied",
-      message:
-        "**TourBot** handled the details that usually slow ordering down — spice level, removals, extras, sides, drinks, and substitutions.",
-      icon: ListChecks,
-      iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
-    },
-    {
-      label: "Ready cart",
-      message:
-        "For any carryout restaurant, TourBot turns customer intent into a guided path to checkout.",
-      icon: ShoppingCart,
-      iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
-    },
-  ],
+carryout: [
+  {
+    label: "Menu adapted",
+    message:
+      "**TourBot** can be mapped to any carryout menu — items, combos, sizes, modifiers, prices, and the choices each order needs.",
+    icon: MessageSquare,
+    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
+  },
+  {
+    label: "Order completed",
+    message:
+      "Instead of making customers hunt through the menu, **TourBot** turns plain-English intent into a structured order with quantities, preferences, and missing details resolved.",
+    icon: ListChecks,
+    iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
+  },
+  {
+    label: "Checkout handoff",
+    message:
+      "When the restaurant’s cart or POS supports it, **TourBot** can prefill the order for checkout — creating a faster path from “I want…” to paid order.",
+    icon: ShoppingCart,
+    iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+  },
+],
 };
 
 const THINKING_WIGGLE_DURATION = 1.35;
