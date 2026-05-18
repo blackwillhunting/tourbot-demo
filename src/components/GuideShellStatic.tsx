@@ -56,6 +56,7 @@ const GUIDE_DEMO_RESPONSE_COMPLETE_EVENT = "guide-demo-response-complete";
 const GUIDE_EXTERNAL_SPOTLIGHT_EVENT = "guide-spotlight-target";
 const GUIDE_CLEAR_SPOTLIGHT_EVENT = "guide-clear-spotlight";
 const MAX_GUIDED_STEPS = 10;
+const MAX_CARRYOUT_GUIDED_STEPS = 30;
 
 let activeSpotlightCleanup: (() => void) | null = null;
 let activeSpotlightOverlay: HTMLDivElement | null = null;
@@ -1120,7 +1121,7 @@ function normalizeGuideSteps(
       seen.add(key);
       return true;
     })
-    .slice(0, MAX_GUIDED_STEPS)
+    .slice(0, keepDuplicateTargets ? MAX_CARRYOUT_GUIDED_STEPS : MAX_GUIDED_STEPS)
     .map((step, index) => ({
       ...step,
       // Carryout can intentionally include duplicate targetIds for repeated
@@ -2492,6 +2493,7 @@ export function GuideShellStatic({
   });
   const [carryoutPreCart, setCarryoutPreCart] =
     useState<CarryoutPreCartState | null>(null);
+  const [carryoutOrderConfirmed, setCarryoutOrderConfirmed] = useState(false);
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
     string | null
   >(null);
@@ -3146,7 +3148,8 @@ export function GuideShellStatic({
   const buildConversationContext = (
     currentMessage: string,
   ): GuideConversationContext => {
-    const trimmedSteps = guideSteps.slice(0, MAX_GUIDED_STEPS).map((step) => ({
+    const currentStepLimit = isCarryoutOrdering ? MAX_CARRYOUT_GUIDED_STEPS : MAX_GUIDED_STEPS;
+    const trimmedSteps = guideSteps.slice(0, currentStepLimit).map((step) => ({
       type: step.type,
       targetId: step.targetId,
       pageId: step.pageId,
@@ -3244,6 +3247,8 @@ export function GuideShellStatic({
     const normalized = normalizeCarryoutOrderState(nextOrder || null);
     if (!normalized) return;
     setCarryoutPreCart(normalized);
+    setBookingPreloadConfirmed(false);
+    setCarryoutOrderConfirmed(false);
     visibleContextRef.current = {
       ...(visibleContextRef.current || {}),
       carryoutOrder: normalized,
@@ -3279,6 +3284,7 @@ export function GuideShellStatic({
     );
     const value = String(option.value || option.label || "");
     if (!qualifierId || !value) return;
+    setCarryoutOrderConfirmed(false);
 
     const explicitLineKey = String(
       group.lineItemId ||
@@ -4715,7 +4721,8 @@ export function GuideShellStatic({
       clearMinimizeTimer();
       if (shellState !== "panel") openPanel();
       setActiveCompletionWidget("saved-trip");
-      setBookingPreloadConfirmed(!hasPendingCarryoutItems && hasCarryoutItems);
+      setCarryoutOrderConfirmed(false);
+      setBookingPreloadConfirmed(hasCarryoutItems);
       return;
     }
 
@@ -4927,6 +4934,8 @@ export function GuideShellStatic({
                 aria-label={`Remove ${line.title || "item"}`}
                 onClick={() => {
                   const key = carryoutLineKey(line);
+                  setCarryoutOrderConfirmed(false);
+                  setBookingPreloadConfirmed(false);
                   setCarryoutPreCart((current) => {
                     if (!current) return current;
                     const completeItems = (current.completeItems || []).filter(
@@ -5072,24 +5081,20 @@ export function GuideShellStatic({
               <span className="font-black text-slate-950">{formatCarryoutMoney(estimatedTotal)}</span>
             </div>
           </div>
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-[11px] leading-4 text-emerald-900">
-              Demo handoff only — no payment is submitted.
-            </div>
-            <button
-              data-demo-target="guide-carryout-confirm-order"
-              type="button"
-              className="inline-flex items-center justify-center rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-800"
-            >
-              Confirm carryout order
-            </button>
+          <div className="rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-[11px] leading-4 text-emerald-900">
+            Demo handoff only — no payment is submitted. Use the fixed footer button below to confirm.
           </div>
+          {carryoutOrderConfirmed && (
+            <div className="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm">
+              Carryout order confirmed for demo handoff.
+            </div>
+          )}
         </div>
       );
     };
 
     return (
-      <div className="flex max-h-[min(58dvh,520px)] min-h-0 flex-col gap-2 sm:max-h-[520px]">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
         <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
           hasPendingCarryoutItems
             ? "border-amber-200 bg-amber-50 text-amber-900"
@@ -5110,7 +5115,13 @@ export function GuideShellStatic({
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="text-xs font-semibold text-slate-900">
-                {hasPendingCarryoutItems ? "Complete choices first" : bookingPreloadConfirmed ? "Confirmation ready" : "Ready to checkout?"}
+                {hasPendingCarryoutItems
+                  ? "Complete choices first"
+                  : carryoutOrderConfirmed
+                    ? "Order confirmed"
+                    : bookingPreloadConfirmed
+                      ? "Review and confirm"
+                      : "Ready to checkout?"}
               </div>
               <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
                 {hasFinalTotal
@@ -5125,16 +5136,34 @@ export function GuideShellStatic({
             <button
               data-demo-target="guide-carryout-checkout"
               type="button"
-              disabled={!hasCarryoutItems}
-              onClick={() => setBookingPreloadConfirmed(true)}
+              disabled={!hasCarryoutItems || carryoutOrderConfirmed}
+              onClick={() => {
+                if (!hasCarryoutItems) return;
+                if (hasPendingCarryoutItems || !bookingPreloadConfirmed) {
+                  setCarryoutOrderConfirmed(false);
+                  setBookingPreloadConfirmed(true);
+                  return;
+                }
+                setCarryoutOrderConfirmed(true);
+              }}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
                 hasPendingCarryoutItems
                   ? "bg-amber-600 text-white hover:bg-amber-700"
-                  : "bg-cyan-950 text-white hover:bg-cyan-900"
+                  : carryoutOrderConfirmed
+                    ? "bg-emerald-700 text-white"
+                    : bookingPreloadConfirmed
+                      ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                      : "bg-cyan-950 text-white hover:bg-cyan-900"
               }`}
             >
               <ShoppingBag className="h-3.5 w-3.5" />
-              {hasPendingCarryoutItems ? "Review" : bookingPreloadConfirmed ? "Reviewed" : "Checkout"}
+              {hasPendingCarryoutItems
+                ? "Review choices"
+                : carryoutOrderConfirmed
+                  ? "Confirmed"
+                  : bookingPreloadConfirmed
+                    ? "Confirm order"
+                    : "Checkout"}
             </button>
           </div>
         </div>
@@ -5908,7 +5937,7 @@ export function GuideShellStatic({
                             type="button"
                             aria-label={isCarryoutOrdering ? "View pre-cart" : "View saved trip"}
                             title={isCarryoutOrdering ? "Pre-cart" : "View"}
-                            onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setActiveCompletionWidget("saved-trip"); }}
+                            onClick={() => { clearMinimizeTimer(); if (shellState !== "panel") openPanel(); setBookingPreloadConfirmed(false); setCarryoutOrderConfirmed(false); setActiveCompletionWidget("saved-trip"); }}
                             className="relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-100"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -5959,7 +5988,19 @@ export function GuideShellStatic({
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         transition={{ duration: 0.18, ease: "easeOut" }}
-                        className={`mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${isMobileCommerceDrawer ? "max-h-[min(46dvh,310px)] p-2" : "max-h-[min(54dvh,390px)] p-1.5"}`}
+                        className={
+                          isCarryoutOrdering && activeCompletionWidget === "saved-trip"
+                            ? `mb-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:rounded-2xl ${
+                                isMobileCommerceDrawer
+                                  ? "h-[min(62dvh,430px)] p-2"
+                                  : "h-[min(64dvh,520px)] p-1.5 sm:p-3"
+                              }`
+                            : `mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${
+                                isMobileCommerceDrawer
+                                  ? "max-h-[min(46dvh,310px)] p-2"
+                                  : "max-h-[min(54dvh,390px)] p-1.5"
+                              }`
+                        }
                       >
                         <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
                           <div>
@@ -5998,6 +6039,7 @@ export function GuideShellStatic({
                               setActiveCompletionWidget(null);
                               setActiveDatePicker(null);
                               setBookingPreloadConfirmed(false);
+                              setCarryoutOrderConfirmed(false);
                             }}
                             className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
                           >
