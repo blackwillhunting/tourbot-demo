@@ -2207,22 +2207,32 @@ function carryoutQualifierDemoTarget(
 function CarryoutQualifierControls({
   groups,
   onQualifierSelect,
+  density = "default",
 }: {
   groups?: CarryoutQualifierGroup[];
   onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+  density?: "default" | "compact";
 }) {
   const visibleGroups = Array.isArray(groups)
     ? groups.filter((group) => Array.isArray(group.options) && group.options.length > 0)
     : [];
+  const compact = density === "compact";
 
   if (!visibleGroups.length) return null;
 
   return (
-    <div className="mt-3 space-y-3 rounded-2xl border border-white/55 bg-white/45 p-3 shadow-sm backdrop-blur-sm">
+    <div
+      className={`border border-white/55 bg-white/45 shadow-sm backdrop-blur-sm ${
+        compact
+          ? "mt-1.5 space-y-2 rounded-xl p-2"
+          : "mt-3 space-y-3 rounded-2xl p-3"
+      }`}
+    >
       {visibleGroups.map((group) => (
         <CarryoutQualifierGroupView
           key={`${group.lineItemId || group.itemId || "line"}-${group.qualifierId || group.label || "qualifier"}`}
           group={group}
+          density={density}
           onQualifierSelect={onQualifierSelect}
         />
       ))}
@@ -2233,15 +2243,18 @@ function CarryoutQualifierControls({
 function CarryoutQualifierGroupView({
   group,
   onQualifierSelect,
+  density = "default",
 }: {
   group: CarryoutQualifierGroup;
   onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+  density?: "default" | "compact";
 }) {
   const initialSelected =
     group.selectedValue ||
     group.options?.find((option) => option.selected || option.state === "selected")?.value ||
     "";
   const [selectedValue, setSelectedValue] = useState(String(initialSelected || ""));
+  const compact = density === "compact";
 
   useEffect(() => {
     setSelectedValue(String(initialSelected || ""));
@@ -2250,20 +2263,26 @@ function CarryoutQualifierGroupView({
   const isMissing = Boolean(group.missing && !selectedValue);
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+    <div className={compact ? "space-y-1.5" : "space-y-2"}>
+      <div
+        className={`flex flex-wrap items-center font-bold uppercase text-slate-500 ${
+          compact
+            ? "gap-1.5 text-[10px] tracking-[0.12em]"
+            : "gap-2 text-[11px] tracking-[0.14em]"
+        }`}
+      >
         <span>{group.label || "Qualifier"}</span>
         {isMissing ? (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+          <span className={`rounded-full bg-amber-100 text-amber-700 ${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"}`}>
             Required
           </span>
         ) : selectedValue ? (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+          <span className={`rounded-full bg-emerald-100 text-emerald-700 ${compact ? "px-1.5 py-0.5" : "px-2 py-0.5"}`}>
             Selected
           </span>
         ) : null}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className={`flex flex-wrap ${compact ? "gap-1.5" : "gap-2"}`}>
         {(group.options || []).map((option) => {
           const value = String(option.value || option.label || "");
           const selected = Boolean(value && value === selectedValue);
@@ -2277,7 +2296,9 @@ function CarryoutQualifierGroupView({
                 onQualifierSelect?.(group, option);
               }}
               aria-pressed={selected}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
+              className={`rounded-full border font-semibold shadow-sm transition ${
+                compact ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs"
+              } ${
                 selected
                   ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-100"
                   : isMissing
@@ -7067,63 +7088,40 @@ if (!best) {
                 <span className="h-1.5 w-12 rounded-full bg-slate-300" />
               </button>
 
-              <div className="flex items-start justify-between gap-3 border-b border-white/50 bg-white/20 px-4 pb-3 backdrop-blur-sm">
-                <div className="min-w-0">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
-                    Step {currentGuideStepIndex + 1} of {guideSteps.length}
-                  </div>
-                  <div className="mt-1 truncate text-sm font-black text-slate-950">
-                    {guideStepLabel(currentGuideStep)}
-                  </div>
-                  <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
-                    {currentCarryoutVisibleQualifierGroups.length
-                      ? currentCarryoutMissingChoiceCount
-                        ? `${currentCarryoutMissingChoiceCount} required choice${currentCarryoutMissingChoiceCount === 1 ? "" : "s"} left`
-                        : "Choices selected"
-                      : "No choices needed for this item"}
+              <div className="border-b border-white/50 bg-white/20 px-3 pb-2 backdrop-blur-sm">
+                <div className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="truncate text-xs font-black text-slate-950">
+                        {guideStepLabel(currentGuideStep)}
+                      </div>
+                      <div className="shrink-0 rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-bold text-white">
+                        {currentGuideStepIndex + 1} of {guideSteps.length}
+                      </div>
+                    </div>
+                    <div className="mt-0.5 truncate text-[10px] leading-4 text-slate-500">
+                      {currentCarryoutVisibleQualifierGroups.length
+                        ? currentCarryoutMissingChoiceCount
+                          ? `${currentCarryoutMissingChoiceCount} required choice${currentCarryoutMissingChoiceCount === 1 ? "" : "s"} left`
+                          : "Choices selected"
+                        : "No choices needed for this item"}
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setMobileCarryoutSheetCollapsed(true)}
-                  className="rounded-full bg-white/55 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-white/75"
-                >
-                  Hide
-                </button>
               </div>
 
-              <div className="max-h-[42dvh] overflow-y-auto px-4 py-3 [scrollbar-width:thin]">
+              <div className="max-h-[34dvh] overflow-y-auto px-3 py-2 [scrollbar-width:thin]">
                 {currentCarryoutVisibleQualifierGroups.length ? (
                   <CarryoutQualifierControls
                     groups={currentCarryoutVisibleQualifierGroups}
+                    density="compact"
                     onQualifierSelect={handleCarryoutQualifierSelect}
                   />
                 ) : (
-                  <div className="rounded-2xl border border-white/60 bg-white/50 px-3 py-3 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm">
+                  <div className="rounded-xl border border-white/60 bg-white/50 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-sm">
                     This item is already complete. Continue when you’re ready.
                   </div>
                 )}
-              </div>
-
-              <div className="flex items-center gap-2 border-t border-white/50 bg-white/28 px-4 py-3 backdrop-blur-sm">
-                <button
-                  type="button"
-                  onClick={() => navigateToGuideStep(currentGuideStepIndex - 1, true)}
-                  disabled={currentGuideStepIndex <= 0}
-                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigateToGuideStep(currentGuideStepIndex + 1, true)}
-                  disabled={currentGuideStepIndex >= guideSteps.length - 1}
-                  className="inline-flex min-h-10 flex-1 items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {currentGuideStepIndex >= guideSteps.length - 1
-                    ? "Last item"
-                    : "Next item"}
-                </button>
               </div>
             </div>
           )}
