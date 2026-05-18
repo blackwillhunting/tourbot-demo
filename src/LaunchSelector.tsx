@@ -60,7 +60,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Carryout ordering sites",
     message:
-      "**TourBot** turns “I want…” into a checkout-ready order — fast, accurate, and easier than browsing the whole menu.",
+      "**TourBot** turns “I want…” into instant checkout — fast, accurate, and easier than browsing the whole menu.",
     icon: ShoppingCart,
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
@@ -350,7 +350,7 @@ function LaunchMessage({
         {message.demoButtons && (
           <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
             <DemoLaunchButton
-              href="/informational?mode=self_drive"
+              href="/carryout?mode=self_drive"
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="BurgerRush"
