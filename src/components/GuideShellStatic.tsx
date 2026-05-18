@@ -16,6 +16,14 @@ import {
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import CarryoutReviewPanel from "./guide/carryout/CarryoutReviewPanel";
+import type {
+  CarryoutPreCartLine,
+  CarryoutPreCartState,
+  CarryoutQualifierGroup,
+  CarryoutQualifierOption,
+  CarryoutSelectedQualifier,
+} from "./guide/carryout/carryoutTypes";
 //import type { TourStep } from "../App";
 
 const baseMotion = {
@@ -104,7 +112,18 @@ type ShellState = "welcome" | "panel" | "launcher";
 
 export type GuideShellDemoCommand = {
   id: number;
-  type: "open" | "type" | "submit" | "next" | "got-it" | "minimize" | "book";
+  type:
+    | "open"
+    | "type"
+    | "submit"
+    | "next"
+    | "got-it"
+    | "minimize"
+    | "book"
+    | "carryout-scroll-cart-bottom"
+    | "carryout-jump-last-pending"
+    | "carryout-confirm-checkout"
+    | "carryout-select-option";
   value?: string;
 };
 
@@ -112,85 +131,6 @@ type AnswerParts = {
   intro?: string;
   bullets?: string[];
   closing?: string;
-};
-
-type CarryoutQualifierOption = {
-  label?: string | null;
-  value?: string | null;
-  qualifierId?: string | null;
-  itemId?: string | null;
-  lineItemId?: string | null;
-  targetId?: string | null;
-  selected?: boolean;
-  state?: "selected" | "available" | "missing" | string;
-  priceDelta?: number | null;
-};
-
-type CarryoutQualifierGroup = {
-  kind?: "qualifier" | string;
-  qualifierId?: string | null;
-  label?: string | null;
-  itemId?: string | null;
-  lineItemId?: string | null;
-  targetId?: string | null;
-  required?: boolean;
-  missing?: boolean;
-  selectedValue?: string | null;
-  selectedLabel?: string | null;
-  options?: CarryoutQualifierOption[];
-};
-
-type CarryoutSelectedQualifier = {
-  qualifierId?: string | null;
-  label?: string | null;
-  value?: string | null;
-  valueLabel?: string | null;
-  targetId?: string | null;
-};
-
-type CarryoutMissingQualifier = {
-  qualifierId?: string | null;
-  label?: string | null;
-  targetId?: string | null;
-};
-
-type CarryoutPreCartLine = {
-  id?: string | null;
-  itemId?: string | null;
-  lineItemId?: string | null;
-  type?: "offer" | "bundle" | string;
-  title?: string | null;
-  targetId?: string | null;
-  quantity?: number | null;
-  knownSelections?: string[];
-  qualifiers?: CarryoutSelectedQualifier[];
-  modifiers?: Array<{ label?: string | null; priceDelta?: number | null }>;
-  upgrades?: Array<{ label?: string | null; priceDelta?: number | null }>;
-  missingQualifiers?: CarryoutMissingQualifier[];
-  qualifierGroups?: CarryoutQualifierGroup[];
-  lineSubtotal?: number | null;
-  priceStatus?: string | null;
-  status?: "ready" | "pending" | string;
-};
-
-type CarryoutPreCartState = {
-  type?: string;
-  status?: string;
-  nextAction?: string;
-  completeItems?: CarryoutPreCartLine[];
-  pendingItems?: CarryoutPreCartLine[];
-  cannotMatchItems?: unknown[];
-  currentQualifierControls?: CarryoutQualifierGroup[];
-  savedBadgeCount?: number;
-  navigationOrder?: string[];
-  totals?: {
-    status?: string;
-    subtotal?: number | null;
-    estimatedTax?: number | null;
-    estimatedTotal?: number | null;
-    finalTotalAvailable?: boolean;
-    currency?: string | null;
-  };
 };
 
 export type GuideMode = "discovery" | "commerce" | "hidden_cart";
@@ -2556,6 +2496,7 @@ export function GuideShellStatic({
   const suppressNextDraftScrollRef = useRef(false);
   const pendingRevealDistanceRef = useRef(0);
   const laneRef = useRef<HTMLDivElement | null>(null);
+  const carryoutCartScrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const forceBottomOnNextPanelPaintRef = useRef(
     Boolean(restoredShellRef.current?.thread?.length),
@@ -5171,314 +5112,30 @@ export function GuideShellStatic({
     }
   };
 
-  const renderCarryoutPreCartPanel = () => {
-    const subtotal = carryoutPreCart?.totals?.subtotal;
-    const estimatedTax = carryoutPreCart?.totals?.estimatedTax;
-    const estimatedTotal = carryoutPreCart?.totals?.estimatedTotal;
-    const hasFinalTotal = Boolean(
-      carryoutPreCart?.totals?.finalTotalAvailable && estimatedTotal,
-    );
-
-    const formatCarryoutMoney = (value?: number | null) =>
-      typeof value === "number" && Number.isFinite(value)
-        ? `$${value.toFixed(2)}`
-        : "—";
-
-    const carryoutLineDetails = (line: CarryoutPreCartLine) => {
-      const details: string[] = [];
-      (line.knownSelections || []).forEach((selection) => {
-        if (selection && !details.includes(selection)) details.push(selection);
-      });
-      (line.qualifiers || []).forEach((qualifier) => {
-        const valueLabel = qualifier.valueLabel || qualifier.value;
-        if (valueLabel && !details.includes(valueLabel)) details.push(String(valueLabel));
-      });
-      (line.modifiers || []).forEach((modifier) => {
-        const label = modifier.label;
-        if (label && !details.includes(label)) {
-          details.push(`${label}${formatPriceDelta(modifier.priceDelta)}`);
-        }
-      });
-      (line.upgrades || []).forEach((upgrade) => {
-        const label = upgrade.label;
-        if (label && !details.includes(label)) {
-          details.push(`${label}${formatPriceDelta(upgrade.priceDelta)}`);
-        }
-      });
-      return details;
-    };
-
-    const renderLine = (line: CarryoutPreCartLine, status: "ready" | "pending") => {
-      const pending = status === "pending";
-      const qty = typeof line.quantity === "number" && line.quantity > 1 ? `${line.quantity} × ` : "";
-      return (
-        <div
-          key={carryoutLineKey(line)}
-          className={`rounded-xl border bg-white p-2.5 shadow-sm ${
-            pending ? "border-amber-200" : "border-emerald-100"
-          }`}
-        >
-          <div className="flex items-start justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => pending && jumpToCarryoutLine(line)}
-              className={`min-w-0 flex-1 text-left ${pending ? "cursor-pointer" : "cursor-default"}`}
-            >
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-sm font-semibold text-slate-900">
-                  {qty}{line.title || phraseFromId(line.targetId || line.id || "Item")}
-                </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${
-                    pending
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-emerald-100 text-emerald-800"
-                  }`}
-                >
-                  {pending ? "Needs choices" : "Ready"}
-                </span>
-              </div>
-              <div className="mt-1 text-[11px] leading-4 text-slate-500">
-                {carryoutMissingSummary(line)}
-              </div>
-              {carryoutLineDetails(line).length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {carryoutLineDetails(line).slice(0, 5).map((selection) => (
-                    <span
-                      key={`${carryoutLineKey(line)}-${selection}`}
-                      className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
-                    >
-                      {selection}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {pending && (
-                <div className="mt-1 text-[11px] font-semibold text-amber-700">
-                  Tap to choose now
-                </div>
-              )}
-            </button>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
-                {formatCarryoutLinePrice(line)}
-              </span>
-              <button
-                type="button"
-                aria-label={`Remove ${line.title || "item"}`}
-                onClick={() => removeCarryoutLine(line)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    const renderPreCartList = () => (
-      hasCarryoutItems ? (
-        <div className="space-y-2">
-          {carryoutPendingLines.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Needs choices
-              </div>
-              {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
-            </div>
-          )}
-          {carryoutReadyLines.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                Ready items
-              </div>
-              {carryoutReadyLines.map((line) => renderLine(line, "ready"))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
-          No food items saved yet.
-        </div>
-      )
-    );
-
-    const renderConfirmationLine = (line: CarryoutPreCartLine, index: number) => {
-      const details = carryoutLineDetails(line);
-      return (
-        <div
-          key={`${carryoutLineKey(line)}-confirm-${index}`}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-slate-950">
-                {line.title || phraseFromId(line.targetId || line.id || "Item")}
-              </div>
-              {details.length > 0 ? (
-                <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-slate-500">
-                  {details.map((detail) => (
-                    <div key={`${carryoutLineKey(line)}-detail-${detail}`}>• {detail}</div>
-                  ))}
-                </div>
-              ) : (
-                <div className="mt-1 text-[11px] leading-4 text-slate-500">
-                  No extra choices.
-                </div>
-              )}
-            </div>
-            <div className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-white">
-              {formatCarryoutLinePrice(line)}
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    const renderCheckoutReview = () => {
-      if (!bookingPreloadConfirmed) return renderPreCartList();
-
-      if (hasPendingCarryoutItems) {
-        return (
-          <div
-            data-demo-target="guide-carryout-pending-card"
-            className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3"
-          >
-            <div>
-              <div className="text-sm font-semibold text-amber-950">
-                Almost ready — finish choices first
-              </div>
-              <div className="mt-1 text-[11px] leading-4 text-amber-900">
-                {carryoutPendingLines.length} item{carryoutPendingLines.length === 1 ? "" : "s"} need choices before checkout. Tap a row to jump back to that item.
-              </div>
-            </div>
-            <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
-              {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
-            </div>
-          </div>
-        );
-      }
-
-      return (
-        <div
-          data-demo-target="guide-carryout-confirmation-card"
-          className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3"
-        >
-          <div>
-            <div className="text-sm font-semibold text-emerald-950">
-              Review your carryout order
-            </div>
-            <div className="mt-1 text-[11px] leading-4 text-emerald-900">
-              Everything required is complete. Review details before the demo handoff.
-            </div>
-          </div>
-          <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
-            {carryoutAllLines.map((line, index) => renderConfirmationLine(line, index))}
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-white p-2.5 text-xs text-slate-700 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span>Subtotal</span>
-              <span className="font-semibold text-slate-950">{formatCarryoutMoney(subtotal)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span>Estimated tax</span>
-              <span className="font-semibold text-slate-950">{formatCarryoutMoney(estimatedTax)}</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-sm">
-              <span className="font-semibold text-slate-950">Estimated total</span>
-              <span className="font-black text-slate-950">{formatCarryoutMoney(estimatedTotal)}</span>
-            </div>
-          </div>
-          <div className="rounded-xl border border-emerald-200 bg-white/80 px-3 py-2 text-[11px] leading-4 text-emerald-900">
-            Demo handoff only — no payment is submitted. Use the fixed footer button below to confirm.
-          </div>
-          {carryoutOrderConfirmed && (
-            <div className="rounded-xl border border-emerald-300 bg-white px-3 py-2 text-xs font-semibold text-emerald-900 shadow-sm">
-              Carryout order confirmed for demo handoff.
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
-          hasPendingCarryoutItems
-            ? "border-amber-200 bg-amber-50 text-amber-900"
-            : "border-emerald-200 bg-emerald-50 text-emerald-900"
-        }`}>
-          {hasCarryoutItems
-            ? hasPendingCarryoutItems
-              ? `${carryoutPendingLines.length} item${carryoutPendingLines.length === 1 ? "" : "s"} need choices before checkout.`
-              : "All items are ready for checkout."
-            : "Tell TourBot your order and matched items will appear here automatically."}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1 [overscroll-behavior:contain]">
-          {renderCheckoutReview()}
-        </div>
-
-        <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-900">
-                {hasPendingCarryoutItems
-                  ? "Complete choices first"
-                  : carryoutOrderConfirmed
-                    ? "Order confirmed"
-                    : bookingPreloadConfirmed
-                      ? "Review and confirm"
-                      : "Ready to checkout?"}
-              </div>
-              <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
-                {hasFinalTotal
-                  ? `Estimated total: ${formatCarryoutMoney(estimatedTotal)}`
-                  : typeof subtotal === "number"
-                    ? `Current subtotal: ${formatCarryoutMoney(subtotal)}`
-                    : hasPendingCarryoutItems
-                      ? "Choose the pending item options to finish the draft cart."
-                      : "Checkout handoff is ready once items are complete."}
-              </div>
-            </div>
-            <button
-              data-demo-target="guide-carryout-checkout"
-              type="button"
-              disabled={!hasCarryoutItems || carryoutOrderConfirmed}
-              onClick={() => {
-                if (!hasCarryoutItems) return;
-                if (hasPendingCarryoutItems || !bookingPreloadConfirmed) {
-                  setCarryoutOrderConfirmed(false);
-                  setBookingPreloadConfirmed(true);
-                  return;
-                }
-                setCarryoutOrderConfirmed(true);
-              }}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                hasPendingCarryoutItems
-                  ? "bg-amber-600 text-white hover:bg-amber-700"
-                  : carryoutOrderConfirmed
-                    ? "bg-emerald-700 text-white"
-                    : bookingPreloadConfirmed
-                      ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                      : "bg-cyan-950 text-white hover:bg-cyan-900"
-              }`}
-            >
-              <ShoppingBag className="h-3.5 w-3.5" />
-              {hasPendingCarryoutItems
-                ? "Review choices"
-                : carryoutOrderConfirmed
-                  ? "Confirmed"
-                  : bookingPreloadConfirmed
-                    ? "Confirm order"
-                    : "Checkout"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const renderCarryoutPreCartPanel = () => (
+    <CarryoutReviewPanel
+      order={carryoutPreCart}
+      readyLines={carryoutReadyLines}
+      pendingLines={carryoutPendingLines}
+      allLines={carryoutAllLines}
+      hasItems={hasCarryoutItems}
+      hasPendingItems={hasPendingCarryoutItems}
+      bookingPreloadConfirmed={bookingPreloadConfirmed}
+      orderConfirmed={carryoutOrderConfirmed}
+      scrollRef={carryoutCartScrollRef}
+      onJumpToLine={jumpToCarryoutLine}
+      onRemoveLine={removeCarryoutLine}
+      onReviewChoices={() => {
+        setCarryoutOrderConfirmed(false);
+        setBookingPreloadConfirmed(true);
+      }}
+      onConfirmOrder={() => setCarryoutOrderConfirmed(true)}
+      formatPriceDelta={formatPriceDelta}
+      phraseFromId={phraseFromId}
+      formatLinePrice={formatCarryoutLinePrice}
+      missingSummary={carryoutMissingSummary}
+    />
+  );
 
 
   const normalizeCommerceChip = (chip: string) =>
@@ -5855,6 +5512,125 @@ export function GuideShellStatic({
     appendDraftInstruction(nextPrompt);
   };
 
+
+  const selectCarryoutOptionForDemo = (rawValue?: string) => {
+    if (!isCarryoutOrdering) return;
+
+    const wanted = normalizeText(rawValue || "");
+    if (!wanted) return;
+
+    clearMinimizeTimer();
+    if (shellState !== "panel") openPanel();
+
+    const groups = currentCarryoutVisibleQualifierGroups.filter(
+      (group) => Array.isArray(group.options) && group.options.length > 0,
+    );
+
+    const scoreOption = (option: CarryoutQualifierOption) => {
+      const label = normalizeText(option.label || "");
+      const value = normalizeText(option.value || "");
+      if (label === wanted || value === wanted) return 100;
+      if (label.includes(wanted) || value.includes(wanted)) return 80;
+      if (wanted.includes(label) && label.length >= 3) return 60;
+      if (wanted.includes(value) && value.length >= 3) return 60;
+      return 0;
+    };
+
+type CarryoutDemoOptionMatch = {
+  group: CarryoutQualifierGroup;
+  option: CarryoutQualifierOption;
+  score: number;
+  missing: boolean;
+};
+
+let best: CarryoutDemoOptionMatch | null = null;
+
+for (const group of groups) {
+  for (const option of group.options || []) {
+    const score = scoreOption(option);
+    if (score <= 0) continue;
+
+    const missing = Boolean(group.missing && !group.selectedValue);
+    if (
+      !best ||
+      score > best.score ||
+      (score === best.score && missing && !best.missing)
+    ) {
+      best = { group, option, score, missing };
+    }
+  }
+}
+
+if (!best) {
+      console.warn("Carryout demo option not found on current step:", rawValue, {
+        targetId: currentGuideStep?.targetId,
+        groups: groups.map((group) => ({
+          qualifierId: group.qualifierId,
+          label: group.label,
+          options: (group.options || []).map((option) => ({
+            label: option.label,
+            value: option.value,
+          })),
+        })),
+      });
+      return;
+    }
+
+    handleCarryoutQualifierSelect(best.group, best.option);
+  };
+
+  const openCarryoutCartForDemo = () => {
+    if (!isCarryoutOrdering) return;
+
+    clearMinimizeTimer();
+    if (shellState !== "panel") openPanel();
+    setActiveDatePicker(null);
+    setActiveCompletionWidget("saved-trip");
+    setCarryoutOrderConfirmed(false);
+
+    // In carryout mode, bookingPreloadConfirmed controls whether the drawer
+    // shows the normal pre-cart list or the checkout/pending review card.
+    // Demo scrolling needs the review card visible before it scrolls.
+    setBookingPreloadConfirmed(true);
+  };
+
+  const scrollCarryoutCartBottomForDemo = () => {
+    openCarryoutCartForDemo();
+
+    window.setTimeout(() => {
+      const container = carryoutCartScrollRef.current;
+      if (!container) return;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
+    }, 240);
+  };
+
+  const jumpToLastPendingCarryoutLineForDemo = () => {
+    openCarryoutCartForDemo();
+
+    window.setTimeout(() => {
+      const line = carryoutPendingLines[carryoutPendingLines.length - 1];
+      if (!line) return;
+      jumpToCarryoutLine(line);
+    }, 420);
+  };
+
+  const confirmCarryoutCheckoutForDemo = () => {
+    if (!isCarryoutOrdering) return;
+
+    clearMinimizeTimer();
+    if (shellState !== "panel") openPanel();
+    setActiveDatePicker(null);
+    setActiveCompletionWidget("saved-trip");
+    setBookingPreloadConfirmed(true);
+
+    if (!hasPendingCarryoutItems && hasCarryoutItems) {
+      setCarryoutOrderConfirmed(true);
+    }
+  };
+
   useEffect(() => {
     if (!demoCommand) return;
 
@@ -5889,6 +5665,26 @@ export function GuideShellStatic({
 
     if (demoCommand.type === "next") {
       navigateToGuideStep(currentGuideStepIndex + 1, true);
+      return;
+    }
+
+    if (demoCommand.type === "carryout-select-option") {
+      selectCarryoutOptionForDemo(demoCommand.value);
+      return;
+    }
+
+    if (demoCommand.type === "carryout-scroll-cart-bottom") {
+      scrollCarryoutCartBottomForDemo();
+      return;
+    }
+
+    if (demoCommand.type === "carryout-jump-last-pending") {
+      jumpToLastPendingCarryoutLineForDemo();
+      return;
+    }
+
+    if (demoCommand.type === "carryout-confirm-checkout") {
+      confirmCarryoutCheckoutForDemo();
       return;
     }
 
