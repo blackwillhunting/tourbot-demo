@@ -4146,6 +4146,67 @@ export function GuideShellStatic({
         return;
       }
 
+      const isCarryoutPanelAction = Boolean(
+        isCarryoutOrdering &&
+          [
+            "carryout_show_cart",
+            "carryout_show_cart_empty",
+            "carryout_checkout_blocked",
+            "carryout_checkout_handoff",
+          ].includes(reply.commerceAction || ""),
+      );
+      if (isCarryoutPanelAction) {
+        const shouldOpenCheckoutReview =
+          reply.commerceAction === "carryout_checkout_blocked" ||
+          reply.commerceAction === "carryout_checkout_handoff";
+
+        const botMessageId = makeId();
+        const completedThread: ThreadItem[] = [
+          ...threadStateRef.current.map((item) =>
+            item.id === submittedId ? { ...item, status: "done" as const } : item,
+          ),
+          {
+            id: botMessageId,
+            role: "bot",
+            title: reply.title,
+            body: reply.body,
+            answerParts: reply.answerParts,
+            refinementChips: [],
+            qualifierGroups: [],
+          },
+        ];
+        threadStateRef.current = completedThread;
+        setThread(completedThread);
+        rememberShellSession("panel", completedThread);
+
+        setGuideSteps([]);
+        setCurrentGuideStepIndex(0);
+        setCurrentGuideMessageId(null);
+        setLastRefinementChipClicked(null);
+        clearActiveSpotlight();
+        setSpotlightActive(false);
+        setMobileCarryoutSheetVisible(false);
+        setMobileCarryoutSheetCollapsed(false);
+        clearMobileCarryoutSheetTimer();
+
+        clearMinimizeTimer();
+        if (shellState !== "panel") openPanel();
+        setActiveDatePicker(null);
+        setActiveCompletionWidget("saved-trip");
+        setCarryoutOrderConfirmed(false);
+        setBookingPreloadConfirmed(shouldOpenCheckoutReview);
+
+        emitDemoResponseComplete({
+          ok: true,
+          hasNavigation: false,
+          stepCount: 0,
+          isMultiStep: false,
+          displayMode: reply.displayMode,
+          hasStayPlan: false,
+        });
+        return;
+      }
+
       const shouldOpenPreparedBookingPanel = Boolean(
         guideConfig?.mode === "commerce" &&
           (reply.commerceAction === "prepare_booking" ||
