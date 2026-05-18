@@ -123,7 +123,7 @@ const closeMessages: Record<CloseMode, WalkthroughMessage[]> = {
     {
       label: "Ready cart",
       message:
-        "For carryout sites, **TourBot** helps customers go from “I want…” to a ready-to-checkout order without browsing the full menu.",
+        "Adaptable to any restaurant with a carryout, **TourBot** gives customers a guided tour that ends in a painless sale.",
       icon: ShoppingCart,
       iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
     },
