@@ -60,7 +60,7 @@ const launchMessages: WalkthroughMessage[] = [
   {
     label: "Carryout ordering sites",
     message:
-      "**TourBot** turns “I want…” into a ready-to-checkout order — fast, accurate, and easier than browsing the whole menu.",
+      "**TourBot** turns “I want…” into a checkout-ready order — fast, accurate, and easier than browsing the whole menu.",
     icon: ShoppingCart,
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
