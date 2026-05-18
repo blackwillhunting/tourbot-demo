@@ -47,7 +47,7 @@ const THREAD_REVEAL_SCROLL_MS = 900;
 const GUIDE_NAVIGATION_SCROLL_MS = 1500;
 const MOBILE_GUIDE_NAVIGATION_SCROLL_MS = 2800;
 const MOBILE_CARRYOUT_SHEET_REUSE_DELAY_MS = 950;
-const MOBILE_CARRYOUT_SHEET_NAV_DELAY_MS = 3200;
+const MOBILE_CARRYOUT_SHEET_NAV_DELAY_MS = 4700;
 const MOBILE_CARRYOUT_SHEET_TRANSITION_SECONDS = 0.68;
 const MOBILE_ACTION_NAV_START_DELAY_MS = 740;
 const BOT_REPLY_DELAY_MS = 3000;
@@ -4427,11 +4427,14 @@ export function GuideShellStatic({
       return;
     }
 
-    // Wait for the page target to land before revealing the mobile controls.
-    // Same-target repeated steps keep the spotlight active, so they refresh faster
-    // but still get a visible beat so the sheet does not feel jumpy on phones.
+    // Wait for the page target to fully land before revealing the mobile controls.
+    // Important: do not make this effect depend on spotlightActive. A new-target
+    // navigation flips spotlightActive to true after the scroll settles; if that
+    // state change re-runs this effect, the sheet briefly opens, closes, then
+    // reopens. Snapshot the current state instead.
+    const reuseCurrentSpotlight = spotlightActive;
     setMobileCarryoutSheetVisible(false);
-    const delay = spotlightActive
+    const delay = reuseCurrentSpotlight
       ? MOBILE_CARRYOUT_SHEET_REUSE_DELAY_MS
       : MOBILE_CARRYOUT_SHEET_NAV_DELAY_MS;
     mobileCarryoutSheetTimerRef.current = window.setTimeout(() => {
@@ -4446,7 +4449,6 @@ export function GuideShellStatic({
     currentGuideStep?.targetId,
     currentGuideStep?.pageId,
     currentGuideStep?.pageUrl,
-    spotlightActive,
   ]);
 
   const navigateToGuideStep = (nextIndex: number, collapseOnMobile = false) => {
