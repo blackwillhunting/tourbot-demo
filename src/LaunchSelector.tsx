@@ -368,7 +368,7 @@ function LaunchMessage({
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="BurgerRush"
-              description="Food ordering demos"
+              description="Food ordering demo"
             />
             <DemoLaunchButton
               href="/transactional?mode=self_drive"
