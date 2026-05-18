@@ -114,6 +114,20 @@ carryout: [
     iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
   },
   {
+    label: "Navigation learned",
+    message:
+      "**TourBot** learns site’s navigation instantly — where items live, where choices happen, and how to walk a customer through the order.",
+    icon: Route,
+    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+  },
+  {
+    label: "Savings applied",
+    message:
+      "**TourBot** automatically spots and applies valid combo savings, rearranging cart lines where needed without changing the customer’s order.",
+    icon: Sparkles,
+    iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
+  },
+  {
     label: "Order completed",
     message:
       "Instead of making customers hunt through the menu, **TourBot** turns plain-English intent into a structured order with quantities, preferences, and missing details resolved.",
@@ -123,7 +137,7 @@ carryout: [
   {
     label: "Checkout handoff",
     message:
-      "When the restaurant’s cart or POS supports it, **TourBot** can prefill the order for checkout — creating a faster path from “I want…” to paid order.",
+      "When the restaurant’s cart or POS supports it, **TourBot** prefills the order for checkout — creating a faster path from “I want…” to paid order.",
     icon: ShoppingCart,
     iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
   },
