@@ -1,4 +1,4 @@
-import React from "react";
+import React, { forwardRef, useImperativeHandle, useRef } from "react";
 import { ShoppingBag, Trash2 } from "lucide-react";
 import type { CarryoutPreCartLine, CarryoutPreCartState } from "./carryoutTypes";
 import {
@@ -26,9 +26,37 @@ export type CarryoutReviewPanelProps = {
   phraseFromId: (value?: string | null) => string;
   formatLinePrice: (line: CarryoutPreCartLine) => string;
   missingSummary: (line: CarryoutPreCartLine) => string;
+  demoScrollButtonVisible?: boolean;
+};
+export type CarryoutReviewPanelSnapshot = {
+  hasScrollNode: boolean;
+  isScrollable: boolean;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+  atTop: boolean;
+  atBottom: boolean;
+  hasItems: boolean;
+  hasPendingItems: boolean;
+  readyCount: number;
+  pendingCount: number;
+  lineCount: number;
+  bookingPreloadConfirmed: boolean;
+  orderConfirmed: boolean;
+  checkoutReady: boolean;
+  lastPendingTitle?: string;
 };
 
-export default function CarryoutReviewPanel({
+export type CarryoutReviewPanelHandle = {
+  scrollToBottom: (options?: ScrollToOptions) => boolean;
+  scrollToTop: (options?: ScrollToOptions) => boolean;
+  getSnapshot: () => CarryoutReviewPanelSnapshot;
+};
+
+const invisibleDemoHitTargetClass =
+  "z-20 h-9 w-9 overflow-hidden rounded-full border border-transparent bg-transparent p-0 text-[0px] text-transparent shadow-none outline-none ring-0 transition focus-visible:ring-2 focus-visible:ring-slate-400/50";
+
+const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReviewPanelProps>(function CarryoutReviewPanel({
   order,
   readyLines,
   pendingLines,
@@ -46,11 +74,97 @@ export default function CarryoutReviewPanel({
   phraseFromId,
   formatLinePrice,
   missingSummary,
-}: CarryoutReviewPanelProps) {
+  demoScrollButtonVisible = false,
+}: CarryoutReviewPanelProps, ref) {
   const subtotal = order?.totals?.subtotal;
   const estimatedTax = order?.totals?.estimatedTax;
   const estimatedTotal = order?.totals?.estimatedTotal;
   const hasFinalTotal = Boolean(order?.totals?.finalTotalAvailable && estimatedTotal);
+  const internalScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const setScrollNode = (node: HTMLDivElement | null) => {
+    internalScrollRef.current = node;
+    (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+  };
+
+  const scrollToBottom = (options?: ScrollToOptions) => {
+    const node = internalScrollRef.current;
+    if (!node) return false;
+
+    node.scrollTo({
+      top: node.scrollHeight,
+      behavior: options?.behavior || "smooth",
+    });
+    return true;
+  };
+
+  const scrollToTop = (options?: ScrollToOptions) => {
+    const node = internalScrollRef.current;
+    if (!node) return false;
+
+    node.scrollTo({
+      top: 0,
+      behavior: options?.behavior || "smooth",
+    });
+    return true;
+  };
+
+  const jumpToLastPendingLine = () => {
+    const lastPending = pendingLines[pendingLines.length - 1];
+    if (!lastPending) return false;
+
+    onJumpToLine(lastPending);
+    return true;
+  };
+
+  const getSnapshot = (): CarryoutReviewPanelSnapshot => {
+    const node = internalScrollRef.current;
+    const scrollTop = node?.scrollTop || 0;
+    const scrollHeight = node?.scrollHeight || 0;
+    const clientHeight = node?.clientHeight || 0;
+    const maxScrollTop = Math.max(0, scrollHeight - clientHeight);
+    const lastPending = pendingLines[pendingLines.length - 1];
+
+    return {
+      hasScrollNode: Boolean(node),
+      isScrollable: Boolean(node && scrollHeight > clientHeight + 1),
+      scrollTop,
+      scrollHeight,
+      clientHeight,
+      atTop: scrollTop <= 1,
+      atBottom: !node || maxScrollTop - scrollTop <= 2,
+      hasItems,
+      hasPendingItems,
+      readyCount: readyLines.length,
+      pendingCount: pendingLines.length,
+      lineCount: allLines.length,
+      bookingPreloadConfirmed,
+      orderConfirmed,
+      checkoutReady: hasItems && !hasPendingItems,
+      lastPendingTitle: lastPending
+        ? carryoutDisplayTitle(lastPending, phraseFromId)
+        : undefined,
+    };
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToBottom,
+      scrollToTop,
+      getSnapshot,
+    }),
+    [
+      allLines,
+      bookingPreloadConfirmed,
+      hasItems,
+      hasPendingItems,
+      orderConfirmed,
+      pendingLines,
+      phraseFromId,
+      readyLines,
+    ],
+  );
 
   const renderLine = (line: CarryoutPreCartLine, status: "ready" | "pending") => {
     const pending = status === "pending";
@@ -249,7 +363,7 @@ export default function CarryoutReviewPanel({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
       <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
         hasPendingItems
           ? "border-amber-200 bg-amber-50 text-amber-900"
@@ -262,8 +376,45 @@ export default function CarryoutReviewPanel({
           : "Tell TourBot your order and matched items will appear here automatically."}
       </div>
 
+      {demoScrollButtonVisible && (
+        <>
+          <button
+            type="button"
+            data-demo-target="guide-carryout-scroll-top-hit"
+            aria-label="Demo scroll cart to top"
+            tabIndex={-1}
+            onClick={() => scrollToTop({ behavior: "smooth" })}
+            className={`absolute top-[4.9rem] -right-4 ${invisibleDemoHitTargetClass}`}
+          >
+            Demo ↑
+          </button>
+          <button
+            type="button"
+            data-demo-target="guide-carryout-scroll-bottom-hit"
+            aria-label="Demo scroll cart to bottom"
+            tabIndex={-1}
+            onClick={() => scrollToBottom({ behavior: "smooth" })}
+            className={`absolute bottom-[5.75rem] -right-4 ${invisibleDemoHitTargetClass}`}
+          >
+            Demo ↓
+          </button>
+          {pendingLines.length > 0 && (
+            <button
+              type="button"
+              data-demo-target="guide-carryout-jump-last-pending-hit"
+              aria-label="Demo jump to last pending cart item"
+              tabIndex={-1}
+              onClick={jumpToLastPendingLine}
+              className={`absolute bottom-[19.75rem] right-[15.15rem] ${invisibleDemoHitTargetClass}`}
+            >
+              Demo item →
+            </button>
+          )}
+        </>
+      )}
+
       <div
-        ref={scrollRef}
+        ref={setScrollNode}
         data-demo-target="guide-carryout-cart-scroll"
         className="min-h-0 flex-1 overflow-y-auto pr-1 [overscroll-behavior:contain]"
       >
@@ -327,4 +478,7 @@ export default function CarryoutReviewPanel({
       </div>
     </div>
   );
-}
+});
+
+export default CarryoutReviewPanel;
+

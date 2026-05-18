@@ -32,6 +32,44 @@ type DemoCalloutState = {
   emphasis?: "green-flash";
 };
 
+type CarryoutPanelCommandName =
+  | "snapshot"
+  | "scroll-bottom"
+  | "scroll-top"
+  | "open-review"
+  | "jump-last-pending"
+  | "confirm-ready";
+
+declare global {
+  interface Window {
+    __tourbotCarryout?: {
+      snapshot: () => {
+        hasScrollNode: boolean;
+        isScrollable: boolean;
+        scrollTop: number;
+        scrollHeight: number;
+        clientHeight: number;
+        atTop: boolean;
+        atBottom: boolean;
+        hasItems: boolean;
+        hasPendingItems: boolean;
+        readyCount: number;
+        pendingCount: number;
+        lineCount: number;
+        bookingPreloadConfirmed: boolean;
+        orderConfirmed: boolean;
+        checkoutReady: boolean;
+        lastPendingTitle?: string;
+      } | null;
+      scrollBottom: (behavior?: ScrollBehavior) => boolean;
+      scrollTop: (behavior?: ScrollBehavior) => boolean;
+      openReview: () => boolean;
+      jumpLastPending: () => boolean;
+      confirmReady: () => boolean;
+    };
+  }
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -585,6 +623,51 @@ export default function DemoController({
         });
       };
 
+      const runCarryoutPanelCommand = async (
+        step: Extract<DemoStep, { action: "carryout-panel-command" }>,
+      ) => {
+        if (step.target) {
+          setPointerVisible(true);
+          const position = await resolvePointerTargetWhenReady(
+            step.target,
+            statusRef,
+            stopRef,
+            step.targetWaitMs ?? 2600,
+          );
+          if (stopRef.current) return;
+          setPointerPosition(position);
+          await demoWait(step.hoverMs ?? 500);
+          if (stopRef.current) return;
+          if (step.pulseMs) await pulsePointer(step.pulseMs);
+        }
+
+        const api = window.__tourbotCarryout;
+        let result: unknown = false;
+
+        if (!api) {
+          console.warn("TourBot carryout panel API is not available.");
+        } else {
+          const command = step.command as CarryoutPanelCommandName;
+          if (command === "snapshot") result = api.snapshot();
+          else if (command === "scroll-bottom") result = api.scrollBottom("smooth");
+          else if (command === "scroll-top") result = api.scrollTop("smooth");
+          else if (command === "open-review") result = api.openReview();
+          else if (command === "jump-last-pending") result = api.jumpLastPending();
+          else if (command === "confirm-ready") result = api.confirmReady();
+        }
+
+        console.log("Carryout panel command:", step.command, result);
+
+        if (step.requireSuccess && result === false) {
+          console.warn("Carryout panel command reported failure:", step.command);
+          stopRef.current = true;
+          onStatusChange("idle");
+          return;
+        }
+
+        await demoWait(step.delayMs ?? 700);
+      };
+
       const runStep = async (step: DemoStep) => {
         await waitWhilePaused(statusRef, stopRef);
         if (stopRef.current) return;
@@ -719,6 +802,9 @@ export default function DemoController({
             if (step.delayMs) await demoWait(step.delayMs);
             return;
           }
+          case "carryout-panel-command":
+            await runCarryoutPanelCommand(step);
+            return;
           case "callout":
             await showCallout(step);
             if (step.delayMs) await demoWait(step.delayMs);

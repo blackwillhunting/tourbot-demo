@@ -13,6 +13,7 @@ export type DemoStep =
   | { action: "set-input-value"; target: DemoPointerTarget; value: string; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
   | { action: "click-through-guide-steps"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
   | { action: "click-next-back-if-multistep"; nextTarget?: DemoPointerTarget; backTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; minStepCount?: number }
+  | { action: "carryout-panel-command"; command: "snapshot" | "scroll-bottom" | "scroll-top" | "open-review" | "jump-last-pending" | "confirm-ready"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; requireSuccess?: boolean }
   | { action: "callout"; eyebrow?: string; title: string; body: string; buttonLabel?: string; placement?: "left" | "center" | "bottom"; emphasis?: "green-flash"; delayMs?: number }
   | { action: "open-shell"; delayMs?: number }
   | { action: "type-prompt"; prompt: string; delayMs?: number; charDelayMs?: number }
@@ -317,6 +318,224 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
 };
 
 export const guidedCommerceDemo = guidedCommerceRichIntentDemo;
+
+
+function carryoutQualifierChip(qualifierId: string, value: string, delayMs = 650): DemoStep {
+  return {
+    action: "click-dom-target",
+    target: `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`,
+    hoverMs: 520,
+    pulseMs: 420,
+    delayMs,
+    targetWaitMs: 6000,
+  };
+}
+
+function carryoutNext(delayMs = 850): DemoStep {
+  return {
+    action: "click-target",
+    target: "[data-demo-target='guide-next']",
+    command: "next",
+    hoverMs: 520,
+    pulseMs: 420,
+    delayMs,
+    targetWaitMs: 3600,
+  };
+}
+
+function carryoutDeterministicQualifierSteps(): DemoStep[] {
+  return [
+    // Classic Burger Combo #1
+    carryoutQualifierChip("side-size", "large"),
+    carryoutQualifierChip("drink-size", "large"),
+    carryoutQualifierChip("soda-flavor", "coke", 850),
+    carryoutNext(1000),
+
+    // Classic Burger Combo #2
+    carryoutQualifierChip("side-size", "medium"),
+    carryoutQualifierChip("drink-size", "large"),
+    carryoutQualifierChip("soda-flavor", "diet-coke", 850),
+    carryoutNext(4000),
+
+    // Standalone burger has no required choices.
+    carryoutNext(3000),
+
+    // Onion rings
+    carryoutQualifierChip("side-size", "large", 850),
+    carryoutNext(4000),
+
+    // Extra soda #3
+    carryoutQualifierChip("drink-size", "large"),
+    carryoutQualifierChip("soda-flavor", "sprite", 850),
+    carryoutNext(1000),
+
+    // Extra soda #4 — medium to show the demo can change a size.
+    carryoutQualifierChip("drink-size", "medium"),
+    carryoutQualifierChip("soda-flavor", "root-beer", 850),
+    carryoutNext(1000),
+
+    // Iced tea
+    carryoutQualifierChip("drink-size", "large"),
+    carryoutQualifierChip("tea-sweetness", "sweet", 1100),
+  ];
+}
+
+export const guidedCarryoutPanelDemo: DemoScript = {
+  id: "guided-carryout-natural-language-ordering",
+  label: "Natural Language Carryout",
+  description:
+    "Shows a messy BurgerRush carryout order becoming a structured cart with combo logic, clickable choice labels, missing-detail cleanup, and checkout handoff.",
+  defaultCharDelayMs: 22,
+  steps: [
+    {
+      action: "callout",
+      eyebrow: "BurgerRush Carryout",
+      title: "A standard food stop",
+      body: "BurgerRush is a standard food stop: combos, burgers, sides, drinks, desserts, and a checkout handoff. It stands in for any restaurant that supports carryout ordering.",
+      buttonLabel: "Continue",
+      placement: "left",
+      emphasis: "green-flash",
+    },
+    {
+      action: "callout",
+      eyebrow: "What you'll see",
+      title: "Messy order → guided cart",
+      body: "TourBot glides through a messy order, spotlighting items and generating clickable labels to confirm choices and sweep up missing details.",
+      buttonLabel: "Start demo",
+      placement: "left",
+    },
+    {
+      action: "click-target",
+      target: "[data-demo-target='guide-launcher']",
+      command: "open",
+      hoverMs: 800,
+      pulseMs: 650,
+      delayMs: 900,
+      targetWaitMs: 3600,
+    },
+    {
+      action: "move-pointer",
+      target: "[data-demo-target='guide-textarea']",
+      delayMs: 650,
+      targetWaitMs: 3600,
+    },
+    {
+      action: "type-prompt",
+      prompt: "i want 3 burgers, 2 fries, some onion rings, 4 large sodas, 1 ice tea, and a milkshake",
+      delayMs: 650,
+    },
+    {
+      action: "click-target",
+      target: "[data-demo-target='guide-submit']",
+      command: "submit",
+      hoverMs: 500,
+      pulseMs: 620,
+      delayMs: 900,
+      targetWaitMs: 2600,
+    },
+    { action: "wait-for-response", delayMs: 3200, timeoutMs: 45000 },
+    {
+      action: "callout",
+      eyebrow: "Order understood",
+      title: "TourBot turned intent into structure",
+      body: "TourBot detected savings and grouped items into 2 combos and sorted the rest by item type.",
+      buttonLabel: "Choose options",
+      placement: "left",
+    },
+    ...carryoutDeterministicQualifierSteps(),
+    {
+      action: "callout",
+      eyebrow: "Cart review",
+      title: "One missing detail remains",
+      body: "When ready, ask TourBot to show the order. It displays every item and flags missing choices with links that jump you directly to them.",
+      buttonLabel: "Show cart",
+      placement: "left",
+    },
+    {
+      action: "move-pointer",
+      target: "[data-demo-target='guide-textarea']",
+      delayMs: 650,
+      targetWaitMs: 3600,
+    },
+    { action: "type-prompt", prompt: "show cart", delayMs: 500 },
+    {
+      action: "click-target",
+      target: "[data-demo-target='guide-submit']",
+      command: "submit",
+      hoverMs: 500,
+      pulseMs: 620,
+      delayMs: 900,
+      targetWaitMs: 2600,
+    },
+    { action: "wait-for-response", delayMs: 1800, timeoutMs: 35000 },
+    {
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-scroll-bottom-hit']",
+      hoverMs: 900,
+      pulseMs: 650,
+      delayMs: 1500,
+      targetWaitMs: 8000,
+    },
+    {
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-scroll-top-hit']",
+      hoverMs: 900,
+      pulseMs: 650,
+      delayMs: 1500,
+      targetWaitMs: 8000,
+    },
+    {
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-jump-last-pending-hit']",
+      hoverMs: 900,
+      pulseMs: 650,
+      delayMs: 1800,
+      targetWaitMs: 8000,
+    },
+    { action: "wait", delayMs: 1000 },
+
+    // Finish the last pending milkshake item.
+    carryoutQualifierChip("shake-flavor", "vanilla", 900),
+
+    // Ask TourBot to open the checkout/review state.
+    {
+      action: "move-pointer",
+      target: "[data-demo-target='guide-textarea']",
+      delayMs: 900,
+      targetWaitMs: 3600,
+    },
+    { action: "type-prompt", prompt: "ok checkout", delayMs: 650 },
+    {
+      action: "click-target",
+      target: "[data-demo-target='guide-submit']",
+      command: "submit",
+      hoverMs: 500,
+      pulseMs: 620,
+      delayMs: 900,
+      targetWaitMs: 2600,
+    },
+    { action: "wait-for-response", delayMs: 2200, timeoutMs: 35000 },
+
+    // Scroll the review panel to the bottom, then complete the demo handoff.
+    {
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-scroll-bottom-hit']",
+      hoverMs: 900,
+      pulseMs: 650,
+      delayMs: 1500,
+      targetWaitMs: 8000,
+    },
+    {
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-checkout']",
+      hoverMs: 900,
+      pulseMs: 650,
+      delayMs: 1800,
+      targetWaitMs: 8000,
+    },
+  ],
+};
+
 
 export const demoScripts = [
   guidedDiscoveryDemo,

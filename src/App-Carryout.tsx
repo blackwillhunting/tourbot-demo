@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   CheckCircle,
@@ -12,7 +13,9 @@ import {
   Sparkles,
   Utensils,
 } from "lucide-react";
-import GuideShellStatic from "./components/GuideShellStatic";
+import GuideShellStatic, { type GuideShellDemoCommand } from "./components/GuideShellStatic";
+import DemoController, { type DemoStatus } from "./demo/DemoController";
+import { guidedCarryoutPanelDemo } from "./demo/demoScripts";
 
 type MenuTab = "combos" | "burgers" | "chicken" | "nuggets" | "sides" | "drinks" | "desserts";
 
@@ -269,6 +272,8 @@ function isSelfDriveEntry() {
   if (typeof window === "undefined") return false;
   return new URLSearchParams(window.location.search).get("mode") === "self_drive";
 }
+
+const CARRYOUT_CLOSE_URL = "https://tourbot.getn2ai.com/?close=carryout";
 
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
@@ -721,9 +726,55 @@ function CartPreview() {
   );
 }
 
+function DemoClosingCard({ onClose }: { onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -28, y: 18, scale: 0.98 }}
+      animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
+      exit={{ opacity: 0, x: -20, y: 14, scale: 0.98 }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
+      className="fixed bottom-24 left-4 right-4 z-[10050] w-[min(calc(100vw-2rem),27rem)] overflow-hidden rounded-[24px] border border-orange-100 bg-white/95 p-4 shadow-2xl shadow-slate-950/20 ring-1 ring-slate-950/[0.04] backdrop-blur-xl sm:bottom-6 sm:left-6 sm:right-auto sm:max-w-md"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+          <ShoppingCart className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">
+            Carryout handoff
+          </div>
+          <div className="mt-1 text-base font-black tracking-tight text-slate-950">
+            Ready for checkout
+          </div>
+          <p className="mt-1 text-sm leading-5 text-slate-600">
+            TourBot converted plain English into a rapid order flow that can prefill most checkout system forms.
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-4 w-full rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800"
+      >
+        Done
+      </button>
+    </motion.div>
+  );
+}
+
 export default function AppCarryout() {
   const [activeTab, setActiveTab] = useState<MenuTab>("combos");
   const selfDrive = useMemo(() => isSelfDriveEntry(), []);
+  const [demoStatus, setDemoStatus] = useState<DemoStatus>(() =>
+    selfDrive ? "running" : "idle",
+  );
+  const [guideDemoCommand, setGuideDemoCommand] =
+    useState<GuideShellDemoCommand | null>(null);
+  const [demoClosingOpen, setDemoClosingOpen] = useState(false);
+
+  const closeCarryoutDemo = () => {
+    window.location.href = CARRYOUT_CLOSE_URL;
+  };
 
   return (
     <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.16),_transparent_32%),linear-gradient(135deg,_#fff7ed_0%,_#ffffff_42%,_#fff7ed_100%)] text-slate-950">
@@ -829,6 +880,9 @@ export default function AppCarryout() {
       </main>
 
       <GuideShellStatic
+        demoCommand={guideDemoCommand}
+        demoStatus={demoStatus}
+        demoInteractionLocked={selfDrive && demoStatus !== "idle"}
         initialShellState={selfDrive ? "launcher" : "welcome"}
         suppressWelcomeCard={selfDrive}
         guideConfig={{
@@ -845,6 +899,21 @@ export default function AppCarryout() {
           },
         }}
       />
+
+      {selfDrive && (
+        <DemoController
+          script={guidedCarryoutPanelDemo}
+          status={demoStatus}
+          onStatusChange={setDemoStatus}
+          onGuideCommand={setGuideDemoCommand}
+          onFinished={() => setDemoClosingOpen(true)}
+          finishDelayMs={2600}
+        />
+      )}
+
+      <AnimatePresence>
+        {demoClosingOpen && <DemoClosingCard onClose={closeCarryoutDemo} />}
+      </AnimatePresence>
     </div>
   );
 }

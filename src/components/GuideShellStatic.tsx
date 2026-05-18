@@ -16,7 +16,11 @@ import {
   X,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import CarryoutReviewPanel from "./guide/carryout/CarryoutReviewPanel";
+import CarryoutReviewPanel, {
+  type CarryoutReviewPanelHandle,
+  type CarryoutReviewPanelSnapshot,
+} from "./guide/carryout/CarryoutReviewPanel";
+import { maybeBuildCarryoutDemoFixtureReply } from "./guide/carryout/carryoutDemoFixture";
 import type {
   CarryoutPreCartLine,
   CarryoutPreCartState,
@@ -126,6 +130,19 @@ export type GuideShellDemoCommand = {
     | "carryout-select-option";
   value?: string;
 };
+
+declare global {
+  interface Window {
+    __tourbotCarryout?: {
+      snapshot: () => CarryoutReviewPanelSnapshot | null;
+      scrollBottom: (behavior?: ScrollBehavior) => boolean;
+      scrollTop: (behavior?: ScrollBehavior) => boolean;
+      openReview: () => boolean;
+      jumpLastPending: () => boolean;
+      confirmReady: () => boolean;
+    };
+  }
+}
 
 type AnswerParts = {
   intro?: string;
@@ -2174,6 +2191,19 @@ function formatPriceDelta(value?: number | null) {
   return ` ${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
+function carryoutQualifierDemoToken(value?: string | null) {
+  return normalizeText(value || "").replace(/\s+/g, "-") || "unknown";
+}
+
+function carryoutQualifierDemoTarget(
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+) {
+  const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
+  const optionToken = carryoutQualifierDemoToken(option.value || option.label);
+  return `guide-carryout-qualifier-${groupToken}-${optionToken}`;
+}
+
 function CarryoutQualifierControls({
   groups,
   onQualifierSelect,
@@ -2241,6 +2271,7 @@ function CarryoutQualifierGroupView({
             <button
               key={`${group.qualifierId || group.label}-${value}`}
               type="button"
+              data-demo-target={carryoutQualifierDemoTarget(group, option)}
               onClick={() => {
                 setSelectedValue(value);
                 onQualifierSelect?.(group, option);
@@ -2497,6 +2528,7 @@ export function GuideShellStatic({
   const pendingRevealDistanceRef = useRef(0);
   const laneRef = useRef<HTMLDivElement | null>(null);
   const carryoutCartScrollRef = useRef<HTMLDivElement | null>(null);
+  const carryoutReviewPanelRef = useRef<CarryoutReviewPanelHandle | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const forceBottomOnNextPanelPaintRef = useRef(
     Boolean(restoredShellRef.current?.thread?.length),
@@ -3998,7 +4030,12 @@ export function GuideShellStatic({
 
     try {
       const sentVisibleContext = buildVisibleContext();
-      const reply = await callGuideAi(
+      const demoFixtureReply = await maybeBuildCarryoutDemoFixtureReply({
+        message: trimmed,
+        guideConfig,
+        isDemoActive,
+      });
+      const reply = demoFixtureReply || await callGuideAi(
         trimmed,
         guideConfig,
         conversationContext,
@@ -4120,9 +4157,19 @@ export function GuideShellStatic({
         setThread(completedThread);
         rememberShellSession("panel", completedThread);
 
-        setGuideSteps([]);
-        setCurrentGuideStepIndex(0);
-        setCurrentGuideMessageId(null);
+        if (previousGuideSteps.length > 0) {
+          const restoredIndex = Math.min(
+            previousGuideStepIndex,
+            Math.max(0, previousGuideSteps.length - 1),
+          );
+          setGuideSteps(previousGuideSteps);
+          setCurrentGuideStepIndex(restoredIndex);
+          setCurrentGuideMessageId(botMessageId);
+        } else {
+          setGuideSteps([]);
+          setCurrentGuideStepIndex(0);
+          setCurrentGuideMessageId(null);
+        }
         setLastRefinementChipClicked(null);
         clearActiveSpotlight();
         setSpotlightActive(false);
@@ -4542,17 +4589,26 @@ export function GuideShellStatic({
     syncActiveCommerceFocusFromStep(step);
 
     let nextThread = threadStateRef.current;
+    const guideMessageIdForUpdate =
+      currentGuideMessageId &&
+      threadStateRef.current.some((item) => item.id === currentGuideMessageId)
+        ? currentGuideMessageId
+        : threadStateRef.current
+            .slice()
+            .reverse()
+            .find((item) => item.role === "bot")?.id || null;
 
-    if (currentGuideMessageId) {
+    if (guideMessageIdForUpdate) {
       const stepResponse = responseForGuideStep(
         step,
         boundedIndex,
         guideSteps.length,
       );
       nextThread = threadStateRef.current.map((item) =>
-        item.id === currentGuideMessageId
+        item.id === guideMessageIdForUpdate
           ? {
               ...item,
+              title: item.title || "Guide response",
               body: stepResponse.body,
               answerParts: stepResponse.answerParts,
               qualifierGroups: stepResponse.qualifierGroups,
@@ -4562,6 +4618,9 @@ export function GuideShellStatic({
       );
       threadStateRef.current = nextThread;
       setThread(nextThread);
+      if (guideMessageIdForUpdate !== currentGuideMessageId) {
+        setCurrentGuideMessageId(guideMessageIdForUpdate);
+      }
       rememberShellSession(
         collapseOnMobile && isCoarsePointer() ? "launcher" : "panel",
         nextThread,
@@ -5114,6 +5173,7 @@ export function GuideShellStatic({
 
   const renderCarryoutPreCartPanel = () => (
     <CarryoutReviewPanel
+      ref={carryoutReviewPanelRef}
       order={carryoutPreCart}
       readyLines={carryoutReadyLines}
       pendingLines={carryoutPendingLines}
@@ -5134,6 +5194,7 @@ export function GuideShellStatic({
       phraseFromId={phraseFromId}
       formatLinePrice={formatCarryoutLinePrice}
       missingSummary={carryoutMissingSummary}
+      demoScrollButtonVisible={isDemoActive}
     />
   );
 
@@ -5474,6 +5535,7 @@ export function GuideShellStatic({
     updateCarryoutLineQualifier(group, option);
   };
 
+
   const handleRefinementChipClick = (chip: string) => {
     const clean = chip.trim();
     const lower = normalizeCommerceChip(clean);
@@ -5597,14 +5659,31 @@ if (!best) {
   const scrollCarryoutCartBottomForDemo = () => {
     openCarryoutCartForDemo();
 
-    window.setTimeout(() => {
-      const container = carryoutCartScrollRef.current;
-      if (!container) return;
-      container.scrollTo({
-        top: container.scrollHeight,
-        behavior: "smooth",
-      });
-    }, 240);
+    const attemptScroll = (delayMs: number) => {
+      window.setTimeout(() => {
+        const usedPanelHandle = carryoutReviewPanelRef.current?.scrollToBottom({
+          behavior: "smooth",
+        });
+
+        if (usedPanelHandle) return;
+
+        // Fallback only for older renders while the panel ref is settling.
+        const container = carryoutCartScrollRef.current;
+        if (!container) {
+          console.warn("Carryout review panel scroll target was not ready for demo.");
+          return;
+        }
+
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: "smooth",
+        });
+      }, delayMs);
+    };
+
+    // The review panel may mount one paint after activeCompletionWidget changes.
+    // Retry a few times rather than assuming the scroll container is ready.
+    [120, 360, 720].forEach(attemptScroll);
   };
 
   const jumpToLastPendingCarryoutLineForDemo = () => {
@@ -5612,7 +5691,10 @@ if (!best) {
 
     window.setTimeout(() => {
       const line = carryoutPendingLines[carryoutPendingLines.length - 1];
-      if (!line) return;
+      if (!line) {
+        console.warn("Carryout demo could not jump: no pending carryout line was available.");
+        return;
+      }
       jumpToCarryoutLine(line);
     }, 420);
   };
@@ -5628,8 +5710,53 @@ if (!best) {
 
     if (!hasPendingCarryoutItems && hasCarryoutItems) {
       setCarryoutOrderConfirmed(true);
+    } else {
+      console.warn("Carryout demo confirm blocked: order is not ready.", {
+        hasCarryoutItems,
+        hasPendingCarryoutItems,
+      });
     }
   };
+
+  useEffect(() => {
+    if (!isCarryoutOrdering) {
+      if (window.__tourbotCarryout) delete window.__tourbotCarryout;
+      return;
+    }
+
+    const hook = {
+      snapshot: () => carryoutReviewPanelRef.current?.getSnapshot() || null,
+      scrollBottom: (behavior: ScrollBehavior = "smooth") =>
+        Boolean(carryoutReviewPanelRef.current?.scrollToBottom({ behavior })),
+      scrollTop: (behavior: ScrollBehavior = "smooth") =>
+        Boolean(carryoutReviewPanelRef.current?.scrollToTop({ behavior })),
+      openReview: () => {
+        openCarryoutCartForDemo();
+        return true;
+      },
+      jumpLastPending: () => {
+        const line = carryoutPendingLines[carryoutPendingLines.length - 1];
+        if (!line) return false;
+        jumpToCarryoutLine(line);
+        return true;
+      },
+      confirmReady: () => {
+        if (!hasCarryoutItems || hasPendingCarryoutItems) return false;
+        setActiveCompletionWidget("saved-trip");
+        setBookingPreloadConfirmed(true);
+        setCarryoutOrderConfirmed(true);
+        return true;
+      },
+    };
+
+    window.__tourbotCarryout = hook;
+
+    return () => {
+      if (window.__tourbotCarryout === hook) {
+        delete window.__tourbotCarryout;
+      }
+    };
+  });
 
   useEffect(() => {
     if (!demoCommand) return;
@@ -6022,6 +6149,7 @@ if (!best) {
                           </button>
                         </>
                       )}
+
 
                       {showSaveAction && (
                         <>
