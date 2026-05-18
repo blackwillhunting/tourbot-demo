@@ -4832,10 +4832,40 @@ export function GuideShellStatic({
 
   const renderCarryoutPreCartPanel = () => {
     const subtotal = carryoutPreCart?.totals?.subtotal;
+    const estimatedTax = carryoutPreCart?.totals?.estimatedTax;
     const estimatedTotal = carryoutPreCart?.totals?.estimatedTotal;
     const hasFinalTotal = Boolean(
       carryoutPreCart?.totals?.finalTotalAvailable && estimatedTotal,
     );
+
+    const formatCarryoutMoney = (value?: number | null) =>
+      typeof value === "number" && Number.isFinite(value)
+        ? `$${value.toFixed(2)}`
+        : "—";
+
+    const carryoutLineDetails = (line: CarryoutPreCartLine) => {
+      const details: string[] = [];
+      (line.knownSelections || []).forEach((selection) => {
+        if (selection && !details.includes(selection)) details.push(selection);
+      });
+      (line.qualifiers || []).forEach((qualifier) => {
+        const valueLabel = qualifier.valueLabel || qualifier.value;
+        if (valueLabel && !details.includes(valueLabel)) details.push(String(valueLabel));
+      });
+      (line.modifiers || []).forEach((modifier) => {
+        const label = modifier.label;
+        if (label && !details.includes(label)) {
+          details.push(`${label}${formatPriceDelta(modifier.priceDelta)}`);
+        }
+      });
+      (line.upgrades || []).forEach((upgrade) => {
+        const label = upgrade.label;
+        if (label && !details.includes(label)) {
+          details.push(`${label}${formatPriceDelta(upgrade.priceDelta)}`);
+        }
+      });
+      return details;
+    };
 
     const renderLine = (line: CarryoutPreCartLine, status: "ready" | "pending") => {
       const pending = status === "pending";
@@ -4870,9 +4900,9 @@ export function GuideShellStatic({
               <div className="mt-1 text-[11px] leading-4 text-slate-500">
                 {carryoutMissingSummary(line)}
               </div>
-              {(line.knownSelections || []).length > 0 && (
+              {carryoutLineDetails(line).length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {(line.knownSelections || []).slice(0, 5).map((selection) => (
+                  {carryoutLineDetails(line).slice(0, 5).map((selection) => (
                     <span
                       key={`${carryoutLineKey(line)}-${selection}`}
                       className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
@@ -4929,9 +4959,138 @@ export function GuideShellStatic({
       );
     };
 
+    const renderPreCartList = () => (
+      hasCarryoutItems ? (
+        <div className="space-y-2">
+          {carryoutPendingLines.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Needs choices
+              </div>
+              {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
+            </div>
+          )}
+          {carryoutReadyLines.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Ready items
+              </div>
+              {carryoutReadyLines.map((line) => renderLine(line, "ready"))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
+          No food items saved yet.
+        </div>
+      )
+    );
+
+    const renderConfirmationLine = (line: CarryoutPreCartLine, index: number) => {
+      const details = carryoutLineDetails(line);
+      return (
+        <div
+          key={`${carryoutLineKey(line)}-confirm-${index}`}
+          className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-950">
+                {line.title || phraseFromId(line.targetId || line.id || "Item")}
+              </div>
+              {details.length > 0 ? (
+                <div className="mt-1 space-y-0.5 text-[11px] leading-4 text-slate-500">
+                  {details.map((detail) => (
+                    <div key={`${carryoutLineKey(line)}-detail-${detail}`}>• {detail}</div>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                  No extra choices.
+                </div>
+              )}
+            </div>
+            <div className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-bold text-white">
+              {formatCarryoutLinePrice(line)}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const renderCheckoutReview = () => {
+      if (!bookingPreloadConfirmed) return renderPreCartList();
+
+      if (hasPendingCarryoutItems) {
+        return (
+          <div
+            data-demo-target="guide-carryout-pending-card"
+            className="space-y-2 rounded-2xl border border-amber-200 bg-amber-50 p-3"
+          >
+            <div>
+              <div className="text-sm font-semibold text-amber-950">
+                Almost ready — finish choices first
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-amber-900">
+                {carryoutPendingLines.length} item{carryoutPendingLines.length === 1 ? "" : "s"} need choices before checkout. Tap a row to jump back to that item.
+              </div>
+            </div>
+            <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
+              {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div
+          data-demo-target="guide-carryout-confirmation-card"
+          className="space-y-2 rounded-2xl border border-emerald-200 bg-emerald-50 p-3"
+        >
+          <div>
+            <div className="text-sm font-semibold text-emerald-950">
+              Review your carryout order
+            </div>
+            <div className="mt-1 text-[11px] leading-4 text-emerald-900">
+              Everything required is complete. Review details before the demo handoff.
+            </div>
+          </div>
+          <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
+            {carryoutAllLines.map((line, index) => renderConfirmationLine(line, index))}
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-white p-2.5 text-xs text-slate-700 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span>Subtotal</span>
+              <span className="font-semibold text-slate-950">{formatCarryoutMoney(subtotal)}</span>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <span>Estimated tax</span>
+              <span className="font-semibold text-slate-950">{formatCarryoutMoney(estimatedTax)}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-sm">
+              <span className="font-semibold text-slate-950">Estimated total</span>
+              <span className="font-black text-slate-950">{formatCarryoutMoney(estimatedTotal)}</span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-[11px] leading-4 text-emerald-900">
+              Demo handoff only — no payment is submitted.
+            </div>
+            <button
+              data-demo-target="guide-carryout-confirm-order"
+              type="button"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+            >
+              Confirm carryout order
+            </button>
+          </div>
+        </div>
+      );
+    };
+
     return (
-      <div className="space-y-2 sm:space-y-3">
-        <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${
+      <div className="flex max-h-[min(58dvh,520px)] min-h-0 flex-col gap-2 sm:max-h-[520px]">
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
           hasPendingCarryoutItems
             ? "border-amber-200 bg-amber-50 text-amber-900"
             : "border-emerald-200 bg-emerald-50 text-emerald-900"
@@ -4943,42 +5102,21 @@ export function GuideShellStatic({
             : "Tell TourBot your order and matched items will appear here automatically."}
         </div>
 
-        {hasCarryoutItems ? (
-          <div className="space-y-2">
-            {carryoutPendingLines.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Needs choices
-                </div>
-                {carryoutPendingLines.map((line) => renderLine(line, "pending"))}
-              </div>
-            )}
-            {carryoutReadyLines.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                  Ready items
-                </div>
-                {carryoutReadyLines.map((line) => renderLine(line, "ready"))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
-            No food items saved yet.
-          </div>
-        )}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1 [overscroll-behavior:contain]">
+          {renderCheckoutReview()}
+        </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+        <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="text-xs font-semibold text-slate-900">
-                {hasPendingCarryoutItems ? "Complete choices first" : "Ready to checkout?"}
+                {hasPendingCarryoutItems ? "Complete choices first" : bookingPreloadConfirmed ? "Confirmation ready" : "Ready to checkout?"}
               </div>
               <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
                 {hasFinalTotal
-                  ? `Estimated total: $${Number(estimatedTotal).toFixed(2)}`
+                  ? `Estimated total: ${formatCarryoutMoney(estimatedTotal)}`
                   : typeof subtotal === "number"
-                    ? `Current subtotal: $${subtotal.toFixed(2)}`
+                    ? `Current subtotal: ${formatCarryoutMoney(subtotal)}`
                     : hasPendingCarryoutItems
                       ? "Choose the pending item options to finish the draft cart."
                       : "Checkout handoff is ready once items are complete."}
@@ -4988,14 +5126,7 @@ export function GuideShellStatic({
               data-demo-target="guide-carryout-checkout"
               type="button"
               disabled={!hasCarryoutItems}
-              onClick={() => {
-                if (hasPendingCarryoutItems) {
-                  const firstPending = carryoutPendingLines[0];
-                  if (firstPending) jumpToCarryoutLine(firstPending);
-                  return;
-                }
-                setBookingPreloadConfirmed(true);
-              }}
+              onClick={() => setBookingPreloadConfirmed(true)}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
                 hasPendingCarryoutItems
                   ? "bg-amber-600 text-white hover:bg-amber-700"
@@ -5003,18 +5134,14 @@ export function GuideShellStatic({
               }`}
             >
               <ShoppingBag className="h-3.5 w-3.5" />
-              {hasPendingCarryoutItems ? "Finish" : "Checkout"}
+              {hasPendingCarryoutItems ? "Review" : bookingPreloadConfirmed ? "Reviewed" : "Checkout"}
             </button>
           </div>
-          {bookingPreloadConfirmed && !hasPendingCarryoutItems && (
-            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-[11px] leading-4 text-emerald-900">
-              Carryout checkout is ready with the current pre-cart.
-            </div>
-          )}
         </div>
       </div>
     );
   };
+
 
   const normalizeCommerceChip = (chip: string) =>
     chip
