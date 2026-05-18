@@ -25,6 +25,13 @@ const baseMotion = {
   transition: { duration: 0.24, ease: "easeOut" as const },
 };
 
+const mobileBaseMotion = {
+  initial: { opacity: 0, y: 34 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 42 },
+  transition: { duration: 0.66, ease: "easeInOut" as const },
+};
+
 const toastPosition = {
   position: "fixed" as const,
   right: "16px",
@@ -38,6 +45,11 @@ const MAX_TEXTAREA_HEIGHT = 160;
 const MESSAGE_FADE_DURATION = 0.2;
 const THREAD_REVEAL_SCROLL_MS = 900;
 const GUIDE_NAVIGATION_SCROLL_MS = 1500;
+const MOBILE_GUIDE_NAVIGATION_SCROLL_MS = 2800;
+const MOBILE_CARRYOUT_SHEET_REUSE_DELAY_MS = 950;
+const MOBILE_CARRYOUT_SHEET_NAV_DELAY_MS = 3200;
+const MOBILE_CARRYOUT_SHEET_TRANSITION_SECONDS = 0.68;
+const MOBILE_ACTION_NAV_START_DELAY_MS = 740;
 const BOT_REPLY_DELAY_MS = 3000;
 void BOT_REPLY_DELAY_MS;
 const THINKING_WIGGLE_DURATION = 1.15;
@@ -1668,7 +1680,7 @@ function smoothScrollElementIntoView(
   target: HTMLElement,
   options: { duration?: number; block?: "center" | "start" } = {},
 ) {
-  const duration = options.duration ?? GUIDE_NAVIGATION_SCROLL_MS;
+  const duration = options.duration ?? guideNavigationScrollMs();
   const block = options.block ?? "center";
   const rect = target.getBoundingClientRect();
   const startY = window.scrollY || window.pageYOffset || 0;
@@ -1826,7 +1838,7 @@ function scrollThenSpotlight(
   const scrollTarget = scrollTargetForSpotlight(initialTarget);
   smoothScrollElementIntoView(scrollTarget);
 
-  const settleDelay = GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 240 : 120);
+  const settleDelay = guideNavigationScrollMs() + (isCoarsePointer() ? 360 : 120);
 
   scheduleSpotlightTimer(() => {
     if (!isCurrentSpotlightRun(runId)) return;
@@ -1898,7 +1910,7 @@ function runSpotlightWithRetries(
   let found = false;
   const mobileSettleDelay = isCoarsePointer() ? 380 : 0;
   const spotlightAfterScrollDelay =
-    GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120);
+    guideNavigationScrollMs() + (isCoarsePointer() ? 360 : 120);
 
   delays.forEach((delay) => {
     scheduleSpotlightTimer(() => {
@@ -2001,7 +2013,7 @@ function runSuggestedNavigation(
             clearActiveSpotlight();
           }
         },
-        GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120),
+        guideNavigationScrollMs() + (isCoarsePointer() ? 360 : 120),
       );
     }, mobileSettleDelay);
     return;
@@ -2034,6 +2046,12 @@ function isCoarsePointer() {
     typeof window !== "undefined" &&
     Boolean(window.matchMedia?.("(pointer: coarse)").matches)
   );
+}
+
+function guideNavigationScrollMs() {
+  return isCoarsePointer()
+    ? MOBILE_GUIDE_NAVIGATION_SCROLL_MS
+    : GUIDE_NAVIGATION_SCROLL_MS;
 }
 
 function ThinkingText({ body }: { body: string }) {
@@ -2220,7 +2238,7 @@ function CarryoutQualifierControls({
   if (!visibleGroups.length) return null;
 
   return (
-    <div className="mt-3 space-y-3 rounded-2xl border border-emerald-100 bg-white/80 p-3 shadow-sm">
+    <div className="mt-3 space-y-3 rounded-2xl border border-white/55 bg-white/45 p-3 shadow-sm backdrop-blur-sm">
       {visibleGroups.map((group) => (
         <CarryoutQualifierGroupView
           key={`${group.lineItemId || group.itemId || "line"}-${group.qualifierId || group.label || "qualifier"}`}
@@ -2283,7 +2301,7 @@ function CarryoutQualifierGroupView({
                   ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-100"
                   : isMissing
                     ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    : "border-white/70 bg-white/70 text-slate-700 hover:bg-white/85"
               }`}
             >
               {selected ? "✓ " : ""}
@@ -3047,7 +3065,7 @@ export function GuideShellStatic({
 
               spotlightTarget(target);
               setSpotlightActive(true);
-            }, GUIDE_NAVIGATION_SCROLL_MS + (isCoarsePointer() ? 260 : 120));
+            }, guideNavigationScrollMs() + (isCoarsePointer() ? 360 : 120));
           }, mobileSettleDelay);
         }, delay + mobileSettleDelay);
       });
@@ -4410,9 +4428,12 @@ export function GuideShellStatic({
     }
 
     // Wait for the page target to land before revealing the mobile controls.
-    // Same-target repeated steps keep the spotlight active, so they refresh fast.
+    // Same-target repeated steps keep the spotlight active, so they refresh faster
+    // but still get a visible beat so the sheet does not feel jumpy on phones.
     setMobileCarryoutSheetVisible(false);
-    const delay = spotlightActive ? 520 : 1850;
+    const delay = spotlightActive
+      ? MOBILE_CARRYOUT_SHEET_REUSE_DELAY_MS
+      : MOBILE_CARRYOUT_SHEET_NAV_DELAY_MS;
     mobileCarryoutSheetTimerRef.current = window.setTimeout(() => {
       setMobileCarryoutSheetVisible(true);
       mobileCarryoutSheetTimerRef.current = null;
@@ -4498,7 +4519,7 @@ export function GuideShellStatic({
           setSpotlightActive(true),
         );
       },
-      collapseOnMobile && isCoarsePointer() ? 80 : 120,
+      collapseOnMobile && isCoarsePointer() ? MOBILE_ACTION_NAV_START_DELAY_MS : 120,
     );
   };
 
@@ -4862,7 +4883,7 @@ export function GuideShellStatic({
 
     if (collapseOnMobile && isCoarsePointer()) {
       collapsePanelForMobileAction();
-      window.setTimeout(dispatchBook, 80);
+      window.setTimeout(dispatchBook, MOBILE_ACTION_NAV_START_DELAY_MS);
       return;
     }
 
@@ -4896,7 +4917,7 @@ export function GuideShellStatic({
     if (isCoarsePointer()) collapsePanelForMobileAction();
     window.setTimeout(
       () => runSuggestedNavigation(action, threadStateRef.current, () => setSpotlightActive(true)),
-      100,
+      MOBILE_ACTION_NAV_START_DELAY_MS,
     );
   };
 
@@ -5683,7 +5704,7 @@ export function GuideShellStatic({
       {!suppressWelcomeCard && shellState === "welcome" && showWelcome && (
         <motion.div
           key="welcome"
-          {...baseMotion}
+          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
           style={{
             ...toastPosition,
             width: "min(calc(100vw - 32px), 380px)",
@@ -5751,7 +5772,7 @@ export function GuideShellStatic({
       {shellState === "panel" && (
         <motion.div
           key="panel"
-          {...baseMotion}
+          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
           style={panelToastStyle}
           onMouseEnter={clearMinimizeTimer}
           onMouseLeave={() => {
@@ -6720,7 +6741,7 @@ export function GuideShellStatic({
                                 className={`rounded-lg border px-2.5 py-2 text-left transition sm:rounded-xl sm:px-3 sm:py-3 ${
                                   shellBudgetBand === band
                                     ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                                    : "border-white/70 bg-white/70 text-slate-700 hover:bg-white/85"
                                 }`}
                               >
                                 <div className="text-xs font-semibold sm:text-sm">
@@ -6851,10 +6872,10 @@ export function GuideShellStatic({
       {showMobileCarryoutQualifierSheet && mobileCarryoutSheetVisible && (
         <motion.div
           key="mobile-carryout-qualifier-sheet"
-          initial={{ y: 32, opacity: 0 }}
+          initial={{ y: 92, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 32, opacity: 0 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
+          exit={{ y: 92, opacity: 0 }}
+          transition={{ duration: MOBILE_CARRYOUT_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 90 }}
           dragElastic={0.08}
@@ -6869,7 +6890,7 @@ export function GuideShellStatic({
             <button
               type="button"
               onClick={() => setMobileCarryoutSheetCollapsed(false)}
-              className="flex w-full items-center justify-between gap-3 rounded-full border border-white/70 bg-white/80 px-4 py-2.5 text-left shadow-2xl backdrop-blur-xl"
+              className="flex w-full items-center justify-between gap-3 rounded-full border border-white/55 bg-white/55 px-4 py-2.5 text-left shadow-2xl shadow-slate-950/20 backdrop-blur-2xl"
             >
               <span className="min-w-0">
                 <span className="block truncate text-xs font-bold text-slate-950">
@@ -6887,7 +6908,7 @@ export function GuideShellStatic({
               </span>
             </button>
           ) : (
-            <div className="overflow-hidden rounded-[28px] border border-white/70 bg-white/90 shadow-2xl shadow-slate-950/20 backdrop-blur-xl">
+            <div className="overflow-hidden rounded-[28px] border border-white/55 bg-white/58 shadow-2xl shadow-slate-950/20 backdrop-blur-2xl">
               <button
                 type="button"
                 aria-label="Collapse choices"
@@ -6897,7 +6918,7 @@ export function GuideShellStatic({
                 <span className="h-1.5 w-12 rounded-full bg-slate-300" />
               </button>
 
-              <div className="flex items-start justify-between gap-3 border-b border-white/70 px-4 pb-3">
+              <div className="flex items-start justify-between gap-3 border-b border-white/50 bg-white/20 px-4 pb-3 backdrop-blur-sm">
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                     Step {currentGuideStepIndex + 1} of {guideSteps.length}
@@ -6916,7 +6937,7 @@ export function GuideShellStatic({
                 <button
                   type="button"
                   onClick={() => setMobileCarryoutSheetCollapsed(true)}
-                  className="rounded-full bg-white/75 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-white"
+                  className="rounded-full bg-white/55 px-3 py-1.5 text-xs font-bold text-slate-600 shadow-sm transition hover:bg-white/75"
                 >
                   Hide
                 </button>
@@ -6929,13 +6950,13 @@ export function GuideShellStatic({
                     onQualifierSelect={handleCarryoutQualifierSelect}
                   />
                 ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm font-medium text-slate-600 shadow-sm">
+                  <div className="rounded-2xl border border-white/60 bg-white/50 px-3 py-3 text-sm font-medium text-slate-700 shadow-sm backdrop-blur-sm">
                     This item is already complete. Continue when you’re ready.
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 border-t border-white/70 bg-white/75 px-4 py-3">
+              <div className="flex items-center gap-2 border-t border-white/50 bg-white/28 px-4 py-3 backdrop-blur-sm">
                 <button
                   type="button"
                   onClick={() => navigateToGuideStep(currentGuideStepIndex - 1, true)}
@@ -6963,7 +6984,7 @@ export function GuideShellStatic({
       {shellState === "launcher" && (
         <motion.div
           key="launcher"
-          {...baseMotion}
+          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
           style={
             coarsePointer
               ? {
