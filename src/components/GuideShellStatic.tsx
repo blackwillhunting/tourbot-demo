@@ -7462,7 +7462,7 @@ if (!best) {
                   />
                 ) : (
                   <div className="rounded-xl border border-white/60 bg-white/50 px-3 py-2 text-xs font-medium text-slate-700 shadow-sm backdrop-blur-sm">
-                    This item is already complete. Continue when you’re ready.
+                    No qualifiers. Continue when ready.
                   </div>
                 )}
               </div>
