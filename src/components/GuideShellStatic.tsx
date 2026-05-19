@@ -2214,14 +2214,27 @@ function carryoutQualifierDemoTarget(
   return `guide-carryout-qualifier-${groupToken}-${optionToken}`;
 }
 
+function carryoutCurrentQualifierDemoTarget(
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+) {
+  const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
+  const optionToken = carryoutQualifierDemoToken(option.value || option.label);
+  return `${groupToken}-${optionToken}`;
+}
+
 function CarryoutQualifierControls({
   groups,
   onQualifierSelect,
   density = "default",
+  demoTargetScope = "default",
+  demoStepIndex,
 }: {
   groups?: CarryoutQualifierGroup[];
   onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   density?: "default" | "compact";
+  demoTargetScope?: "default" | "current";
+  demoStepIndex?: number;
 }) {
   const visibleGroups = Array.isArray(groups)
     ? groups.filter((group) => Array.isArray(group.options) && group.options.length > 0)
@@ -2232,6 +2245,8 @@ function CarryoutQualifierControls({
 
   return (
     <div
+      data-demo-qualifier-scope={demoTargetScope}
+      data-demo-step-index={typeof demoStepIndex === "number" ? demoStepIndex : undefined}
       className={`border border-white/55 bg-white/45 shadow-sm backdrop-blur-sm ${
         compact
           ? "mt-1.5 space-y-2 rounded-xl p-2"
@@ -2243,6 +2258,8 @@ function CarryoutQualifierControls({
           key={`${group.lineItemId || group.itemId || "line"}-${group.qualifierId || group.label || "qualifier"}`}
           group={group}
           density={density}
+          demoTargetScope={demoTargetScope}
+          demoStepIndex={demoStepIndex}
           onQualifierSelect={onQualifierSelect}
         />
       ))}
@@ -2254,10 +2271,14 @@ function CarryoutQualifierGroupView({
   group,
   onQualifierSelect,
   density = "default",
+  demoTargetScope = "default",
+  demoStepIndex,
 }: {
   group: CarryoutQualifierGroup;
   onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   density?: "default" | "compact";
+  demoTargetScope?: "default" | "current";
+  demoStepIndex?: number;
 }) {
   const initialSelected =
     group.selectedValue ||
@@ -2301,6 +2322,14 @@ function CarryoutQualifierGroupView({
               key={`${group.qualifierId || group.label}-${value}`}
               type="button"
               data-demo-target={carryoutQualifierDemoTarget(group, option)}
+              data-demo-current-qualifier={
+                demoTargetScope === "current"
+                  ? carryoutCurrentQualifierDemoTarget(group, option)
+                  : undefined
+              }
+              data-demo-step-index={
+                typeof demoStepIndex === "number" ? demoStepIndex : undefined
+              }
               onClick={() => {
                 setSelectedValue(value);
                 onQualifierSelect?.(group, option);
@@ -7296,6 +7325,8 @@ if (!best) {
         <motion.div
           key="mobile-carryout-qualifier-sheet"
           data-demo-surface="mobile-carryout-qualifier-sheet"
+          data-demo-step-index={currentGuideStepIndex}
+          data-demo-active="true"
           initial={{ y: 92, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 92, opacity: 0 }}
@@ -7369,6 +7400,8 @@ if (!best) {
                   <CarryoutQualifierControls
                     groups={currentCarryoutVisibleQualifierGroups}
                     density="compact"
+                    demoTargetScope="current"
+                    demoStepIndex={currentGuideStepIndex}
                     onQualifierSelect={handleCarryoutQualifierSelect}
                   />
                 ) : (

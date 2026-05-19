@@ -320,10 +320,21 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
 export const guidedCommerceDemo = guidedCommerceRichIntentDemo;
 
 
-function carryoutQualifierChip(qualifierId: string, value: string, delayMs = 650): DemoStep {
+function carryoutQualifierChip(
+  qualifierId: string,
+  value: string,
+  delayMs = 650,
+  stepIndex?: number,
+): DemoStep {
+  const genericTarget = `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
+  const mobileCurrentTarget =
+    typeof stepIndex === "number"
+      ? `[data-demo-surface='mobile-carryout-qualifier-sheet'][data-demo-step-index='${stepIndex}'] [data-demo-current-qualifier='${qualifierId}-${value}']`
+      : `[data-demo-surface='mobile-carryout-qualifier-sheet'] [data-demo-current-qualifier='${qualifierId}-${value}']`;
+
   return {
     action: "click-dom-target",
-    target: `[data-demo-surface='mobile-carryout-qualifier-sheet'] [data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}'], [data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`,
+    target: usesMobileDemoEnding() ? mobileCurrentTarget : genericTarget,
     hoverMs: 520,
     pulseMs: 420,
     delayMs,
@@ -346,37 +357,37 @@ function carryoutNext(delayMs = 850): DemoStep {
 function carryoutDeterministicQualifierSteps(): DemoStep[] {
   return [
     // Classic Burger Combo #1
-    carryoutQualifierChip("side-size", "large"),
-    carryoutQualifierChip("drink-size", "large"),
-    carryoutQualifierChip("soda-flavor", "coke", 850),
+    carryoutQualifierChip("side-size", "large", 650, 0),
+    carryoutQualifierChip("drink-size", "large", 650, 0),
+    carryoutQualifierChip("soda-flavor", "coke", 850, 0),
     carryoutNext(1000),
 
     // Classic Burger Combo #2
-    carryoutQualifierChip("side-size", "medium"),
-    carryoutQualifierChip("drink-size", "large"),
-    carryoutQualifierChip("soda-flavor", "diet-coke", 850),
+    carryoutQualifierChip("side-size", "medium", 650, 1),
+    carryoutQualifierChip("drink-size", "large", 650, 1),
+    carryoutQualifierChip("soda-flavor", "diet-coke", 850, 1),
     carryoutNext(4000),
 
     // Standalone burger has no required choices.
     carryoutNext(3000),
 
     // Onion rings
-    carryoutQualifierChip("side-size", "large", 850),
+    carryoutQualifierChip("side-size", "large", 850, 3),
     carryoutNext(4000),
 
     // Extra soda #3
-    carryoutQualifierChip("drink-size", "large"),
-    carryoutQualifierChip("soda-flavor", "sprite", 850),
+    carryoutQualifierChip("drink-size", "large", 650, 4),
+    carryoutQualifierChip("soda-flavor", "sprite", 850, 4),
     carryoutNext(1000),
 
     // Extra soda #4 — medium to show the demo can change a size.
-    carryoutQualifierChip("drink-size", "medium"),
-    carryoutQualifierChip("soda-flavor", "root-beer", 850),
+    carryoutQualifierChip("drink-size", "medium", 650, 5),
+    carryoutQualifierChip("soda-flavor", "root-beer", 850, 5),
     carryoutNext(1000),
 
     // Iced tea
-    carryoutQualifierChip("drink-size", "large"),
-    carryoutQualifierChip("tea-sweetness", "sweet", 1100),
+    carryoutQualifierChip("drink-size", "large", 650, 6),
+    carryoutQualifierChip("tea-sweetness", "sweet", 1100, 6),
   ];
 }
 
@@ -495,7 +506,7 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     { action: "wait", delayMs: 1000 },
 
     // Finish the last pending milkshake item.
-    carryoutQualifierChip("shake-flavor", "vanilla", 900),
+    carryoutQualifierChip("shake-flavor", "vanilla", 900, 7),
 
     // Ask TourBot to open the checkout/review state.
     {

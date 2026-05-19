@@ -172,9 +172,14 @@ function demoTargetSurfaceScore(el: HTMLElement, selector: string) {
   // Mobile carryout renders duplicate-looking controls across shell, sheet,
   // review, and transition surfaces. Prefer the active bottom sheet / review
   // panel over stale, off-screen, or desktop phantom matches.
-  if (selector.includes("guide-carryout-qualifier")) {
+  if (
+    selector.includes("guide-carryout-qualifier") ||
+    selector.includes("data-demo-current-qualifier")
+  ) {
+    if (el.closest('[data-demo-surface="mobile-carryout-qualifier-sheet"][data-demo-active="true"]')) score += 360;
     if (el.closest('[data-demo-surface="mobile-carryout-qualifier-sheet"]')) score += 240;
     if (el.closest('[data-demo-surface="mobile-carryout-shell"]')) score += 40;
+    if (el.getAttribute("data-demo-current-qualifier")) score += 120;
   }
 
   if (
