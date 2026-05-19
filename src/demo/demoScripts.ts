@@ -324,14 +324,20 @@ function carryoutQualifierChip(
   qualifierId: string,
   value: string,
   delayMs = 650,
-  _mobileGroupIndex = 0,
+  mobileGroupIndex = 0,
 ): DemoStep {
-  void _mobileGroupIndex;
   const genericTarget = `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
+
+  // On mobile, target the currently open qualifier sheet by visible group/value
+  // rather than by the reusable qualifier id. This avoids repeated selectors
+  // like side-size/large and drink-size/large resolving to earlier items.
+  const mobileCurrentTarget =
+    `[data-demo-surface='mobile-carryout-qualifier-sheet'][data-demo-active='true'] ` +
+    `[data-demo-active-group-index='${mobileGroupIndex}'][data-demo-option-value='${value}']`;
 
   return {
     action: "click-dom-target",
-    target: genericTarget,
+    target: usesMobileDemoEnding() ? mobileCurrentTarget : genericTarget,
     hoverMs: 520,
     pulseMs: 420,
     delayMs,
