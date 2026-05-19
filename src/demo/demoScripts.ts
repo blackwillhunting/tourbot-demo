@@ -409,11 +409,14 @@ function carryoutDeterministicQualifierSteps(): DemoStep[] {
     // Extra soda #4 — medium to show the demo can change a size.
     ...carryoutQualifierChoice("drink-size", "medium", 650, "demo-soda-4", 1200),
     ...carryoutQualifierChoice("soda-flavor", "root-beer", 850, "demo-soda-4", 520),
-    carryoutNext(1000),
 
-    // Iced tea
-    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-iced-tea", 1400),
-    ...carryoutQualifierChoice("tea-sweetness", "sweet", 1100, "demo-iced-tea", 520),
+    // Iced tea follows two repeated soda rows and reuses the drink-size group.
+    // Give the mobile sheet extra time to finish recycling/repositioning before
+    // the first iced-tea size tap; the second sweetness tap can stay quicker
+    // because the sheet has settled by then.
+    carryoutNext(2400),
+    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-iced-tea", 2600),
+    ...carryoutQualifierChoice("tea-sweetness", "sweet", 1100, "demo-iced-tea", 700),
   ];
 }
 
