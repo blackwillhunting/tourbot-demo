@@ -14,7 +14,6 @@ export type DemoStep =
   | { action: "click-through-guide-steps"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
   | { action: "click-next-back-if-multistep"; nextTarget?: DemoPointerTarget; backTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; minStepCount?: number }
   | { action: "carryout-panel-command"; command: "snapshot" | "scroll-bottom" | "scroll-top" | "open-review" | "jump-last-pending" | "confirm-ready"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; requireSuccess?: boolean }
-  | { action: "carryout-select-option"; value: string; delayMs?: number }
   | { action: "callout"; eyebrow?: string; title: string; body: string; buttonLabel?: string; placement?: "left" | "center" | "bottom"; emphasis?: "green-flash"; delayMs?: number }
   | { action: "open-shell"; delayMs?: number }
   | { action: "type-prompt"; prompt: string; delayMs?: number; charDelayMs?: number }
@@ -325,14 +324,24 @@ function carryoutQualifierChip(
   qualifierId: string,
   value: string,
   delayMs = 650,
-  _mobileGroupIndex = 0,
+  mobileGroupIndex = 0,
 ): DemoStep {
-  void _mobileGroupIndex;
+  const genericTarget = `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
+
+  // On mobile, target the currently open qualifier sheet by visible group/value
+  // rather than by the reusable qualifier id. This avoids repeated selectors
+  // like side-size/large and drink-size/large resolving to earlier items.
+  const mobileCurrentTarget =
+    `[data-demo-surface='mobile-carryout-qualifier-sheet'][data-demo-active='true'] ` +
+    `[data-demo-active-group-index='${mobileGroupIndex}'][data-demo-option-value='${value}']`;
 
   return {
-    action: "carryout-select-option",
-    value: `${qualifierId}:${value}`,
+    action: "click-dom-target",
+    target: usesMobileDemoEnding() ? mobileCurrentTarget : genericTarget,
+    hoverMs: 520,
+    pulseMs: 420,
     delayMs,
+    targetWaitMs: 6000,
   };
 }
 
@@ -531,10 +540,12 @@ export const guidedCarryoutPanelDemo: DemoScript = {
       targetWaitMs: 8000,
     },
     {
-      action: "carryout-panel-command",
-      command: "confirm-ready",
+      action: "click-dom-target",
+      target: "[data-demo-target='guide-carryout-checkout']",
+      hoverMs: 900,
+      pulseMs: 650,
       delayMs: 1800,
-      requireSuccess: true,
+      targetWaitMs: 8000,
     },
   ],
 };
