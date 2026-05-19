@@ -2214,6 +2214,18 @@ function carryoutQualifierDemoTarget(
   return `guide-carryout-qualifier-${groupToken}-${optionToken}`;
 }
 
+function carryoutLineQualifierDemoTarget(
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+) {
+  const lineToken = carryoutQualifierDemoToken(
+    group.lineItemId || group.itemId || group.targetId || "line",
+  );
+  const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
+  const optionToken = carryoutQualifierDemoToken(option.value || option.label);
+  return `guide-carryout-line-${lineToken}-qualifier-${groupToken}-${optionToken}`;
+}
+
 function carryoutCurrentQualifierDemoTarget(
   group: CarryoutQualifierGroup,
   option: CarryoutQualifierOption,
@@ -2365,6 +2377,7 @@ function CarryoutQualifierGroupView({
               key={`${group.qualifierId || group.label}-${value}`}
               type="button"
               data-demo-target={mobileDemoTarget || carryoutQualifierDemoTarget(group, option)}
+              data-demo-line-target={carryoutLineQualifierDemoTarget(group, option)}
               data-demo-mobile-target={mobileDemoTarget}
               data-demo-current-qualifier={
                 demoTargetScope === "current"
