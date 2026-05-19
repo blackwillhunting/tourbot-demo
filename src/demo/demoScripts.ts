@@ -270,9 +270,10 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
     // The chip selector accepts both likely labels to stay safe if the backend
     // says "Select dates" or "Set dates".
 { action: "click-dom-target", target: "[data-demo-target='chip-select-dates'], [data-demo-target='chip-set-dates']", hoverMs: 250, pulseMs: 220, delayMs: 0, targetWaitMs: 1500 },
-{ action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10'], [data-demo-date='2026-07-10']", hoverMs: 450, pulseMs: 420, delayMs: 500, targetWaitMs: 6000 },
-    { action: "click-dom-target", target: "[data-demo-target='date-check-out-expand']", hoverMs: 700, pulseMs: 600, delayMs: 1400, targetWaitMs: 5200 },
-    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14'], [data-demo-date='2026-07-14']", hoverMs: 700, pulseMs: 600, delayMs: 1600, targetWaitMs: 6000 },
+{ action: "click-dom-target", target: "[data-demo-target='calendar-check-in-2026-07-10'], [data-demo-date='2026-07-10']", hoverMs: 450, pulseMs: 420, delayMs: 950, targetWaitMs: 6000 },
+    // Check-out opens automatically after check-in, so the demo goes straight
+    // to the checkout date instead of clicking the checkout launcher.
+    { action: "click-dom-target", target: "[data-demo-target='calendar-check-out-2026-07-14']", hoverMs: 700, pulseMs: 600, delayMs: 1600, targetWaitMs: 6000 },
     { action: "click-dom-target", target: "[data-demo-target='apply-dates']", hoverMs: 700, pulseMs: 600, delayMs: 1800, targetWaitMs: 4200 },
 
 { action: "click-dom-target", target: "[data-demo-target='chip-add-guests']", hoverMs: 250, pulseMs: 220, delayMs: 0, targetWaitMs: 1500 },

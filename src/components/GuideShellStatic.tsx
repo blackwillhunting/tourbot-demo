@@ -2707,6 +2707,7 @@ export function GuideShellStatic({
   const greetingTimerRef = useRef<number | null>(null);
   const replyTimerRef = useRef<number | null>(null);
   const mobileCarryoutSheetTimerRef = useRef<number | null>(null);
+  const dateAutoAdvanceTimerRef = useRef<number | null>(null);
   const mobileCarryoutHeaderTouchStartYRef = useRef<number | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const suppressNextDraftScrollRef = useRef(false);
@@ -2892,6 +2893,13 @@ export function GuideShellStatic({
     if (mobileCarryoutSheetTimerRef.current !== null) {
       window.clearTimeout(mobileCarryoutSheetTimerRef.current);
       mobileCarryoutSheetTimerRef.current = null;
+    }
+  };
+
+  const clearDateAutoAdvanceTimer = () => {
+    if (dateAutoAdvanceTimerRef.current !== null) {
+      window.clearTimeout(dateAutoAdvanceTimerRef.current);
+      dateAutoAdvanceTimerRef.current = null;
     }
   };
 
@@ -3126,6 +3134,7 @@ export function GuideShellStatic({
     clearGreetingTimer();
     clearReplyTimer();
     clearMobileCarryoutSheetTimer();
+    clearDateAutoAdvanceTimer();
     setMobileCarryoutSheetVisible(false);
     setMobileCarryoutSheetCollapsed(false);
     clearReopenGlideTimers();
@@ -3228,6 +3237,7 @@ export function GuideShellStatic({
       clearMinimizeTimer();
       clearGreetingTimer();
       clearReplyTimer();
+      clearDateAutoAdvanceTimer();
       clearReopenGlideTimers();
       if (scrollFrameRef.current !== null) {
         window.cancelAnimationFrame(scrollFrameRef.current);
@@ -5711,6 +5721,7 @@ export function GuideShellStatic({
   };
 
   const openShellDatePicker = (kind: Exclude<DatePickerKind, null>) => {
+    clearDateAutoAdvanceTimer();
     const value = kind === "check-in" ? shellCheckInDate : shellCheckOutDate;
     syncShellCalendarMonthToDate(value);
     // Keep this idempotent for demos and guided flows. Clicking the active
@@ -5719,29 +5730,46 @@ export function GuideShellStatic({
     setActiveDatePicker(kind);
   };
 
-  const closeMobileDateSheet = () => {
+  const closeShellDatePicker = () => {
+    clearDateAutoAdvanceTimer();
     setActiveDatePicker(null);
+  };
+
+  const closeMobileDateSheet = () => {
+    closeShellDatePicker();
   };
 
   const selectShellCalendarDate = (
     kind: Exclude<DatePickerKind, null>,
     value: string,
   ) => {
+    clearDateAutoAdvanceTimer();
+
     if (kind === "check-in") {
+      const nextCheckOutDate =
+        shellCheckOutDate && shellCheckOutDate > value ? shellCheckOutDate : "";
+
       setShellCheckInDate(value);
       if (shellCheckOutDate && shellCheckOutDate <= value) {
         setShellCheckOutDate("");
       }
-    } else {
-      setShellCheckOutDate(value);
+      setShellDatesApplied(false);
+      setActiveDatePicker(null);
+
+      // Give the check-in selection a short closing beat, then open checkout
+      // automatically. Desktop inline calendars and mobile sheets both read
+      // activeDatePicker, so this keeps both experiences in sync.
+      dateAutoAdvanceTimerRef.current = window.setTimeout(() => {
+        syncShellCalendarMonthToDate(nextCheckOutDate || value);
+        setActiveDatePicker("check-out");
+        dateAutoAdvanceTimerRef.current = null;
+      }, 220);
+      return;
     }
 
+    setShellCheckOutDate(value);
     setShellDatesApplied(false);
-
-    // Keep the demo path explicit and visible: after choosing a check-in
-    // date, close the sheet/calendar so the fake pointer can move to the
-    // check-out launcher and visibly reopen the check-out calendar.
-    setActiveDatePicker(null);
+    closeShellDatePicker();
   };
 
   const shiftShellCalendarMonth = (delta: number) => {
@@ -5834,7 +5862,7 @@ export function GuideShellStatic({
             </button>
             <button
               type="button"
-              onClick={() => setActiveDatePicker(null)}
+              onClick={closeShellDatePicker}
               className="rounded-full px-2 py-0.5 text-[10px] font-semibold text-slate-500 transition hover:bg-slate-100 sm:py-1 sm:text-xs"
             >
               {isSheet ? "Close" : "Collapse"}
