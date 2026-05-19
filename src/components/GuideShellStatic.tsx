@@ -1213,6 +1213,16 @@ function guideStepLabel(step?: SuggestedAction | null) {
   );
 }
 
+function compactReceiptText(value?: string | null, maxLength = 96) {
+  const text = (value || "")
+    .replace(/[`*_>#-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text) return "";
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}…` : text;
+}
+
 type CompletionWidget = "dates" | "guests" | "budget" | "saved-trip" | "upsell" | null;
 type DatePickerKind = "check-in" | "check-out" | null;
 type BudgetBand = "Value" | "Moderate" | "Premium" | "Luxury";
@@ -2597,11 +2607,15 @@ export function GuideShellStatic({
     360,
     Math.min(560, constrainedViewportHeight - 128),
   );
+  const mobileCarryoutPanelMaxHeight = activeCompletionWidget
+    ? Math.max(360, Math.min(560, constrainedViewportHeight - 96))
+    : Math.max(188, Math.min(280, constrainedViewportHeight - 32));
   const panelHeight = keyboardCompressed
     ? `min(300px, ${keyboardPanelMaxHeight}px)`
     : coarsePointer
-      ? `${mobilePanelMaxHeight}px`
+      ? `${isCarryoutOrdering ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
       : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
+  const useMobileCarryoutReceipt = coarsePointer && isCarryoutOrdering;
   const panelToastStyle = keyboardCompressed
     ? {
         position: "fixed" as const,
@@ -4545,6 +4559,70 @@ export function GuideShellStatic({
           hasBookableSavedTrip),
   );
 
+  const latestBotReceipt = [...thread]
+    .reverse()
+    .find((item) => item.role === "bot" && item.status !== "thinking");
+  const latestThreadItem = thread[thread.length - 1];
+  const mobileCarryoutReceipt = (() => {
+    const currentStepLabel = currentGuideStep
+      ? guideStepLabel(currentGuideStep)
+      : "";
+    const stepCounter =
+      hasGuideSteps && guideSteps.length > 1
+        ? `${currentGuideStepIndex + 1} of ${guideSteps.length}`
+        : "";
+    const titlePrefix = currentStepLabel || "Carryout order";
+
+    if (latestThreadItem?.status === "thinking") {
+      return {
+        eyebrow: "Working",
+        title: "TourBot is reading the order",
+        body: "Matching items, combos, and required choices.",
+      };
+    }
+
+    if (activeCompletionWidget === "saved-trip") {
+      return {
+        eyebrow: "Cart review",
+        title: hasPendingCarryoutItems
+          ? `${carryoutPendingLines.length} choice${carryoutPendingLines.length === 1 ? "" : "s"} left`
+          : "Ready for checkout",
+        body: hasCarryoutItems
+          ? `${carryoutItemCount} cart line${carryoutItemCount === 1 ? "" : "s"} staged for review.`
+          : "Matched items will appear here when the order is captured.",
+      };
+    }
+
+    if (currentCarryoutVisibleQualifierGroups.length > 0) {
+      return {
+        eyebrow: stepCounter ? `Item ${stepCounter}` : "Current item",
+        title: titlePrefix,
+        body:
+          currentCarryoutMissingChoiceCount > 0
+            ? `${currentCarryoutMissingChoiceCount} required choice${currentCarryoutMissingChoiceCount === 1 ? "" : "s"} left. Use the labels below.`
+            : "Choices captured. Continue when ready.",
+      };
+    }
+
+    if (hasCarryoutItems) {
+      return {
+        eyebrow: "Order captured",
+        title: `${carryoutItemCount} cart line${carryoutItemCount === 1 ? "" : "s"} found`,
+        body: hasPendingCarryoutItems
+          ? `${carryoutPendingLines.length} item${carryoutPendingLines.length === 1 ? "" : "s"} still need choices.`
+          : "All required choices are complete.",
+      };
+    }
+
+    return {
+      eyebrow: "TourBot",
+      title: latestBotReceipt?.title || "Ready for carryout",
+      body:
+        compactReceiptText(latestBotReceipt?.body) ||
+        "Tell TourBot the order in plain English.",
+    };
+  })();
+
   useEffect(() => {
     setMobileCarryoutSheetCollapsed(false);
   }, [currentGuideMessageId]);
@@ -6037,56 +6115,95 @@ if (!best) {
 
               <motion.div
                 ref={laneRef}
-                className={`min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
+                className={
+                  useMobileCarryoutReceipt
+                    ? `shrink-0 border-b border-slate-200 bg-white ${keyboardCompressed ? "px-2 py-1.5" : "px-3 py-2"}`
+                    : `min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
+                }
                 style={{ overflowAnchor: "none" }}
               >
-                <div
-                  className="flex flex-col justify-end"
-                  style={{
-                    minHeight: `calc(100% + ${THREAD_BOOTSTRAP_SCROLL_PX}px)`,
-                  }}
-                >
-                  <motion.div className="space-y-0">
-                    <AnimatePresence initial={false}>
-                      {thread.length === 0 ? (
-                        <motion.div
-                          key="waking"
-                          initial={{ opacity: 0.92 }}
-                          animate={{ opacity: 1 }}
-                          transition={{
-                            duration: MESSAGE_FADE_DURATION,
-                            ease: "easeOut",
-                          }}
-                          className="w-full bg-slate-100 px-4 py-3 text-sm text-slate-400"
-                        >
-                          TourBot warming up…
-                        </motion.div>
-                      ) : (
-                        thread.map((item) =>
-                          item.role === "user" ? (
-                            <FinalUserRow
-                              key={item.id}
-                              body={item.body}
-                              status={item.status}
-                            />
-                          ) : (
-                            <BotRow
-                              key={item.id}
-                              title={item.title}
-                              body={item.body}
-                              answerParts={item.answerParts}
-                              refinementChips={item.refinementChips}
-                              qualifierGroups={item.qualifierGroups}
-                              status={item.status}
-                              onChipClick={handleRefinementChipClick}
-                              onQualifierSelect={handleCarryoutQualifierSelect}
-                            />
-                          ),
-                        )
-                      )}
-                    </AnimatePresence>
-                  </motion.div>
-                </div>
+                {useMobileCarryoutReceipt ? (
+                  <div className="space-y-2">
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                            {mobileCarryoutReceipt.eyebrow}
+                          </div>
+                          <div className="mt-0.5 truncate text-sm font-semibold text-slate-950">
+                            {mobileCarryoutReceipt.title}
+                          </div>
+                        </div>
+                        {hasGuideSteps && guideSteps.length > 1 && (
+                          <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
+                            {currentGuideStepIndex + 1}/{guideSteps.length}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                        {mobileCarryoutReceipt.body}
+                      </div>
+                    </div>
+
+                    {!activeCompletionWidget && currentCarryoutVisibleQualifierGroups.length > 0 && (
+                      <div className="max-h-[min(34dvh,230px)] overflow-y-auto pr-0.5">
+                        <CarryoutQualifierControls
+                          groups={currentCarryoutVisibleQualifierGroups}
+                          density="compact"
+                          onQualifierSelect={handleCarryoutQualifierSelect}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="flex flex-col justify-end"
+                    style={{
+                      minHeight: `calc(100% + ${THREAD_BOOTSTRAP_SCROLL_PX}px)`,
+                    }}
+                  >
+                    <motion.div className="space-y-0">
+                      <AnimatePresence initial={false}>
+                        {thread.length === 0 ? (
+                          <motion.div
+                            key="waking"
+                            initial={{ opacity: 0.92 }}
+                            animate={{ opacity: 1 }}
+                            transition={{
+                              duration: MESSAGE_FADE_DURATION,
+                              ease: "easeOut",
+                            }}
+                            className="w-full bg-slate-100 px-4 py-3 text-sm text-slate-400"
+                          >
+                            TourBot warming up…
+                          </motion.div>
+                        ) : (
+                          thread.map((item) =>
+                            item.role === "user" ? (
+                              <FinalUserRow
+                                key={item.id}
+                                body={item.body}
+                                status={item.status}
+                              />
+                            ) : (
+                              <BotRow
+                                key={item.id}
+                                title={item.title}
+                                body={item.body}
+                                answerParts={item.answerParts}
+                                refinementChips={item.refinementChips}
+                                qualifierGroups={item.qualifierGroups}
+                                status={item.status}
+                                onChipClick={handleRefinementChipClick}
+                                onQualifierSelect={handleCarryoutQualifierSelect}
+                              />
+                            ),
+                          )
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  </div>
+                )}
               </motion.div>
 
               <motion.div
