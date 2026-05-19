@@ -2223,6 +2223,40 @@ function carryoutCurrentQualifierDemoTarget(
   return `${groupToken}-${optionToken}`;
 }
 
+function carryoutMobileStepDemoToken(demoStepIndex?: number) {
+  switch (demoStepIndex) {
+    case 0:
+      return "combo-1";
+    case 1:
+      return "combo-2";
+    case 2:
+      return "burger";
+    case 3:
+      return "onion-rings";
+    case 4:
+      return "soda-3";
+    case 5:
+      return "soda-4";
+    case 6:
+      return "iced-tea";
+    case 7:
+      return "milkshake";
+    default:
+      return typeof demoStepIndex === "number" ? `step-${demoStepIndex}` : "step-unknown";
+  }
+}
+
+function carryoutMobileQualifierDemoTarget(
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+  demoStepIndex?: number,
+) {
+  const stepToken = carryoutMobileStepDemoToken(demoStepIndex);
+  const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
+  const optionToken = carryoutQualifierDemoToken(option.value || option.label);
+  return `guide-mobile-carryout-${stepToken}-${groupToken}-${optionToken}`;
+}
+
 function CarryoutQualifierControls({
   groups,
   onQualifierSelect,
@@ -2322,11 +2356,16 @@ function CarryoutQualifierGroupView({
           const selected = Boolean(value && value === selectedValue);
           const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
           const optionToken = carryoutQualifierDemoToken(option.value || option.label);
+          const mobileDemoTarget =
+            demoTargetScope === "current"
+              ? carryoutMobileQualifierDemoTarget(group, option, demoStepIndex)
+              : undefined;
           return (
             <button
               key={`${group.qualifierId || group.label}-${value}`}
               type="button"
-              data-demo-target={carryoutQualifierDemoTarget(group, option)}
+              data-demo-target={mobileDemoTarget || carryoutQualifierDemoTarget(group, option)}
+              data-demo-mobile-target={mobileDemoTarget}
               data-demo-current-qualifier={
                 demoTargetScope === "current"
                   ? carryoutCurrentQualifierDemoTarget(group, option)

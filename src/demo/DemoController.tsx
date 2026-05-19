@@ -116,6 +116,19 @@ function isCoarsePointer() {
   return Boolean(window.matchMedia?.("(pointer: coarse)").matches);
 }
 
+function usesMobileDemoTarget() {
+  return Boolean(
+    window.matchMedia?.("(pointer: coarse)").matches ||
+      window.matchMedia?.("(max-width: 640px)").matches,
+  );
+}
+
+function targetForStep<T extends { target?: DemoPointerTarget; mobileTarget?: DemoPointerTarget }>(
+  step: T,
+): DemoPointerTarget | undefined {
+  return usesMobileDemoTarget() && step.mobileTarget ? step.mobileTarget : step.target;
+}
+
 function isVisibleElementBox(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
   const style = window.getComputedStyle(el);
@@ -743,15 +756,16 @@ export default function DemoController({
             return;
           }
           case "move-pointer": {
+            const target = targetForStep(step) || step.target;
             setPointerVisible(true);
             await ensureMobileShellTargetAvailable(
-              step.target,
+              target,
               statusRef,
               stopRef,
               openMobileShellFromLauncher,
             );
             const position = await resolvePointerTargetWhenReady(
-              step.target,
+              target,
               statusRef,
               stopRef,
               step.targetWaitMs ?? 2600,
@@ -763,7 +777,7 @@ export default function DemoController({
           }
           case "click-target":
             await clickTarget({
-              target: step.target,
+              target: targetForStep(step) || step.target,
               command: step.command,
               hoverMs: step.hoverMs,
               pulseMs: step.pulseMs,
@@ -773,7 +787,7 @@ export default function DemoController({
             return;
           case "click-dom-target":
             await clickDomTarget({
-              target: step.target,
+              target: targetForStep(step) || step.target,
               hoverMs: step.hoverMs,
               pulseMs: step.pulseMs,
               targetWaitMs: step.targetWaitMs,
@@ -782,7 +796,7 @@ export default function DemoController({
             return;
           case "set-input-value":
             await setInputValueTarget({
-              target: step.target,
+              target: targetForStep(step) || step.target,
               value: step.value,
               hoverMs: step.hoverMs,
               pulseMs: step.pulseMs,
@@ -805,7 +819,10 @@ export default function DemoController({
               if (stopRef.current) return;
 
               await clickTarget({
-                target: step.target ?? "[data-demo-target='guide-next']",
+                target:
+                  targetForStep(step) ||
+                  step.target ||
+                  "[data-demo-target='guide-next']",
                 command: "next",
                 hoverMs: step.hoverMs ?? 650,
                 pulseMs: step.pulseMs ?? 520,
