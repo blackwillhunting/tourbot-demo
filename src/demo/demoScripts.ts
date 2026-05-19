@@ -320,24 +320,52 @@ export const guidedCommerceAssistedCompletionDemo: DemoScript = {
 export const guidedCommerceDemo = guidedCommerceRichIntentDemo;
 
 
+function carryoutQualifierTarget(
+  qualifierId: string,
+  value: string,
+  lineItemId?: string,
+) {
+  if (lineItemId) {
+    return `[data-demo-line-target='guide-carryout-line-${lineItemId}-qualifier-${qualifierId}-${value}']`;
+  }
+
+  return `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
+}
+
 function carryoutQualifierChip(
   qualifierId: string,
   value: string,
   delayMs = 650,
   lineItemId?: string,
 ): DemoStep {
-  const qualifierTarget = lineItemId
-    ? `[data-demo-line-target='guide-carryout-line-${lineItemId}-qualifier-${qualifierId}-${value}']`
-    : `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
-
   return {
     action: "click-dom-target",
-    target: qualifierTarget,
+    target: carryoutQualifierTarget(qualifierId, value, lineItemId),
     hoverMs: 520,
     pulseMs: 420,
     delayMs,
-    targetWaitMs: 6000,
+    targetWaitMs: 10000,
   };
+}
+
+function carryoutQualifierReadyWait(delayMs = 850): DemoStep {
+  // DemoStep.delayMs for click steps is post-click, not pre-click. The mobile
+  // qualifier sheet becomes visible while it is still animating, so add an
+  // explicit wait before selection instead of relying on the click step delay.
+  return { action: "wait", delayMs: usesMobileDemoEnding() ? delayMs : 120 };
+}
+
+function carryoutQualifierChoice(
+  qualifierId: string,
+  value: string,
+  delayMs = 650,
+  lineItemId?: string,
+  readyDelayMs = 850,
+): DemoStep[] {
+  return [
+    carryoutQualifierReadyWait(readyDelayMs),
+    carryoutQualifierChip(qualifierId, value, delayMs, lineItemId),
+  ];
 }
 
 function carryoutNext(delayMs = 850): DemoStep {
@@ -355,37 +383,37 @@ function carryoutNext(delayMs = 850): DemoStep {
 function carryoutDeterministicQualifierSteps(): DemoStep[] {
   return [
     // Classic Burger Combo #1
-    carryoutQualifierChip("side-size", "large", 650, "demo-combo-1"),
-    carryoutQualifierChip("drink-size", "large", 650, "demo-combo-1"),
-    carryoutQualifierChip("soda-flavor", "coke", 850, "demo-combo-1"),
+    ...carryoutQualifierChoice("side-size", "large", 650, "demo-combo-1", 900),
+    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-combo-1", 520),
+    ...carryoutQualifierChoice("soda-flavor", "coke", 850, "demo-combo-1", 520),
     carryoutNext(1000),
 
     // Classic Burger Combo #2
-    carryoutQualifierChip("side-size", "medium", 650, "demo-combo-2"),
-    carryoutQualifierChip("drink-size", "large", 650, "demo-combo-2"),
-    carryoutQualifierChip("soda-flavor", "diet-coke", 850, "demo-combo-2"),
+    ...carryoutQualifierChoice("side-size", "medium", 650, "demo-combo-2", 1200),
+    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-combo-2", 520),
+    ...carryoutQualifierChoice("soda-flavor", "diet-coke", 850, "demo-combo-2", 520),
     carryoutNext(4000),
 
     // Standalone burger has no required choices.
     carryoutNext(3000),
 
     // Onion rings
-    carryoutQualifierChip("side-size", "large", 850, "demo-onion-rings"),
+    ...carryoutQualifierChoice("side-size", "large", 850, "demo-onion-rings", 1400),
     carryoutNext(4000),
 
     // Extra soda #3
-    carryoutQualifierChip("drink-size", "large", 650, "demo-soda-3"),
-    carryoutQualifierChip("soda-flavor", "sprite", 850, "demo-soda-3"),
+    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-soda-3", 1200),
+    ...carryoutQualifierChoice("soda-flavor", "sprite", 850, "demo-soda-3", 520),
     carryoutNext(1000),
 
     // Extra soda #4 — medium to show the demo can change a size.
-    carryoutQualifierChip("drink-size", "medium", 650, "demo-soda-4"),
-    carryoutQualifierChip("soda-flavor", "root-beer", 850, "demo-soda-4"),
+    ...carryoutQualifierChoice("drink-size", "medium", 650, "demo-soda-4", 1200),
+    ...carryoutQualifierChoice("soda-flavor", "root-beer", 850, "demo-soda-4", 520),
     carryoutNext(1000),
 
     // Iced tea
-    carryoutQualifierChip("drink-size", "large", 650, "demo-iced-tea"),
-    carryoutQualifierChip("tea-sweetness", "sweet", 1100, "demo-iced-tea"),
+    ...carryoutQualifierChoice("drink-size", "large", 650, "demo-iced-tea", 1400),
+    ...carryoutQualifierChoice("tea-sweetness", "sweet", 1100, "demo-iced-tea", 520),
   ];
 }
 
@@ -504,7 +532,7 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     { action: "wait", delayMs: 1000 },
 
     // Finish the last pending milkshake item.
-    carryoutQualifierChip("shake-flavor", "vanilla", 900, "demo-milkshake-1"),
+    ...carryoutQualifierChoice("shake-flavor", "vanilla", 900, "demo-milkshake-1", 1600),
 
     // Ask TourBot to open the checkout/review state.
     {
