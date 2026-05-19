@@ -2427,6 +2427,25 @@ function DraftRow({
 }: DraftRowProps) {
   const hasContent = value.trim().length > 0;
 
+  useLayoutEffect(() => {
+    const node = textareaRef.current;
+    if (!node) return;
+
+    const minHeight =
+      isCoarsePointer() && hasFocus
+        ? KEYBOARD_TEXTAREA_HEIGHT
+        : MIN_TEXTAREA_HEIGHT;
+    const maxHeight = isCoarsePointer() ? 112 : MAX_TEXTAREA_HEIGHT;
+
+    node.style.height = `${minHeight}px`;
+    const nextHeight = Math.min(
+      maxHeight,
+      Math.max(minHeight, node.scrollHeight),
+    );
+    node.style.height = `${nextHeight}px`;
+    node.style.overflowY = node.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [hasFocus, textareaRef, value]);
+
   return (
     <motion.div
       layout
@@ -2611,11 +2630,30 @@ export function GuideShellStatic({
     360,
     Math.min(560, constrainedViewportHeight - 128),
   );
+  const mobileCarryoutDraftVisualLines = Math.min(
+    5,
+    Math.max(
+      1,
+      draftValue
+        .split("\n")
+        .reduce(
+          (count, line) => count + Math.max(1, Math.ceil(line.length / 34)),
+          0,
+        ),
+    ),
+  );
+  const mobileCarryoutComposerShellHeight = Math.max(
+    154,
+    Math.min(360, 118 + mobileCarryoutDraftVisualLines * 28),
+  );
   const mobileCarryoutPanelMaxHeight = isMobileCarryoutReviewOpen
-    ? Math.max(360, Math.min(760, constrainedViewportHeight - 24))
+    ? Math.max(420, Math.min(780, constrainedViewportHeight - 18))
     : activeCompletionWidget
-      ? Math.max(420, Math.min(640, constrainedViewportHeight - 48))
-      : Math.max(188, Math.min(280, constrainedViewportHeight - 32));
+      ? Math.max(420, Math.min(660, constrainedViewportHeight - 42))
+      : Math.max(
+          154,
+          Math.min(mobileCarryoutComposerShellHeight, constrainedViewportHeight - 28),
+        );
   const panelHeight = keyboardCompressed
     ? `min(300px, ${keyboardPanelMaxHeight}px)`
     : coarsePointer
@@ -2637,7 +2675,9 @@ export function GuideShellStatic({
           position: "fixed" as const,
           left: "12px",
           right: "12px",
-          bottom: isMobileCarryoutReviewOpen ? "8px" : "16px",
+          bottom: isMobileCarryoutReviewOpen
+            ? "max(6px, env(safe-area-inset-bottom))"
+            : "max(10px, env(safe-area-inset-bottom))",
           width: "auto",
           zIndex: 9999,
         }
@@ -5345,6 +5385,7 @@ export function GuideShellStatic({
       formatLinePrice={formatCarryoutLinePrice}
       missingSummary={carryoutMissingSummary}
       demoScrollButtonVisible={isDemoActive}
+      compactPanelHeader={isMobileCarryoutReviewOpen}
     />
   );
 
@@ -6096,54 +6137,115 @@ if (!best) {
               />
             )}
             <div className="flex h-full min-h-0 flex-col">
-              <div
-                className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex rounded-2xl bg-slate-900 p-2 text-white">
-                    <Compass className="h-4 w-4" />
-                  </span>
-
-                  <div>
-                    <div className="text-sm font-semibold text-slate-950">
-                      TourBot
+              {useMobileCarryoutReceipt ? (
+                !isMobileCarryoutReviewOpen && (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="TourBot status. Swipe up to open cart review, or swipe down to hide TourBot."
+                    onTouchStart={handleMobileCarryoutHeaderTouchStart}
+                    onTouchEnd={handleMobileCarryoutHeaderTouchEnd}
+                    onKeyDown={(event) => {
+                      if (event.key === "ArrowUp") {
+                        event.preventDefault();
+                        openMobileCarryoutReviewFromHeader();
+                      }
+                      if (event.key === "ArrowDown" || event.key === "Escape") {
+                        event.preventDefault();
+                        minimizeMobileCarryoutShellFromHeader();
+                      }
+                    }}
+                    className={`flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 text-[11px] text-slate-600 ${keyboardCompressed ? "py-1.5" : "py-2"}`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
+                        <Compass className="h-3 w-3" />
+                      </span>
+                      <span className="min-w-0 truncate font-semibold">
+                        {compactReceiptText(mobileCarryoutReceipt.title, 58)}
+                      </span>
+                      {hasGuideSteps && guideSteps.length > 1 && (
+                        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                          {currentGuideStepIndex + 1}/{guideSteps.length}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
-                      {modeCopy.statusLabel}
+
+                    <div className="flex shrink-0 items-center gap-1">
+                      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-400 min-[390px]:inline">
+                        Swipe up
+                      </span>
+                      <button
+                        data-demo-target="guide-minimize"
+                        type="button"
+                        aria-label="Hide TourBot"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          minimizeMobileCarryoutShellFromHeader();
+                        }}
+                        className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Reset TourBot"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          resetShellToWelcome();
+                        }}
+                        className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
+                )
+              ) : (
+                <div
+                  className={`flex shrink-0 items-center justify-between border-b border-slate-200 px-4 ${keyboardCompressed ? "py-2" : "py-3 sm:px-5 sm:py-4"}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex rounded-2xl bg-slate-900 p-2 text-white">
+                      <Compass className="h-4 w-4" />
+                    </span>
+
+                    <div>
+                      <div className="text-sm font-semibold text-slate-950">
+                        TourBot
+                      </div>
+                      <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
+                        {modeCopy.statusLabel}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      data-demo-target="guide-minimize"
+                      onClick={() => {
+                        textareaRef.current?.blur();
+                        setKeyboardCompressed(false);
+                        textareaRef.current?.blur();
+                        setKeyboardCompressed(false);
+                        autoMinimizeDisabledRef.current = false;
+                        forceWelcomeVisibleRef.current = false;
+                        setShellState("launcher");
+                      }}
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      onClick={resetShellToWelcome}
+                      className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    data-demo-target="guide-minimize"
-                    onClick={() => {
-                      if (useMobileCarryoutReceipt) {
-                        minimizeMobileCarryoutShellFromHeader();
-                        return;
-                      }
-
-                      textareaRef.current?.blur();
-                      setKeyboardCompressed(false);
-                      textareaRef.current?.blur();
-                      setKeyboardCompressed(false);
-                      autoMinimizeDisabledRef.current = false;
-                      forceWelcomeVisibleRef.current = false;
-                      setShellState("launcher");
-                    }}
-                    className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-
-                  <button
-                    onClick={resetShellToWelcome}
-                    className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+              )}
 
               <div
                 className={
@@ -6173,60 +6275,12 @@ if (!best) {
                 ref={laneRef}
                 className={
                   useMobileCarryoutReceipt
-                    ? `shrink-0 border-b border-slate-200 bg-white ${keyboardCompressed ? "px-2 py-1.5" : "px-3 py-2"}`
+                    ? "hidden"
                     : `min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
                 }
                 style={{ overflowAnchor: "none" }}
               >
-                {useMobileCarryoutReceipt ? (
-                  <div className="space-y-2">
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      aria-label="TourBot status. Swipe up to open cart review, or swipe down to hide TourBot."
-                      onTouchStart={handleMobileCarryoutHeaderTouchStart}
-                      onTouchEnd={handleMobileCarryoutHeaderTouchEnd}
-                      onKeyDown={(event) => {
-                        if (event.key === "ArrowUp") {
-                          event.preventDefault();
-                          openMobileCarryoutReviewFromHeader();
-                        }
-                        if (event.key === "ArrowDown" || event.key === "Escape") {
-                          event.preventDefault();
-                          minimizeMobileCarryoutShellFromHeader();
-                        }
-                      }}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                            {mobileCarryoutReceipt.eyebrow}
-                          </div>
-                          <div className="mt-0.5 truncate text-sm font-semibold text-slate-950">
-                            {mobileCarryoutReceipt.title}
-                          </div>
-                        </div>
-                        {hasGuideSteps && guideSteps.length > 1 && (
-                          <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-500 shadow-sm">
-                            {currentGuideStepIndex + 1}/{guideSteps.length}
-                          </span>
-                        )}
-                      </div>
-                      <div className="mt-1 text-[11px] leading-4 text-slate-500">
-                        {mobileCarryoutReceipt.body}
-                      </div>
-                      {!keyboardCompressed && (
-                        <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400">
-                          <span>
-                            {hasCarryoutItems ? "Swipe up for cart" : "Swipe up after items"}
-                          </span>
-                          <span>Swipe down to close</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
+                {useMobileCarryoutReceipt ? null : (
                   <div
                     className="flex flex-col justify-end"
                     style={{
@@ -6285,7 +6339,11 @@ if (!best) {
                     ? "0 -1px 0 rgba(148,163,184,0.22)"
                     : "0 -1px 0 rgba(226,232,240,1)",
                 }}
-                className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
+                className={
+                  isMobileCarryoutReviewOpen
+                    ? "flex min-h-0 flex-1 flex-col bg-white px-2 py-2"
+                    : `shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
+                }
               >
                 {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCarryoutReceipt && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
@@ -6432,10 +6490,12 @@ if (!best) {
                         transition={{ duration: 0.18, ease: "easeOut" }}
                         className={
                           isCarryoutOrdering && activeCompletionWidget === "saved-trip"
-                            ? `mb-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:rounded-2xl ${
-                                isMobileCommerceDrawer
-                                  ? "h-[min(72dvh,620px)] p-2"
-                                  : "h-[min(70dvh,620px)] p-1.5 sm:p-3"
+                            ? `flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:rounded-2xl ${
+                                isMobileCarryoutReviewOpen
+                                  ? "mb-0 h-full flex-1 p-1.5"
+                                  : isMobileCommerceDrawer
+                                    ? "mb-2 h-[min(76dvh,660px)] p-2 sm:mb-3"
+                                    : "mb-2 h-[min(70dvh,620px)] p-1.5 sm:mb-3 sm:p-3"
                               }`
                             : `mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${
                                 isMobileCommerceDrawer
@@ -6444,9 +6504,10 @@ if (!best) {
                               }`
                         }
                       >
-                        <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
-                          <div>
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">
+                        {!isMobileCarryoutReviewOpen && (
+                          <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
+                            <div>
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">
                               {activeCompletionWidget === "dates"
                                 ? "Select dates"
                                 : activeCompletionWidget === "guests"
@@ -6483,11 +6544,12 @@ if (!best) {
                               setBookingPreloadConfirmed(false);
                               setCarryoutOrderConfirmed(false);
                             }}
-                            className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
-                          >
-                            Close
-                          </button>
-                        </div>
+                              className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white"
+                            >
+                              Close
+                            </button>
+                          </div>
+                        )}
 
                         {activeCompletionWidget === "dates" && (
                           <div className="space-y-1.5 sm:space-y-3">
@@ -7150,27 +7212,29 @@ if (!best) {
                     )}
                 </AnimatePresence>
 
-                <DraftRow
-                  value={draftValue}
-                  onChange={setDraftValue}
-                  onSubmit={submitDraft}
-                  onKeyDown={handleDraftKeyDown}
-                  onFocus={() => {
-                    setDraftFocus(true);
-                    if (isCoarsePointer()) setKeyboardCompressed(true);
-                  }}
-                  onBlur={() => {
-                    setDraftFocus(false);
-                    window.setTimeout(() => {
-                      if (!submitInFlightRef.current)
-                        setKeyboardCompressed(false);
-                    }, 120);
-                  }}
-                  disabled={isBotTyping || demoInteractionLocked}
-                  hasFocus={draftFocus}
-                  textareaRef={textareaRef}
-                  placeholder={modeCopy.placeholder}
-                />
+                {!isMobileCarryoutReviewOpen && (
+                  <DraftRow
+                    value={draftValue}
+                    onChange={setDraftValue}
+                    onSubmit={submitDraft}
+                    onKeyDown={handleDraftKeyDown}
+                    onFocus={() => {
+                      setDraftFocus(true);
+                      if (isCoarsePointer()) setKeyboardCompressed(true);
+                    }}
+                    onBlur={() => {
+                      setDraftFocus(false);
+                      window.setTimeout(() => {
+                        if (!submitInFlightRef.current)
+                          setKeyboardCompressed(false);
+                      }, 120);
+                    }}
+                    disabled={isBotTyping || demoInteractionLocked}
+                    hasFocus={draftFocus}
+                    textareaRef={textareaRef}
+                    placeholder={modeCopy.placeholder}
+                  />
+                )}
               </motion.div>
             </div>
           </div>

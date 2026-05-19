@@ -27,6 +27,7 @@ export type CarryoutReviewPanelProps = {
   formatLinePrice: (line: CarryoutPreCartLine) => string;
   missingSummary: (line: CarryoutPreCartLine) => string;
   demoScrollButtonVisible?: boolean;
+  compactPanelHeader?: boolean;
 };
 export type CarryoutReviewPanelSnapshot = {
   hasScrollNode: boolean;
@@ -75,6 +76,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
   formatLinePrice,
   missingSummary,
   demoScrollButtonVisible = false,
+  compactPanelHeader = false,
 }: CarryoutReviewPanelProps, ref) {
   const subtotal = order?.totals?.subtotal;
   const estimatedTax = order?.totals?.estimatedTax;
@@ -364,17 +366,19 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
-        hasPendingItems
-          ? "border-amber-200 bg-amber-50 text-amber-900"
-          : "border-emerald-200 bg-emerald-50 text-emerald-900"
-      }`}>
-        {hasItems
-          ? hasPendingItems
-            ? `${pendingLines.length} item${pendingLines.length === 1 ? "" : "s"} need choices before checkout.`
-            : "All items are ready for checkout."
-          : "Tell TourBot your order and matched items will appear here automatically."}
-      </div>
+      {!compactPanelHeader && (
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
+          hasPendingItems
+            ? "border-amber-200 bg-amber-50 text-amber-900"
+            : "border-emerald-200 bg-emerald-50 text-emerald-900"
+        }`}>
+          {hasItems
+            ? hasPendingItems
+              ? `${pendingLines.length} item${pendingLines.length === 1 ? "" : "s"} need choices before checkout.`
+              : "All items are ready for checkout."
+            : "Tell TourBot your order and matched items will appear here automatically."}
+        </div>
+      )}
 
       {demoScrollButtonVisible && (
         <>
