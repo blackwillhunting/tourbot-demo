@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import DemoPointer, { type DemoPointerPosition } from "./DemoPointer";
+import DemoPointer, { type DemoPointerMode, type DemoPointerPosition } from "./DemoPointer";
 import type {
   DemoScript,
   DemoStep,
@@ -460,6 +460,7 @@ export default function DemoController({
   const [pointerPosition, setPointerPosition] =
     useState<DemoPointerPosition | null>(null);
   const [pointerVisible, setPointerVisible] = useState(false);
+  const [pointerMode, setPointerMode] = useState<DemoPointerMode>("pointer");
   const [pointerPulseKey, setPointerPulseKey] = useState(0);
   const statusRef = useRef<DemoStatus>(status);
   const stopRef = useRef(false);
@@ -476,6 +477,7 @@ export default function DemoController({
       stopRef.current = true;
       runningRef.current = false;
       setPointerVisible(false);
+      setPointerMode("pointer");
       setCallout(null);
       calloutResumeRef.current = null;
       return;
@@ -517,6 +519,54 @@ export default function DemoController({
         await demoWait(pulseMs);
       };
 
+      const brieflyHighlightTarget = async (el: HTMLElement) => {
+        const previousTransform = el.style.transform;
+        const previousTransition = el.style.transition;
+        const previousBoxShadow = el.style.boxShadow;
+        const previousOutline = el.style.outline;
+        const previousOutlineOffset = el.style.outlineOffset;
+
+        el.style.transition =
+          "transform 160ms ease, box-shadow 160ms ease, outline 160ms ease";
+        el.style.transform = "scale(0.96)";
+        el.style.boxShadow =
+          "0 0 0 6px rgba(15, 23, 42, 0.10), 0 14px 40px rgba(15, 23, 42, 0.18)";
+        el.style.outline = "2px solid rgba(15, 23, 42, 0.55)";
+        el.style.outlineOffset = "3px";
+
+        await demoWait(130);
+        if (stopRef.current) return;
+
+        el.style.transform = "scale(1)";
+        await demoWait(210);
+
+        el.style.transform = previousTransform;
+        el.style.transition = previousTransition;
+        el.style.boxShadow = previousBoxShadow;
+        el.style.outline = previousOutline;
+        el.style.outlineOffset = previousOutlineOffset;
+      };
+
+      const showMobileTap = async (
+        position: DemoPointerPosition,
+        pulseMs = 520,
+        el?: HTMLElement,
+      ) => {
+        setPointerMode("tap");
+        setPointerPosition(position);
+        setPointerVisible(true);
+        await demoWait(70);
+        if (stopRef.current) return;
+
+        await Promise.all([
+          pulsePointer(pulseMs),
+          el ? brieflyHighlightTarget(el) : Promise.resolve(),
+        ]);
+
+        await demoWait(80);
+        if (!stopRef.current) setPointerVisible(false);
+      };
+
       const openMobileShellFromLauncher = async () => {
         if (!isCoarsePointer() || stopRef.current) return;
 
@@ -526,7 +576,6 @@ export default function DemoController({
           return;
         }
 
-        setPointerVisible(true);
         const position = await resolvePointerTargetWhenReady(
           launcherTarget,
           statusRef,
@@ -535,11 +584,18 @@ export default function DemoController({
         );
         if (stopRef.current) return;
 
-        setPointerPosition(position);
-        await demoWait(900);
-        if (stopRef.current) return;
+        if (usesMobileDemoTarget()) {
+          await showMobileTap(position, 560, launcher);
+        } else {
+          setPointerMode("pointer");
+          setPointerVisible(true);
+          setPointerPosition(position);
+          await demoWait(900);
+          if (stopRef.current) return;
 
-        await pulsePointer(650);
+          await pulsePointer(650);
+        }
+
         if (stopRef.current) return;
 
         launcher.click();
@@ -559,36 +615,61 @@ export default function DemoController({
         pulseMs?: number;
         targetWaitMs?: number;
       }) => {
-        setPointerVisible(true);
         await ensureMobileShellTargetAvailable(
           target,
           statusRef,
           stopRef,
           openMobileShellFromLauncher,
         );
-        const position = await resolvePointerTargetWhenReady(
-          target,
-          statusRef,
-          stopRef,
-          targetWaitMs,
-        );
-        if (stopRef.current) return;
-        setPointerPosition(position);
-        await demoWait(hoverMs);
-        if (stopRef.current) return;
-        await pulsePointer(pulseMs);
-        if (stopRef.current) return;
 
-        if (
-          command === "open" &&
-          typeof target === "string" &&
-          target.includes("guide-launcher")
-        ) {
-          const launcher = document.querySelector<HTMLElement>(target);
-          if (launcher) {
-            launcher.click();
-            await demoWait(700);
-            return;
+        const mobileTap = usesMobileDemoTarget();
+
+        if (mobileTap && typeof target === "string") {
+          const resolved = await resolveDomTargetWhenReady(
+            target,
+            statusRef,
+            stopRef,
+            targetWaitMs,
+          );
+          if (stopRef.current) return;
+
+          if (resolved) {
+            await showMobileTap(resolved.position, Math.max(460, pulseMs), resolved.el);
+            if (stopRef.current) return;
+
+            if (command === "open" && target.includes("guide-launcher")) {
+              resolved.el.click();
+              await demoWait(700);
+              return;
+            }
+          }
+        } else {
+          setPointerMode("pointer");
+          setPointerVisible(true);
+          const position = await resolvePointerTargetWhenReady(
+            target,
+            statusRef,
+            stopRef,
+            targetWaitMs,
+          );
+          if (stopRef.current) return;
+          setPointerPosition(position);
+          await demoWait(hoverMs);
+          if (stopRef.current) return;
+          await pulsePointer(pulseMs);
+          if (stopRef.current) return;
+
+          if (
+            command === "open" &&
+            typeof target === "string" &&
+            target.includes("guide-launcher")
+          ) {
+            const launcher = document.querySelector<HTMLElement>(target);
+            if (launcher) {
+              launcher.click();
+              await demoWait(700);
+              return;
+            }
           }
         }
 
@@ -606,12 +687,19 @@ export default function DemoController({
         pulseMs?: number;
         targetWaitMs?: number;
       }) => {
+        const mobileTap = usesMobileDemoTarget();
+
         if (typeof target !== "string") {
-          setPointerVisible(true);
-          setPointerPosition(target);
-          await demoWait(hoverMs);
-          if (stopRef.current) return;
-          await pulsePointer(pulseMs);
+          if (mobileTap) {
+            await showMobileTap(target, Math.max(460, pulseMs));
+          } else {
+            setPointerMode("pointer");
+            setPointerVisible(true);
+            setPointerPosition(target);
+            await demoWait(hoverMs);
+            if (stopRef.current) return;
+            await pulsePointer(pulseMs);
+          }
           return;
         }
 
@@ -630,11 +718,17 @@ export default function DemoController({
         );
         if (stopRef.current || !resolved) return;
 
-        setPointerVisible(true);
-        setPointerPosition(resolved.position);
-        await demoWait(hoverMs);
-        if (stopRef.current) return;
-        await pulsePointer(pulseMs);
+        if (mobileTap) {
+          await showMobileTap(resolved.position, Math.max(460, pulseMs), resolved.el);
+        } else {
+          setPointerMode("pointer");
+          setPointerVisible(true);
+          setPointerPosition(resolved.position);
+          await demoWait(hoverMs);
+          if (stopRef.current) return;
+          await pulsePointer(pulseMs);
+        }
+
         if (stopRef.current) return;
 
         activateDomElement(resolved.el);
@@ -653,13 +747,31 @@ export default function DemoController({
         pulseMs?: number;
         targetWaitMs?: number;
       }) => {
-        setPointerVisible(true);
         await ensureMobileShellTargetAvailable(
           target,
           statusRef,
           stopRef,
           openMobileShellFromLauncher,
         );
+
+        if (usesMobileDemoTarget() && typeof target === "string") {
+          const resolved = await resolveDomTargetWhenReady(
+            target,
+            statusRef,
+            stopRef,
+            targetWaitMs,
+          );
+          if (stopRef.current || !resolved) return;
+
+          await showMobileTap(resolved.position, Math.max(420, pulseMs), resolved.el);
+          if (stopRef.current) return;
+
+          setDomInputValue(target, value);
+          return;
+        }
+
+        setPointerMode("pointer");
+        setPointerVisible(true);
         const position = await resolvePointerTargetWhenReady(
           target,
           statusRef,
@@ -696,7 +808,6 @@ export default function DemoController({
         step: Extract<DemoStep, { action: "carryout-panel-command" }>,
       ) => {
         if (step.target) {
-          setPointerVisible(true);
           const position = await resolvePointerTargetWhenReady(
             step.target,
             statusRef,
@@ -704,10 +815,17 @@ export default function DemoController({
             step.targetWaitMs ?? 2600,
           );
           if (stopRef.current) return;
-          setPointerPosition(position);
-          await demoWait(step.hoverMs ?? 500);
-          if (stopRef.current) return;
-          if (step.pulseMs) await pulsePointer(step.pulseMs);
+
+          if (usesMobileDemoTarget()) {
+            await showMobileTap(position, Math.max(460, step.pulseMs ?? 520));
+          } else {
+            setPointerMode("pointer");
+            setPointerVisible(true);
+            setPointerPosition(position);
+            await demoWait(step.hoverMs ?? 500);
+            if (stopRef.current) return;
+            if (step.pulseMs) await pulsePointer(step.pulseMs);
+          }
         }
 
         const api = window.__tourbotCarryout;
@@ -757,7 +875,6 @@ export default function DemoController({
           }
           case "move-pointer": {
             const target = targetForStep(step) || step.target;
-            setPointerVisible(true);
             await ensureMobileShellTargetAvailable(
               target,
               statusRef,
@@ -771,8 +888,15 @@ export default function DemoController({
               step.targetWaitMs ?? 2600,
             );
             if (stopRef.current) return;
-            setPointerPosition(position);
-            await demoWait(step.delayMs ?? 700);
+
+            if (usesMobileDemoTarget()) {
+              await showMobileTap(position, 420);
+            } else {
+              setPointerMode("pointer");
+              setPointerVisible(true);
+              setPointerPosition(position);
+              await demoWait(step.delayMs ?? 700);
+            }
             return;
           }
           case "click-target":
@@ -974,6 +1098,7 @@ export default function DemoController({
         position={pointerPosition}
         visible={pointerVisible && status !== "idle"}
         pulseKey={pointerPulseKey}
+        mode={pointerMode}
       />
 
       <AnimatePresence>
