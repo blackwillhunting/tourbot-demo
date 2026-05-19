@@ -1324,6 +1324,8 @@ const MOBILE_UPSELL_SUGGESTIONS = DEFAULT_UPSELL_SUGGESTIONS.filter((item) =>
   MOBILE_UPSELL_LABELS.has(item.label),
 );
 
+const DESKTOP_UPSELL_SUGGESTIONS = DEFAULT_UPSELL_SUGGESTIONS.slice(0, 6);
+
 function formatShellDate(value: string) {
   if (!value) return "Select date";
   const [year, month, day] = value.split("-").map(Number);
@@ -2784,6 +2786,11 @@ export function GuideShellStatic({
   const isMobileCommerceDrawer = isMobileBookingUpsell || isMobileSavedTrip;
   const isMobileCarryoutReviewOpen = Boolean(
     coarsePointer && isCarryoutOrdering && activeCompletionWidget === "saved-trip",
+  );
+  const isTransactionSummaryWidget =
+    activeCompletionWidget === "saved-trip" || activeCompletionWidget === "upsell";
+  const isDesktopCommerceSummaryTakeover = Boolean(
+    !coarsePointer && guideConfig?.mode === "commerce" && isTransactionSummaryWidget,
   );
   const constrainedViewportHeight = Math.max(300, visualViewportHeight);
   const floatingCardMaxHeight = `${Math.max(280, constrainedViewportHeight - 32)}px`;
@@ -6570,7 +6577,7 @@ if (!best) {
 
               <div
                 className={
-                  keyboardCompressed
+                  keyboardCompressed || isDesktopCommerceSummaryTakeover
                     ? "hidden"
                     : "hidden shrink-0 border-b border-slate-200 px-4 py-2.5 sm:block sm:px-5 sm:py-3"
                 }
@@ -6595,7 +6602,7 @@ if (!best) {
               <motion.div
                 ref={laneRef}
                 className={
-                  useMobileCommerceReceipt
+                  useMobileCommerceReceipt || isDesktopCommerceSummaryTakeover
                     ? "hidden"
                     : `min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
                 }
@@ -6663,10 +6670,12 @@ if (!best) {
                 className={
                   isMobileCarryoutReviewOpen
                     ? "flex min-h-0 flex-1 flex-col bg-white px-2 py-2"
-                    : `shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
+                    : isDesktopCommerceSummaryTakeover
+                      ? "flex min-h-0 flex-1 flex-col bg-white px-3 py-3 sm:px-5 sm:py-4"
+                      : `shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
                 }
               >
-                {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCommerceReceipt && (
+                {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCommerceReceipt && !isDesktopCommerceSummaryTakeover && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0 flex-1 text-xs text-slate-500">
                       {hasGuideSteps ? (
@@ -6814,19 +6823,23 @@ if (!best) {
                             ? `flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:rounded-2xl ${
                                 isMobileCarryoutReviewOpen
                                   ? "mb-0 h-full flex-1 p-1.5"
-                                  : isMobileCommerceDrawer
-                                    ? "mb-2 h-[min(76dvh,660px)] p-2 sm:mb-3"
-                                    : "mb-2 h-[min(70dvh,620px)] p-1.5 sm:mb-3 sm:p-3"
+                                  : isDesktopCommerceSummaryTakeover
+                                    ? "mb-0 flex-1 p-3"
+                                    : isMobileCommerceDrawer
+                                      ? "mb-2 h-[min(76dvh,660px)] p-2 sm:mb-3"
+                                      : "mb-2 h-[min(70dvh,620px)] p-1.5 sm:mb-3 sm:p-3"
                               }`
-                            : `mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${
-                                isMobileCommerceDrawer
-                                  ? "max-h-[min(46dvh,310px)] p-2"
-                                  : "max-h-[min(54dvh,390px)] p-1.5"
-                              }`
+                            : isDesktopCommerceSummaryTakeover
+                              ? "mb-0 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:rounded-2xl"
+                              : `mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${
+                                  isMobileCommerceDrawer
+                                    ? "max-h-[min(46dvh,310px)] p-2"
+                                    : "max-h-[min(54dvh,390px)] p-1.5"
+                                }`
                         }
                       >
                         {!isMobileCarryoutReviewOpen && (
-                          <div className="mb-1.5 flex items-start justify-between gap-2 sm:mb-3 sm:gap-3">
+                          <div className="mb-1.5 flex shrink-0 items-start justify-between gap-2 sm:mb-3 sm:gap-3">
                             <div>
                               <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-slate-500 sm:text-[11px] sm:tracking-[0.16em]">
                               {activeCompletionWidget === "dates"
@@ -7237,7 +7250,13 @@ if (!best) {
                             </div>
                           ) : (
 
-                          <div className="space-y-2 sm:space-y-3">
+                          <div
+                            className={
+                              isDesktopCommerceSummaryTakeover
+                                ? "min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 sm:space-y-3"
+                                : "space-y-2 sm:space-y-3"
+                            }
+                          >
                             <CommerceSummaryReveal
                               index={0}
                               className="rounded-xl bg-white p-2.5 shadow-sm sm:p-3"
@@ -7405,7 +7424,13 @@ if (!best) {
                         )}
 
                         {activeCompletionWidget === "upsell" && (
-                          <div className="space-y-2 sm:space-y-3">
+                          <div
+                            className={
+                              isDesktopCommerceSummaryTakeover
+                                ? "min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 sm:space-y-3"
+                                : "space-y-2 sm:space-y-3"
+                            }
+                          >
                             <CommerceSummaryReveal
                               index={0}
                               className="hidden rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-xs leading-5 text-cyan-950 sm:block"
@@ -7449,7 +7474,7 @@ if (!best) {
                             <CommerceSummaryReveal index={3} className="grid grid-cols-2 gap-1.5 sm:gap-2">
                               {(isMobileBookingUpsell
                                 ? MOBILE_UPSELL_SUGGESTIONS
-                                : DEFAULT_UPSELL_SUGGESTIONS
+                                : DESKTOP_UPSELL_SUGGESTIONS
                               ).map((suggestion) => (
                                 <button
                                   key={suggestion.label}
@@ -7566,7 +7591,7 @@ if (!best) {
                     )}
                 </AnimatePresence>
 
-                {!isMobileCarryoutReviewOpen && (
+                {!isMobileCarryoutReviewOpen && !isDesktopCommerceSummaryTakeover && (
                   <DraftRow
                     value={draftValue}
                     onChange={setDraftValue}

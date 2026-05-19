@@ -324,7 +324,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
               {pendingLines.length} item{pendingLines.length === 1 ? "" : "s"} need choices before checkout. Tap a row to jump back to that item.
             </div>
           </div>
-          <div className="max-h-[min(58dvh,520px)] space-y-1.5 overflow-y-auto pr-1">
+          <div className="max-h-[min(62dvh,560px)] space-y-1.5 overflow-y-auto pr-1">
             {pendingLines.map((line, index) => renderLine(line, "pending", index, pendingLines.length))}
           </div>
         </div>
@@ -344,7 +344,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             Everything required is complete. Review details before the demo handoff.
           </div>
         </div>
-        <div className="max-h-[min(58dvh,520px)] space-y-1.5 overflow-y-auto pr-1">
+        <div className="max-h-[min(62dvh,560px)] space-y-1.5 overflow-y-auto pr-1">
           {allLines.map((line, index) => renderConfirmationLine(line, index))}
         </div>
         <div className="rounded-xl border border-emerald-200 bg-white p-2.5 text-xs text-slate-700 shadow-sm">
@@ -400,7 +400,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             aria-label="Demo scroll cart to top"
             tabIndex={-1}
             onClick={() => scrollToTop({ behavior: "smooth" })}
-            className={`absolute top-[4.9rem] -right-4 ${invisibleDemoHitTargetClass}`}
+            className={`absolute right-1 top-16 ${invisibleDemoHitTargetClass}`}
           >
             Demo ↑
           </button>
@@ -410,7 +410,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             aria-label="Demo scroll cart to bottom"
             tabIndex={-1}
             onClick={() => scrollToBottom({ behavior: "smooth" })}
-            className={`absolute bottom-[5.75rem] -right-4 ${invisibleDemoHitTargetClass}`}
+            className={`absolute bottom-20 right-1 ${invisibleDemoHitTargetClass}`}
           >
             Demo ↓
           </button>
@@ -421,7 +421,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
               aria-label="Demo jump to last pending cart item"
               tabIndex={-1}
               onClick={jumpToLastPendingLine}
-              className={`absolute bottom-[19.75rem] right-[15.15rem] ${invisibleDemoHitTargetClass}`}
+              className={`absolute right-1 top-1/2 -translate-y-1/2 ${invisibleDemoHitTargetClass}`}
             >
               Demo item →
             </button>
