@@ -323,6 +323,8 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
 
 function ComboCard({ combo, index }: { combo: Combo; index: number }) {
   const featured = index === 0;
+  const compactMobile = combo.id === "combo-classic-burger";
+
   return (
     <article
       id={combo.id}
@@ -330,9 +332,67 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
       data-spotlight-mode="card"
       className={`group relative overflow-hidden rounded-[30px] border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl ${
         featured ? "border-orange-200 md:col-span-2" : "border-orange-100"
-      }`}
+      } ${compactMobile ? "max-sm:rounded-[22px] max-sm:border-orange-200 max-sm:shadow-md" : ""}`}
     >
-      <div className={`grid h-full ${featured ? "md:grid-cols-[0.95fr_1.2fr]" : ""}`}>
+      {compactMobile && (
+        <div className="sm:hidden">
+          <div className="bg-gradient-to-r from-orange-500 via-red-500 to-amber-400 px-3.5 py-3 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/20">
+                  <Package className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/70">
+                    Combo
+                  </div>
+                  <h3 className="text-base font-black leading-tight tracking-tight">
+                    {combo.title}
+                  </h3>
+                </div>
+              </div>
+              <Price>{combo.price}</Price>
+            </div>
+          </div>
+
+          <div className="p-3.5">
+            <p className="text-xs leading-5 text-slate-600">
+              {combo.description}
+            </p>
+
+            <div className="mt-3 grid grid-cols-3 gap-1.5">
+              {combo.includes.map((item) => (
+                <span
+                  key={item}
+                  className="rounded-xl bg-orange-50 px-2 py-1.5 text-center text-[11px] font-black text-orange-800 ring-1 ring-orange-100"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {combo.chips?.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+              <div className="text-[11px] font-bold leading-4 text-slate-500">
+                Side + drink choices ready for TourBot.
+              </div>
+              <AddButton targetId={combo.id} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`${compactMobile ? "hidden sm:grid" : "grid"} h-full ${featured ? "md:grid-cols-[0.95fr_1.2fr]" : ""}`}>
         <div className={`${featured ? "min-h-[250px]" : "min-h-[170px]"} bg-gradient-to-br from-orange-500 via-red-500 to-amber-400 p-5 text-white`}>
           <div className="flex items-center justify-between gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/20">
@@ -741,10 +801,10 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
         </div>
         <div className="min-w-0">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-orange-600">
-            Carryout handoff
+            
           </div>
           <div className="mt-1 text-base font-black tracking-tight text-slate-950">
-            Ready for checkout
+            
           </div>
           <p className="mt-1 text-sm leading-5 text-slate-600">
             TourBot converted plain English into a rapid order flow that can prefill most checkout system forms.

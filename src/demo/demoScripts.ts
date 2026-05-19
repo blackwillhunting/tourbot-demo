@@ -430,8 +430,8 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "BurgerRush Carryout",
-      title: "A standard food stop",
-      body: "A stand-in for any restaurant that supports carryout ordering.",
+      title: "",
+      body: "BurgerRush is a standard food stop, a stand-in for any restaurant that supports carryout ordering.",
       buttonLabel: "Continue",
       placement: "left",
       emphasis: "green-flash",
@@ -439,8 +439,8 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "What you'll see",
-      title: "Messy order → guided cart",
-      body: "TourBot reads plain English, responds with navigation, and action tiles.",
+      title: "",
+      body: "TourBot reads messy customer langauge, responds with navigation, and action tiles.",
       buttonLabel: "Start demo",
       placement: "left",
     },
@@ -477,7 +477,7 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Order understood",
-      title: "TourBot turned intent into structure",
+      title: "",
       body: "TourBot applied 2 combos the user missed.",
       buttonLabel: "Choose options",
       placement: "left",
@@ -486,8 +486,8 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     {
       action: "callout",
       eyebrow: "Cart review",
-      title: "One missing detail remains",
-      body: "Review the order when ready → unfinished items are refocused on selection.",
+      title: "",
+      body: "When you need to see your order, you ask → unfinished items are refocused on selection.",
       buttonLabel: "Show cart",
       placement: "left",
     },
