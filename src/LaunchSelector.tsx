@@ -83,25 +83,25 @@ const launchMessages: WalkthroughMessage[] = [
 const closeMessages: Record<CloseMode, WalkthroughMessage[]> = {
   transactional: [
     {
-      label: "Booking path",
+      label: "Inventory adapted",
       message:
-        "**TourBot** translated dates, room preference, budget sensitivity, and breakfast into a staged hotel stay.",
+        "**TourBot** adapts to any hotel catalog, updating rooms, rates, packages, availability, and action tiles as options change.",
       icon: Hotel,
-      iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+      iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
     },
     {
-      label: "Context carried forward",
-      message:
-        "Room choice, dates, guest count, and package moved with the visitor into the booking handoff.",
-      icon: ShoppingCart,
-      iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
+    label: "Navigation learned",
+    message:
+      "**TourBot** maps a public site in minutes and uses existing elements as its guide anchors — no code changes or plug-ins required.",
+    icon: Route,
+    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
     },
     {
-      label: "Less friction",
-      message:
-        "For transactional sites, **TourBot** keeps shoppers moving toward checkout instead of leaving them to rebuild their choices.",
-      icon: CheckCircle,
-      iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+    label: "Integration-ready",
+    message:
+      "From filtering live room availability to prefilling booking forms, **TourBot** connects visitors to reservations in real time.",
+    icon: CheckCircle,
+    iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
     },
   ],
 carryout: [
