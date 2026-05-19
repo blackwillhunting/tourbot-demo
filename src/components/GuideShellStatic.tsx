@@ -5,8 +5,12 @@ import {
   ArrowRight,
   Bookmark,
   Check,
+  ChevronDown,
+  ChevronUp,
+  CircleHelp,
   Eye,
   Compass,
+  Hotel,
   MessageSquare,
   Minus,
   SendHorizonal,
@@ -426,6 +430,15 @@ type ThreadItem = {
   suggestedAction?: SuggestedAction;
   status?: "thinking" | "done";
 };
+
+type MobileCarryoutReceipt = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  iconClass?: string;
+};
+
 
 function makeId() {
   return Math.random().toString(36).slice(2, 10);
@@ -1222,6 +1235,28 @@ function compactReceiptText(value?: string | null, maxLength = 96) {
   if (!text) return "";
   return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}…` : text;
 }
+
+function isCarryoutCannotMatchReceipt(item?: ThreadItem | null) {
+  const text = `${item?.title || ""} ${item?.body || ""}`
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text) return false;
+
+  return (
+    text.includes("don't recognize") ||
+    text.includes("do not recognize") ||
+    text.includes("can't match") ||
+    text.includes("cannot match") ||
+    text.includes("couldn't match") ||
+    text.includes("could not match") ||
+    text.includes("nothing matching") ||
+    text.includes("no matching")
+  );
+}
+
 
 type CompletionWidget = "dates" | "guests" | "budget" | "saved-trip" | "upsell" | null;
 type DatePickerKind = "check-in" | "check-out" | null;
@@ -2643,6 +2678,7 @@ export function GuideShellStatic({
   const [carryoutOrderConfirmed, setCarryoutOrderConfirmed] = useState(false);
   const [mobileCarryoutSheetVisible, setMobileCarryoutSheetVisible] = useState(false);
   const [mobileCarryoutSheetCollapsed, setMobileCarryoutSheetCollapsed] = useState(false);
+  const [mobileCommerceActionSheetExpanded, setMobileCommerceActionSheetExpanded] = useState(false);
   const [currentGuideMessageId, setCurrentGuideMessageId] = useState<
     string | null
   >(null);
@@ -2715,6 +2751,7 @@ export function GuideShellStatic({
   const [keyboardCompressed, setKeyboardCompressed] = useState(false);
 
   const coarsePointer = isCoarsePointer();
+  const useMobileCommerceReceipt = coarsePointer && guideConfig?.mode === "commerce";
   const isMobileBookingUpsell = coarsePointer && activeCompletionWidget === "upsell";
   const isMobileSavedTrip = coarsePointer && activeCompletionWidget === "saved-trip";
   const isMobileCommerceDrawer = isMobileBookingUpsell || isMobileSavedTrip;
@@ -2755,9 +2792,8 @@ export function GuideShellStatic({
   const panelHeight = keyboardCompressed
     ? `min(300px, ${keyboardPanelMaxHeight}px)`
     : coarsePointer
-      ? `${isCarryoutOrdering ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
+      ? `${useMobileCommerceReceipt ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
       : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
-  const useMobileCarryoutReceipt = coarsePointer && isCarryoutOrdering;
   const panelToastStyle = keyboardCompressed
     ? {
         position: "fixed" as const,
@@ -2979,10 +3015,11 @@ export function GuideShellStatic({
 
   const openPanel = () => {
     clearMinimizeTimer();
+    setMobileCommerceActionSheetExpanded(false);
     autoMinimizeDisabledRef.current = false;
     forceWelcomeVisibleRef.current = false;
     forceBottomOnNextPanelPaintRef.current = true;
-    if (isCoarsePointer() && isCarryoutOrdering) {
+    if (isCoarsePointer() && guideConfig?.mode === "commerce") {
       setActiveCompletionWidget(null);
     }
     setShellState("panel");
@@ -4748,11 +4785,30 @@ export function GuideShellStatic({
           hasBookableSavedTrip),
   );
 
+  const mobileCommerceActionTiles = !isCarryoutOrdering
+    ? latestBotRefinementChips.filter(Boolean).slice(0, 4)
+    : [];
+  const hasMobileCommerceActionTiles = Boolean(
+    coarsePointer &&
+      guideConfig?.mode === "commerce" &&
+      !isCarryoutOrdering &&
+      mobileCommerceActionTiles.length > 0,
+  );
+  const hasMobileCarryoutActionTiles = Boolean(
+    coarsePointer && showMobileCarryoutQualifierSheet && mobileCarryoutSheetVisible,
+  );
+  const showMobileActionTileToggle = Boolean(
+    hasMobileCommerceActionTiles || hasMobileCarryoutActionTiles,
+  );
+  const mobileActionTilesExpanded = isCarryoutOrdering
+    ? !mobileCarryoutSheetCollapsed
+    : mobileCommerceActionSheetExpanded;
+
   const latestBotReceipt = [...thread]
     .reverse()
     .find((item) => item.role === "bot" && item.status !== "thinking");
   const latestThreadItem = thread[thread.length - 1];
-  const mobileCarryoutReceipt = (() => {
+  const mobileCarryoutReceipt: MobileCarryoutReceipt = (() => {
     const currentStepLabel = currentGuideStep
       ? guideStepLabel(currentGuideStep)
       : "";
@@ -4767,6 +4823,16 @@ export function GuideShellStatic({
         eyebrow: "Working",
         title: "TourBot is reading the order",
         body: "Matching items, combos, and required choices.",
+      };
+    }
+
+    if (isCarryoutCannotMatchReceipt(latestBotReceipt)) {
+      return {
+        eyebrow: "Needs clarification",
+        title: "Couldn’t match item",
+        body: "I don’t see that on this menu.",
+        icon: CircleHelp,
+        iconClass: "bg-amber-100 text-amber-700 ring-1 ring-amber-200/80",
       };
     }
 
@@ -4811,10 +4877,98 @@ export function GuideShellStatic({
         "Tell TourBot the order in plain English.",
     };
   })();
+  const mobileHotelReceipt: MobileCarryoutReceipt = (() => {
+    const currentStepLabel = currentGuideStep ? guideStepLabel(currentGuideStep) : "";
+    const stepCounter =
+      hasGuideSteps && guideSteps.length > 1
+        ? `${currentGuideStepIndex + 1} of ${guideSteps.length}`
+        : "";
+
+    if (latestThreadItem?.status === "thinking") {
+      return {
+        eyebrow: "Working",
+        title: "TourBot is finding options",
+        body: "Reading the stay request and ranking the best next step.",
+        icon: Sparkles,
+        iconClass: "bg-cyan-950 text-white",
+      };
+    }
+
+    if (activeCompletionWidget === "saved-trip") {
+      return {
+        eyebrow: "Trip review",
+        title: hasBookableSavedTrip ? "Stay ready to review" : "Saved trip",
+        body: hasSavedTripItems
+          ? "Room, packages, and trip details are staged here."
+          : "Saved room and package choices will appear here.",
+        icon: Eye,
+        iconClass: "bg-cyan-950 text-white",
+      };
+    }
+
+    if (activeCompletionWidget) {
+      return {
+        eyebrow: "Booking detail",
+        title:
+          activeCompletionWidget === "dates"
+            ? "Select dates"
+            : activeCompletionWidget === "guests"
+              ? "Add guests"
+              : activeCompletionWidget === "budget"
+                ? "Set budget"
+                : activeCompletionWidget === "upsell"
+                  ? "Choose add-ons"
+                  : "Trip tools",
+        body: "Complete the booking detail without losing the recommendation.",
+        icon: Sparkles,
+        iconClass: "bg-cyan-950 text-white",
+      };
+    }
+
+    if (currentGuideStep) {
+      return {
+        eyebrow: stepCounter ? `Guide step ${stepCounter}` : "Current stay option",
+        title: currentStepLabel || "Stay recommendation",
+        body: mobileCommerceActionTiles.length
+          ? "Use the action button below for suggested next steps."
+          : compactReceiptText(latestBotReceipt?.body, 96) ||
+            "TourBot can refine, save, or prepare the booking handoff.",
+        icon: Hotel,
+        iconClass: "bg-cyan-950 text-white",
+      };
+    }
+
+    if (hasSavedTripItems || hasBookableActiveStayPlan) {
+      return {
+        eyebrow: "Stay context",
+        title: hasBookableActiveStayPlan ? "Stay option ready" : "Trip details saved",
+        body: "TourBot is carrying the current room, package, and booking context forward.",
+        icon: Bookmark,
+        iconClass: "bg-cyan-950 text-white",
+      };
+    }
+
+    return {
+      eyebrow: "TourBot",
+      title: latestBotReceipt?.title || "Ready for booking help",
+      body:
+        compactReceiptText(latestBotReceipt?.body) ||
+        "Tell TourBot what kind of stay you want.",
+      icon: Compass,
+      iconClass: "bg-slate-900 text-white",
+    };
+  })();
+
+  const mobileCompactReceipt = isCarryoutOrdering
+    ? mobileCarryoutReceipt
+    : mobileHotelReceipt;
+  const MobileCompactReceiptIcon = mobileCompactReceipt.icon || Compass;
 
   useEffect(() => {
     setMobileCarryoutSheetCollapsed(false);
+    setMobileCommerceActionSheetExpanded(false);
   }, [currentGuideMessageId]);
+
 
   useEffect(() => {
     clearMobileCarryoutSheetTimer();
@@ -6218,7 +6372,7 @@ if (!best) {
         >
           <div
             data-demo-target="guide-shell"
-            data-demo-surface={useMobileCarryoutReceipt ? "mobile-carryout-shell" : undefined}
+            data-demo-surface={useMobileCommerceReceipt ? (isCarryoutOrdering ? "mobile-carryout-shell" : "mobile-commerce-shell") : undefined}
             className={`relative overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
             style={{
               height: panelHeight,
@@ -6236,14 +6390,14 @@ if (!best) {
               />
             )}
             <div className="flex h-full min-h-0 flex-col">
-              {useMobileCarryoutReceipt ? (
+              {useMobileCommerceReceipt ? (
                 !isMobileCarryoutReviewOpen && (
                   <div
                     role="button"
                     tabIndex={0}
-                    aria-label="TourBot status. Swipe up to open cart review, or swipe down to hide TourBot."
-                    onTouchStart={handleMobileCarryoutHeaderTouchStart}
-                    onTouchEnd={handleMobileCarryoutHeaderTouchEnd}
+                    aria-label={isCarryoutOrdering ? "TourBot status. Swipe up to open cart review, or swipe down to hide TourBot." : "TourBot status. Use the footer action button to show suggested actions."}
+                    onTouchStart={isCarryoutOrdering ? handleMobileCarryoutHeaderTouchStart : undefined}
+                    onTouchEnd={isCarryoutOrdering ? handleMobileCarryoutHeaderTouchEnd : undefined}
                     onKeyDown={(event) => {
                       if (event.key === "ArrowUp") {
                         event.preventDefault();
@@ -6257,11 +6411,13 @@ if (!best) {
                     className={`flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 text-[11px] text-slate-600 ${keyboardCompressed ? "py-1.5" : "py-2"}`}
                   >
                     <div className="flex min-w-0 items-center gap-2">
-                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
-                        <Compass className="h-3 w-3" />
+                      <span
+                        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${mobileCompactReceipt.iconClass || "bg-slate-900 text-white"}`}
+                      >
+                        <MobileCompactReceiptIcon className="h-3 w-3" />
                       </span>
                       <span className="min-w-0 truncate font-semibold">
-                        {compactReceiptText(mobileCarryoutReceipt.title, 58)}
+                        {compactReceiptText(mobileCompactReceipt.title, 58)}
                       </span>
                       {hasGuideSteps && guideSteps.length > 1 && (
                         <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
@@ -6271,9 +6427,11 @@ if (!best) {
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1">
-                      <span className="hidden text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-400 min-[390px]:inline">
-                        Swipe up
-                      </span>
+                      {isCarryoutOrdering && (
+                        <span className="hidden text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-400 min-[390px]:inline">
+                          Swipe up
+                        </span>
+                      )}
                       <button
                         data-demo-target="guide-minimize"
                         type="button"
@@ -6373,13 +6531,13 @@ if (!best) {
               <motion.div
                 ref={laneRef}
                 className={
-                  useMobileCarryoutReceipt
+                  useMobileCommerceReceipt
                     ? "hidden"
                     : `min-h-0 flex-1 overflow-y-auto bg-slate-50 ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
                 }
                 style={{ overflowAnchor: "none" }}
               >
-                {useMobileCarryoutReceipt ? null : (
+                {useMobileCommerceReceipt ? null : (
                   <div
                     className="flex flex-col justify-end"
                     style={{
@@ -6444,7 +6602,7 @@ if (!best) {
                     : `shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`
                 }
               >
-                {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCarryoutReceipt && (
+                {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCommerceReceipt && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0 flex-1 text-xs text-slate-500">
                       {hasGuideSteps ? (
@@ -7390,6 +7548,63 @@ if (!best) {
           </motion.div>
         )}
 
+      {shellState === "launcher" && hasMobileCommerceActionTiles && mobileCommerceActionSheetExpanded && (
+        <motion.div
+          key="mobile-commerce-action-sheet"
+          data-demo-surface="mobile-commerce-action-sheet"
+          initial={{ y: 92, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 92, opacity: 0 }}
+          transition={{ duration: 0.32, ease: "easeOut" }}
+          className="fixed inset-x-3 bottom-[82px] z-[9998] sm:hidden"
+        >
+          <div className="overflow-hidden rounded-[28px] border border-white/60 bg-white/82 shadow-2xl shadow-slate-950/20 backdrop-blur-2xl">
+            <button
+              type="button"
+              aria-label="Collapse suggested actions"
+              onClick={() => setMobileCommerceActionSheetExpanded(false)}
+              className="flex w-full justify-center pb-1 pt-2"
+            >
+              <span className="h-1.5 w-12 rounded-full bg-slate-300" />
+            </button>
+
+            <div className="border-b border-white/60 bg-white/30 px-3 pb-2">
+              <div className="text-xs font-black text-slate-950">
+                Suggested actions
+              </div>
+              <div className="mt-0.5 text-[10px] leading-4 text-slate-500">
+                Optional next steps for this stay.
+              </div>
+            </div>
+
+            <div className="grid max-h-[34dvh] gap-2 overflow-y-auto px-3 py-3 [scrollbar-width:thin]">
+              {mobileCommerceActionTiles.map((chip) => {
+                const demoTarget = `chip-${chip
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-+|-+$/g, "")}`;
+
+                return (
+                  <button
+                    key={chip}
+                    data-demo-target={demoTarget}
+                    type="button"
+                    onClick={() => {
+                      setMobileCommerceActionSheetExpanded(false);
+                      handleRefinementChipClick(chip);
+                    }}
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                  >
+                    {chip}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {showMobileCarryoutQualifierSheet && mobileCarryoutSheetVisible && (
         <motion.div
           key="mobile-carryout-qualifier-sheet"
@@ -7510,11 +7725,40 @@ if (!best) {
               onTouchStart={(event) => event.stopPropagation()}
             />
           )}
-          {coarsePointer && (showGuideActionStrip || showBookAction) && (
+          {coarsePointer && (showGuideActionStrip || showBookAction || showMobileActionTileToggle) && (
             <div
               data-demo-surface="mobile-action-strip"
               className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"
             >
+              {showMobileActionTileToggle && (
+                <button
+                  data-demo-target="guide-actions-toggle"
+                  type="button"
+                  aria-label={mobileActionTilesExpanded ? "Hide action tiles" : "Show action tiles"}
+                  title={mobileActionTilesExpanded ? "Hide actions" : "Show actions"}
+                  onClick={() => {
+                    if (isCarryoutOrdering) {
+                      setMobileCarryoutSheetVisible(true);
+                      setMobileCarryoutSheetCollapsed((current) => !current);
+                      return;
+                    }
+
+                    setMobileCommerceActionSheetExpanded((current) => !current);
+                  }}
+                  className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-sm transition ${
+                    mobileActionTilesExpanded
+                      ? "bg-slate-900 text-white hover:bg-slate-800"
+                      : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  {mobileActionTilesExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronUp className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+
               {hasMultipleGuideSteps && (
                 <>
                   <button

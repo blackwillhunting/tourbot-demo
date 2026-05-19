@@ -392,7 +392,7 @@ function carryoutDeterministicQualifierSteps(): DemoStep[] {
     ...carryoutQualifierChoice("side-size", "medium", 650, "demo-combo-2", 1200),
     ...carryoutQualifierChoice("drink-size", "large", 650, "demo-combo-2", 520),
     ...carryoutQualifierChoice("soda-flavor", "diet-coke", 850, "demo-combo-2", 520),
-    carryoutNext(4000),
+    carryoutNext(5500),
 
     // Standalone burger has no required choices.
     carryoutNext(3000),
