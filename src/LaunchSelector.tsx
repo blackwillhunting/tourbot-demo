@@ -489,7 +489,7 @@ function PasscodeChallenge({
         </div>
 
         <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          Enter your demo passcode to unlock TourBot.
+          Enter your demo passcode.
         </div>
 
         <div className="mt-7 flex items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3">
@@ -577,7 +577,7 @@ function PasscodeChallenge({
 
         <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
           <ShieldCheck className="h-4 w-4" />
-          Passcode verification protects this private demo.
+          Passcode required for private viewing.
         </div>
       </div>
     </div>
