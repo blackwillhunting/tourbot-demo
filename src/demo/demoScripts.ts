@@ -7,13 +7,14 @@ export type DemoClickCommand = "open" | "submit" | "next" | "got-it" | "minimize
 export type DemoStep =
   | { action: "wait"; delayMs: number }
   | { action: "wait-for-response"; delayMs?: number; timeoutMs?: number }
-  | { action: "move-pointer"; target: DemoPointerTarget; mobileTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number }
-  | { action: "click-target"; target: DemoPointerTarget; mobileTarget?: DemoPointerTarget; command: DemoClickCommand; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
-  | { action: "click-dom-target"; target: DemoPointerTarget; mobileTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
-  | { action: "set-input-value"; target: DemoPointerTarget; mobileTarget?: DemoPointerTarget; value: string; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
-  | { action: "click-through-guide-steps"; target?: DemoPointerTarget; mobileTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
+  | { action: "move-pointer"; target: DemoPointerTarget; delayMs?: number; targetWaitMs?: number }
+  | { action: "click-target"; target: DemoPointerTarget; command: DemoClickCommand; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
+  | { action: "click-dom-target"; target: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
+  | { action: "set-input-value"; target: DemoPointerTarget; value: string; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number }
+  | { action: "click-through-guide-steps"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; maxClicks?: number }
   | { action: "click-next-back-if-multistep"; nextTarget?: DemoPointerTarget; backTarget?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; betweenClicksMs?: number; minStepCount?: number }
   | { action: "carryout-panel-command"; command: "snapshot" | "scroll-bottom" | "scroll-top" | "open-review" | "jump-last-pending" | "confirm-ready"; target?: DemoPointerTarget; delayMs?: number; targetWaitMs?: number; hoverMs?: number; pulseMs?: number; requireSuccess?: boolean }
+  | { action: "carryout-select-option"; value: string; delayMs?: number }
   | { action: "callout"; eyebrow?: string; title: string; body: string; buttonLabel?: string; placement?: "left" | "center" | "bottom"; emphasis?: "green-flash"; delayMs?: number }
   | { action: "open-shell"; delayMs?: number }
   | { action: "type-prompt"; prompt: string; delayMs?: number; charDelayMs?: number }
@@ -324,21 +325,14 @@ function carryoutQualifierChip(
   qualifierId: string,
   value: string,
   delayMs = 650,
-  mobileStepTarget?: string,
+  _mobileGroupIndex = 0,
 ): DemoStep {
-  const genericTarget = `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`;
-  const mobileTarget = mobileStepTarget
-    ? `[data-demo-target='guide-mobile-carryout-${mobileStepTarget}-${qualifierId}-${value}']`
-    : undefined;
+  void _mobileGroupIndex;
 
   return {
-    action: "click-dom-target",
-    target: genericTarget,
-    mobileTarget,
-    hoverMs: 520,
-    pulseMs: 420,
+    action: "carryout-select-option",
+    value: `${qualifierId}:${value}`,
     delayMs,
-    targetWaitMs: 6000,
   };
 }
 
@@ -357,37 +351,37 @@ function carryoutNext(delayMs = 850): DemoStep {
 function carryoutDeterministicQualifierSteps(): DemoStep[] {
   return [
     // Classic Burger Combo #1
-    carryoutQualifierChip("side-size", "large", 650, "combo-1"),
-    carryoutQualifierChip("drink-size", "large", 650, "combo-1"),
-    carryoutQualifierChip("soda-flavor", "coke", 850, "combo-1"),
+    carryoutQualifierChip("side-size", "large", 650, 0),
+    carryoutQualifierChip("drink-size", "large", 650, 1),
+    carryoutQualifierChip("soda-flavor", "coke", 850, 2),
     carryoutNext(1000),
 
     // Classic Burger Combo #2
-    carryoutQualifierChip("side-size", "medium", 650, "combo-2"),
-    carryoutQualifierChip("drink-size", "large", 650, "combo-2"),
-    carryoutQualifierChip("soda-flavor", "diet-coke", 850, "combo-2"),
+    carryoutQualifierChip("side-size", "medium", 650, 0),
+    carryoutQualifierChip("drink-size", "large", 650, 1),
+    carryoutQualifierChip("soda-flavor", "diet-coke", 850, 2),
     carryoutNext(4000),
 
     // Standalone burger has no required choices.
     carryoutNext(3000),
 
     // Onion rings
-    carryoutQualifierChip("side-size", "large", 850, "onion-rings"),
+    carryoutQualifierChip("side-size", "large", 850, 0),
     carryoutNext(4000),
 
     // Extra soda #3
-    carryoutQualifierChip("drink-size", "large", 650, "soda-3"),
-    carryoutQualifierChip("soda-flavor", "sprite", 850, "soda-3"),
+    carryoutQualifierChip("drink-size", "large", 650, 0),
+    carryoutQualifierChip("soda-flavor", "sprite", 850, 1),
     carryoutNext(1000),
 
     // Extra soda #4 — medium to show the demo can change a size.
-    carryoutQualifierChip("drink-size", "medium", 650, "soda-4"),
-    carryoutQualifierChip("soda-flavor", "root-beer", 850, "soda-4"),
+    carryoutQualifierChip("drink-size", "medium", 650, 0),
+    carryoutQualifierChip("soda-flavor", "root-beer", 850, 1),
     carryoutNext(1000),
 
     // Iced tea
-    carryoutQualifierChip("drink-size", "large", 650, "iced-tea"),
-    carryoutQualifierChip("tea-sweetness", "sweet", 1100, "iced-tea"),
+    carryoutQualifierChip("drink-size", "large", 650, 0),
+    carryoutQualifierChip("tea-sweetness", "sweet", 1100, 1),
   ];
 }
 
@@ -506,7 +500,7 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     { action: "wait", delayMs: 1000 },
 
     // Finish the last pending milkshake item.
-    carryoutQualifierChip("shake-flavor", "vanilla", 900, "milkshake"),
+    carryoutQualifierChip("shake-flavor", "vanilla", 900, 0),
 
     // Ask TourBot to open the checkout/review state.
     {
@@ -537,12 +531,10 @@ export const guidedCarryoutPanelDemo: DemoScript = {
       targetWaitMs: 8000,
     },
     {
-      action: "click-dom-target",
-      target: "[data-demo-target='guide-carryout-checkout']",
-      hoverMs: 900,
-      pulseMs: 650,
+      action: "carryout-panel-command",
+      command: "confirm-ready",
       delayMs: 1800,
-      targetWaitMs: 8000,
+      requireSuccess: true,
     },
   ],
 };

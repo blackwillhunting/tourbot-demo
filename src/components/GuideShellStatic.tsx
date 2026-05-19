@@ -5854,7 +5854,15 @@ export function GuideShellStatic({
   const selectCarryoutOptionForDemo = (rawValue?: string) => {
     if (!isCarryoutOrdering) return;
 
-    const wanted = normalizeText(rawValue || "");
+    const raw = String(rawValue || "").trim();
+    if (!raw) return;
+
+    const [rawQualifier, ...rawOptionParts] = raw.split(":");
+    const hasExplicitQualifier = rawOptionParts.length > 0;
+    const wantedQualifier = hasExplicitQualifier ? normalizeText(rawQualifier) : "";
+    const wanted = normalizeText(
+      hasExplicitQualifier ? rawOptionParts.join(":") : raw,
+    );
     if (!wanted) return;
 
     clearMinimizeTimer();
@@ -5863,6 +5871,22 @@ export function GuideShellStatic({
     const groups = currentCarryoutVisibleQualifierGroups.filter(
       (group) => Array.isArray(group.options) && group.options.length > 0,
     );
+
+    const scoreGroup = (group: CarryoutQualifierGroup) => {
+      if (!hasExplicitQualifier) return 0;
+
+      const qualifierId = normalizeText(group.qualifierId || "");
+      const label = normalizeText(group.label || "");
+
+      if (qualifierId === wantedQualifier) return 120;
+      if (label === wantedQualifier) return 110;
+      if (qualifierId.includes(wantedQualifier) || wantedQualifier.includes(qualifierId))
+        return 80;
+      if (label.includes(wantedQualifier) || wantedQualifier.includes(label))
+        return 70;
+
+      return -1000;
+    };
 
     const scoreOption = (option: CarryoutQualifierOption) => {
       const label = normalizeText(option.label || "");
@@ -5874,34 +5898,41 @@ export function GuideShellStatic({
       return 0;
     };
 
-type CarryoutDemoOptionMatch = {
-  group: CarryoutQualifierGroup;
-  option: CarryoutQualifierOption;
-  score: number;
-  missing: boolean;
-};
+    type CarryoutDemoOptionMatch = {
+      group: CarryoutQualifierGroup;
+      option: CarryoutQualifierOption;
+      score: number;
+      missing: boolean;
+    };
 
-let best: CarryoutDemoOptionMatch | null = null;
+    let best: CarryoutDemoOptionMatch | null = null;
 
-for (const group of groups) {
-  for (const option of group.options || []) {
-    const score = scoreOption(option);
-    if (score <= 0) continue;
+    for (const group of groups) {
+      const groupScore = scoreGroup(group);
+      if (groupScore <= -1000) continue;
 
-    const missing = Boolean(group.missing && !group.selectedValue);
-    if (
-      !best ||
-      score > best.score ||
-      (score === best.score && missing && !best.missing)
-    ) {
-      best = { group, option, score, missing };
+      for (const option of group.options || []) {
+        const optionScore = scoreOption(option);
+        if (optionScore <= 0) continue;
+
+        const missing = Boolean(group.missing && !group.selectedValue);
+        const score = groupScore + optionScore;
+
+        if (
+          !best ||
+          score > best.score ||
+          (score === best.score && missing && !best.missing)
+        ) {
+          best = { group, option, score, missing };
+        }
+      }
     }
-  }
-}
 
-if (!best) {
+    if (!best) {
       console.warn("Carryout demo option not found on current step:", rawValue, {
         targetId: currentGuideStep?.targetId,
+        wantedQualifier,
+        wanted,
         groups: groups.map((group) => ({
           qualifierId: group.qualifierId,
           label: group.label,
