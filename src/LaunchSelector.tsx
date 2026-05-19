@@ -489,7 +489,7 @@ function PasscodeChallenge({
         </div>
 
         <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          Enter your demo passcode.
+          Enter your passcode.
         </div>
 
         <div className="mt-7 flex items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3">
