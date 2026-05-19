@@ -146,6 +146,8 @@ const RIBBON_GLIDE_MS = 720;
 const PASSCODE_LENGTH = 6;
 const TOURBOT_DEMO_COOKIE = "tourbot_demo_unlocked";
 const TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+const PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
+const PASSCODE_BOX_WIGGLE_DURATION = 1.18;
 
 type StageItem =
   | { kind: "passcode" }
@@ -169,6 +171,13 @@ function setTourBotDemoAccessCookie() {
 
   const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${TOURBOT_DEMO_COOKIE}=1; Max-Age=${TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
+}
+
+function clearTourBotDemoAccessCookie() {
+  if (typeof document === "undefined") return;
+
+  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${TOURBOT_DEMO_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
 }
 
 function initialCloseMode(): CloseMode | null {
@@ -418,12 +427,54 @@ function PasscodeChallenge({
   onChange: (value: string) => void;
   onSubmit: () => void;
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const boxes = Array.from({ length: PASSCODE_LENGTH });
 
   useEffect(() => {
-    inputRef.current?.focus();
+    inputRefs.current[0]?.focus();
   }, []);
+
+  const focusBox = (index: number) => {
+    window.setTimeout(() => {
+      inputRefs.current[Math.max(0, Math.min(PASSCODE_LENGTH - 1, index))]?.focus();
+    }, 0);
+  };
+
+  const updateFromIndex = (index: number, rawValue: string) => {
+    const cleaned = normalizePasscode(rawValue);
+    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+
+    if (!cleaned) {
+      nextCharacters[index] = "";
+      onChange(nextCharacters.join(""));
+      return;
+    }
+
+    cleaned.split("").forEach((character, offset) => {
+      const targetIndex = index + offset;
+      if (targetIndex < PASSCODE_LENGTH) nextCharacters[targetIndex] = character;
+    });
+
+    onChange(nextCharacters.join(""));
+    focusBox(index + cleaned.length);
+  };
+
+  const clearFromIndex = (index: number) => {
+    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+
+    if (nextCharacters[index]) {
+      nextCharacters[index] = "";
+      onChange(nextCharacters.join(""));
+      focusBox(index);
+      return;
+    }
+
+    if (index > 0) {
+      nextCharacters[index - 1] = "";
+      onChange(nextCharacters.join(""));
+      focusBox(index - 1);
+    }
+  };
 
   return (
     <div className="w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
@@ -441,52 +492,92 @@ function PasscodeChallenge({
           Enter your demo passcode to unlock TourBot.
         </div>
 
-        <div
-          className="relative mt-7 flex cursor-text items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3"
-          onClick={() => inputRef.current?.focus()}
-        >
-          <input
-            ref={inputRef}
-            aria-label="Demo passcode"
-            autoCapitalize="characters"
-            autoComplete="one-time-code"
-            className="absolute h-px w-px opacity-0"
-            disabled={isChecking}
-            inputMode="text"
-            maxLength={PASSCODE_LENGTH}
-            onChange={(event) => onChange(normalizePasscode(event.target.value))}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onSubmit();
-              }
-            }}
-            value={code}
-          />
-
+        <div className="mt-7 flex items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3">
           {boxes.map((_, index) => {
             const character = code[index] || "";
             const isFilled = Boolean(character);
+            const boxClassName =
+              "flex h-12 w-10 items-center justify-center rounded-2xl border text-center text-lg font-bold uppercase tracking-tight shadow-sm outline-none transition sm:h-14 sm:w-12 sm:text-xl " +
+              (isFilled
+                ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+                : "border-slate-200 bg-white text-slate-400 placeholder:text-slate-300 focus:border-slate-400 focus:text-slate-950 focus:ring-4 focus:ring-slate-200/70");
+
+            if (isChecking) {
+              return (
+                <motion.div
+                  key={`passcode-box-${index}`}
+                  animate={{
+                    y: [0, -6.5, 0, 3.75, 0],
+                    rotate: [0, -3.4, 2.65, -1.85, 0],
+                    scale: [1, 1.055, 1, 1.032, 1],
+                  }}
+                  className={boxClassName}
+                  transition={{
+                    duration: PASSCODE_BOX_WIGGLE_DURATION,
+                    repeat: Infinity,
+                    delay: index * PASSCODE_BOX_WIGGLE_STAGGER,
+                    ease: "easeInOut",
+                  }}
+                >
+                  {character || "•"}
+                </motion.div>
+              );
+            }
 
             return (
-              <div
+              <input
                 key={`passcode-box-${index}`}
-                className={
-                  "flex h-12 w-10 items-center justify-center rounded-2xl border text-lg font-bold tracking-tight shadow-sm transition sm:h-14 sm:w-12 sm:text-xl " +
-                  (isFilled
-                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
-                    : "border-slate-200 bg-white text-slate-300")
-                }
-              >
-                {isChecking ? <ThinkingText body={character || "•"} /> : character || "—"}
-              </div>
+                ref={(node) => {
+                  inputRefs.current[index] = node;
+                }}
+                aria-label={`Demo passcode character ${index + 1}`}
+                autoCapitalize="characters"
+                autoComplete={index === 0 ? "one-time-code" : "off"}
+                className={boxClassName}
+                disabled={isChecking}
+                inputMode="text"
+                maxLength={1}
+                onChange={(event) => updateFromIndex(index, event.target.value)}
+                onFocus={(event) => event.target.select()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onSubmit();
+                    return;
+                  }
+
+                  if (event.key === "Backspace") {
+                    event.preventDefault();
+                    clearFromIndex(index);
+                    return;
+                  }
+
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    focusBox(index - 1);
+                    return;
+                  }
+
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    focusBox(index + 1);
+                  }
+                }}
+                onPaste={(event) => {
+                  event.preventDefault();
+                  updateFromIndex(index, event.clipboardData.getData("text"));
+                }}
+                placeholder="—"
+                type="text"
+                value={character}
+              />
             );
           })}
         </div>
 
         <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
           <ShieldCheck className="h-4 w-4" />
-          Access stays open in this browser for 1 hour.
+          Passcode verification protects this private demo.
         </div>
       </div>
     </div>
@@ -522,7 +613,7 @@ export default function LaunchSelector() {
   const [hasAccess, setHasAccess] = useState(() => hasTourBotDemoAccess());
   const [passcode, setPasscode] = useState("");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(() => (hasTourBotDemoAccess() ? initialLaunchStep(closeMode) : 0));
+  const [step, setStep] = useState(() => (hasTourBotDemoAccess() ? initialLaunchStep(closeMode) + 1 : 0));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -536,9 +627,9 @@ export default function LaunchSelector() {
       sourceIndex,
     }));
 
-    if (hasAccess) return messageItems;
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems];
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
-    return [{ kind: "passcode" }, ...messageItems];
+    return [{ kind: "passcode" }];
   }, [baseMessages, gateView, hasAccess]);
 
   const current = stageItems[step];
@@ -546,6 +637,10 @@ export default function LaunchSelector() {
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
   const isLastStep = hasAccess && step === stageItems.length - 1;
   const isWaving = wavingIndex !== null;
+  const stageHeightTransitionClass =
+    !hasAccess && gateView === "challenge" && step === 0
+      ? "transition-none"
+      : "transition-[height] duration-700 ease-out";
 
   const stepLabel = !hasAccess
     ? "Private access"
@@ -575,7 +670,7 @@ export default function LaunchSelector() {
 
   useEffect(() => {
     if (hasAccess) {
-      setStep((value) => Math.min(value, Math.max(0, baseMessages.length - 1)));
+      setStep((value) => Math.min(Math.max(1, value), baseMessages.length));
       return;
     }
 
@@ -585,6 +680,44 @@ export default function LaunchSelector() {
   useEffect(() => {
     stageScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
+
+  const resetAccess = () => {
+    clearTourBotDemoAccessCookie();
+    setHasAccess(false);
+    setPasscode("");
+    setGateView("challenge");
+    setStep(0);
+    setWavingIndex(null);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const shouldLogout = params.get("logout") === "1" || params.get("resetAccess") === "1";
+    if (!shouldLogout) return;
+
+    resetAccess();
+
+    params.delete("logout");
+    params.delete("resetAccess");
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`,
+    );
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      resetAccess();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const goHome = () => {
     window.location.href = "/?start=demos";
@@ -622,23 +755,22 @@ export default function LaunchSelector() {
     }
 
     setTourBotDemoAccessCookie();
-    setStep(1);
-    await wait(RIBBON_GLIDE_MS);
     setHasAccess(true);
     setGateView("challenge");
-    setStep(0);
+    setStep(1);
+    await wait(RIBBON_GLIDE_MS);
     setWavingIndex(null);
   };
 
   const goBack = () => {
     if (isWaving || !hasAccess) return;
 
-    if (step === 0) {
+    if (step <= 1) {
       if (closeMode) goHome();
       return;
     }
 
-    setStep((value) => Math.max(0, value - 1));
+    setStep((value) => Math.max(1, value - 1));
   };
 
   const goNext = async () => {
@@ -691,9 +823,21 @@ export default function LaunchSelector() {
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-            <Sparkles className="h-4 w-4 text-slate-500" />
-            {stepLabel}
+          <div className="flex items-center gap-2">
+            {hasAccess && (
+              <button
+                type="button"
+                onClick={resetAccess}
+                className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
+              >
+                Reset access
+              </button>
+            )}
+
+            <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+              <Sparkles className="h-4 w-4 text-slate-500" />
+              {stepLabel}
+            </div>
           </div>
         </div>
       </header>
@@ -715,7 +859,7 @@ export default function LaunchSelector() {
           className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
         >
           <div
-            className="my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm transition-[height] duration-700 ease-out sm:my-0 sm:rounded-[36px]"
+            className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
             style={ribbonHeight ? { height: ribbonHeight } : undefined}
           >
             <motion.div
@@ -765,7 +909,7 @@ export default function LaunchSelector() {
           <button
             type="button"
             onClick={goBack}
-            disabled={!hasAccess || (!closeMode && step === 0)}
+            disabled={!hasAccess || (!closeMode && currentMessageStep === 0)}
             className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
