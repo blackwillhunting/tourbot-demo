@@ -8,12 +8,15 @@ import {
   CheckCircle,
   Compass,
   Hotel,
+  KeyRound,
   MessageSquare,
+  ShieldCheck,
   PlayCircle,
   Route,
   Search,
   ShoppingCart,
   Sparkles,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -140,6 +143,33 @@ const THINKING_WIGGLE_DURATION = 1.35;
 const THINKING_WIGGLE_STAGGER = 0.018;
 const MESSAGE_WAVE_MS = 1360;
 const RIBBON_GLIDE_MS = 720;
+const PASSCODE_LENGTH = 6;
+const TOURBOT_DEMO_COOKIE = "tourbot_demo_unlocked";
+const TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+
+type StageItem =
+  | { kind: "passcode" }
+  | { kind: "failure" }
+  | { kind: "message"; message: WalkthroughMessage; sourceIndex: number };
+
+function normalizePasscode(value: string) {
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, PASSCODE_LENGTH);
+}
+
+function hasTourBotDemoAccess() {
+  if (typeof document === "undefined") return false;
+
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith(`${TOURBOT_DEMO_COOKIE}=`));
+}
+
+function setTourBotDemoAccessCookie() {
+  if (typeof document === "undefined") return;
+
+  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${TOURBOT_DEMO_COOKIE}=1; Max-Age=${TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
+}
 
 function initialCloseMode(): CloseMode | null {
   if (typeof window === "undefined") return null;
@@ -376,22 +406,152 @@ function LaunchMessage({
   );
 }
 
+
+function PasscodeChallenge({
+  code,
+  isChecking,
+  onChange,
+  onSubmit,
+}: {
+  code: string;
+  isChecking: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const boxes = Array.from({ length: PASSCODE_LENGTH });
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white ring-1 ring-slate-950/10 sm:h-11 sm:w-11">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            Private demo access
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          Enter your demo passcode to unlock TourBot.
+        </div>
+
+        <div
+          className="relative mt-7 flex cursor-text items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3"
+          onClick={() => inputRef.current?.focus()}
+        >
+          <input
+            ref={inputRef}
+            aria-label="Demo passcode"
+            autoCapitalize="characters"
+            autoComplete="one-time-code"
+            className="absolute h-px w-px opacity-0"
+            disabled={isChecking}
+            inputMode="text"
+            maxLength={PASSCODE_LENGTH}
+            onChange={(event) => onChange(normalizePasscode(event.target.value))}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onSubmit();
+              }
+            }}
+            value={code}
+          />
+
+          {boxes.map((_, index) => {
+            const character = code[index] || "";
+            const isFilled = Boolean(character);
+
+            return (
+              <div
+                key={`passcode-box-${index}`}
+                className={
+                  "flex h-12 w-10 items-center justify-center rounded-2xl border text-lg font-bold tracking-tight shadow-sm transition sm:h-14 sm:w-12 sm:text-xl " +
+                  (isFilled
+                    ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+                    : "border-slate-200 bg-white text-slate-300")
+                }
+              >
+                {isChecking ? <ThinkingText body={character || "•"} /> : character || "—"}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
+          <ShieldCheck className="h-4 w-4" />
+          Access stays open in this browser for 1 hour.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AccessFailure({ isWaving }: { isWaving: boolean }) {
+  const body = "That code is incomplete. Enter the full demo passcode and try again.";
+
+  return (
+    <div className="w-full bg-rose-50/90 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 ring-1 ring-rose-200/80 sm:h-11 sm:w-11">
+            <XCircle className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-600 sm:text-xs sm:tracking-[0.16em]">
+            Access not opened
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          {isWaving ? <ThinkingText body={body} /> : <MarkdownText body={body} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LaunchSelector() {
   const closeMode = useMemo(() => initialCloseMode(), []);
-  const messages = closeMode ? closeMessages[closeMode] : launchMessages;
-  const [step, setStep] = useState(() => initialLaunchStep(closeMode));
+  const baseMessages = useMemo(() => (closeMode ? closeMessages[closeMode] : launchMessages), [closeMode]);
+  const [hasAccess, setHasAccess] = useState(() => hasTourBotDemoAccess());
+  const [passcode, setPasscode] = useState("");
+  const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
+  const [step, setStep] = useState(() => (hasTourBotDemoAccess() ? initialLaunchStep(closeMode) : 0));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const stageScrollRef = useRef<HTMLDivElement | null>(null);
-  const current = messages[step];
-  const isLastStep = step === messages.length - 1;
+
+  const stageItems = useMemo<StageItem[]>(() => {
+    const messageItems = baseMessages.map((message, sourceIndex) => ({
+      kind: "message" as const,
+      message,
+      sourceIndex,
+    }));
+
+    if (hasAccess) return messageItems;
+    if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
+    return [{ kind: "passcode" }, ...messageItems];
+  }, [baseMessages, gateView, hasAccess]);
+
+  const current = stageItems[step];
+  const currentMessage = current?.kind === "message" ? current.message : null;
+  const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
+  const isLastStep = hasAccess && step === stageItems.length - 1;
   const isWaving = wavingIndex !== null;
 
-  const stepLabel = closeMode
-    ? `Takeaway ${step + 1} of ${messages.length}`
-    : `Step ${step + 1} of ${messages.length}`;
+  const stepLabel = !hasAccess
+    ? "Private access"
+    : closeMode
+      ? `Takeaway ${currentMessageStep + 1} of ${baseMessages.length}`
+      : `Step ${currentMessageStep + 1} of ${baseMessages.length}`;
 
   useLayoutEffect(() => {
     const active = segmentRefs.current[step];
@@ -399,7 +559,7 @@ export default function LaunchSelector() {
 
     setRibbonY(-active.offsetTop);
     setRibbonHeight(active.offsetHeight);
-  }, [step, messages.length]);
+  }, [stageItems.length, step]);
 
   useEffect(() => {
     const measureActiveSegment = () => {
@@ -414,6 +574,15 @@ export default function LaunchSelector() {
   }, [step]);
 
   useEffect(() => {
+    if (hasAccess) {
+      setStep((value) => Math.min(value, Math.max(0, baseMessages.length - 1)));
+      return;
+    }
+
+    setStep((value) => Math.min(value, Math.max(0, stageItems.length - 1)));
+  }, [baseMessages.length, hasAccess, stageItems.length]);
+
+  useEffect(() => {
     stageScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
 
@@ -421,8 +590,48 @@ export default function LaunchSelector() {
     window.location.href = "/?start=demos";
   };
 
-  const goBack = () => {
+  const retryPasscode = async () => {
     if (isWaving) return;
+
+    setWavingIndex(step);
+    await wait(MESSAGE_WAVE_MS);
+    setStep(0);
+    await wait(RIBBON_GLIDE_MS);
+    setPasscode("");
+    setGateView("challenge");
+    setWavingIndex(null);
+  };
+
+  const submitPasscode = async () => {
+    if (isWaving) return;
+
+    if (gateView === "failure") {
+      await retryPasscode();
+      return;
+    }
+
+    setWavingIndex(step);
+    await wait(MESSAGE_WAVE_MS);
+
+    if (passcode.length < PASSCODE_LENGTH) {
+      setGateView("failure");
+      setStep(1);
+      await wait(RIBBON_GLIDE_MS);
+      setWavingIndex(null);
+      return;
+    }
+
+    setTourBotDemoAccessCookie();
+    setStep(1);
+    await wait(RIBBON_GLIDE_MS);
+    setHasAccess(true);
+    setGateView("challenge");
+    setStep(0);
+    setWavingIndex(null);
+  };
+
+  const goBack = () => {
+    if (isWaving || !hasAccess) return;
 
     if (step === 0) {
       if (closeMode) goHome();
@@ -435,6 +644,11 @@ export default function LaunchSelector() {
   const goNext = async () => {
     if (isWaving) return;
 
+    if (!hasAccess) {
+      await submitPasscode();
+      return;
+    }
+
     if (closeMode && isLastStep) {
       goHome();
       return;
@@ -444,14 +658,20 @@ export default function LaunchSelector() {
 
     setWavingIndex(step);
     await wait(MESSAGE_WAVE_MS);
-    setStep((value) => Math.min(messages.length - 1, value + 1));
+    setStep((value) => Math.min(stageItems.length - 1, value + 1));
     await wait(RIBBON_GLIDE_MS);
     setWavingIndex(null);
   };
 
-  const showNextButton = closeMode || !current.demoButtons;
-  const backLabel = closeMode && step === 0 ? "Run another demo" : "Back";
-  const nextLabel = closeMode && isLastStep ? "Run another demo" : "Next";
+  const showNextButton = !hasAccess || closeMode || !currentMessage?.demoButtons;
+  const backLabel = closeMode && hasAccess && step === 0 ? "Run another demo" : "Back";
+  const nextLabel = !hasAccess
+    ? gateView === "failure"
+      ? "Try again"
+      : "Submit"
+    : closeMode && isLastStep
+      ? "Run another demo"
+      : "Next";
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
@@ -480,7 +700,14 @@ export default function LaunchSelector() {
 
       <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div className="shrink-0">
-          <ProgressDots step={step} count={messages.length} />
+          {hasAccess ? (
+            <ProgressDots step={currentMessageStep} count={baseMessages.length} />
+          ) : (
+            <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
+              <KeyRound className="h-3.5 w-3.5" />
+              Access required
+            </div>
+          )}
         </div>
 
         <div
@@ -499,18 +726,35 @@ export default function LaunchSelector() {
                 ease: [0.22, 1, 0.36, 1],
               }}
             >
-              {messages.map((message, index) => (
+              {stageItems.map((item, index) => (
                 <div
-                  key={`${closeMode || "launch"}-${message.label}-${index}`}
+                  key={
+                    item.kind === "message"
+                      ? `${closeMode || "launch"}-${item.message.label}-${item.sourceIndex}`
+                      : item.kind
+                  }
                   ref={(node) => {
                     segmentRefs.current[index] = node;
                   }}
                 >
-                  <LaunchMessage
-                    message={message}
-                    step={index}
-                    isWaving={wavingIndex === index}
-                  />
+                  {item.kind === "passcode" && (
+                    <PasscodeChallenge
+                      code={passcode}
+                      isChecking={wavingIndex === index}
+                      onChange={setPasscode}
+                      onSubmit={submitPasscode}
+                    />
+                  )}
+
+                  {item.kind === "failure" && <AccessFailure isWaving={wavingIndex === index} />}
+
+                  {item.kind === "message" && (
+                    <LaunchMessage
+                      message={item.message}
+                      step={item.sourceIndex}
+                      isWaving={wavingIndex === index}
+                    />
+                  )}
                 </div>
               ))}
             </motion.div>
@@ -521,7 +765,7 @@ export default function LaunchSelector() {
           <button
             type="button"
             onClick={goBack}
-            disabled={!closeMode && step === 0}
+            disabled={!hasAccess || (!closeMode && step === 0)}
             className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
