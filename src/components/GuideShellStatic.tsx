@@ -6120,6 +6120,7 @@ if (!best) {
         >
           <div
             data-demo-target="guide-shell"
+            data-demo-surface={useMobileCarryoutReceipt ? "mobile-carryout-shell" : undefined}
             className={`relative overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
             style={{
               height: panelHeight,
@@ -7294,6 +7295,7 @@ if (!best) {
       {showMobileCarryoutQualifierSheet && mobileCarryoutSheetVisible && (
         <motion.div
           key="mobile-carryout-qualifier-sheet"
+          data-demo-surface="mobile-carryout-qualifier-sheet"
           initial={{ y: 92, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 92, opacity: 0 }}
@@ -7407,7 +7409,10 @@ if (!best) {
             />
           )}
           {coarsePointer && (showGuideActionStrip || showBookAction) && (
-            <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur">
+            <div
+              data-demo-surface="mobile-action-strip"
+              className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"
+            >
               {hasMultipleGuideSteps && (
                 <>
                   <button

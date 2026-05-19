@@ -77,7 +77,7 @@ function wait(ms: number) {
 function resolvePointerTarget(target: DemoPointerTarget): DemoPointerPosition {
   if (typeof target === "object") return target;
 
-  const el = document.querySelector<HTMLElement>(target);
+  const el = visibleElementForSelector(target);
   if (!el)
     return {
       x: window.innerWidth / 2,
@@ -125,42 +125,93 @@ function isVisibleElementBox(el: HTMLElement) {
     rect.height > 0 &&
     style.display !== "none" &&
     style.visibility !== "hidden" &&
-    style.opacity !== "0"
+    style.opacity !== "0" &&
+    style.pointerEvents !== "none"
   );
 }
 
-function isElementTopmostAtCenter(el: HTMLElement) {
+function elementCenter(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
+  return {
+    rect,
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+function isElementCenterInViewport(el: HTMLElement) {
+  const { x, y } = elementCenter(el);
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
 
-  if (
-    centerX < 0 ||
-    centerX > viewportWidth ||
-    centerY < 0 ||
-    centerY > viewportHeight
-  ) {
-    return true;
-  }
+  return x >= 0 && x <= viewportWidth && y >= 0 && y <= viewportHeight;
+}
 
-  const topmost = document.elementFromPoint(centerX, centerY);
-  if (!topmost) return true;
+function isElementTopmostAtCenter(el: HTMLElement) {
+  if (!isElementCenterInViewport(el)) return false;
+
+  const { x, y } = elementCenter(el);
+  const topmost = document.elementFromPoint(x, y);
+  if (!topmost) return false;
 
   return el === topmost || el.contains(topmost) || topmost.contains(el);
+}
+
+function demoTargetSurfaceScore(el: HTMLElement, selector: string) {
+  let score = 0;
+  const rect = el.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const centerInViewport = isElementCenterInViewport(el);
+  const topmost = isElementTopmostAtCenter(el);
+
+  if (centerInViewport) score += 120;
+  if (topmost) score += 140;
+  if (rect.top >= 0 && rect.bottom <= viewportHeight) score += 24;
+  if (rect.top < viewportHeight && rect.bottom > 0) score += 12;
+
+  // Mobile carryout renders duplicate-looking controls across shell, sheet,
+  // review, and transition surfaces. Prefer the active bottom sheet / review
+  // panel over stale, off-screen, or desktop phantom matches.
+  if (selector.includes("guide-carryout-qualifier")) {
+    if (el.closest('[data-demo-surface="mobile-carryout-qualifier-sheet"]')) score += 240;
+    if (el.closest('[data-demo-surface="mobile-carryout-shell"]')) score += 40;
+  }
+
+  if (
+    selector.includes("guide-carryout-pending-line") ||
+    selector.includes("guide-carryout-cart") ||
+    selector.includes("guide-carryout-checkout")
+  ) {
+    if (el.closest('[data-demo-surface="carryout-review-panel"]')) score += 180;
+  }
+
+  if (selector.includes("guide-next") || selector.includes("guide-back")) {
+    if (el.closest('[data-demo-surface="mobile-action-strip"]')) score += 180;
+  }
+
+  if (el.hasAttribute("disabled") || el.getAttribute("aria-disabled") === "true") {
+    score -= 80;
+  }
+
+  return score;
 }
 
 function visibleElementForSelector(selector: string): HTMLElement | null {
   try {
     const elements = Array.from(document.querySelectorAll<HTMLElement>(selector));
     const visible = elements.filter(isVisibleElementBox);
+    if (!visible.length) return null;
 
-    return (
-      visible.find(isElementTopmostAtCenter) ||
-      visible[visible.length - 1] ||
-      null
-    );
+    return visible
+      .map((el, index) => ({
+        el,
+        index,
+        score: demoTargetSurfaceScore(el, selector),
+      }))
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.index - a.index;
+      })[0]?.el || null;
   } catch {
     return null;
   }
@@ -227,7 +278,7 @@ async function resolvePointerTargetWhenReady(
   while (!stopRef.current && Date.now() - startedAt < timeoutMs) {
     await waitWhilePaused(statusRef, stopRef);
 
-    const el = document.querySelector<HTMLElement>(target);
+    const el = visibleElementForSelector(target);
     if (el) {
       const rect = el.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {

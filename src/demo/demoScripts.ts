@@ -323,7 +323,7 @@ export const guidedCommerceDemo = guidedCommerceRichIntentDemo;
 function carryoutQualifierChip(qualifierId: string, value: string, delayMs = 650): DemoStep {
   return {
     action: "click-dom-target",
-    target: `[data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`,
+    target: `[data-demo-surface='mobile-carryout-qualifier-sheet'] [data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}'], [data-demo-target='guide-carryout-qualifier-${qualifierId}-${value}']`,
     hoverMs: 520,
     pulseMs: 420,
     delayMs,
@@ -486,7 +486,7 @@ export const guidedCarryoutPanelDemo: DemoScript = {
     },
     {
       action: "click-dom-target",
-      target: "[data-demo-target='guide-carryout-jump-last-pending-hit']",
+      target: "[data-demo-target='guide-carryout-pending-line'][data-demo-pending-last='true']",
       hoverMs: 900,
       pulseMs: 650,
       delayMs: 1800,

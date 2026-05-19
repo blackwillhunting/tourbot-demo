@@ -168,8 +168,14 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
     ],
   );
 
-  const renderLine = (line: CarryoutPreCartLine, status: "ready" | "pending") => {
+  const renderLine = (
+    line: CarryoutPreCartLine,
+    status: "ready" | "pending",
+    index = 0,
+    count = 0,
+  ) => {
     const pending = status === "pending";
+    const isLastPending = pending && index === Math.max(0, count - 1);
     const qty = typeof line.quantity === "number" && line.quantity > 1 ? `${line.quantity} × ` : "";
     const details = carryoutLineDetails(line, formatPriceDelta);
 
@@ -183,6 +189,9 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
         <div className="flex items-start justify-between gap-2">
           <button
             type="button"
+            data-demo-target={pending ? "guide-carryout-pending-line" : undefined}
+            data-demo-pending-index={pending ? index : undefined}
+            data-demo-pending-last={pending ? String(isLastPending) : undefined}
             onClick={() => pending && onJumpToLine(line)}
             className={`min-w-0 flex-1 text-left ${pending ? "cursor-pointer" : "cursor-default"}`}
           >
@@ -247,7 +256,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Needs choices
             </div>
-            {pendingLines.map((line) => renderLine(line, "pending"))}
+            {pendingLines.map((line, index) => renderLine(line, "pending", index, pendingLines.length))}
           </div>
         )}
         {readyLines.length > 0 && (
@@ -255,7 +264,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
               Ready items
             </div>
-            {readyLines.map((line) => renderLine(line, "ready"))}
+            {readyLines.map((line, index) => renderLine(line, "ready", index, readyLines.length))}
           </div>
         )}
       </div>
@@ -316,7 +325,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             </div>
           </div>
           <div className="max-h-[min(58dvh,520px)] space-y-1.5 overflow-y-auto pr-1">
-            {pendingLines.map((line) => renderLine(line, "pending"))}
+            {pendingLines.map((line, index) => renderLine(line, "pending", index, pendingLines.length))}
           </div>
         </div>
       );
@@ -365,7 +374,10 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
   };
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+    <div
+      data-demo-surface="carryout-review-panel"
+      className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+    >
       {!compactPanelHeader && (
         <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${
           hasPendingItems
