@@ -4963,6 +4963,7 @@ export function GuideShellStatic({
     ? mobileCarryoutReceipt
     : mobileHotelReceipt;
   const MobileCompactReceiptIcon = mobileCompactReceipt.icon || Compass;
+  const isMobileCompactThinking = latestThreadItem?.status === "thinking";
 
   useEffect(() => {
     setMobileCarryoutSheetCollapsed(false);
@@ -6417,7 +6418,16 @@ if (!best) {
                         <MobileCompactReceiptIcon className="h-3 w-3" />
                       </span>
                       <span className="min-w-0 truncate font-semibold">
-                        {compactReceiptText(mobileCompactReceipt.title, 58)}
+                        {isMobileCompactThinking ? (
+                          <ThinkingText
+                            body={compactReceiptText(
+                              mobileCompactReceipt.title,
+                              58,
+                            )}
+                          />
+                        ) : (
+                          compactReceiptText(mobileCompactReceipt.title, 58)
+                        )}
                       </span>
                       {hasGuideSteps && guideSteps.length > 1 && (
                         <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
@@ -7728,7 +7738,7 @@ if (!best) {
           {coarsePointer && (showGuideActionStrip || showBookAction || showMobileActionTileToggle) && (
             <div
               data-demo-surface="mobile-action-strip"
-              className="flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 p-1.5 shadow-xl backdrop-blur"
+              className="flex min-w-0 flex-1 items-center justify-start gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 px-2 py-1.5 shadow-xl backdrop-blur"
             >
               {showMobileActionTileToggle && (
                 <button
