@@ -2253,10 +2253,11 @@ function CarryoutQualifierControls({
           : "mt-3 space-y-3 rounded-2xl p-3"
       }`}
     >
-      {visibleGroups.map((group) => (
+      {visibleGroups.map((group, groupIndex) => (
         <CarryoutQualifierGroupView
           key={`${group.lineItemId || group.itemId || "line"}-${group.qualifierId || group.label || "qualifier"}`}
           group={group}
+          groupIndex={groupIndex}
           density={density}
           demoTargetScope={demoTargetScope}
           demoStepIndex={demoStepIndex}
@@ -2269,12 +2270,14 @@ function CarryoutQualifierControls({
 
 function CarryoutQualifierGroupView({
   group,
+  groupIndex = 0,
   onQualifierSelect,
   density = "default",
   demoTargetScope = "default",
   demoStepIndex,
 }: {
   group: CarryoutQualifierGroup;
+  groupIndex?: number;
   onQualifierSelect?: (group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   density?: "default" | "compact";
   demoTargetScope?: "default" | "current";
@@ -2314,9 +2317,11 @@ function CarryoutQualifierGroupView({
         ) : null}
       </div>
       <div className={`flex flex-wrap ${compact ? "gap-1.5" : "gap-2"}`}>
-        {(group.options || []).map((option) => {
+        {(group.options || []).map((option, optionIndex) => {
           const value = String(option.value || option.label || "");
           const selected = Boolean(value && value === selectedValue);
+          const groupToken = carryoutQualifierDemoToken(group.qualifierId || group.label);
+          const optionToken = carryoutQualifierDemoToken(option.value || option.label);
           return (
             <button
               key={`${group.qualifierId || group.label}-${value}`}
@@ -2326,6 +2331,18 @@ function CarryoutQualifierGroupView({
                 demoTargetScope === "current"
                   ? carryoutCurrentQualifierDemoTarget(group, option)
                   : undefined
+              }
+              data-demo-active-group-index={
+                demoTargetScope === "current" ? groupIndex : undefined
+              }
+              data-demo-active-option-index={
+                demoTargetScope === "current" ? optionIndex : undefined
+              }
+              data-demo-group-token={
+                demoTargetScope === "current" ? groupToken : undefined
+              }
+              data-demo-option-value={
+                demoTargetScope === "current" ? optionToken : undefined
               }
               data-demo-step-index={
                 typeof demoStepIndex === "number" ? demoStepIndex : undefined
