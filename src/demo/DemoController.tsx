@@ -794,11 +794,6 @@ export default function DemoController({
             });
             await demoWait(step.delayMs ?? 900);
             return;
-          case "carryout-select-option":
-            setPointerVisible(false);
-            send("carryout-select-option", step.value);
-            await demoWait(step.delayMs ?? 650);
-            return;
           case "set-input-value":
             await setInputValueTarget({
               target: targetForStep(step) || step.target,
