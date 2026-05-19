@@ -313,7 +313,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
               {pendingLines.length} item{pendingLines.length === 1 ? "" : "s"} need choices before checkout. Tap a row to jump back to that item.
             </div>
           </div>
-          <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
+          <div className="max-h-[min(58dvh,520px)] space-y-1.5 overflow-y-auto pr-1">
             {pendingLines.map((line) => renderLine(line, "pending"))}
           </div>
         </div>
@@ -333,7 +333,7 @@ const CarryoutReviewPanel = forwardRef<CarryoutReviewPanelHandle, CarryoutReview
             Everything required is complete. Review details before the demo handoff.
           </div>
         </div>
-        <div className="max-h-[min(34dvh,260px)] space-y-1.5 overflow-y-auto pr-1">
+        <div className="max-h-[min(58dvh,520px)] space-y-1.5 overflow-y-auto pr-1">
           {allLines.map((line, index) => renderConfirmationLine(line, index))}
         </div>
         <div className="rounded-xl border border-emerald-200 bg-white p-2.5 text-xs text-slate-700 shadow-sm">

@@ -2600,6 +2600,9 @@ export function GuideShellStatic({
   const isMobileBookingUpsell = coarsePointer && activeCompletionWidget === "upsell";
   const isMobileSavedTrip = coarsePointer && activeCompletionWidget === "saved-trip";
   const isMobileCommerceDrawer = isMobileBookingUpsell || isMobileSavedTrip;
+  const isMobileCarryoutReviewOpen = Boolean(
+    coarsePointer && isCarryoutOrdering && activeCompletionWidget === "saved-trip",
+  );
   const constrainedViewportHeight = Math.max(300, visualViewportHeight);
   const floatingCardMaxHeight = `${Math.max(280, constrainedViewportHeight - 32)}px`;
   const keyboardPanelMaxHeight = Math.max(240, constrainedViewportHeight - 20);
@@ -2607,9 +2610,11 @@ export function GuideShellStatic({
     360,
     Math.min(560, constrainedViewportHeight - 128),
   );
-  const mobileCarryoutPanelMaxHeight = activeCompletionWidget
-    ? Math.max(360, Math.min(560, constrainedViewportHeight - 96))
-    : Math.max(188, Math.min(280, constrainedViewportHeight - 32));
+  const mobileCarryoutPanelMaxHeight = isMobileCarryoutReviewOpen
+    ? Math.max(360, Math.min(760, constrainedViewportHeight - 24))
+    : activeCompletionWidget
+      ? Math.max(420, Math.min(640, constrainedViewportHeight - 48))
+      : Math.max(188, Math.min(280, constrainedViewportHeight - 32));
   const panelHeight = keyboardCompressed
     ? `min(300px, ${keyboardPanelMaxHeight}px)`
     : coarsePointer
@@ -2631,7 +2636,7 @@ export function GuideShellStatic({
           position: "fixed" as const,
           left: "12px",
           right: "12px",
-          bottom: "16px",
+          bottom: isMobileCarryoutReviewOpen ? "8px" : "16px",
           width: "auto",
           zIndex: 9999,
         }
@@ -6034,7 +6039,7 @@ if (!best) {
               maxHeight: keyboardCompressed
                 ? `${keyboardPanelMaxHeight}px`
                 : coarsePointer
-                  ? `${mobilePanelMaxHeight}px`
+                  ? `${isCarryoutOrdering ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
                   : floatingCardMaxHeight,
             }}
           >
@@ -6144,16 +6149,6 @@ if (!best) {
                         {mobileCarryoutReceipt.body}
                       </div>
                     </div>
-
-                    {!activeCompletionWidget && currentCarryoutVisibleQualifierGroups.length > 0 && (
-                      <div className="max-h-[min(34dvh,230px)] overflow-y-auto pr-0.5">
-                        <CarryoutQualifierControls
-                          groups={currentCarryoutVisibleQualifierGroups}
-                          density="compact"
-                          onQualifierSelect={handleCarryoutQualifierSelect}
-                        />
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div
@@ -6363,8 +6358,8 @@ if (!best) {
                           isCarryoutOrdering && activeCompletionWidget === "saved-trip"
                             ? `mb-2 flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:rounded-2xl ${
                                 isMobileCommerceDrawer
-                                  ? "h-[min(62dvh,430px)] p-2"
-                                  : "h-[min(64dvh,520px)] p-1.5 sm:p-3"
+                                  ? "h-[min(72dvh,620px)] p-2"
+                                  : "h-[min(70dvh,620px)] p-1.5 sm:p-3"
                               }`
                             : `mb-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 shadow-sm sm:mb-3 sm:max-h-none sm:rounded-2xl sm:p-3 ${
                                 isMobileCommerceDrawer
