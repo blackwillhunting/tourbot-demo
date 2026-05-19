@@ -2585,7 +2585,7 @@ function DraftRow({
       transition={{ duration: 0.18, ease: "easeOut" }}
       className="w-full bg-white"
     >
-      <div className="flex items-end gap-2 border border-slate-200 bg-white px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+      <div className="flex items-end gap-2 border border-slate-300 bg-white px-3 py-2.5 shadow-[inset_0_1px_0_rgba(15,23,42,0.03)] sm:gap-3 sm:px-4 sm:py-3">
         <textarea
           data-demo-target="guide-textarea"
           ref={textareaRef}
@@ -2597,7 +2597,7 @@ function DraftRow({
           placeholder={placeholder}
           disabled={disabled}
           className={
-            "block w-full resize-none bg-transparent text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 " +
+            "block w-full resize-none bg-transparent text-sm font-medium leading-6 text-slate-950 outline-none placeholder:font-medium placeholder:text-slate-500 " +
             (disabled ? "cursor-not-allowed opacity-70" : "")
           }
           style={{
@@ -6374,7 +6374,7 @@ if (!best) {
           <div
             data-demo-target="guide-shell"
             data-demo-surface={useMobileCommerceReceipt ? (isCarryoutOrdering ? "mobile-carryout-shell" : "mobile-commerce-shell") : undefined}
-            className={`relative overflow-hidden border border-slate-200 bg-white shadow-2xl ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
+            className={`relative overflow-hidden border border-slate-300 bg-white shadow-[0_18px_70px_rgba(15,23,42,0.24)] ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
             style={{
               height: panelHeight,
               maxHeight: keyboardCompressed
@@ -6409,7 +6409,7 @@ if (!best) {
                         minimizeMobileCarryoutShellFromHeader();
                       }
                     }}
-                    className={`flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 text-[11px] text-slate-600 ${keyboardCompressed ? "py-1.5" : "py-2"}`}
+                    className={`flex shrink-0 items-center justify-between gap-2 border-b border-slate-300 bg-white px-3 text-xs text-slate-700 shadow-sm ${keyboardCompressed ? "py-1.5" : "py-2"}`}
                   >
                     <div className="flex min-w-0 items-center gap-2">
                       <span
@@ -6417,7 +6417,7 @@ if (!best) {
                       >
                         <MobileCompactReceiptIcon className="h-3 w-3" />
                       </span>
-                      <span className="min-w-0 truncate font-semibold">
+                      <span className="min-w-0 truncate font-bold text-slate-950">
                         {isMobileCompactThinking ? (
                           <ThinkingText
                             body={compactReceiptText(
@@ -6430,7 +6430,7 @@ if (!best) {
                         )}
                       </span>
                       {hasGuideSteps && guideSteps.length > 1 && (
-                        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+                        <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
                           {currentGuideStepIndex + 1}/{guideSteps.length}
                         </span>
                       )}
@@ -7738,7 +7738,7 @@ if (!best) {
           {coarsePointer && (showGuideActionStrip || showBookAction || showMobileActionTileToggle) && (
             <div
               data-demo-surface="mobile-action-strip"
-              className="flex min-w-0 flex-1 items-center justify-start gap-1.5 overflow-x-auto rounded-full border border-slate-200 bg-white/95 px-2 py-1.5 shadow-xl backdrop-blur"
+              className="flex min-w-0 flex-1 items-center justify-start gap-1.5 overflow-x-auto rounded-full border border-slate-300 bg-white/98 px-2 py-1.5 shadow-xl backdrop-blur"
             >
               {showMobileActionTileToggle && (
                 <button
@@ -7848,19 +7848,6 @@ if (!best) {
                   <ShoppingBag className="h-4 w-4" />
                 </button>
               )}
-
-              <button
-                data-demo-target="guide-open-answer"
-                onClick={(event) => {
-                  if (demoInteractionLocked && event.nativeEvent.isTrusted) return;
-                  openPanel();
-                }}
-                aria-label="Open message"
-                title="Open message"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
-              >
-                <MessageSquare className="h-4 w-4" />
-              </button>
             </div>
           )}
 
