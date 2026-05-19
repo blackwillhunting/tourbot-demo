@@ -2554,6 +2554,7 @@ export function GuideShellStatic({
   const greetingTimerRef = useRef<number | null>(null);
   const replyTimerRef = useRef<number | null>(null);
   const mobileCarryoutSheetTimerRef = useRef<number | null>(null);
+  const mobileCarryoutHeaderTouchStartYRef = useRef<number | null>(null);
   const scrollFrameRef = useRef<number | null>(null);
   const suppressNextDraftScrollRef = useRef(false);
   const pendingRevealDistanceRef = useRef(0);
@@ -2843,10 +2844,55 @@ export function GuideShellStatic({
     autoMinimizeDisabledRef.current = false;
     forceWelcomeVisibleRef.current = false;
     forceBottomOnNextPanelPaintRef.current = true;
+    if (isCoarsePointer() && isCarryoutOrdering) {
+      setActiveCompletionWidget(null);
+    }
     setShellState("panel");
     // Covers launcher -> panel reopen when the thread array does not change.
     // The layout effect below covers restored sessions and first panel mount.
     scheduleReopenGlide();
+  };
+
+  const minimizeMobileCarryoutShellFromHeader = () => {
+    textareaRef.current?.blur();
+    setKeyboardCompressed(false);
+    setActiveCompletionWidget(null);
+    autoMinimizeDisabledRef.current = false;
+    forceWelcomeVisibleRef.current = false;
+    setShellState("launcher");
+  };
+
+  const openMobileCarryoutReviewFromHeader = () => {
+    if (!isCarryoutOrdering) return;
+
+    clearMinimizeTimer();
+    if (shellState !== "panel") openPanel();
+    setActiveCompletionWidget("saved-trip");
+  };
+
+  const handleMobileCarryoutHeaderTouchStart = (
+    event: React.TouchEvent<HTMLDivElement>,
+  ) => {
+    mobileCarryoutHeaderTouchStartYRef.current =
+      event.touches[0]?.clientY ?? null;
+  };
+
+  const handleMobileCarryoutHeaderTouchEnd = (
+    event: React.TouchEvent<HTMLDivElement>,
+  ) => {
+    const startY = mobileCarryoutHeaderTouchStartYRef.current;
+    mobileCarryoutHeaderTouchStartYRef.current = null;
+    if (startY === null) return;
+
+    const endY = event.changedTouches[0]?.clientY ?? startY;
+    const deltaY = endY - startY;
+    if (Math.abs(deltaY) < 36) return;
+
+    if (deltaY < 0) {
+      openMobileCarryoutReviewFromHeader();
+    } else {
+      minimizeMobileCarryoutShellFromHeader();
+    }
   };
 
   const collapsePanelAfterMobileResponse = (completedThread?: ThreadItem[]) => {
@@ -6072,6 +6118,11 @@ if (!best) {
                   <button
                     data-demo-target="guide-minimize"
                     onClick={() => {
+                      if (useMobileCarryoutReceipt) {
+                        minimizeMobileCarryoutShellFromHeader();
+                        return;
+                      }
+
                       textareaRef.current?.blur();
                       setKeyboardCompressed(false);
                       textareaRef.current?.blur();
@@ -6129,7 +6180,24 @@ if (!best) {
               >
                 {useMobileCarryoutReceipt ? (
                   <div className="space-y-2">
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label="TourBot status. Swipe up to open cart review, or swipe down to hide TourBot."
+                      onTouchStart={handleMobileCarryoutHeaderTouchStart}
+                      onTouchEnd={handleMobileCarryoutHeaderTouchEnd}
+                      onKeyDown={(event) => {
+                        if (event.key === "ArrowUp") {
+                          event.preventDefault();
+                          openMobileCarryoutReviewFromHeader();
+                        }
+                        if (event.key === "ArrowDown" || event.key === "Escape") {
+                          event.preventDefault();
+                          minimizeMobileCarryoutShellFromHeader();
+                        }
+                      }}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 shadow-sm"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
@@ -6148,6 +6216,14 @@ if (!best) {
                       <div className="mt-1 text-[11px] leading-4 text-slate-500">
                         {mobileCarryoutReceipt.body}
                       </div>
+                      {!keyboardCompressed && (
+                        <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.11em] text-slate-400">
+                          <span>
+                            {hasCarryoutItems ? "Swipe up for cart" : "Swipe up after items"}
+                          </span>
+                          <span>Swipe down to close</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -6211,7 +6287,7 @@ if (!best) {
                 }}
                 className={`shrink-0 bg-white ${keyboardCompressed ? "px-2 py-2" : "px-3 py-3 sm:px-5 sm:py-4"}`}
               >
-                {showGuideActionStrip && !isMobileCommerceDrawer && (
+                {showGuideActionStrip && !isMobileCommerceDrawer && !useMobileCarryoutReceipt && (
                   <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                     <div className="min-w-0 flex-1 text-xs text-slate-500">
                       {hasGuideSteps ? (
