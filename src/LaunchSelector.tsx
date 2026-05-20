@@ -489,7 +489,7 @@ function PasscodeChallenge({
         </div>
 
         <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          Enter your passcode.
+          Enter passcode.
         </div>
 
         <div className="mt-7 flex items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3">
@@ -577,7 +577,7 @@ function PasscodeChallenge({
 
         <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
           <ShieldCheck className="h-4 w-4" />
-          Passcode required for private viewing.
+          Required to control live AI usage.
         </div>
       </div>
     </div>
