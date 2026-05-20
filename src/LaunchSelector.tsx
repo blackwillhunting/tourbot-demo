@@ -1041,7 +1041,7 @@ export default function LaunchSelector() {
             </div>
             <div>
               <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
-                TourBot Demo
+                TourBot
               </div>
               <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
                 AI that guides you
