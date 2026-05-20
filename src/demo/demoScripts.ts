@@ -61,7 +61,7 @@ function createGuidedCommerceBookingHandoffSteps({
       action: "callout",
       eyebrow: "Prefilled link",
       title: "What is being handed off",
-      body: "The stay plan is now staged for booking. The visitor keeps momentum instead of starting over in a blank form.",
+      body: "The stay plan is now staged for booking.",
       buttonLabel: "Finish demo",
       placement: "left",
     });
