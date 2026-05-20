@@ -147,6 +147,9 @@ const PASSCODE_LENGTH = 6;
 const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
 const TOURBOT_AUTH_LOGOUT_URL = "/api/tourbot-auth/logout";
+const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
+const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
+const TOURBOT_LEGACY_UNLOCK_COOKIE = "tourbot_demo_unlocked";
 const PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
 const PASSCODE_BOX_WIGGLE_DURATION = 1.18;
 
@@ -155,22 +158,91 @@ type StageItem =
   | { kind: "failure" }
   | { kind: "message"; message: WalkthroughMessage; sourceIndex: number };
 
+type TourBotAuthResponse = {
+  ok?: boolean;
+  token?: string;
+  expiresAt?: number;
+};
+
 function normalizePasscode(value: string) {
   return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, PASSCODE_LENGTH);
 }
 
+function clearLegacyPrototypeCookie() {
+  if (typeof document === "undefined") return;
+
+  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${TOURBOT_LEGACY_UNLOCK_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
+}
+
+function clearStoredTourBotDemoToken() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  clearLegacyPrototypeCookie();
+}
+
+function saveStoredTourBotDemoToken(token: string, expiresAt?: number) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
+  if (typeof expiresAt === "number" && Number.isFinite(expiresAt)) {
+    window.localStorage.setItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+  } else {
+    window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  }
+
+  clearLegacyPrototypeCookie();
+}
+
+function getStoredTourBotDemoToken() {
+  if (typeof window === "undefined") return "";
+
+  const token = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_KEY) || "";
+  const expiresAtRaw = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  const expiresAt = expiresAtRaw ? Number(expiresAtRaw) : 0;
+
+  if (!token) return "";
+
+  if (expiresAt && Number.isFinite(expiresAt) && expiresAt * 1000 <= Date.now()) {
+    clearStoredTourBotDemoToken();
+    return "";
+  }
+
+  return token;
+}
+
 async function checkTourBotDemoSession() {
+  const token = getStoredTourBotDemoToken();
+  if (!token) return false;
+
   try {
     const response = await fetch(TOURBOT_AUTH_SESSION_URL, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
 
-    const body = (await response.json().catch(() => ({}))) as { ok?: boolean };
-    return body.ok === true;
+    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    if (body.ok !== true) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    if (typeof body.expiresAt === "number") {
+      saveStoredTourBotDemoToken(token, body.expiresAt);
+    }
+
+    return true;
   } catch {
     return false;
   }
@@ -188,21 +260,35 @@ async function loginToTourBotDemo(passcode: string) {
       body: JSON.stringify({ passcode }),
     });
 
-    if (!response.ok) return false;
+    if (!response.ok) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
 
-    const body = (await response.json().catch(() => ({}))) as { ok?: boolean };
-    return body.ok === true;
+    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    if (body.ok !== true || !body.token) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    saveStoredTourBotDemoToken(body.token, body.expiresAt);
+    return true;
   } catch {
+    clearStoredTourBotDemoToken();
     return false;
   }
 }
 
 async function logoutFromTourBotDemo() {
+  const token = getStoredTourBotDemoToken();
+  clearStoredTourBotDemoToken();
+
   try {
     await fetch(TOURBOT_AUTH_LOGOUT_URL, {
       method: "POST",
       credentials: "include",
       cache: "no-store",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
   } catch {
     // Local state still resets even if the logout request fails.
