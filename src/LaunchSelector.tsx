@@ -732,7 +732,7 @@ function PasscodeChallenge({
 
         <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
           <ShieldCheck className="h-4 w-4" />
-          Required to control live AI usage.
+          Access gated to control live AI usage.
         </div>
       </div>
     </div>
