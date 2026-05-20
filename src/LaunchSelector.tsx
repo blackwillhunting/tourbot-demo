@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -144,8 +144,9 @@ const THINKING_WIGGLE_STAGGER = 0.018;
 const MESSAGE_WAVE_MS = 1360;
 const RIBBON_GLIDE_MS = 720;
 const PASSCODE_LENGTH = 6;
-const TOURBOT_DEMO_COOKIE = "tourbot_demo_unlocked";
-const TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60;
+const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
+const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
+const TOURBOT_AUTH_LOGOUT_URL = "/api/tourbot-auth/logout";
 const PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
 const PASSCODE_BOX_WIGGLE_DURATION = 1.18;
 
@@ -158,26 +159,54 @@ function normalizePasscode(value: string) {
   return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, PASSCODE_LENGTH);
 }
 
-function hasTourBotDemoAccess() {
-  if (typeof document === "undefined") return false;
+async function checkTourBotDemoSession() {
+  try {
+    const response = await fetch(TOURBOT_AUTH_SESSION_URL, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  return document.cookie
-    .split(";")
-    .some((cookie) => cookie.trim().startsWith(`${TOURBOT_DEMO_COOKIE}=`));
+    if (!response.ok) return false;
+
+    const body = (await response.json().catch(() => ({}))) as { ok?: boolean };
+    return body.ok === true;
+  } catch {
+    return false;
+  }
 }
 
-function setTourBotDemoAccessCookie() {
-  if (typeof document === "undefined") return;
+async function loginToTourBotDemo(passcode: string) {
+  try {
+    const response = await fetch(TOURBOT_AUTH_LOGIN_URL, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ passcode }),
+    });
 
-  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${TOURBOT_DEMO_COOKIE}=1; Max-Age=${TOURBOT_DEMO_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
+    if (!response.ok) return false;
+
+    const body = (await response.json().catch(() => ({}))) as { ok?: boolean };
+    return body.ok === true;
+  } catch {
+    return false;
+  }
 }
 
-function clearTourBotDemoAccessCookie() {
-  if (typeof document === "undefined") return;
-
-  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${TOURBOT_DEMO_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
+async function logoutFromTourBotDemo() {
+  try {
+    await fetch(TOURBOT_AUTH_LOGOUT_URL, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+  } catch {
+    // Local state still resets even if the logout request fails.
+  }
 }
 
 function initialCloseMode(): CloseMode | null {
@@ -584,8 +613,7 @@ function PasscodeChallenge({
   );
 }
 
-function AccessFailure({ isWaving }: { isWaving: boolean }) {
-  const body = "That code is incomplete. Enter the full demo passcode and try again.";
+function AccessFailure({ body, isWaving }: { body: string; isWaving: boolean }) {
 
   return (
     <div className="w-full bg-rose-50/90 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
@@ -610,10 +638,12 @@ function AccessFailure({ isWaving }: { isWaving: boolean }) {
 export default function LaunchSelector() {
   const closeMode = useMemo(() => initialCloseMode(), []);
   const baseMessages = useMemo(() => (closeMode ? closeMessages[closeMode] : launchMessages), [closeMode]);
-  const [hasAccess, setHasAccess] = useState(() => hasTourBotDemoAccess());
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isSessionChecking, setIsSessionChecking] = useState(true);
   const [passcode, setPasscode] = useState("");
+  const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(() => (hasTourBotDemoAccess() ? initialLaunchStep(closeMode) + 1 : 0));
+  const [step, setStep] = useState(0);
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -642,9 +672,11 @@ export default function LaunchSelector() {
       ? "transition-none"
       : "transition-[height] duration-700 ease-out";
 
-  const stepLabel = !hasAccess
-    ? "Private access"
-    : closeMode
+  const stepLabel = isSessionChecking
+    ? "Checking access"
+    : !hasAccess
+      ? "Private access"
+      : closeMode
       ? `Takeaway ${currentMessageStep + 1} of ${baseMessages.length}`
       : `Step ${currentMessageStep + 1} of ${baseMessages.length}`;
 
@@ -681,43 +713,85 @@ export default function LaunchSelector() {
     stageScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
 
-  const resetAccess = () => {
-    clearTourBotDemoAccessCookie();
+  const resetAccess = useCallback(async () => {
+    await logoutFromTourBotDemo();
+    setIsSessionChecking(false);
     setHasAccess(false);
     setPasscode("");
+    setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
     setStep(0);
     setWavingIndex(null);
-  };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let isCancelled = false;
+
     const params = new URLSearchParams(window.location.search);
     const shouldLogout = params.get("logout") === "1" || params.get("resetAccess") === "1";
-    if (!shouldLogout) return;
 
-    resetAccess();
+    const finishLogoutUrlCleanup = () => {
+      params.delete("logout");
+      params.delete("resetAccess");
+      const nextSearch = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`,
+      );
+    };
 
-    params.delete("logout");
-    params.delete("resetAccess");
-    const nextSearch = params.toString();
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`,
-    );
-  }, []);
+    const loadSession = async () => {
+      setIsSessionChecking(true);
+
+      if (shouldLogout) {
+        await logoutFromTourBotDemo();
+        if (isCancelled) return;
+
+        setHasAccess(false);
+        setPasscode("");
+        setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+        setGateView("challenge");
+        setStep(0);
+        setWavingIndex(null);
+        setIsSessionChecking(false);
+        finishLogoutUrlCleanup();
+        return;
+      }
+
+      const ok = await checkTourBotDemoSession();
+      if (isCancelled) return;
+
+      if (ok) {
+        setHasAccess(true);
+        setGateView("challenge");
+        setStep(initialLaunchStep(closeMode) + 1);
+      } else {
+        setHasAccess(false);
+        setStep(0);
+      }
+
+      setIsSessionChecking(false);
+    };
+
+    void loadSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [closeMode]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      resetAccess();
+      void resetAccess();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [resetAccess]);
 
   const goHome = () => {
     window.location.href = "/?start=demos";
@@ -747,6 +821,7 @@ export default function LaunchSelector() {
     await wait(MESSAGE_WAVE_MS);
 
     if (passcode.length < PASSCODE_LENGTH) {
+      setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
       setGateView("failure");
       setStep(1);
       await wait(RIBBON_GLIDE_MS);
@@ -754,7 +829,16 @@ export default function LaunchSelector() {
       return;
     }
 
-    setTourBotDemoAccessCookie();
+    const loginOk = await loginToTourBotDemo(passcode);
+    if (!loginOk) {
+      setFailureMessage("That code could not be verified. Check the passcode and try again.");
+      setGateView("failure");
+      setStep(1);
+      await wait(RIBBON_GLIDE_MS);
+      setWavingIndex(null);
+      return;
+    }
+
     setHasAccess(true);
     setGateView("challenge");
     setStep(1);
@@ -796,14 +880,16 @@ export default function LaunchSelector() {
   };
 
   const showNextButton = !hasAccess || closeMode || !currentMessage?.demoButtons;
-  const backLabel = closeMode && hasAccess && step === 0 ? "Run another demo" : "Back";
-  const nextLabel = !hasAccess
-    ? gateView === "failure"
-      ? "Try again"
-      : "Submit"
-    : closeMode && isLastStep
-      ? "Run another demo"
-      : "Next";
+  const backLabel = closeMode && hasAccess && step <= 1 ? "Run another demo" : "Back";
+  const nextLabel = isSessionChecking
+    ? "Checking"
+    : !hasAccess
+      ? gateView === "failure"
+        ? "Try again"
+        : "Submit"
+      : closeMode && isLastStep
+        ? "Run another demo"
+        : "Next";
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
@@ -827,7 +913,7 @@ export default function LaunchSelector() {
             {hasAccess && (
               <button
                 type="button"
-                onClick={resetAccess}
+                onClick={() => void resetAccess()}
                 className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
               >
                 Reset access
@@ -890,7 +976,7 @@ export default function LaunchSelector() {
                     />
                   )}
 
-                  {item.kind === "failure" && <AccessFailure isWaving={wavingIndex === index} />}
+                  {item.kind === "failure" && <AccessFailure body={failureMessage} isWaving={wavingIndex === index} />}
 
                   {item.kind === "message" && (
                     <LaunchMessage
@@ -920,7 +1006,7 @@ export default function LaunchSelector() {
             <button
               type="button"
               onClick={goNext}
-              disabled={isWaving}
+              disabled={isWaving || isSessionChecking}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
             >
               {nextLabel}
