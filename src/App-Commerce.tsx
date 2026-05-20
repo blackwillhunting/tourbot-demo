@@ -2029,12 +2029,12 @@ export default function AppCommerce() {
             options={[
               {
                 label: "Natural Language Booking",
-                description: "Detailed request.",
+                description: "Visitor gives lots of detail.",
                 onClick: () => startSelectedDemo(guidedCommerceRichIntentDemo),
               },
               {
                 label: "Assisted Completion",
-                description: "General request.",
+                description: "Visitor gives a vague request.",
                 onClick: () => startSelectedDemo(guidedCommerceAssistedCompletionDemo),
               },
             ]}
