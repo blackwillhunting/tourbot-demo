@@ -74,8 +74,22 @@ const THREAD_BOOTSTRAP_SCROLL_PX = 240;
 const MIN_REVEAL_DISTANCE_PX = 96;
 const REOPEN_GLIDE_START_OFFSET_PX = 420;
 const REOPEN_GLIDE_SETTLE_DELAYS_MS = [80, 220, 420, 700];
-const GUIDE_AI_URL =
-  "https://ttoolbot-backend-aebdaegjbjckcrdg.canadacentral-01.azurewebsites.net/api/guide_ai";
+const GUIDE_AI_URL = "/api/guide_ai";
+const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
+
+function getTourBotDemoToken() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(TOURBOT_AUTH_TOKEN_KEY) || "";
+}
+
+function buildGuideAiHeaders() {
+  const token = getTourBotDemoToken();
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
 const MIN_THINKING_MS = 900;
 const PREPARE_BOOKING_PANEL_DELAY_MS = 2000;
 const GUIDE_SHELL_SESSION_KEY = "guide_shell_session";
@@ -559,10 +573,9 @@ async function callGuideAi(
 }> {
   const response = await fetch(GUIDE_AI_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
+    credentials: "include",
+    cache: "no-store",
+    headers: buildGuideAiHeaders(),
     body: JSON.stringify({
       mode: guideConfig?.mode || "discovery",
       guideConfig,
