@@ -225,6 +225,34 @@ function hasOptimisticTourBotDemoAccess() {
   return Boolean(getStoredTourBotDemoToken());
 }
 
+function getSafeReturnTo() {
+  if (typeof window === "undefined") return "";
+
+  const rawReturnTo = new URLSearchParams(window.location.search).get("returnTo");
+  if (!rawReturnTo) return "";
+
+  try {
+    const target = new URL(rawReturnTo, window.location.origin);
+    if (target.origin !== window.location.origin) return "";
+
+    const targetPath = target.pathname.replace(/\/$/, "") || "/";
+    const allowedPaths = new Set(["/transactional", "/carryout", "/informational"]);
+    if (!allowedPaths.has(targetPath)) return "";
+
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "";
+  }
+}
+
+function redirectToSafeReturnTo() {
+  const returnTo = getSafeReturnTo();
+  if (!returnTo) return false;
+
+  window.location.href = returnTo;
+  return true;
+}
+
 async function checkTourBotDemoSession() {
   const token = getStoredTourBotDemoToken();
   if (!token) return false;
@@ -873,6 +901,8 @@ export default function LaunchSelector() {
       if (isCancelled) return;
 
       if (ok) {
+        if (redirectToSafeReturnTo()) return;
+
         setHasAccess(true);
         setGateView("challenge");
         setStep((value) => Math.min(Math.max(1, value || initialLaunchStep(closeMode) + 1), baseMessages.length));
@@ -946,6 +976,8 @@ export default function LaunchSelector() {
       setWavingIndex(null);
       return;
     }
+
+    if (redirectToSafeReturnTo()) return;
 
     setHasAccess(true);
     setGateView("challenge");
