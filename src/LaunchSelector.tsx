@@ -213,6 +213,18 @@ function getStoredTourBotDemoToken() {
   return token;
 }
 
+function shouldResetAccessFromUrl() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("logout") === "1" || params.get("resetAccess") === "1";
+}
+
+function hasOptimisticTourBotDemoAccess() {
+  if (shouldResetAccessFromUrl()) return false;
+  return Boolean(getStoredTourBotDemoToken());
+}
+
 async function checkTourBotDemoSession() {
   const token = getStoredTourBotDemoToken();
   if (!token) return false;
@@ -723,13 +735,14 @@ function AccessFailure({ body, isWaving }: { body: string; isWaving: boolean }) 
 
 export default function LaunchSelector() {
   const closeMode = useMemo(() => initialCloseMode(), []);
+  const hasInitialStoredAccess = useMemo(() => hasOptimisticTourBotDemoAccess(), []);
   const baseMessages = useMemo(() => (closeMode ? closeMessages[closeMode] : launchMessages), [closeMode]);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [isSessionChecking, setIsSessionChecking] = useState(true);
+  const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
+  const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => (hasInitialStoredAccess ? initialLaunchStep(closeMode) + 1 : 0));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -758,11 +771,11 @@ export default function LaunchSelector() {
       ? "transition-none"
       : "transition-[height] duration-700 ease-out";
 
-  const stepLabel = isSessionChecking
-    ? "Checking access"
-    : !hasAccess
-      ? "Private access"
-      : closeMode
+  const stepLabel = !hasAccess
+    ? isSessionChecking
+      ? "Checking access"
+      : "Private access"
+    : closeMode
       ? `Takeaway ${currentMessageStep + 1} of ${baseMessages.length}`
       : `Step ${currentMessageStep + 1} of ${baseMessages.length}`;
 
@@ -816,7 +829,7 @@ export default function LaunchSelector() {
     let isCancelled = false;
 
     const params = new URLSearchParams(window.location.search);
-    const shouldLogout = params.get("logout") === "1" || params.get("resetAccess") === "1";
+    const shouldLogout = shouldResetAccessFromUrl();
 
     const finishLogoutUrlCleanup = () => {
       params.delete("logout");
@@ -830,9 +843,8 @@ export default function LaunchSelector() {
     };
 
     const loadSession = async () => {
-      setIsSessionChecking(true);
-
       if (shouldLogout) {
+        setIsSessionChecking(true);
         await logoutFromTourBotDemo();
         if (isCancelled) return;
 
@@ -847,13 +859,23 @@ export default function LaunchSelector() {
         return;
       }
 
+      const hasStoredToken = Boolean(getStoredTourBotDemoToken());
+      if (!hasStoredToken) {
+        clearLegacyPrototypeCookie();
+        setHasAccess(false);
+        setStep(0);
+        setIsSessionChecking(false);
+        return;
+      }
+
+      setIsSessionChecking(true);
       const ok = await checkTourBotDemoSession();
       if (isCancelled) return;
 
       if (ok) {
         setHasAccess(true);
         setGateView("challenge");
-        setStep(initialLaunchStep(closeMode) + 1);
+        setStep((value) => Math.min(Math.max(1, value || initialLaunchStep(closeMode) + 1), baseMessages.length));
       } else {
         setHasAccess(false);
         setStep(0);
@@ -867,7 +889,7 @@ export default function LaunchSelector() {
     return () => {
       isCancelled = true;
     };
-  }, [closeMode]);
+  }, [baseMessages.length, closeMode]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -967,15 +989,15 @@ export default function LaunchSelector() {
 
   const showNextButton = !hasAccess || closeMode || !currentMessage?.demoButtons;
   const backLabel = closeMode && hasAccess && step <= 1 ? "Run another demo" : "Back";
-  const nextLabel = isSessionChecking
-    ? "Checking"
-    : !hasAccess
-      ? gateView === "failure"
+  const nextLabel = !hasAccess
+    ? isSessionChecking
+      ? "Checking"
+      : gateView === "failure"
         ? "Try again"
         : "Submit"
-      : closeMode && isLastStep
-        ? "Run another demo"
-        : "Next";
+    : closeMode && isLastStep
+      ? "Run another demo"
+      : "Next";
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
@@ -1092,7 +1114,7 @@ export default function LaunchSelector() {
             <button
               type="button"
               onClick={goNext}
-              disabled={isWaving || isSessionChecking}
+              disabled={isWaving || (!hasAccess && isSessionChecking)}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
             >
               {nextLabel}
