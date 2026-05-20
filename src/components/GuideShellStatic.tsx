@@ -25,6 +25,7 @@ import CarryoutReviewPanel, {
   type CarryoutReviewPanelSnapshot,
 } from "./guide/carryout/CarryoutReviewPanel";
 import { maybeBuildCarryoutDemoFixtureReply } from "./guide/carryout/carryoutDemoFixture";
+import { resolveGuideDemoFixtureReply } from "../demo/guideDemoOrchestrator";
 import type {
   CarryoutPreCartLine,
   CarryoutPreCartState,
@@ -91,6 +92,7 @@ function buildGuideAiHeaders() {
   };
 }
 const MIN_THINKING_MS = 900;
+const DEMO_FIXTURE_THINKING_MS = 5000;
 const PREPARE_BOOKING_PANEL_DELAY_MS = 2000;
 const GUIDE_SHELL_SESSION_KEY = "guide_shell_session";
 const GUIDE_PENDING_SPOTLIGHT_KEY = "guide_pending_spotlight";
@@ -3911,7 +3913,8 @@ export function GuideShellStatic({
       ...bookingContextFromShell(),
     };
     const activeRoomId = activeStayPlan?.room?.targetId || null;
-    const activePackageId = activeStayPlan?.packages?.find((pkg) => pkg?.targetId)?.targetId || null;
+    const activePackageId =
+  activeStayPlan?.packages?.find((pkg: StayPlanPackage) => Boolean(pkg?.targetId))?.targetId || null;
 
     return {
       ...previous,
@@ -4347,12 +4350,22 @@ export function GuideShellStatic({
 
     try {
       const sentVisibleContext = buildVisibleContext();
-      const demoFixtureReply = await maybeBuildCarryoutDemoFixtureReply({
+      const carryoutDemoFixtureReply = await maybeBuildCarryoutDemoFixtureReply({
         message: trimmed,
         guideConfig,
         isDemoActive,
       });
-      const reply = demoFixtureReply || await callGuideAi(
+      const scriptedDemoFixtureReply =
+        carryoutDemoFixtureReply ||
+        resolveGuideDemoFixtureReply({
+          message: trimmed,
+          guideConfig,
+          conversationContext,
+          visibleContext: sentVisibleContext,
+          isDemoActive,
+        });
+      const hasScriptedDemoFixtureReply = Boolean(scriptedDemoFixtureReply);
+      const reply = scriptedDemoFixtureReply || await callGuideAi(
         trimmed,
         guideConfig,
         conversationContext,
@@ -4380,9 +4393,13 @@ export function GuideShellStatic({
               reply.extractedBookingContext,
             )
           : null;
+      const minimumThinkingMs =
+        hasScriptedDemoFixtureReply && isDemoActive
+          ? DEMO_FIXTURE_THINKING_MS
+          : MIN_THINKING_MS;
       const remaining = Math.max(
         0,
-        MIN_THINKING_MS - (performance.now() - startedAt),
+        minimumThinkingMs - (performance.now() - startedAt),
       );
       if (remaining > 0) {
         await wait(remaining);
@@ -4636,7 +4653,7 @@ export function GuideShellStatic({
             visibleContextRef.current?.selectedRoomId ||
             null,
           suggestedPackageId:
-            replyStayPlan.packages?.find((pkg) => pkg?.targetId)?.targetId ||
+            replyStayPlan.packages?.find((pkg: StayPlanPackage) => Boolean(pkg?.targetId))?.targetId ||
             visibleContextRef.current?.suggestedPackageId ||
             null,
           activeStayPlan: replyStayPlan,
