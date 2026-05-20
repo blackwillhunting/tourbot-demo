@@ -7880,7 +7880,7 @@ if (!best) {
           {coarsePointer && (showGuideActionStrip || showBookAction || showMobileActionTileToggle) && (
             <div
               data-demo-surface="mobile-action-strip"
-              className="flex min-w-0 flex-1 items-center justify-start gap-1.5 overflow-x-auto rounded-full border border-slate-300 bg-white/98 px-2 py-1.5 shadow-xl backdrop-blur"
+              className="flex min-w-0 flex-1 items-center justify-between gap-2 overflow-hidden rounded-full border border-slate-300 bg-white/98 px-2 py-1.5 shadow-xl backdrop-blur"
             >
               {showMobileActionTileToggle && (
                 <button
