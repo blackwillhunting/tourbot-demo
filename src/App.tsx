@@ -14,6 +14,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import GuideShellStatic, { type GuideShellDemoCommand } from "./components/GuideShellStatic";
+import TourBar, { type TourBarFocusTarget } from "./components/TourBar";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import { guidedDiscoveryDemo } from "./demo/demoScripts";
 
@@ -1330,6 +1331,13 @@ export default function App() {
     return new URLSearchParams(window.location.search).get("mode") === "self_drive";
   }, []);
 
+  const isTourBarForced = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("shell") === "tourbar";
+  }, []);
+
+  const showLegacyGuideShell = isSelfDriveEntry && !isTourBarForced;
+
   const page = PAGES[currentPage];
   const pageIndex = pageOrder.indexOf(currentPage);
 
@@ -1363,13 +1371,45 @@ export default function App() {
   };
   void goToStep;
 
+  const goToTourBarFocus = (target: TourBarFocusTarget) => {
+    const nextPage = pageOrder.includes(target.pageId as PageId)
+      ? (target.pageId as PageId)
+      : currentPage;
+    const targetId = target.targetId || "";
+
+    setCurrentPage(nextPage);
+    setActiveAnchor(targetId || null);
+
+    window.setTimeout(() => {
+      const selector = target.targetSelector || (targetId ? `#${targetId}` : "");
+      const el = selector
+        ? document.querySelector<HTMLElement>(selector)
+        : null;
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+
+      if (targetId) {
+        const byId = document.getElementById(targetId);
+        if (byId) {
+          byId.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      }
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, nextPage === currentPage ? 80 : 260);
+  };
+
   const openDemoPreview = () => {
     setDemoClosingOpen(false);
     setDemoPreviewOpen(true);
   };
 
   useEffect(() => {
-    if (!isSelfDriveEntry) return;
+    if (!isSelfDriveEntry || isTourBarForced) return;
 
     const timer = window.setTimeout(() => {
       setDemoClosingOpen(false);
@@ -1377,7 +1417,7 @@ export default function App() {
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [isSelfDriveEntry]);
+  }, [isSelfDriveEntry, isTourBarForced]);
 
   const closeDemoPreview = () => {
     if (isSelfDriveEntry) {
@@ -1557,29 +1597,40 @@ export default function App() {
         </aside>
       </main>
 
-      <DemoController
-        script={guidedDiscoveryDemo}
-        status={demoStatus}
-        onStatusChange={setDemoStatus}
-        onGuideCommand={setGuideDemoCommand}
-        onFinished={() => setDemoClosingOpen(true)}
-        finishDelayMs={5000}
-      />
-      <GuideShellStatic
-        guideConfig={{
-          mode: "hidden_cart",
-          label: "NexaPath Advisory",
-          features: {
-            refinementChips: true,
-            navigation: true,
-            bookingActions: false,
-          },
-        }}
-        demoCommand={guideDemoCommand}
-        initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
-        suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
-        demoInteractionLocked={isSelfDriveEntry}
-      />
+      {showLegacyGuideShell && (
+        <DemoController
+          script={guidedDiscoveryDemo}
+          status={demoStatus}
+          onStatusChange={setDemoStatus}
+          onGuideCommand={setGuideDemoCommand}
+          onFinished={() => setDemoClosingOpen(true)}
+          finishDelayMs={5000}
+        />
+      )}
+
+      {showLegacyGuideShell ? (
+        <GuideShellStatic
+          guideConfig={{
+            mode: "hidden_cart",
+            label: "NexaPath Advisory",
+            features: {
+              refinementChips: true,
+              navigation: true,
+              bookingActions: false,
+            },
+          }}
+          demoCommand={guideDemoCommand}
+          initialShellState="launcher"
+          suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
+          demoInteractionLocked={isSelfDriveEntry}
+        />
+      ) : (
+        <TourBar
+          siteId="nexapath"
+          currentPageId={currentPage}
+          onNavigateToFocus={goToTourBarFocus}
+        />
+      )}
     </div>
   );
 }
