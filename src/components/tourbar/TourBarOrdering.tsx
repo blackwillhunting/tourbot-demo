@@ -450,7 +450,7 @@ function reviewItemsFrom(response: GuideAiCarryoutResponse, order: CarryoutOrder
   const lines = allLines(order);
   const narratives = response.stepNarratives || [];
 
-  return lines.map((line, index) => {
+  const items = lines.map((line, index) => {
     const positionalNarrative = narratives[index];
     const narrative =
       positionalNarrative && actionMatchesLine(positionalNarrative, line)
@@ -474,6 +474,14 @@ function reviewItemsFrom(response: GuideAiCarryoutResponse, order: CarryoutOrder
       narrative,
     };
   });
+
+  // The carryout review sheet should read as a forward walkthrough. Backend
+  // cart lines arrive in reverse review order, so flip the display sequence
+  // while preserving each item's stable key for local row updates.
+  return [...items].reverse().map((item, index) => ({
+    ...item,
+    index,
+  }));
 }
 
 function initialReviewIndexFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
@@ -870,7 +878,7 @@ function OrderReview({
     return (
       <div
         key={`${entry.key}-cart-${status}-${index}`}
-        className={`rounded-xl border bg-white p-2.5 shadow-sm ${pending ? "border-amber-200" : "border-emerald-100"}`}
+        className={`transform-gpu rounded-xl border bg-white p-2.5 shadow-sm transition duration-150 ease-out hover:scale-[1.015] hover:shadow-md hover:shadow-slate-200/80 ${pending ? "border-amber-200" : "border-emerald-100"}`}
       >
         <div className="flex items-start justify-between gap-2">
           <button
