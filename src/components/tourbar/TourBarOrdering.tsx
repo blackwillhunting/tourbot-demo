@@ -531,6 +531,19 @@ function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder |
   const pendingItem = items.find((item) => item.pending);
   const initialItem = pendingItem || items[initialReviewIndexFor(response, order)];
 
+  // Incomplete orders must navigate straight to the first item needing a
+  // choice. Cart/review/checkout are internal sheet states only after every
+  // matched line is complete.
+  if (pendingItem) {
+    const pendingTarget =
+      pageTarget(pendingItem.targetId) ||
+      pageTarget(response.stepNarratives?.find((item) => actionMatchesLine(item, pendingItem.line))?.targetId) ||
+      pageTarget(response.rankedDestinations?.find((item) => actionMatchesLine(item, pendingItem.line))?.targetId) ||
+      pageTarget(order?.currentStep?.targetId);
+
+    if (pendingTarget) return pendingTarget;
+  }
+
   // Ready/cart/checkout states now live inside the TourBar sheet. Do not
   // spotlight a background page target for those internal review states.
   if (
@@ -1383,7 +1396,7 @@ export default function TourBarOrdering({
     setActiveReviewIndex(pendingIndex >= 0 ? pendingIndex : 0);
 
     const cannotCount = nextOrder?.cannotMatchItems?.length || 0;
-    setReviewMode(nextItems.length > 0 || cannotCount > 0 ? "cart" : "review");
+    setReviewMode(pendingIndex >= 0 ? "review" : nextItems.length > 0 || cannotCount > 0 ? "cart" : "review");
 
     return toShellResult(response);
   };
