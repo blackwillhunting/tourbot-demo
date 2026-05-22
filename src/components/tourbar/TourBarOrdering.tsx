@@ -330,14 +330,104 @@ function groupMatchesLine(group: CarryoutQualifierGroup, line: CarryoutLine, ord
   return Boolean(firstPendingKey && lineStableKey(line) === firstPendingKey);
 }
 
-function uniqueGroups(groups: CarryoutQualifierGroup[]) {
-  const seen = new Set<string>();
-  return groups.filter((group) => {
-    const key = [group.lineItemId, group.itemId, group.qualifierId, group.label, group.targetId].filter(Boolean).join("|");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+function qualifierKey(group: CarryoutQualifierGroup) {
+  return String(group.qualifierId || group.label || group.targetId || "options")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function optionKey(option: CarryoutQualifierOption) {
+  return String(option.value || option.label || "option")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function groupHasSelection(group: CarryoutQualifierGroup) {
+  return Boolean(
+    group.selectedValue ||
+      group.selectedLabel ||
+      group.options?.some((option) => optionIsSelected(group, option)),
+  );
+}
+
+function mergeQualifierGroups(
+  preferred: CarryoutQualifierGroup,
+  fallback: CarryoutQualifierGroup,
+) {
+  const preferredSelected = groupHasSelection(preferred);
+  const fallbackSelected = groupHasSelection(fallback);
+  const selectedValue = preferred.selectedValue || fallback.selectedValue;
+  const selectedLabel = preferred.selectedLabel || fallback.selectedLabel;
+
+  const options = new Map<string, CarryoutQualifierOption>();
+  const addOption = (option: CarryoutQualifierOption) => {
+    const key = optionKey(option);
+    const existing = options.get(key);
+    if (!existing) {
+      options.set(key, option);
+      return;
+    }
+
+    const selected =
+      Boolean(existing.selected || existing.state === "selected") ||
+      Boolean(option.selected || option.state === "selected") ||
+      Boolean(selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
+      Boolean(selectedLabel && valuesEqual(option.label || option.value, selectedLabel));
+
+    options.set(key, {
+      ...option,
+      ...existing,
+      selected,
+      state: selected ? "selected" : existing.state || option.state,
+    });
+  };
+
+  (preferred.options || []).forEach(addOption);
+  (fallback.options || []).forEach(addOption);
+
+  const merged: CarryoutQualifierGroup = {
+    ...fallback,
+    ...preferred,
+    selectedValue,
+    selectedLabel,
+    missing: preferredSelected || fallbackSelected ? false : Boolean(preferred.missing || fallback.missing),
+    options: Array.from(options.values()),
+  };
+
+  if (selectedValue || selectedLabel) {
+    merged.options = (merged.options || []).map((option) => {
+      const selected =
+        Boolean(option.selected || option.state === "selected") ||
+        Boolean(selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
+        Boolean(selectedLabel && valuesEqual(option.label || option.value, selectedLabel));
+
+      return {
+        ...option,
+        selected,
+        state: selected ? "selected" : option.state,
+      };
+    });
+  }
+
+  return merged;
+}
+
+function coalesceQualifierGroups(groups: CarryoutQualifierGroup[]) {
+  const byQualifier = new Map<string, CarryoutQualifierGroup>();
+
+  for (const group of groups) {
+    if (!(group.options || []).length) continue;
+
+    const key = qualifierKey(group);
+    const existing = byQualifier.get(key);
+    byQualifier.set(key, existing ? mergeQualifierGroups(existing, group) : group);
+  }
+
+  return Array.from(byQualifier.values());
 }
 
 function groupsForLine(
@@ -356,7 +446,11 @@ function groupsForLine(
     .filter((action): action is SuggestedAction => Boolean(action && actionMatchesLine(action, line)))
     .flatMap((action) => action.qualifierGroups || []);
 
-  return uniqueGroups([...direct, ...current, ...fromNarrative, ...fromActions]).filter((group) => (group.options || []).length > 0);
+  // Keep one active sheet per order line. The backend can return the same
+  // qualifier controls through multiple channels; render each qualifier once,
+  // preferring the line-local review state and using current/action data only
+  // to fill gaps.
+  return coalesceQualifierGroups([...direct, ...current, ...fromNarrative, ...fromActions]);
 }
 
 function reviewItemsFrom(response: GuideAiCarryoutResponse, order: CarryoutOrder | null): ReviewItem[] {
