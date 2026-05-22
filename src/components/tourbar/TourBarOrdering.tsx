@@ -954,7 +954,7 @@ function OrderReview({
           : "All items are ready for checkout."}
       </div>
 
-      <div className="max-h-[min(62dvh,560px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-1 pr-1 [overscroll-behavior:contain]">
+      <div className="max-h-[clamp(180px,34dvh,340px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
         {items.length ? (
           <>
             {renderCartSection("Needs choices", pendingItems, "pending")}
