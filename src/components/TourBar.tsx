@@ -285,17 +285,23 @@ export default function TourBar({
         {!isOpen ? (
           <motion.button
             key="tourbar-launcher"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0.72, 1, 0.72] }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-            whileHover={{ opacity: 1 }}
+            type="button"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
             onClick={() => setIsOpen(true)}
-            className="group absolute inset-0 inline-flex items-center justify-center rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
+            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full text-white shadow-sm ring-1 ring-slate-950/10"
             aria-label="Open TourBar natural-language search"
             title="TourBar natural-language search"
           >
-            <Sparkles className="relative h-4 w-4" />
+            <motion.span
+              aria-hidden="true"
+              className="absolute inset-0 rounded-full bg-slate-950 transition-colors group-hover:bg-slate-800"
+              animate={{ opacity: [0.9, 1, 0.9] }}
+              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <Sparkles className="pointer-events-none relative h-4 w-4" />
           </motion.button>
         ) : (
           <motion.div
