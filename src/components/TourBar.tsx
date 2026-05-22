@@ -257,6 +257,105 @@ function ThinkingText({ body }: { body: string }) {
   );
 }
 
+
+function normalizeMarkdownLite(text: string) {
+  return text
+    .replace(/\r\n/g, "\n")
+    .replace(/:\s+-\s+/g, ":\n- ")
+    .replace(/\s+-\s+(?=[A-Z0-9])/g, "\n- ")
+    .trim();
+}
+
+function renderInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={`${part}-${index}`} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+    }
+
+    return <span key={`${part}-${index}`}>{part}</span>;
+  });
+}
+
+function MarkdownLite({ text }: { text: string }) {
+  const lines = normalizeMarkdownLite(text).split("\n");
+  const blocks: Array<{ type: "paragraph" | "bullets" | "ordered"; items: string[] }> = [];
+  let paragraph: string[] = [];
+
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    blocks.push({ type: "paragraph", items: [paragraph.join(" ").replace(/\s+/g, " ").trim()] });
+    paragraph = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*•]\s+(.+)$/);
+    const orderedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+
+    if (bulletMatch || orderedMatch) {
+      flushParagraph();
+      const type = bulletMatch ? "bullets" : "ordered";
+      const item = (bulletMatch?.[1] || orderedMatch?.[1] || "").trim();
+      const lastBlock = blocks[blocks.length - 1];
+      if (lastBlock?.type === type) {
+        lastBlock.items.push(item);
+      } else {
+        blocks.push({ type, items: [item] });
+      }
+      continue;
+    }
+
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+
+  if (!blocks.length) return null;
+
+  return (
+    <div className="space-y-2.5 text-sm leading-6 text-slate-700">
+      {blocks.map((block, blockIndex) => {
+        if (block.type === "bullets") {
+          return (
+            <ul key={`bullets-${blockIndex}`} className="ml-4 list-disc space-y-1.5">
+              {block.items.map((item, itemIndex) => (
+                <li key={`${item}-${itemIndex}`} className="pl-1">
+                  {renderInlineMarkdown(item)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (block.type === "ordered") {
+          return (
+            <ol key={`ordered-${blockIndex}`} className="ml-4 list-decimal space-y-1.5">
+              {block.items.map((item, itemIndex) => (
+                <li key={`${item}-${itemIndex}`} className="pl-1">
+                  {renderInlineMarkdown(item)}
+                </li>
+              ))}
+            </ol>
+          );
+        }
+
+        return (
+          <p key={`paragraph-${blockIndex}`}>
+            {renderInlineMarkdown(block.items[0] || "")}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+
 export default function TourBar({
   siteId = "nexapath",
   currentPageId,
@@ -271,14 +370,15 @@ export default function TourBar({
   const [followUp, setFollowUp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isAnswering, setIsAnswering] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Finding the right part of this site…");
   const [result, setResult] = useState<TourBarResult | null>(null);
   const [thread, setThread] = useState<TourBarThreadMessage[]>([]);
   const [error, setError] = useState("");
   const queryRef = useRef<HTMLTextAreaElement | null>(null);
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const canSubmit = query.trim().length > 1 && !isLoading;
-  const canAskFollowUp = followUp.trim().length > 1 && !isAnswering && Boolean(result?.focusAreaId);
+  const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
+  const canAskFollowUp = followUp.trim().length > 1 && !isLoading && !isAnswering && Boolean(result?.focusAreaId);
 
 
   useEffect(() => {
@@ -317,6 +417,7 @@ export default function TourBar({
       setResult(null);
     }
 
+    setLoadingMessage("Finding the right part of this site…");
     setIsLoading(true);
 
     try {
@@ -357,35 +458,46 @@ export default function TourBar({
 
   const submitFollowUp = async (nextFollowUp = followUp) => {
     const cleanFollowUp = nextFollowUp.trim();
-    if (!cleanFollowUp || isAnswering || !result?.focusAreaId) return;
+    const activeResult = result;
 
-    setError("");
-    setIsAnswering(true);
+    if (!cleanFollowUp || isLoading || isAnswering || !activeResult?.focusAreaId) return;
 
     const priorThread = thread.slice(-8);
+
+    setIsOpen(true);
+    setError("");
+    setFollowUp("");
+    setIsAnswering(true);
+    setResult(null);
+    setLoadingMessage("Thinking through that follow-up…");
+
+    await wait(TOURBAR_SHEET_RETRACT_MS);
+
+    setIsLoading(true);
+    setIsAnswering(false);
 
     try {
       const response = await postTourBar({
         mode: "answer",
         siteId,
         query: cleanFollowUp,
-        focusAreaId: result.focusAreaId,
-        answerMode: result.answerMode,
+        focusAreaId: activeResult.focusAreaId,
+        answerMode: activeResult.answerMode,
         thread: priorThread,
         url: window.location.href,
       });
 
       const mergedResult = {
-        ...result,
+        ...activeResult,
         ...response,
         mode: "answer" as const,
-        label: response.label || result.label,
-        pageId: response.pageId || result.pageId,
-        targetId: response.targetId || result.targetId,
-        targetSelector: response.targetSelector || result.targetSelector,
-        focusAreaId: response.focusAreaId || result.focusAreaId,
-        invitation: response.invitation || result.invitation,
-        nextMove: response.nextMove || result.nextMove,
+        label: response.label || activeResult.label,
+        pageId: response.pageId || activeResult.pageId,
+        targetId: response.targetId || activeResult.targetId,
+        targetSelector: response.targetSelector || activeResult.targetSelector,
+        focusAreaId: response.focusAreaId || activeResult.focusAreaId,
+        invitation: response.invitation || activeResult.invitation,
+        nextMove: response.nextMove || activeResult.nextMove,
       };
 
       setResult(mergedResult);
@@ -399,10 +511,10 @@ export default function TourBar({
           answerMode: mergedResult.answerMode,
         },
       ]);
-      setFollowUp("");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "TourBar could not answer that follow-up.");
     } finally {
+      setIsLoading(false);
       setIsAnswering(false);
     }
   };
@@ -512,7 +624,7 @@ export default function TourBar({
                     >
                       {isLoading && (
                         <div className="px-4 py-4 text-sm font-medium text-slate-600">
-                          <ThinkingText body="Finding the right part of this site…" />
+                          <ThinkingText body={loadingMessage} />
                         </div>
                       )}
 
@@ -533,7 +645,7 @@ export default function TourBar({
 
                           <div className="space-y-3 px-4 py-3">
                             {resultBody(result) && (
-                              <p className="text-sm leading-6 text-slate-700">{resultBody(result)}</p>
+                              <MarkdownLite text={resultBody(result)} />
                             )}
 
                             {result.invitation?.text && (
@@ -552,12 +664,6 @@ export default function TourBar({
                                   {result.invitation.text}
                                 </div>
                               )
-                            )}
-
-                            {isAnswering && (
-                              <div className="rounded-2xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-slate-200/80">
-                                <ThinkingText body="Thinking through that follow-up…" />
-                              </div>
                             )}
 
                             {result.focusAreaId && (
