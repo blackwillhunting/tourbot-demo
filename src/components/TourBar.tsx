@@ -11,6 +11,10 @@ import {
 
 const TOURBAR_API_URL = "/api/tourbar";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
+const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
+const TOURBAR_SHEET_RETRACT_MS = 520;
+const THINKING_WIGGLE_DURATION = 1.15;
+const THINKING_WIGGLE_STAGGER = 0.025;
 
 export type TourBarFocusTarget = {
   pageId?: string;
@@ -157,6 +161,59 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   textarea.style.height = `${Math.min(textarea.scrollHeight, 132)}px`;
 }
 
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function ThinkingText({ body }: { body: string }) {
+  const tokens = body.match(/\S+|\s+/g) || [];
+  let characterIndex = 0;
+
+  return (
+    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
+      {tokens.map((token, tokenIndex) => {
+        if (/^\s+$/.test(token)) {
+          characterIndex += token.length;
+          return (
+            <span key={`space-${tokenIndex}`}>
+              {token.includes("\n") ? token : " "}
+            </span>
+          );
+        }
+
+        const startIndex = characterIndex;
+        characterIndex += token.length;
+
+        return (
+          <span
+            key={`${token}-${tokenIndex}`}
+            className="inline-block whitespace-nowrap align-baseline"
+          >
+            {token.split("").map((char, index) => (
+              <motion.span
+                key={`${char}-${tokenIndex}-${index}`}
+                className="inline-block"
+                animate={{
+                  y: [0, -1.5, 0, 1, 0],
+                  opacity: [0.72, 1, 0.82, 1, 0.72],
+                }}
+                transition={{
+                  duration: THINKING_WIGGLE_DURATION,
+                  repeat: Infinity,
+                  delay: (startIndex + index) * THINKING_WIGGLE_STAGGER,
+                  ease: "easeInOut",
+                }}
+              >
+                {char}
+              </motion.span>
+            ))}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 export default function TourBar({
   siteId = "nexapath",
   currentPageId,
@@ -179,11 +236,9 @@ export default function TourBar({
   const canSubmit = query.trim().length > 1 && !isLoading;
   const canAskFollowUp = followUp.trim().length > 1 && !isAnswering && Boolean(result?.focusAreaId);
 
-  const promptSuggestions = useMemo(
-    () => [
-      "Do you help with DORA compliance?",
-      "What services do you offer?",
-    ],
+  const tourBarTip = useMemo(
+    () =>
+      "Ask in plain English. TourBar navigates there, then invites a useful follow-up.",
     [],
   );
 
@@ -207,11 +262,22 @@ export default function TourBar({
     const cleanQuery = nextQuery.trim();
     if (!cleanQuery || isLoading) return;
 
+    const shouldRetractSheet = Boolean(result || error);
+
     setIsOpen(true);
     setQuery(cleanQuery);
     setFollowUp("");
-    setError("");
-    setResult(null);
+
+    if (shouldRetractSheet) {
+      setError("");
+      setResult(null);
+      setIsLoading(false);
+      await wait(TOURBAR_SHEET_RETRACT_MS);
+    } else {
+      setError("");
+      setResult(null);
+    }
+
     setIsLoading(true);
 
     try {
@@ -291,17 +357,13 @@ export default function TourBar({
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
             onClick={() => setIsOpen(true)}
-            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full text-white shadow-sm ring-1 ring-slate-950/10"
+            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             aria-label="Open TourBar natural-language search"
             title="TourBar natural-language search"
           >
-            <motion.span
-              aria-hidden="true"
-              className="absolute inset-0 rounded-full bg-slate-950 transition-colors group-hover:bg-slate-800"
-              animate={{ opacity: [0.9, 1, 0.9] }}
-              transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <Sparkles className="pointer-events-none relative h-4 w-4" />
+            <span className="pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse">
+              <Sparkles className="h-4 w-4" />
+            </span>
           </motion.button>
         ) : (
           <motion.div
@@ -323,10 +385,6 @@ export default function TourBar({
                     value={query}
                     onChange={(event) => {
                       setQuery(event.target.value);
-                      if (result || error) {
-                        setResult(null);
-                        setError("");
-                      }
                     }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
@@ -365,13 +423,13 @@ export default function TourBar({
                     initial={{ opacity: 0, y: -18, height: 0, scaleY: 0.92, clipPath: "inset(0 0 100% 0)" }}
                     animate={{ opacity: 1, y: 0, height: "auto", scaleY: 1, clipPath: "inset(0 0 0% 0)" }}
                     exit={{ opacity: 0, y: -12, height: 0, scaleY: 0.96, clipPath: "inset(0 0 100% 0)" }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
                     style={{ transformOrigin: "top center" }}
                     className="absolute left-0 right-0 top-[calc(100%-1px)] origin-top overflow-hidden rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                   >
                     {isLoading && (
                       <div className="px-4 py-4 text-sm font-medium text-slate-600">
-                        Finding the right part of this site…
+                        <ThinkingText body="Finding the right part of this site…" />
                       </div>
                     )}
 
@@ -436,8 +494,8 @@ export default function TourBar({
               </AnimatePresence>
 
               {!sheetVisible && (
-                <div className="pointer-events-none absolute left-0 right-0 top-full mt-2 hidden rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 text-[11px] font-medium text-slate-500 shadow-lg shadow-slate-950/8 sm:block">
-                  Try: {promptSuggestions.join(" · ")}
+                <div className="pointer-events-none absolute left-0 right-0 top-full mt-2 hidden rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 text-[11px] font-medium leading-4 text-slate-500 shadow-lg shadow-slate-950/8 sm:block">
+                  {tourBarTip}
                 </div>
               )}
             </div>
