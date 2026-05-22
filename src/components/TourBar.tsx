@@ -12,7 +12,7 @@ import {
 const TOURBAR_API_URL = "/api/tourbar";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
-const TOURBAR_SHEET_RETRACT_MS = 520;
+const TOURBAR_SHEET_RETRACT_MS = 680;
 const THINKING_WIGGLE_DURATION = 1.15;
 const THINKING_WIGGLE_STAGGER = 0.025;
 
@@ -415,75 +415,82 @@ export default function TourBar({
                 {sheetVisible && (
                   <motion.div
                     key={`${result?.focusAreaId || result?.action || "sheet"}-${result?.mode || (isLoading ? "loading" : "state")}`}
-                    initial={{ y: -18, height: 0, scaleY: 0.92, clipPath: "inset(0 0 100% 0)" }}
-                    animate={{ y: 0, height: "auto", scaleY: 1, clipPath: "inset(0 0 0% 0)" }}
-                    exit={{ y: -12, height: 0, scaleY: 0.96, clipPath: "inset(0 0 100% 0)" }}
+                    initial={{ height: 0 }}
+                    animate={{ height: "auto" }}
+                    exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    style={{ transformOrigin: "top center" }}
-                    className="absolute left-0 right-0 top-[calc(100%-1px)] origin-top overflow-hidden rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
                   >
-                    {isLoading && (
-                      <div className="px-4 py-4 text-sm font-medium text-slate-600">
-                        <ThinkingText body="Finding the right part of this site…" />
-                      </div>
-                    )}
+                    <motion.div
+                      initial={{ y: "-100%" }}
+                      animate={{ y: "0%" }}
+                      exit={{ y: "-100%" }}
+                      transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
+                      className="rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                    >
+                      {isLoading && (
+                        <div className="px-4 py-4 text-sm font-medium text-slate-600">
+                          <ThinkingText body="Finding the right part of this site…" />
+                        </div>
+                      )}
 
-                    {error && (
-                      <div className="px-4 py-4 text-sm leading-5 text-rose-700">
-                        {error}
-                      </div>
-                    )}
+                      {error && (
+                        <div className="px-4 py-4 text-sm leading-5 text-rose-700">
+                          {error}
+                        </div>
+                      )}
 
-                    {result && (
-                      <div>
-                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                            Focus result
+                      {result && (
+                        <div>
+                          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                              Focus result
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-slate-950">{resultTitle(result)}</div>
                           </div>
-                          <div className="mt-1 text-sm font-semibold text-slate-950">{resultTitle(result)}</div>
+
+                          <div className="space-y-3 px-4 py-3">
+                            {resultBody(result) && (
+                              <p className="text-sm leading-6 text-slate-700">{resultBody(result)}</p>
+                            )}
+
+                            {result.invitation?.text && (
+                              <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
+                                {result.invitation.text}
+                              </div>
+                            )}
+
+                            {result.focusAreaId && (
+                              <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                                <textarea
+                                  ref={followUpRef}
+                                  value={followUp}
+                                  onChange={(event) => setFollowUp(event.target.value)}
+                                  onKeyDown={(event) => {
+                                    if (event.key === "Enter" && !event.shiftKey) {
+                                      event.preventDefault();
+                                      void submitFollowUp();
+                                    }
+                                  }}
+                                  placeholder="Ask a follow-up..."
+                                  rows={1}
+                                  className="max-h-28 min-h-8 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => void submitFollowUp()}
+                                  disabled={!canAskFollowUp}
+                                  className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                                  aria-label="Ask TourBar follow-up"
+                                >
+                                  {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
-
-                        <div className="space-y-3 px-4 py-3">
-                          {resultBody(result) && (
-                            <p className="text-sm leading-6 text-slate-700">{resultBody(result)}</p>
-                          )}
-
-                          {result.invitation?.text && (
-                            <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
-                              {result.invitation.text}
-                            </div>
-                          )}
-
-                          {result.focusAreaId && (
-                            <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                              <textarea
-                                ref={followUpRef}
-                                value={followUp}
-                                onChange={(event) => setFollowUp(event.target.value)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" && !event.shiftKey) {
-                                    event.preventDefault();
-                                    void submitFollowUp();
-                                  }
-                                }}
-                                placeholder="Ask a follow-up..."
-                                rows={1}
-                                className="max-h-28 min-h-8 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => void submitFollowUp()}
-                                disabled={!canAskFollowUp}
-                                className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                                aria-label="Ask TourBar follow-up"
-                              >
-                                {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
