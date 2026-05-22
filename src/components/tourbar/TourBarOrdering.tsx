@@ -50,6 +50,9 @@ type CarryoutLine = {
   priceLabel?: string;
   status?: string;
   knownSelections?: string[];
+  qualifiers?: Array<{ qualifierId?: string; label?: string; value?: string; valueLabel?: string; targetId?: string }>;
+  modifiers?: Array<{ label?: string; priceDelta?: number | null }>;
+  upgrades?: Array<{ label?: string; priceDelta?: number | null }>;
   missingQualifiers?: Array<{ qualifierId?: string; label?: string; targetId?: string }>;
   qualifierGroups?: CarryoutQualifierGroup[];
 };
@@ -448,9 +451,14 @@ function reviewItemsFrom(response: GuideAiCarryoutResponse, order: CarryoutOrder
   const narratives = response.stepNarratives || [];
 
   return lines.map((line, index) => {
-    const narrative = narratives.find((item) => actionMatchesLine(item, line));
+    const positionalNarrative = narratives[index];
+    const narrative =
+      positionalNarrative && actionMatchesLine(positionalNarrative, line)
+        ? positionalNarrative
+        : narratives.find((item) => actionMatchesLine(item, line));
     const fallbackTarget =
       response.navigationOrder?.[index] ||
+      response.rankedDestinations?.[index]?.targetId ||
       response.rankedDestinations?.find((item) => actionMatchesLine(item, line))?.targetId ||
       order?.currentStep?.targetId;
 
@@ -486,11 +494,13 @@ function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder |
   const action = response.commerceAction || "";
   const displayMode = response.displayMode || "";
   const items = reviewItemsFrom(response, order);
-  const initialItem = items[initialReviewIndexFor(response, order)];
+  const pendingItem = items.find((item) => item.pending);
+  const initialItem = pendingItem || items[initialReviewIndexFor(response, order)];
 
   if (action.includes("checkout")) return "checkout-handoff";
-  if (initialItem?.targetId) return initialItem.targetId;
   if (action.includes("show_cart") || displayMode.includes("cart_panel")) return "cart-preview";
+  if (items.length && !pendingItem) return "cart-preview";
+  if (initialItem?.targetId) return initialItem.targetId;
 
   return (
     response.suggestedAction?.targetId ||
@@ -520,9 +530,9 @@ function bodyFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null)
   if (items.length) {
     const pendingCount = items.filter((item) => item.pending).length;
     if (pendingCount > 0) {
-      return "Review items and pick the missing choices.";
+      return "Pick the missing choices, or open the cart to review everything.";
     }
-    return "Review items or show the cart.";
+    return "Review the cart before checkout.";
   }
 
   return response.answer || response.body || response.reply || response.message || "I received the order, but the backend did not return a response.";
@@ -715,6 +725,70 @@ function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   return (line.missingQualifiers || []).filter((missing) => !missing.qualifierId || !covered.has(missing.qualifierId));
 }
 
+type ReviewMode = "review" | "cart";
+
+function formatPriceDelta(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value === 0) return "";
+  const sign = value > 0 ? "+" : "-";
+  return ` ${sign}$${Math.abs(value).toFixed(2)}`;
+}
+
+function cleanDetail(value: unknown, line?: CarryoutLine) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  const normalized = text.toLowerCase();
+  const title = String(line?.title || line?.id || "").trim().toLowerCase();
+  if (title && normalized === title) return "";
+  if (normalized === "ready") return "";
+  if (normalized.includes("bundled for savings")) return "";
+
+  return text;
+}
+
+function selectedGroupDetail(group: CarryoutQualifierGroup) {
+  return cleanDetail(
+    group.selectedLabel ||
+      group.selectedValue ||
+      group.options?.find((option) => optionIsSelected(group, option))?.label ||
+      group.options?.find((option) => optionIsSelected(group, option))?.value,
+  );
+}
+
+function lineDetails(line: CarryoutLine, groups: CarryoutQualifierGroup[] = []) {
+  const details = [
+    ...(line.knownSelections || []),
+    ...(line.qualifiers || []).map((qualifier) => qualifier.valueLabel || qualifier.value || qualifier.label),
+    ...(line.modifiers || []).map((modifier) => `${modifier.label || "Modifier"}${formatPriceDelta(modifier.priceDelta)}`),
+    ...(line.upgrades || []).map((upgrade) => `${upgrade.label || "Upgrade"}${formatPriceDelta(upgrade.priceDelta)}`),
+    ...groups.map(selectedGroupDetail),
+  ]
+    .map((detail) => cleanDetail(detail, line))
+    .filter(Boolean);
+
+  return Array.from(new Set(details));
+}
+
+function lineMissingSummary(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
+  const missing = missingLabels(line, groups);
+  if (!missing.length) return "Ready";
+  return `${missing.map((item) => item.label || item.qualifierId || "Choice").join(", ")} needed`;
+}
+
+function formatLinePrice(line: CarryoutLine) {
+  return linePrice(line) || "—";
+}
+
+function itemStatusClass(pending: boolean) {
+  return pending ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+}
+
+function sectionStatusClass(hasPendingItems: boolean) {
+  return hasPendingItems
+    ? "border-amber-200 bg-amber-50 text-amber-900"
+    : "border-emerald-200 bg-emerald-50 text-emerald-900";
+}
+
 
 function navigateToItem(
   item: ReviewItem | undefined,
@@ -733,7 +807,9 @@ function OrderReview({
   actions,
   carryoutOrder,
   activeIndex,
+  reviewMode,
   onActiveIndexChange,
+  onReviewModeChange,
   onLocalOptionSelect,
   onNavigateToFocus,
 }: {
@@ -741,7 +817,9 @@ function OrderReview({
   actions: TourBarShellActions;
   carryoutOrder: CarryoutOrder | null;
   activeIndex: number;
+  reviewMode: ReviewMode;
   onActiveIndexChange: (index: number) => void;
+  onReviewModeChange: (mode: ReviewMode) => void;
   onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 }) {
@@ -752,34 +830,171 @@ function OrderReview({
   const item = items[safeIndex];
 
   useEffect(() => {
-    navigateToItem(item, onNavigateToFocus);
-  }, [item?.key, item?.targetId, item?.targetSelector, onNavigateToFocus]);
+    if (reviewMode === "review") navigateToItem(item, onNavigateToFocus);
+  }, [item?.key, item?.targetId, item?.targetSelector, onNavigateToFocus, reviewMode]);
 
   if (!order || !item) return null;
 
-  const groups = item.groups;
-  const missing = missingLabels(item.line, groups);
-  const pendingCount = items.filter((entry) => entry.pending).length;
+  const pendingItems = items.filter((entry) => entry.pending);
+  const readyItems = items.filter((entry) => !entry.pending);
+  const hasPendingItems = pendingItems.length > 0;
   const estimatedTotal = money(order.totals?.estimatedTotal);
+  const subtotal = money(order.totals?.subtotal);
   const price = linePrice(item.line);
 
   const goTo = (nextIndex: number) => {
     const clamped = Math.min(Math.max(nextIndex, 0), items.length - 1);
+    onReviewModeChange("review");
     onActiveIndexChange(clamped);
     navigateToItem(items[clamped], onNavigateToFocus);
   };
 
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
-        <div className="min-w-0 text-[11px] font-black uppercase tracking-[0.13em] text-slate-500">
-          {items.length} items · {pendingCount} needs choices
+  const openItem = (nextItem: ReviewItem) => {
+    onReviewModeChange("review");
+    onActiveIndexChange(nextItem.index);
+    navigateToItem(nextItem, onNavigateToFocus);
+  };
+
+  const openFirstPending = () => {
+    const pending = pendingItems[0];
+    if (pending) openItem(pending);
+  };
+
+  const renderCartLine = (entry: ReviewItem, status: "ready" | "pending", index = 0) => {
+    const pending = status === "pending";
+    const qty = typeof entry.line.quantity === "number" && entry.line.quantity > 1 ? `${entry.line.quantity} × ` : "";
+    const details = lineDetails(entry.line, entry.groups);
+    const missingSummary = lineMissingSummary(entry.line, entry.groups);
+
+    return (
+      <div
+        key={`${entry.key}-cart-${status}-${index}`}
+        className={`rounded-xl border bg-white p-2.5 shadow-sm ${pending ? "border-amber-200" : "border-emerald-100"}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => openItem(entry)}
+            className="min-w-0 flex-1 cursor-pointer text-left"
+          >
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="truncate text-sm font-semibold text-slate-900">
+                {qty}{entry.line.title || entry.line.id || entry.label}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${itemStatusClass(pending)}`}>
+                {pending ? "Needs choices" : "Ready"}
+              </span>
+            </div>
+            <div className="mt-1 text-[11px] leading-4 text-slate-500">
+              {pending ? missingSummary : details.length ? "Tap to review or edit" : "No extra choices."}
+            </div>
+            {details.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {details.slice(0, 5).map((selection) => (
+                  <span
+                    key={`${entry.key}-detail-${selection}`}
+                    className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
+                  >
+                    {selection}
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className={`mt-1 text-[11px] font-semibold ${pending ? "text-amber-700" : "text-slate-500"}`}>
+              {pending ? "Tap to choose now" : "Tap to edit"}
+            </div>
+          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+              {formatLinePrice(entry.line)}
+            </span>
+          </div>
         </div>
-        {estimatedTotal && (
-          <div className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-black text-white">
-            {estimatedTotal}
+      </div>
+    );
+  };
+
+  const renderCartSection = (label: string, entries: ReviewItem[], status: "ready" | "pending") => {
+    if (!entries.length) return null;
+    return (
+      <div className="space-y-1.5">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+          {label}
+        </div>
+        {entries.map((entry, index) => renderCartLine(entry, status, index))}
+      </div>
+    );
+  };
+
+  const renderCartView = () => (
+    <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
+      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${sectionStatusClass(hasPendingItems)}`}>
+        {hasPendingItems
+          ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
+          : "All items are ready for checkout."}
+      </div>
+
+      <div className="max-h-[min(62dvh,560px)] min-h-0 space-y-2 overflow-y-auto pr-1 [overscroll-behavior:contain]">
+        {items.length ? (
+          <>
+            {renderCartSection("Needs choices", pendingItems, "pending")}
+            {renderCartSection("Ready items", readyItems, "ready")}
+          </>
+        ) : (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
+            No food items saved yet.
           </div>
         )}
+      </div>
+
+      <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-xs font-semibold text-slate-900">
+              {hasPendingItems ? "Complete choices first" : "Review and checkout"}
+            </div>
+            <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+              {estimatedTotal
+                ? `Estimated total: ${estimatedTotal}`
+                : subtotal
+                  ? `Current subtotal: ${subtotal}`
+                  : hasPendingItems
+                    ? "Choose the pending item options to finish the draft cart."
+                    : "Checkout handoff is ready once items are complete."}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (hasPendingItems) {
+                openFirstPending();
+                return;
+              }
+              actions.submitFollowUp("checkout");
+            }}
+            disabled={!items.length}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
+              hasPendingItems
+                ? "bg-amber-600 text-white hover:bg-amber-700"
+                : "bg-emerald-700 text-white hover:bg-emerald-800"
+            }`}
+          >
+            {hasPendingItems ? "Review choices" : "Checkout"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const groups = item.groups;
+  const missing = missingLabels(item.line, groups);
+
+  const renderReviewView = () => (
+    <div className="space-y-3">
+      <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${sectionStatusClass(item.pending)}`}>
+        {item.pending
+          ? "This item needs choices before checkout."
+          : "This item is ready. Review or change any choice."}
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -789,60 +1004,83 @@ function OrderReview({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.09, ease: "easeOut" }}
-          className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+          className={`rounded-xl border bg-white p-2.5 shadow-sm ${item.pending ? "border-amber-200" : "border-emerald-100"}`}
         >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                Reviewing item {safeIndex + 1} of {items.length}
-              </div>
-              <div className="mt-1 truncate text-sm font-black text-slate-950">
-                {item.label}
-              </div>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${item.pending ? "bg-slate-100 text-slate-700" : "bg-emerald-100 text-emerald-800"}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="truncate text-sm font-semibold text-slate-900">
+                  {item.label}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${itemStatusClass(item.pending)}`}>
                   {item.pending ? "Needs choices" : "Ready"}
                 </span>
-                {price && <span className="text-[11px] font-black text-slate-500">{price}</span>}
+              </div>
+              <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                Reviewing item {safeIndex + 1} of {items.length}
               </div>
             </div>
+            {price && (
+              <span className="shrink-0 rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+                {price}
+              </span>
+            )}
           </div>
 
           {(groups.length > 0 || missing.length > 0) && (
-            <div className="mt-3 space-y-3">
-              {groups.map((group) => (
-                <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`}>
-                  <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-                    {group.label || "Options"}
+            <div className="mt-3 space-y-3 rounded-2xl border border-white/55 bg-white/45 p-3 shadow-sm backdrop-blur-sm">
+              {groups.map((group, groupIndex) => {
+                const selectedValue = groupSelectedValue(group);
+                const isMissing = Boolean(group.missing && !selectedValue);
+                return (
+                  <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`} className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                      <span>{group.label || "Qualifier"}</span>
+                      {isMissing ? (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                          Required
+                        </span>
+                      ) : selectedValue ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                          Selected
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(group.options || []).map((option, optionIndex) => {
+                        const selected = optionIsSelected(group, option);
+                        return (
+                          <button
+                            key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
+                            type="button"
+                            data-demo-active-group-index={groupIndex}
+                            data-demo-active-option-index={optionIndex}
+                            onClick={() => onLocalOptionSelect(item, group, option)}
+                            aria-pressed={selected}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
+                              selected
+                                ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-100"
+                                : isMissing
+                                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                                  : "border-white/70 bg-white/70 text-slate-700 hover:bg-white/85"
+                            }`}
+                          >
+                            {selected ? "✓ " : ""}
+                            {option.label || option.value}
+                            {formatPriceDelta((option as { priceDelta?: number | null }).priceDelta)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {(group.options || []).map((option) => {
-                      const selected = optionIsSelected(group, option);
-                      return (
-                        <button
-                          key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
-                          type="button"
-                          onClick={() => onLocalOptionSelect(item, group, option)}
-                          className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
-                            selected
-                              ? "bg-slate-950 text-white"
-                              : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
-                          }`}
-                        >
-                          <span aria-hidden="true">{selected ? "✓ " : "○ "}</span>
-                          {option.label || option.value}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {missing.length > 0 && (
                 <div className="space-y-1.5">
                   {missing.map((missingItem) => (
-                    <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-200">
-                      ○ {missingItem.label || missingItem.qualifierId || "Choice"} needed
+                    <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 ring-1 ring-amber-100">
+                      {missingItem.label || missingItem.qualifierId || "Choice"} needed
                     </div>
                   ))}
                 </div>
@@ -857,18 +1095,18 @@ function OrderReview({
           type="button"
           onClick={() => goTo(safeIndex - 1)}
           disabled={safeIndex === 0}
-          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Back
         </button>
-        <div className="text-[11px] font-black text-slate-400">
+        <div className="text-[11px] font-semibold text-slate-400">
           {safeIndex + 1}/{items.length}
         </div>
         <button
           type="button"
           onClick={() => goTo(safeIndex + 1)}
           disabled={safeIndex >= items.length - 1}
-          className="rounded-full bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
         </button>
@@ -876,13 +1114,15 @@ function OrderReview({
 
       <button
         type="button"
-        onClick={() => actions.submitFollowUp("show cart")}
-        className="flex w-full items-center justify-center rounded-2xl bg-slate-950 px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-slate-800"
+        onClick={() => onReviewModeChange("cart")}
+        className="flex w-full items-center justify-center rounded-full bg-cyan-950 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
       >
         Show cart
       </button>
     </div>
   );
+
+  return reviewMode === "cart" ? renderCartView() : renderReviewView();
 }
 
 function messageFromResult(result: TourBarShellResult) {
@@ -900,6 +1140,7 @@ export default function TourBarOrdering({
 }) {
   const [carryoutOrder, setCarryoutOrder] = useState<CarryoutOrder | null>(null);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>("review");
 
   const updateLocalOption = (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
     setCarryoutOrder((current) => applyLocalQualifierSelection(current, item, group, option));
@@ -913,7 +1154,21 @@ export default function TourBarOrdering({
     } else if (response.carryoutOrder !== undefined) {
       setCarryoutOrder(nextOrder);
     }
-    setActiveReviewIndex(initialReviewIndexFor(response, nextOrder));
+
+    const nextItems = reviewItemsFrom(response, nextOrder);
+    const pendingIndex = nextItems.findIndex((item) => item.pending);
+    setActiveReviewIndex(pendingIndex >= 0 ? pendingIndex : 0);
+
+    const action = response.commerceAction || "";
+    const displayMode = response.displayMode || "";
+    setReviewMode(
+      action.includes("show_cart") ||
+        displayMode.includes("cart_panel") ||
+        (nextItems.length > 0 && pendingIndex < 0)
+        ? "cart"
+        : "review",
+    );
+
     return toShellResult(response);
   };
 
@@ -936,7 +1191,9 @@ export default function TourBarOrdering({
           actions={actions}
           carryoutOrder={carryoutOrder}
           activeIndex={activeReviewIndex}
+          reviewMode={reviewMode}
           onActiveIndexChange={setActiveReviewIndex}
+          onReviewModeChange={setReviewMode}
           onLocalOptionSelect={updateLocalOption}
           onNavigateToFocus={onNavigateToFocus}
         />
@@ -945,9 +1202,9 @@ export default function TourBarOrdering({
         const response = (result.raw || {}) as GuideAiCarryoutResponse;
         const order = extractCarryoutOrder(response);
         const items = reviewItemsFrom(response, order);
-        const item = items[initialReviewIndexFor(response, order)];
-        if (item) {
-          navigateToItem(item, onNavigateToFocus);
+        const pendingItem = items.find((item) => item.pending);
+        if (pendingItem) {
+          navigateToItem(pendingItem, onNavigateToFocus);
           return;
         }
 
