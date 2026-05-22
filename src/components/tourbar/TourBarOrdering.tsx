@@ -865,6 +865,7 @@ function OrderReview({
     const qty = typeof entry.line.quantity === "number" && entry.line.quantity > 1 ? `${entry.line.quantity} × ` : "";
     const details = lineDetails(entry.line, entry.groups);
     const missingSummary = lineMissingSummary(entry.line, entry.groups);
+    const helperText = pending ? missingSummary : details.length ? "" : "No extra choices.";
 
     return (
       <div
@@ -885,9 +886,11 @@ function OrderReview({
                 {pending ? "Needs choices" : "Ready"}
               </span>
             </div>
-            <div className="mt-1 text-[11px] leading-4 text-slate-500">
-              {pending ? missingSummary : details.length ? "Tap to review or edit" : "No extra choices."}
-            </div>
+            {helperText && (
+              <div className="mt-1 text-[11px] leading-4 text-slate-500">
+                {helperText}
+              </div>
+            )}
             {details.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {details.slice(0, 5).map((selection) => (
@@ -900,9 +903,11 @@ function OrderReview({
                 ))}
               </div>
             )}
-            <div className={`mt-1 text-[11px] font-semibold ${pending ? "text-amber-700" : "text-slate-500"}`}>
-              {pending ? "Tap to choose now" : "Tap to edit"}
-            </div>
+            {pending && (
+              <div className="mt-1 text-[11px] font-semibold text-amber-700">
+                Tap to choose now
+              </div>
+            )}
           </button>
           <div className="flex shrink-0 items-center gap-1.5">
             <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
@@ -918,8 +923,15 @@ function OrderReview({
     if (!entries.length) return null;
     return (
       <div className="space-y-1.5">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-          {label}
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+            {label}
+          </div>
+          {status === "ready" && (
+            <div className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200">
+              TAP TO EDIT
+            </div>
+          )}
         </div>
         {entries.map((entry, index) => renderCartLine(entry, status, index))}
       </div>
@@ -1095,7 +1107,7 @@ function OrderReview({
           type="button"
           onClick={() => goTo(safeIndex - 1)}
           disabled={safeIndex === 0}
-          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-md shadow-slate-200/80 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
         >
           Back
         </button>
@@ -1106,7 +1118,7 @@ function OrderReview({
           type="button"
           onClick={() => goTo(safeIndex + 1)}
           disabled={safeIndex >= items.length - 1}
-          className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-full border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-md shadow-slate-200/80 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
         >
           Next
         </button>
