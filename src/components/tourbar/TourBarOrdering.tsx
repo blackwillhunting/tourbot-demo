@@ -511,6 +511,19 @@ function initialReviewIndexFor(response: GuideAiCarryoutResponse, order: Carryou
   return pendingIndex >= 0 ? pendingIndex : 0;
 }
 
+const INTERNAL_SHEET_TARGETS = new Set([
+  "cart-preview",
+  "checkout-handoff",
+  "__tourbar_order_review",
+  "tourbar-order-review",
+]);
+
+function pageTarget(targetId?: string | null) {
+  const clean = String(targetId || "").trim();
+  if (!clean || INTERNAL_SHEET_TARGETS.has(clean)) return undefined;
+  return clean;
+}
+
 function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
   const action = response.commerceAction || "";
   const displayMode = response.displayMode || "";
@@ -518,18 +531,26 @@ function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder |
   const pendingItem = items.find((item) => item.pending);
   const initialItem = pendingItem || items[initialReviewIndexFor(response, order)];
 
-  if (action.includes("checkout")) return "checkout-handoff";
-  if (action.includes("show_cart") || displayMode.includes("cart_panel")) return "cart-preview";
-  if (items.length && !pendingItem) return "cart-preview";
-  if (initialItem?.targetId) return initialItem.targetId;
+  // Ready/cart/checkout states now live inside the TourBar sheet. Do not
+  // spotlight a background page target for those internal review states.
+  if (
+    action.includes("checkout") ||
+    action.includes("show_cart") ||
+    displayMode.includes("cart_panel") ||
+    (items.length && !pendingItem)
+  ) {
+    return undefined;
+  }
+
+  const initialTarget = pageTarget(initialItem?.targetId);
+  if (initialTarget) return initialTarget;
 
   return (
-    response.suggestedAction?.targetId ||
-    response.rankedDestinations?.find((item) => item?.targetId)?.targetId ||
-    response.stepNarratives?.find((item) => item?.targetId)?.targetId ||
-    order?.currentStep?.targetId ||
-    order?.navigationOrder?.[0] ||
-    "cart-preview"
+    pageTarget(response.suggestedAction?.targetId) ||
+    pageTarget(response.rankedDestinations?.find((item) => pageTarget(item?.targetId))?.targetId) ||
+    pageTarget(response.stepNarratives?.find((item) => pageTarget(item?.targetId))?.targetId) ||
+    pageTarget(order?.currentStep?.targetId) ||
+    pageTarget(order?.navigationOrder?.find((targetId) => pageTarget(targetId)))
   );
 }
 
@@ -855,11 +876,12 @@ function navigateToItem(
   item: ReviewItem | undefined,
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
 ) {
-  if (!item?.targetId && !item?.targetSelector) return;
+  const targetId = pageTarget(item?.targetId);
+  if (!targetId && !item?.targetSelector) return;
   onNavigateToFocus?.({
-    targetId: item.targetId,
-    targetSelector: item.targetSelector,
-    label: item.label,
+    targetId,
+    targetSelector: item?.targetSelector,
+    label: item?.label,
   });
 }
 
@@ -1403,9 +1425,10 @@ export default function TourBarOrdering({
           return;
         }
 
-        if (result.targetId || result.targetSelector) {
+        const targetId = pageTarget(result.targetId);
+        if (targetId || result.targetSelector) {
           onNavigateToFocus?.({
-            targetId: result.targetId,
+            targetId,
             targetSelector: result.targetSelector,
             label: result.label,
           });

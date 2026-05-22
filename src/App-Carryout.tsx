@@ -675,8 +675,8 @@ function Hero() {
               Browse combos
               <ArrowRight className="ml-2 h-4 w-4" />
             </a>
-            <a href="#cart-preview" className="inline-flex items-center rounded-full bg-white/10 px-5 py-3 text-sm font-black text-white ring-1 ring-white/15 transition hover:-translate-y-0.5 hover:bg-white/15">
-              See cart preview
+            <a href="#carryout-flow-panel" className="inline-flex items-center rounded-full bg-white/10 px-5 py-3 text-sm font-black text-white ring-1 ring-white/15 transition hover:-translate-y-0.5 hover:bg-white/15">
+              How TourBot works
             </a>
           </div>
         </div>
@@ -827,7 +827,7 @@ function CarryoutExplainerPanel() {
   ];
 
   return (
-    <aside id="cart-preview" data-tour-id="cart-preview" data-spotlight-mode="card" className="lg:sticky lg:top-28">
+    <aside id="carryout-flow-panel" className="lg:sticky lg:top-28">
       <Card className="border-orange-300/20 bg-slate-950/85">
         <div className="relative overflow-hidden p-5 text-white">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,146,60,0.22),_transparent_42%)]" />
@@ -862,7 +862,7 @@ function CarryoutExplainerPanel() {
               ))}
             </div>
 
-            <div id="checkout-handoff" data-tour-id="checkout-handoff" data-spotlight-mode="control" className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
+            <div className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-orange-200">
                 <CheckCircle className="h-4 w-4" />
                 Checkout happens in the sheet
