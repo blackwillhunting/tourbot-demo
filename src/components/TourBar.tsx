@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -236,11 +236,6 @@ export default function TourBar({
   const canSubmit = query.trim().length > 1 && !isLoading;
   const canAskFollowUp = followUp.trim().length > 1 && !isAnswering && Boolean(result?.focusAreaId);
 
-  const tourBarTip = useMemo(
-    () =>
-      "Ask in plain English. TourBar navigates there, then invites a useful follow-up.",
-    [],
-  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -420,9 +415,9 @@ export default function TourBar({
                 {sheetVisible && (
                   <motion.div
                     key={`${result?.focusAreaId || result?.action || "sheet"}-${result?.mode || (isLoading ? "loading" : "state")}`}
-                    initial={{ opacity: 0, y: -18, height: 0, scaleY: 0.92, clipPath: "inset(0 0 100% 0)" }}
-                    animate={{ opacity: 1, y: 0, height: "auto", scaleY: 1, clipPath: "inset(0 0 0% 0)" }}
-                    exit={{ opacity: 0, y: -12, height: 0, scaleY: 0.96, clipPath: "inset(0 0 100% 0)" }}
+                    initial={{ y: -18, height: 0, scaleY: 0.92, clipPath: "inset(0 0 100% 0)" }}
+                    animate={{ y: 0, height: "auto", scaleY: 1, clipPath: "inset(0 0 0% 0)" }}
+                    exit={{ y: -12, height: 0, scaleY: 0.96, clipPath: "inset(0 0 100% 0)" }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
                     style={{ transformOrigin: "top center" }}
                     className="absolute left-0 right-0 top-[calc(100%-1px)] origin-top overflow-hidden rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
@@ -493,11 +488,6 @@ export default function TourBar({
                 )}
               </AnimatePresence>
 
-              {!sheetVisible && (
-                <div className="pointer-events-none absolute left-0 right-0 top-full mt-2 hidden rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 text-[11px] font-medium leading-4 text-slate-500 shadow-lg shadow-slate-950/8 sm:block">
-                  {tourBarTip}
-                </div>
-              )}
             </div>
           </motion.div>
         )}
