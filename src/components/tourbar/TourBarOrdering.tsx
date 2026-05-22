@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellResult,
@@ -73,6 +74,8 @@ type CarryoutOrder = {
   completeItems?: CarryoutLine[];
   pendingItems?: CarryoutLine[];
   cannotMatchItems?: CannotMatchItem[];
+  lockedForHandoff?: boolean;
+  handoffStatus?: string;
   items?: CarryoutLine[];
   currentStep?: {
     type?: string;
@@ -534,7 +537,7 @@ function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null
   const action = response.commerceAction || "";
   const status = order?.status || "";
 
-  if (action.includes("checkout_handoff")) return "Ready for checkout";
+  if (action.includes("checkout") && action.includes("handoff")) return "Ready for checkout";
   if (action.includes("checkout_blocked")) return "Choices needed before checkout";
   if (status === "ready_cart" || action.includes("ready_cart")) return "Review order";
   if (status === "partial_match" || action.includes("partial_match")) return "Partial order";
@@ -566,7 +569,7 @@ function invitationFor(order: CarryoutOrder | null, response: GuideAiCarryoutRes
   const pendingCount = order?.pendingItems?.length || 0;
   const readyCount = order?.completeItems?.length || 0;
 
-  if (action.includes("checkout_handoff")) return undefined;
+  if (action.includes("checkout") && action.includes("handoff")) return undefined;
   if (pendingCount > 0) return undefined;
   if (readyCount > 0 || order?.status === "ready_cart") {
     return {
@@ -743,6 +746,29 @@ function applyLocalQualifierSelection(
   return rebuildOrderCollections(nextOrder);
 }
 
+function applyLocalLineRemoval(order: CarryoutOrder | null, item: ReviewItem): CarryoutOrder | null {
+  if (!order) return order;
+
+  const nextItems = allLines(order).filter((line, index) => lineStableKey(line, index) !== item.key);
+  const nextOrder: CarryoutOrder = {
+    ...order,
+    items: nextItems,
+    lockedForHandoff: false,
+    handoffStatus: undefined,
+  };
+
+  return rebuildOrderCollections(nextOrder);
+}
+
+function checkoutIsLocked(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
+  const action = String(response.commerceAction || "").toLowerCase();
+  return Boolean(
+    order?.lockedForHandoff ||
+      order?.handoffStatus === "ready" ||
+      (action.includes("checkout") && action.includes("handoff")),
+  );
+}
+
 function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   const covered = new Set(groups.map((group) => group.qualifierId).filter(Boolean));
   return (line.missingQualifiers || []).filter((missing) => !missing.qualifierId || !covered.has(missing.qualifierId));
@@ -846,6 +872,7 @@ function OrderReview({
   onActiveIndexChange,
   onReviewModeChange,
   onLocalOptionSelect,
+  onRemoveItem,
   onNavigateToFocus,
 }: {
   result: TourBarShellResult;
@@ -856,6 +883,7 @@ function OrderReview({
   onActiveIndexChange: (index: number) => void;
   onReviewModeChange: (mode: ReviewMode) => void;
   onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+  onRemoveItem: (item: ReviewItem) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 }) {
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
@@ -865,10 +893,10 @@ function OrderReview({
   const item = items[safeIndex];
 
   useEffect(() => {
-    if (reviewMode === "review") navigateToItem(item, onNavigateToFocus);
+    if (reviewMode === "review" && item) navigateToItem(item, onNavigateToFocus);
   }, [item?.key, item?.targetId, item?.targetSelector, onNavigateToFocus, reviewMode]);
 
-  if (!order || !item) return null;
+  if (!order) return null;
 
   const pendingItems = items.filter((entry) => entry.pending);
   const readyItems = items.filter((entry) => !entry.pending);
@@ -877,7 +905,8 @@ function OrderReview({
   const hasCannotMatchItems = cannotMatchItems.length > 0;
   const estimatedTotal = money(order.totals?.estimatedTotal);
   const subtotal = money(order.totals?.subtotal);
-  const price = linePrice(item.line);
+  const price = item ? linePrice(item.line) : "";
+  const isLocked = checkoutIsLocked(response, order);
 
   const goTo = (nextIndex: number) => {
     const clamped = Math.min(Math.max(nextIndex, 0), items.length - 1);
@@ -903,53 +932,81 @@ function OrderReview({
     const details = lineDetails(entry.line, entry.groups);
     const missingSummary = lineMissingSummary(entry.line, entry.groups);
     const helperText = pending ? missingSummary : details.length ? "" : "No extra choices.";
+    const lockedClass = isLocked
+      ? "border-slate-200 bg-slate-50/90 opacity-85"
+      : pending
+        ? "border-amber-200"
+        : "border-emerald-100";
+    const interactiveClass = isLocked
+      ? ""
+      : "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80";
+
+    const lineBody = (
+      <div className="min-w-0 flex-1 text-left">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`truncate text-sm font-semibold text-slate-900 ${isLocked ? "italic" : ""}`}>
+            {qty}{entry.line.title || entry.line.id || entry.label}
+          </span>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${isLocked ? "bg-slate-200 text-slate-600" : itemStatusClass(pending)}`}>
+            {isLocked ? "Locked" : pending ? "Needs choices" : "Ready"}
+          </span>
+        </div>
+        {helperText && (
+          <div className={`mt-1 text-[11px] leading-4 text-slate-500 ${isLocked ? "italic" : ""}`}>
+            {helperText}
+          </div>
+        )}
+        {details.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {details.slice(0, 5).map((selection) => (
+              <span
+                key={`${entry.key}-detail-${selection}`}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLocked ? "bg-white text-slate-500 ring-1 ring-slate-200" : "bg-slate-100 text-slate-600"}`}
+              >
+                {selection}
+              </span>
+            ))}
+          </div>
+        )}
+        {pending && !isLocked && (
+          <div className="mt-1 text-[11px] font-semibold text-amber-700">
+            Tap to choose now
+          </div>
+        )}
+      </div>
+    );
 
     return (
       <div
         key={`${entry.key}-cart-${status}-${index}`}
-        className={`transform-gpu rounded-xl border bg-white p-2.5 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80 ${pending ? "border-amber-200" : "border-emerald-100"}`}
+        className={`rounded-xl border bg-white p-2.5 shadow-sm ${interactiveClass} ${lockedClass}`}
       >
         <div className="flex items-start justify-between gap-2">
-          <button
-            type="button"
-            onClick={() => openItem(entry)}
-            className="min-w-0 flex-1 cursor-pointer text-left"
-          >
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="truncate text-sm font-semibold text-slate-900">
-                {qty}{entry.line.title || entry.line.id || entry.label}
-              </span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${itemStatusClass(pending)}`}>
-                {pending ? "Needs choices" : "Ready"}
-              </span>
-            </div>
-            {helperText && (
-              <div className="mt-1 text-[11px] leading-4 text-slate-500">
-                {helperText}
-              </div>
-            )}
-            {details.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {details.slice(0, 5).map((selection) => (
-                  <span
-                    key={`${entry.key}-detail-${selection}`}
-                    className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600"
-                  >
-                    {selection}
-                  </span>
-                ))}
-              </div>
-            )}
-            {pending && (
-              <div className="mt-1 text-[11px] font-semibold text-amber-700">
-                Tap to choose now
-              </div>
-            )}
-          </button>
+          {isLocked ? (
+            lineBody
+          ) : (
+            <button
+              type="button"
+              onClick={() => openItem(entry)}
+              className="min-w-0 flex-1 cursor-pointer text-left"
+            >
+              {lineBody}
+            </button>
+          )}
           <div className="flex shrink-0 items-center gap-1.5">
             <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
               {formatLinePrice(entry.line)}
             </span>
+            {!isLocked && (
+              <button
+                type="button"
+                onClick={() => onRemoveItem(entry)}
+                aria-label={`Remove ${entry.label}`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -966,7 +1023,7 @@ function OrderReview({
           </div>
           {status === "ready" && (
             <div className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200">
-              TAP TO EDIT
+              {isLocked ? "LOCKED" : "TAP TO EDIT"}
             </div>
           )}
         </div>
@@ -1020,14 +1077,18 @@ function OrderReview({
 
   const renderCartView = () => (
     <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
-      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
-        {hasPendingItems
+      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-slate-200 bg-slate-50 text-slate-800" : hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
+        {isLocked
           ? hasCannotMatchItems
-            ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
-            : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
-          : hasCannotMatchItems
-            ? `Matched items are ready. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
-            : "All items are ready for checkout."}
+            ? `Checkout handoff is locked for matched items. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} stayed out.`
+            : "Checkout handoff is locked and ready."
+          : hasPendingItems
+            ? hasCannotMatchItems
+              ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+              : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
+            : hasCannotMatchItems
+              ? `Matched items are ready. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+              : "All items are ready for checkout."}
       </div>
 
       <div className="max-h-[clamp(180px,34dvh,340px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
@@ -1035,7 +1096,7 @@ function OrderReview({
           <>
             {renderCannotMatchSection()}
             {renderCartSection("Needs choices", pendingItems, "pending")}
-            {renderCartSection("Ready items", readyItems, "ready")}
+            {renderCartSection(isLocked ? "Locked matched items" : "Ready items", readyItems, "ready")}
           </>
         ) : (
           <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
@@ -1048,53 +1109,67 @@ function OrderReview({
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-slate-900">
-              {hasPendingItems ? "Complete choices first" : hasCannotMatchItems ? "Review matched items" : "Review and checkout"}
+              {isLocked ? "Checkout handoff ready" : hasPendingItems ? "Complete choices first" : hasCannotMatchItems ? "Review matched items" : "Review and checkout"}
             </div>
             <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
-              {estimatedTotal
+              {isLocked
                 ? hasCannotMatchItems
-                  ? `Estimated total for matched items: ${estimatedTotal}`
-                  : `Estimated total: ${estimatedTotal}`
-                : subtotal
+                  ? "Only matched items are included in this handoff."
+                  : "Items are read-only for the checkout handoff."
+                : estimatedTotal
                   ? hasCannotMatchItems
-                    ? `Current subtotal for matched items: ${subtotal}`
-                    : `Current subtotal: ${subtotal}`
-                  : hasPendingItems
-                    ? "Choose the pending item options to finish the draft cart."
-                    : hasCannotMatchItems
-                      ? "Skipped items are not included in checkout."
-                      : "Checkout handoff is ready once items are complete."}
+                    ? `Estimated total for matched items: ${estimatedTotal}`
+                    : `Estimated total: ${estimatedTotal}`
+                  : subtotal
+                    ? hasCannotMatchItems
+                      ? `Current subtotal for matched items: ${subtotal}`
+                      : `Current subtotal: ${subtotal}`
+                    : hasPendingItems
+                      ? "Choose the pending item options to finish the draft cart."
+                      : hasCannotMatchItems
+                        ? "Skipped items are not included in checkout."
+                        : "Checkout handoff is ready once items are complete."}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (hasPendingItems) {
-                openFirstPending();
-                return;
-              }
-              actions.submitFollowUp("checkout");
-            }}
-            disabled={!items.length}
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
-              hasPendingItems
-                ? "bg-amber-600 text-white hover:bg-amber-700"
-                : hasCannotMatchItems
-                  ? "bg-slate-950 text-white hover:bg-slate-800"
-                  : "bg-emerald-700 text-white hover:bg-emerald-800"
-            }`}
-          >
-            {hasPendingItems ? "Review choices" : hasCannotMatchItems ? "Continue" : "Checkout"}
-          </button>
+          {isLocked ? (
+            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white shadow-sm">
+              <LockKeyhole className="h-3.5 w-3.5" />
+              Handoff ready
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (hasPendingItems) {
+                  openFirstPending();
+                  return;
+                }
+                actions.submitFollowUp("checkout");
+              }}
+              disabled={!items.length}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                hasPendingItems
+                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  : hasCannotMatchItems
+                    ? "bg-slate-950 text-white hover:bg-slate-800"
+                    : "bg-emerald-700 text-white hover:bg-emerald-800"
+              }`}
+            >
+              {hasPendingItems ? "Review choices" : hasCannotMatchItems ? "Continue" : "Checkout"}
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 
-  const groups = item.groups;
-  const missing = missingLabels(item.line, groups);
+  const groups = item?.groups || [];
+  const missing = item ? missingLabels(item.line, groups) : [];
 
-  const renderReviewView = () => (
+  const renderReviewView = () => {
+    if (!item) return null;
+
+    return (
     <div className="space-y-3">
       <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${sectionStatusClass(item.pending)}`}>
         {item.pending
@@ -1125,11 +1200,21 @@ function OrderReview({
                 Reviewing item {safeIndex + 1} of {items.length}
               </div>
             </div>
-            {price && (
-              <span className="shrink-0 rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
-                {price}
-              </span>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {price && (
+                <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+                  {price}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onRemoveItem(item)}
+                aria-label={`Remove ${item.label}`}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           {(groups.length > 0 || missing.length > 0) && (
@@ -1219,15 +1304,16 @@ function OrderReview({
 
       <button
         type="button"
-        onClick={() => actions.submitFollowUp("show cart")}
+        onClick={() => onReviewModeChange("cart")}
         className="flex w-full items-center justify-center rounded-full bg-cyan-950 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
       >
-        Show cart
+        Back to order review
       </button>
     </div>
-  );
+    );
+  };
 
-  return reviewMode === "cart" ? renderCartView() : renderReviewView();
+  return reviewMode === "cart" || !item ? renderCartView() : renderReviewView();
 }
 
 function messageFromResult(result: TourBarShellResult) {
@@ -1251,6 +1337,16 @@ export default function TourBarOrdering({
     setCarryoutOrder((current) => applyLocalQualifierSelection(current, item, group, option));
   };
 
+  const removeLocalItem = (item: ReviewItem) => {
+    setCarryoutOrder((current) => {
+      const next = applyLocalLineRemoval(current, item);
+      const nextLength = allLines(next).length;
+      setActiveReviewIndex((index) => Math.min(index, Math.max(nextLength - 1, 0)));
+      setReviewMode("cart");
+      return next;
+    });
+  };
+
   const submit = async (query: string, thread: TourBarThreadMessage[]) => {
     const response = await postGuideAi(query, carryoutOrder, thread);
     const nextOrder = extractCarryoutOrder(response);
@@ -1264,15 +1360,8 @@ export default function TourBarOrdering({
     const pendingIndex = nextItems.findIndex((item) => item.pending);
     setActiveReviewIndex(pendingIndex >= 0 ? pendingIndex : 0);
 
-    const action = response.commerceAction || "";
-    const displayMode = response.displayMode || "";
-    setReviewMode(
-      action.includes("show_cart") ||
-        displayMode.includes("cart_panel") ||
-        (nextItems.length > 0 && pendingIndex < 0)
-        ? "cart"
-        : "review",
-    );
+    const cannotCount = nextOrder?.cannotMatchItems?.length || 0;
+    setReviewMode(nextItems.length > 0 || cannotCount > 0 ? "cart" : "review");
 
     return toShellResult(response);
   };
@@ -1300,6 +1389,7 @@ export default function TourBarOrdering({
           onActiveIndexChange={setActiveReviewIndex}
           onReviewModeChange={setReviewMode}
           onLocalOptionSelect={updateLocalOption}
+          onRemoveItem={removeLocalItem}
           onNavigateToFocus={onNavigateToFocus}
         />
       )}

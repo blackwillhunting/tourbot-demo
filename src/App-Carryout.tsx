@@ -262,12 +262,6 @@ const desserts: Offer[] = [
   },
 ];
 
-const sampleCart = [
-  { label: "Double cheeseburger", detail: "No onions", price: "$7.49" },
-  { label: "Large fries", detail: "Ready", price: "$3.99" },
-  { label: "10-piece nuggets", detail: "BBQ sauce", price: "$5.99" },
-  { label: "2 medium Cokes", detail: "Grouped drinks", price: "$4.58" },
-];
 
 function isSelfDriveEntry() {
   if (typeof window === "undefined") return false;
@@ -825,54 +819,59 @@ function DrinksRack() {
   );
 }
 
-function CartPreview() {
+function CarryoutExplainerPanel() {
+  const steps = [
+    { label: "Match", detail: "TourBot maps plain-English requests to real BurgerRush menu items." },
+    { label: "Complete", detail: "Missing sizes, sauces, flavors, and toppings become focused choices." },
+    { label: "Handoff", detail: "The sheet locks the matched order into a checkout-ready payload." },
+  ];
+
   return (
     <aside id="cart-preview" data-tour-id="cart-preview" data-spotlight-mode="card" className="lg:sticky lg:top-28">
-      <Card className="border-white/10">
-        <div className="border-b border-slate-100 bg-slate-950 p-5 text-white">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-orange-200">Your order</div>
-              <h2 className="mt-1 text-2xl font-black tracking-tight">Cart preview</h2>
-            </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-              <ShoppingCart className="h-6 w-6" />
-            </div>
-          </div>
-        </div>
-        <div className="p-5">
-          <div className="space-y-3">
-            {sampleCart.map((item) => (
-              <div key={item.label} className="rounded-2xl bg-slate-800/80 p-3 ring-1 ring-white/10">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-black text-white">{item.label}</div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-300">{item.detail}</div>
-                  </div>
-                  <div className="text-sm font-black text-slate-100">{item.price}</div>
-                </div>
+      <Card className="border-orange-300/20 bg-slate-950/85">
+        <div className="relative overflow-hidden p-5 text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,146,60,0.22),_transparent_42%)]" />
+          <div className="relative">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs font-black uppercase tracking-[0.16em] text-orange-200">TourBot flow</div>
+                <h2 className="mt-1 text-2xl font-black tracking-tight">From request to handoff</h2>
               </div>
-            ))}
-          </div>
-
-          <div className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
-            <div className="flex items-center justify-between text-sm font-black text-white">
-              <span>Estimated subtotal</span>
-              <span>$22.05</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-400/15 text-orange-100 ring-1 ring-orange-300/20">
+                <Sparkles className="h-6 w-6" />
+              </div>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-300">Static demo preview. Future router will write validated line items into this order state.</p>
-          </div>
 
-          <button
-            id="checkout-handoff"
-            data-tour-id="checkout-handoff"
-            data-spotlight-mode="control"
-            type="button"
-            className="mt-5 flex w-full items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800"
-          >
-            Ready for checkout
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </button>
+            <p className="mt-4 text-sm leading-6 text-slate-300">
+              The live cart now lives inside the TourBar sheet. This panel stays in the background as a simple explanation of what the ordering agent is doing.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              {steps.map((step, index) => (
+                <div key={step.label} className="rounded-2xl bg-white/8 p-3 ring-1 ring-white/10">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-400/15 text-xs font-black text-orange-100 ring-1 ring-orange-300/20">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <div className="text-sm font-black text-white">{step.label}</div>
+                      <div className="mt-0.5 text-xs leading-5 text-slate-300">{step.detail}</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div id="checkout-handoff" data-tour-id="checkout-handoff" data-spotlight-mode="control" className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
+              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-orange-200">
+                <CheckCircle className="h-4 w-4" />
+                Checkout happens in the sheet
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-300">
+                When the order is ready, TourBot locks the matched items and presents the final handoff there.
+              </p>
+            </div>
+          </div>
         </div>
       </Card>
     </aside>
@@ -1048,7 +1047,7 @@ export default function AppCarryout() {
           </section>
         </div>
 
-        <CartPreview />
+        <CarryoutExplainerPanel />
       </main>
 
       {selfDrive && (
