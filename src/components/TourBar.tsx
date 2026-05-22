@@ -28,6 +28,30 @@ type TourBarInvitation = {
   text: string;
 };
 
+type TourBarNextMove = {
+  type?:
+    | "ask_deeper"
+    | "simplify"
+    | "show_steps"
+    | "show_use_cases"
+    | "compare_options"
+    | "show_related_area"
+    | "collect_context"
+    | "handoff"
+    | "stop"
+    | string;
+  label?: string;
+  query?: string;
+  focusAreaId?: string;
+};
+
+type TourBarThreadMessage = {
+  role: "visitor" | "tourbar";
+  content: string;
+  focusAreaId?: string;
+  answerMode?: string;
+};
+
 type TourBarResult = {
   ok?: boolean;
   mode?: "route" | "answer";
@@ -42,6 +66,12 @@ type TourBarResult = {
   invitation?: TourBarInvitation;
   answerMode?: string;
   suggestions?: string[];
+  nextMove?: TourBarNextMove;
+  knowledgeKey?: string;
+  relatedFocusAreaIds?: string[];
+  confidence?: string;
+  canAnswer?: boolean;
+  handoffRecommended?: boolean;
 };
 
 type DomOutlineItem = {
@@ -155,6 +185,19 @@ function resultBody(result: TourBarResult | null) {
   return result.answer || result.responseText || "";
 }
 
+function messageFromResult(result: TourBarResult | null) {
+  if (!result) return "";
+  const title = resultTitle(result);
+  const body = resultBody(result);
+  const invitation = result.invitation?.text || result.nextMove?.label || "";
+  return [title, body, invitation].filter(Boolean).join("\n");
+}
+
+function nextMoveShouldRoute(nextMove?: TourBarNextMove) {
+  if (!nextMove) return false;
+  return nextMove.type === "show_related_area" || nextMove.type === "handoff" || Boolean(nextMove.focusAreaId);
+}
+
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) return;
   textarea.style.height = "0px";
@@ -229,6 +272,7 @@ export default function TourBar({
   const [isLoading, setIsLoading] = useState(false);
   const [isAnswering, setIsAnswering] = useState(false);
   const [result, setResult] = useState<TourBarResult | null>(null);
+  const [thread, setThread] = useState<TourBarThreadMessage[]>([]);
   const [error, setError] = useState("");
   const queryRef = useRef<HTMLTextAreaElement | null>(null);
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
@@ -286,6 +330,15 @@ export default function TourBar({
       });
 
       setResult(response);
+      setThread([
+        { role: "visitor", content: cleanQuery },
+        {
+          role: "tourbar",
+          content: messageFromResult(response),
+          focusAreaId: response.focusAreaId,
+          answerMode: response.answerMode,
+        },
+      ]);
 
       if (hasNavigation(response)) {
         onNavigateToFocus?.({
@@ -302,12 +355,14 @@ export default function TourBar({
     }
   };
 
-  const submitFollowUp = async () => {
-    const cleanFollowUp = followUp.trim();
+  const submitFollowUp = async (nextFollowUp = followUp) => {
+    const cleanFollowUp = nextFollowUp.trim();
     if (!cleanFollowUp || isAnswering || !result?.focusAreaId) return;
 
     setError("");
     setIsAnswering(true);
+
+    const priorThread = thread.slice(-8);
 
     try {
       const response = await postTourBar({
@@ -316,26 +371,53 @@ export default function TourBar({
         query: cleanFollowUp,
         focusAreaId: result.focusAreaId,
         answerMode: result.answerMode,
+        thread: priorThread,
         url: window.location.href,
       });
 
-      setResult({
+      const mergedResult = {
         ...result,
         ...response,
-        mode: "answer",
+        mode: "answer" as const,
         label: response.label || result.label,
         pageId: response.pageId || result.pageId,
         targetId: response.targetId || result.targetId,
         targetSelector: response.targetSelector || result.targetSelector,
         focusAreaId: response.focusAreaId || result.focusAreaId,
         invitation: response.invitation || result.invitation,
-      });
+        nextMove: response.nextMove || result.nextMove,
+      };
+
+      setResult(mergedResult);
+      setThread([
+        ...priorThread,
+        { role: "visitor", content: cleanFollowUp },
+        {
+          role: "tourbar",
+          content: messageFromResult(mergedResult),
+          focusAreaId: mergedResult.focusAreaId,
+          answerMode: mergedResult.answerMode,
+        },
+      ]);
       setFollowUp("");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "TourBar could not answer that follow-up.");
     } finally {
       setIsAnswering(false);
     }
+  };
+
+  const runNextMove = () => {
+    const nextMove = result?.nextMove;
+    const nextQuery = (nextMove?.query || nextMove?.label || result?.invitation?.text || "").trim();
+    if (!nextQuery || isLoading || isAnswering) return;
+
+    if (nextMoveShouldRoute(nextMove)) {
+      void submitQuery(nextQuery);
+      return;
+    }
+
+    void submitFollowUp(nextQuery);
   };
 
   const sheetVisible = isLoading || Boolean(error) || Boolean(result);
@@ -455,8 +537,26 @@ export default function TourBar({
                             )}
 
                             {result.invitation?.text && (
-                              <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
-                                {result.invitation.text}
+                              result.nextMove?.query || result.nextMove?.focusAreaId ? (
+                                <button
+                                  type="button"
+                                  onClick={runNextMove}
+                                  disabled={isLoading || isAnswering}
+                                  className="group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
+                                >
+                                  <span>{result.invitation.text}</span>
+                                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5" />
+                                </button>
+                              ) : (
+                                <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
+                                  {result.invitation.text}
+                                </div>
+                              )
+                            )}
+
+                            {isAnswering && (
+                              <div className="rounded-2xl bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600 ring-1 ring-slate-200/80">
+                                <ThinkingText body="Thinking through that follow-up…" />
                               </div>
                             )}
 

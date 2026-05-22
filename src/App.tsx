@@ -52,7 +52,7 @@ function Card({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur sm:rounded-[28px] ${className}`}
+      className={`overflow-hidden rounded-[18px] border border-white/80 bg-white/94 shadow-sm shadow-slate-900/10 ring-1 ring-slate-950/[0.04] backdrop-blur sm:rounded-[28px] ${className}`}
     >
       {children}
     </div>
@@ -573,7 +573,7 @@ function Header({
   tourBarNode?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-slate-800/55 bg-slate-950/92 text-white shadow-lg shadow-slate-950/18 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11">
@@ -581,7 +581,7 @@ function Header({
           </div>
           <div className="min-w-0">
             <div className="truncate text-base font-semibold tracking-tight sm:text-lg">NexaPath Advisory</div>
-            <div className="truncate text-xs text-slate-500 sm:text-sm">
+            <div className="truncate text-xs text-slate-300 sm:text-sm">
               TourBot Demo · Guide-ready B2B site experience
             </div>
           </div>
@@ -611,7 +611,7 @@ function Header({
             {tourBarNode}
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
+          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 p-1 shadow-sm">
             {demoStatus === "idle" && (
               <button
                 data-demo-target="start-demo"
@@ -640,7 +640,7 @@ function Header({
             {demoStatus !== "idle" && (
               <button
                 onClick={onStopDemo}
-                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
               >
                 Stop
               </button>
@@ -661,7 +661,7 @@ function Header({
                   "inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition " +
                   (active
                     ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                    : "border-slate-200 bg-white/80 text-slate-700 hover:bg-white")
+                    : "border-white/15 bg-white/10 text-slate-100 hover:bg-white/15")
                 }
               >
                 <Icon className="mr-1.5 h-3.5 w-3.5" />
@@ -784,7 +784,7 @@ function Hero({ page }: { page: Page }) {
   const visual = pageVisuals[page.id];
   return (
     <section className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 sm:pb-10 sm:pt-10">
-      <div className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
+      <div className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-950/24 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-white/10 bg-white/5 lg:block" />
 
@@ -836,7 +836,7 @@ function HomeExtras() {
           <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">Service lanes</div>
           <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A site-like overview with real visual destinations</h2>
         </div>
-        <div className="hidden rounded-full bg-white px-4 py-2 text-sm text-slate-500 shadow-sm md:block">
+        <div className="hidden rounded-full bg-slate-900/85 px-4 py-2 text-sm text-slate-100 shadow-sm ring-1 ring-white/10 md:block">
           Built for guided discovery
         </div>
       </div>
@@ -1494,7 +1494,7 @@ export default function App() {
   const anchorButtons = useMemo(() => page.sections.slice(0, 6), [page]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(148,163,184,0.22),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef2f7_48%,#f8fafc_100%)] text-slate-950">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(15,23,42,0.24),transparent_34%),radial-gradient(circle_at_top_right,rgba(30,41,59,0.18),transparent_30%),linear-gradient(180deg,#dbe3ee_0%,#cbd5e1_46%,#d6dee9_100%)] text-slate-950">
       <Header
         currentPage={currentPage}
         onNavigate={onNavigate}
