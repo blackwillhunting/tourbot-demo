@@ -193,9 +193,16 @@ function messageFromResult(result: TourBarResult | null) {
   return [title, body, invitation].filter(Boolean).join("\n");
 }
 
-function nextMoveShouldRoute(nextMove?: TourBarNextMove) {
+function nextMoveShouldRoute(nextMove?: TourBarNextMove, currentFocusAreaId?: string) {
   if (!nextMove) return false;
-  return nextMove.type === "show_related_area" || nextMove.type === "handoff" || Boolean(nextMove.focusAreaId);
+
+  const nextFocusAreaId = nextMove.focusAreaId?.trim();
+
+  if (nextMove.type === "show_related_area" || nextMove.type === "handoff") {
+    return Boolean(nextFocusAreaId && nextFocusAreaId !== currentFocusAreaId);
+  }
+
+  return false;
 }
 
 function resizeTextarea(textarea: HTMLTextAreaElement | null) {
@@ -524,7 +531,7 @@ export default function TourBar({
     const nextQuery = (nextMove?.query || nextMove?.label || result?.invitation?.text || "").trim();
     if (!nextQuery || isLoading || isAnswering) return;
 
-    if (nextMoveShouldRoute(nextMove)) {
+    if (nextMoveShouldRoute(nextMove, result?.focusAreaId)) {
       void submitQuery(nextQuery);
       return;
     }
