@@ -285,21 +285,16 @@ export default function TourBar({
         {!isOpen ? (
           <motion.button
             key="tourbar-launcher"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0.72, 1, 0.72] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+            whileHover={{ opacity: 1 }}
             onClick={() => setIsOpen(true)}
             className="group absolute inset-0 inline-flex items-center justify-center rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             aria-label="Open TourBar natural-language search"
             title="TourBar natural-language search"
           >
-            <motion.span
-              aria-hidden="true"
-              className="absolute inset-0 rounded-full bg-slate-950/25"
-              animate={{ scale: [1, 1.45, 1], opacity: [0.35, 0, 0.35] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            />
             <Sparkles className="relative h-4 w-4" />
           </motion.button>
         ) : (
@@ -361,11 +356,12 @@ export default function TourBar({
                 {sheetVisible && (
                   <motion.div
                     key={`${result?.focusAreaId || result?.action || "sheet"}-${result?.mode || (isLoading ? "loading" : "state")}`}
-                    initial={{ opacity: 0, y: -10, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: -8, height: 0 }}
-                    transition={{ duration: 0.22, ease: "easeOut" }}
-                    className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-[24px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                    initial={{ opacity: 0, y: -18, height: 0, scaleY: 0.92, clipPath: "inset(0 0 100% 0)" }}
+                    animate={{ opacity: 1, y: 0, height: "auto", scaleY: 1, clipPath: "inset(0 0 0% 0)" }}
+                    exit={{ opacity: 0, y: -12, height: 0, scaleY: 0.96, clipPath: "inset(0 0 100% 0)" }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    style={{ transformOrigin: "top center" }}
+                    className="absolute left-0 right-0 top-[calc(100%-1px)] origin-top overflow-hidden rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                   >
                     {isLoading && (
                       <div className="px-4 py-4 text-sm font-medium text-slate-600">
