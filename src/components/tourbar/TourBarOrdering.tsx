@@ -489,6 +489,151 @@ function optionIsSelected(group: CarryoutQualifierGroup, option: CarryoutQualifi
   );
 }
 
+function valuesEqual(a: unknown, b: unknown) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+function optionMatchesOption(a: CarryoutQualifierOption, b: CarryoutQualifierOption) {
+  return Boolean(
+    (a.value && b.value && valuesEqual(a.value, b.value)) ||
+      (a.label && b.label && valuesEqual(a.label, b.label)),
+  );
+}
+
+function groupMatchesGroup(a: CarryoutQualifierGroup, b: CarryoutQualifierGroup) {
+  return Boolean(
+    (a.qualifierId && b.qualifierId && a.qualifierId === b.qualifierId) ||
+      (a.label && b.label && a.label === b.label),
+  );
+}
+
+function lineMatchesLine(a: CarryoutLine, b: CarryoutLine, aIndex = 0, bIndex = 0) {
+  const aKeys = lineIdentityKeys(a);
+  const bKeys = lineIdentityKeys(b);
+  if (aKeys.some((key) => bKeys.includes(key))) return true;
+  return lineStableKey(a, aIndex) === lineStableKey(b, bIndex);
+}
+
+function selectedOptionLabels(group: CarryoutQualifierGroup) {
+  return (group.options || [])
+    .filter((option) => optionIsSelected(group, option))
+    .map((option) => option.label || option.value)
+    .filter(Boolean) as string[];
+}
+
+function withSelectedOption(group: CarryoutQualifierGroup, option: CarryoutQualifierOption) {
+  const selectedValue = option.value || option.label || "";
+  const selectedLabel = option.label || option.value || "";
+
+  return {
+    ...group,
+    missing: false,
+    selectedValue,
+    selectedLabel,
+    options: (group.options || []).map((candidate) => {
+      const selected = optionMatchesOption(candidate, option);
+      return {
+        ...candidate,
+        selected,
+        state: selected ? "selected" : "available",
+      };
+    }),
+  };
+}
+
+function updateLineWithLocalSelection(
+  line: CarryoutLine,
+  item: ReviewItem,
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+) {
+  const oldSelectedLabels = selectedOptionLabels(group);
+  const selectedLabel = option.label || option.value || "";
+  const selectedValue = option.value || option.label || "";
+  const nextLine: CarryoutLine = { ...line };
+  let foundGroup = false;
+
+  const updatedGroups = (nextLine.qualifierGroups || []).map((candidate) => {
+    if (!groupMatchesGroup(candidate, group)) return candidate;
+    foundGroup = true;
+    return withSelectedOption(candidate, option);
+  });
+
+  if (!foundGroup) {
+    updatedGroups.push(withSelectedOption({ ...group, lineItemId: group.lineItemId || item.line.lineItemId, itemId: group.itemId || item.line.id }, option));
+  }
+
+  nextLine.qualifierGroups = updatedGroups;
+  nextLine.missingQualifiers = (nextLine.missingQualifiers || []).filter((missing) => {
+    if (group.qualifierId && missing.qualifierId === group.qualifierId) return false;
+    if (group.label && missing.label === group.label) return false;
+    return true;
+  });
+
+  const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
+  for (const label of oldSelectedLabels) knownSelections.delete(label);
+  if (group.selectedLabel) knownSelections.delete(group.selectedLabel);
+  if (group.selectedValue) knownSelections.delete(group.selectedValue);
+  if (selectedLabel) knownSelections.add(selectedLabel);
+  if (!selectedLabel && selectedValue) knownSelections.add(selectedValue);
+  nextLine.knownSelections = Array.from(knownSelections);
+
+  const stillPending = Boolean(
+    nextLine.missingQualifiers?.length ||
+      nextLine.qualifierGroups?.some((candidate) => candidate.missing && candidate.options?.every((option) => !optionIsSelected(candidate, option))),
+  );
+
+  nextLine.status = stillPending ? "needs_qualifier" : "ready";
+  return nextLine;
+}
+
+function rebuildOrderCollections(order: CarryoutOrder) {
+  const lines = allLines(order);
+  const completeItems = lines.filter((line) => !lineIsPending(line));
+  const pendingItems = lines.filter(lineIsPending);
+
+  return {
+    ...order,
+    items: lines,
+    completeItems,
+    pendingItems,
+    status: pendingItems.length ? "needs_qualifier" : "ready_cart",
+    nextAction: pendingItems.length ? order.nextAction : "show_cart",
+  };
+}
+
+function applyLocalQualifierSelection(
+  order: CarryoutOrder | null,
+  item: ReviewItem,
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+): CarryoutOrder | null {
+  if (!order) return order;
+
+  const updateArray = (lines?: CarryoutLine[]) =>
+    (lines || []).map((line, index) =>
+      lineMatchesLine(line, item.line, index, item.index)
+        ? updateLineWithLocalSelection(line, item, group, option)
+        : line,
+    );
+
+  const nextOrder: CarryoutOrder = {
+    ...order,
+    items: order.items ? updateArray(order.items) : order.items,
+    completeItems: updateArray(order.completeItems),
+    pendingItems: updateArray(order.pendingItems),
+    currentQualifierControls: (order.currentQualifierControls || []).map((candidate) =>
+      groupMatchesGroup(candidate, group) ? withSelectedOption(candidate, option) : candidate,
+    ),
+    currentStep:
+      order.currentStep?.qualifierId && group.qualifierId && order.currentStep.qualifierId === group.qualifierId
+        ? { ...order.currentStep, label: option.label || option.value || order.currentStep.label }
+        : order.currentStep,
+  };
+
+  return rebuildOrderCollections(nextOrder);
+}
+
 function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   const covered = new Set(groups.map((group) => group.qualifierId).filter(Boolean));
   return (line.missingQualifiers || []).filter((missing) => !missing.qualifierId || !covered.has(missing.qualifierId));
@@ -502,9 +647,6 @@ function selectedDetails(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   return Array.from(new Set([...fromKnown, ...fromGroups]));
 }
 
-function lineTitleForGroup(item: ReviewItem, group: CarryoutQualifierGroup) {
-  return item.line.title || item.label || group.itemId || "this item";
-}
 
 function navigateToItem(
   item: ReviewItem | undefined,
@@ -521,18 +663,22 @@ function navigateToItem(
 function OrderReview({
   result,
   actions,
+  carryoutOrder,
   activeIndex,
   onActiveIndexChange,
+  onLocalOptionSelect,
   onNavigateToFocus,
 }: {
   result: TourBarShellResult;
   actions: TourBarShellActions;
+  carryoutOrder: CarryoutOrder | null;
   activeIndex: number;
   onActiveIndexChange: (index: number) => void;
+  onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 }) {
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
-  const order = extractCarryoutOrder(response);
+  const order = carryoutOrder || extractCarryoutOrder(response);
   const items = order ? reviewItemsFrom(response, order) : [];
   const safeIndex = items.length ? Math.min(Math.max(activeIndex, 0), items.length - 1) : 0;
   const item = items[safeIndex];
@@ -602,10 +748,7 @@ function OrderReview({
                       <button
                         key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
                         type="button"
-                        onClick={() => {
-                          const lineTitle = lineTitleForGroup(item, group);
-                          actions.submitFollowUp(`Set ${lineTitle} ${group.label || "choice"} to ${option.label || option.value}`);
-                        }}
+                        onClick={() => onLocalOptionSelect(item, group, option)}
                         className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
                           selected
                             ? "bg-slate-950 text-white"
@@ -672,6 +815,14 @@ function OrderReview({
           Next
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => actions.submitFollowUp("show cart")}
+        className="flex w-full items-center justify-center rounded-2xl bg-orange-500 px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600"
+      >
+        Show cart
+      </button>
     </div>
   );
 }
@@ -691,6 +842,10 @@ export default function TourBarOrdering({
 }) {
   const [carryoutOrder, setCarryoutOrder] = useState<CarryoutOrder | null>(null);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+
+  const updateLocalOption = (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
+    setCarryoutOrder((current) => applyLocalQualifierSelection(current, item, group, option));
+  };
 
   const submit = async (query: string, thread: TourBarThreadMessage[]) => {
     const response = await postGuideAi(query, carryoutOrder, thread);
@@ -721,8 +876,10 @@ export default function TourBarOrdering({
         <OrderReview
           result={result}
           actions={actions}
+          carryoutOrder={carryoutOrder}
           activeIndex={activeReviewIndex}
           onActiveIndexChange={setActiveReviewIndex}
+          onLocalOptionSelect={updateLocalOption}
           onNavigateToFocus={onNavigateToFocus}
         />
       )}

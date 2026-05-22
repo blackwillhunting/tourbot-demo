@@ -313,6 +313,47 @@ function findCarryoutTarget(target: TourBarOrderingFocusTarget) {
   );
 }
 
+let activeCarryoutSpotlightAnimation: Animation | null = null;
+let activeCarryoutSpotlightTimer: number | null = null;
+
+function runCarryoutBorderSpotlight(element: HTMLElement) {
+  if (activeCarryoutSpotlightTimer !== null) {
+    window.clearTimeout(activeCarryoutSpotlightTimer);
+    activeCarryoutSpotlightTimer = null;
+  }
+
+  activeCarryoutSpotlightAnimation?.cancel();
+  activeCarryoutSpotlightAnimation = null;
+
+  activeCarryoutSpotlightTimer = window.setTimeout(() => {
+    const visible = {
+      boxShadow: "0 0 0 4px rgba(249, 115, 22, 0.95), 0 0 0 10px rgba(249, 115, 22, 0.18)",
+      transform: "scale(1.006)",
+    };
+    const hidden = {
+      boxShadow: "0 0 0 0 rgba(249, 115, 22, 0)",
+      transform: "scale(1)",
+    };
+
+    activeCarryoutSpotlightAnimation = element.animate(
+      [
+        { offset: 0, ...visible },
+        { offset: 0.52, ...visible },
+        { offset: 0.58, ...hidden },
+        { offset: 0.63, ...visible },
+        { offset: 0.69, ...hidden },
+        { offset: 0.74, ...visible },
+        { offset: 1, ...visible },
+      ],
+      { duration: 1900, easing: "linear" },
+    );
+
+    activeCarryoutSpotlightAnimation.onfinish = () => {
+      activeCarryoutSpotlightAnimation = null;
+    };
+  }, 700);
+}
+
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
     <div className={`overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-sm shadow-orange-100/50 ring-1 ring-slate-950/[0.03] ${className}`}>
@@ -899,14 +940,7 @@ export default function AppCarryout() {
       if (!element) return;
 
       element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-      element.animate(
-        [
-          { boxShadow: "0 0 0 0 rgba(251, 146, 60, 0)", transform: "scale(1)" },
-          { boxShadow: "0 0 0 6px rgba(251, 146, 60, 0.28)", transform: "scale(1.006)" },
-          { boxShadow: "0 0 0 0 rgba(251, 146, 60, 0)", transform: "scale(1)" },
-        ],
-        { duration: 1200, easing: "ease-out" },
-      );
+      runCarryoutBorderSpotlight(element);
     }, 120);
   };
 
