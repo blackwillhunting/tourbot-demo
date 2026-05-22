@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -67,6 +67,11 @@ export type TourBarShellTurnContext = {
 
 export type TourBarShellTurnKind = "primary" | "followup";
 
+export type TourBarShellActions = {
+  submitFollowUp: (query: string) => void;
+  submitPrimary: (query: string) => void;
+};
+
 export type TourBarShellProps = {
   primaryPlaceholder?: string;
   followUpPlaceholder?: string;
@@ -80,6 +85,7 @@ export type TourBarShellProps = {
   getNextMoveTurnKind?: (nextMove: TourBarNextMove | undefined, currentResult: TourBarShellResult | null) => TourBarShellTurnKind;
   onResult?: (result: TourBarShellResult, turnKind: TourBarShellTurnKind) => void;
   buildThreadMessage?: (result: TourBarShellResult) => string;
+  renderResultExtras?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
 };
 
 function resultMessage(result: TourBarShellResult | null) {
@@ -257,6 +263,7 @@ export default function TourBarShell({
   getNextMoveTurnKind,
   onResult,
   buildThreadMessage = resultMessage,
+  renderResultExtras,
 }: TourBarShellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -512,6 +519,15 @@ export default function TourBarShell({
                             {result.body && (
                               <MarkdownLite text={result.body} />
                             )}
+
+                            {renderResultExtras?.(result, {
+                              submitFollowUp: (nextQuery) => {
+                                void submitFollowUp(nextQuery);
+                              },
+                              submitPrimary: (nextQuery) => {
+                                void submitQuery(nextQuery);
+                              },
+                            })}
 
                             {result.invitation?.text && (
                               result.nextMove?.query || result.nextMove?.focusAreaId ? (

@@ -14,6 +14,7 @@ import {
   Utensils,
 } from "lucide-react";
 import GuideShellStatic, { type GuideShellDemoCommand } from "./components/GuideShellStatic";
+import TourBarOrdering, { type TourBarOrderingFocusTarget } from "./components/tourbar/TourBarOrdering";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import { guidedCarryoutPanelDemo } from "./demo/demoScripts";
 
@@ -275,6 +276,43 @@ function isSelfDriveEntry() {
 
 const CARRYOUT_CLOSE_URL = "https://tourbot.getn2ai.com/?close=carryout";
 
+function cssEscape(value: string) {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+
+  return value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+function menuTabForTargetId(targetId?: string) {
+  const target = targetId || "";
+  if (target.includes("combo")) return "combos" as const;
+  if (target.includes("burger") || target.includes("modifier-burger")) return "burgers" as const;
+  if (target.includes("chicken")) return "chicken" as const;
+  if (target.includes("nugget")) return "nuggets" as const;
+  if (target.includes("side") || target.includes("fries") || target.includes("onion-ring")) return "sides" as const;
+  if (target.includes("drink") || target.includes("soda") || target.includes("tea") || target.includes("milkshake")) return "drinks" as const;
+  if (target.includes("dessert") || target.includes("cookie") || target.includes("pie") || target.includes("sundae")) return "desserts" as const;
+
+  return menuTabs.find((tab) => tab.targetId === target)?.id;
+}
+
+function findCarryoutTarget(target: TourBarOrderingFocusTarget) {
+  if (target.targetSelector) {
+    const selected = document.querySelector<HTMLElement>(target.targetSelector);
+    if (selected) return selected;
+  }
+
+  if (!target.targetId) return null;
+
+  const escaped = cssEscape(target.targetId);
+  return (
+    document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"]`) ||
+    document.getElementById(target.targetId) ||
+    document.querySelector<HTMLElement>(`#${escaped}`)
+  );
+}
+
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
     <div className={`overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-sm shadow-orange-100/50 ring-1 ring-slate-950/[0.03] ${className}`}>
@@ -527,7 +565,15 @@ function SmallOfferTile({ item }: { item: Offer }) {
   );
 }
 
-function Header({ activeTab, onTabClick }: { activeTab: MenuTab; onTabClick: (tab: MenuTab) => void }) {
+function Header({
+  activeTab,
+  onTabClick,
+  tourBarNode,
+}: {
+  activeTab: MenuTab;
+  onTabClick: (tab: MenuTab) => void;
+  tourBarNode?: React.ReactNode;
+}) {
   return (
     <header className="sticky top-0 z-30 border-b border-orange-100 bg-white/90 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
@@ -541,21 +587,27 @@ function Header({ activeTab, onTabClick }: { activeTab: MenuTab; onTabClick: (ta
           </div>
         </div>
 
-        <nav data-tour-id="menu-category-tabs" data-spotlight-mode="navigation" className="flex gap-2 overflow-x-auto rounded-full bg-orange-50 p-1">
-          {menuTabs.map((tab) => (
-            <a
-              key={tab.id}
-              href={`#${tab.targetId}`}
-              data-tour-id={`tab-${tab.id}`}
-              onClick={() => onTabClick(tab.id)}
-              className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold transition sm:px-4 ${
-                activeTab === tab.id ? "bg-slate-950 text-white shadow-sm" : "text-orange-800 hover:bg-white"
-              }`}
-            >
-              {tab.label}
-            </a>
-          ))}
-        </nav>
+        <div className="flex w-full items-center justify-between gap-3 lg:w-auto lg:justify-end">
+          <nav data-tour-id="menu-category-tabs" data-spotlight-mode="navigation" className="min-w-0 flex-1 overflow-x-auto rounded-full bg-orange-50 p-1 lg:flex-none">
+            <div className="flex gap-2">
+              {menuTabs.map((tab) => (
+                <a
+                  key={tab.id}
+                  href={`#${tab.targetId}`}
+                  data-tour-id={`tab-${tab.id}`}
+                  onClick={() => onTabClick(tab.id)}
+                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold transition sm:px-4 ${
+                    activeTab === tab.id ? "bg-slate-950 text-white shadow-sm" : "text-orange-800 hover:bg-white"
+                  }`}
+                >
+                  {tab.label}
+                </a>
+              ))}
+            </div>
+          </nav>
+
+          {tourBarNode && <div className="relative z-[10070] shrink-0">{tourBarNode}</div>}
+        </div>
       </div>
     </header>
   );
@@ -836,9 +888,35 @@ export default function AppCarryout() {
     window.location.href = CARRYOUT_CLOSE_URL;
   };
 
+  const goToTourBarOrderingFocus = (target: TourBarOrderingFocusTarget) => {
+    if (typeof document === "undefined") return;
+
+    const tab = menuTabForTargetId(target.targetId);
+    if (tab) setActiveTab(tab);
+
+    window.setTimeout(() => {
+      const element = findCarryoutTarget(target);
+      if (!element) return;
+
+      element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      element.animate(
+        [
+          { boxShadow: "0 0 0 0 rgba(251, 146, 60, 0)", transform: "scale(1)" },
+          { boxShadow: "0 0 0 6px rgba(251, 146, 60, 0.28)", transform: "scale(1.006)" },
+          { boxShadow: "0 0 0 0 rgba(251, 146, 60, 0)", transform: "scale(1)" },
+        ],
+        { duration: 1200, easing: "ease-out" },
+      );
+    }, 120);
+  };
+
   return (
     <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.16),_transparent_32%),linear-gradient(135deg,_#fff7ed_0%,_#ffffff_42%,_#fff7ed_100%)] text-slate-950">
-      <Header activeTab={activeTab} onTabClick={setActiveTab} />
+      <Header
+        activeTab={activeTab}
+        onTabClick={setActiveTab}
+        tourBarNode={!selfDrive ? <TourBarOrdering onNavigateToFocus={goToTourBarOrderingFocus} /> : undefined}
+      />
 
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:py-8">
         <div className="space-y-8">
@@ -939,26 +1017,28 @@ export default function AppCarryout() {
         <CartPreview />
       </main>
 
-      <GuideShellStatic
-        demoCommand={guideDemoCommand}
-        demoStatus={demoStatus}
-        demoInteractionLocked={selfDrive && demoStatus !== "idle"}
-        initialShellState={selfDrive ? "launcher" : "welcome"}
-        suppressWelcomeCard={selfDrive}
-        guideConfig={{
-          mode: "commerce",
-          label: "BurgerRush Carryout",
-          catalogMode: "carryout_ordering",
-          features: {
-            refinementChips: true,
-            bookingActions: true,
-            navigation: true,
-          },
-          packIds: {
-            catalog: "carryout_cart_catalog",
-          },
-        }}
-      />
+      {selfDrive && (
+        <GuideShellStatic
+          demoCommand={guideDemoCommand}
+          demoStatus={demoStatus}
+          demoInteractionLocked={demoStatus !== "idle"}
+          initialShellState="launcher"
+          suppressWelcomeCard
+          guideConfig={{
+            mode: "commerce",
+            label: "BurgerRush Carryout",
+            catalogMode: "carryout_ordering",
+            features: {
+              refinementChips: true,
+              bookingActions: true,
+              navigation: true,
+            },
+            packIds: {
+              catalog: "carryout_cart_catalog",
+            },
+          }}
+        />
+      )}
 
       {selfDrive && (
         <DemoController
