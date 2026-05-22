@@ -356,22 +356,22 @@ function runCarryoutBorderSpotlight(element: HTMLElement) {
 
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={`overflow-hidden rounded-[28px] border border-orange-100 bg-white shadow-sm shadow-orange-100/50 ring-1 ring-slate-950/[0.03] ${className}`}>
+    <div className={`overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/90 shadow-xl shadow-slate-950/30 ring-1 ring-white/[0.04] ${className}`}>
       {children}
     </div>
   );
 }
 
 function Price({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-bold text-white">{children}</span>;
+  return <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-950 shadow-sm">{children}</span>;
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-orange-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-orange-700">{children}</span>;
+  return <span className="rounded-full bg-orange-400/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-orange-200 ring-1 ring-orange-300/20">{children}</span>;
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-orange-100 bg-orange-50 px-2.5 py-1 text-xs font-semibold text-orange-700">{children}</span>;
+  return <span className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-semibold text-orange-100">{children}</span>;
 }
 
 function AddButton({ targetId }: { targetId: string }) {
@@ -392,10 +392,10 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
   return (
     <div className="mb-5 flex flex-col gap-2 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <div className="text-xs font-bold uppercase tracking-[0.18em] text-orange-600">{eyebrow}</div>
-        <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">{title}</h2>
+        <div className="text-xs font-bold uppercase tracking-[0.18em] text-orange-300">{eyebrow}</div>
+        <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">{title}</h2>
       </div>
-      <p className="max-w-xl text-sm leading-6 text-slate-600">{body}</p>
+      <p className="max-w-xl text-sm leading-6 text-slate-300">{body}</p>
     </div>
   );
 }
@@ -409,9 +409,9 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
       id={combo.id}
       data-tour-id={combo.id}
       data-spotlight-mode="card"
-      className={`group relative overflow-hidden rounded-[30px] border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl ${
-        featured ? "border-orange-200 md:col-span-2" : "border-orange-100"
-      } ${compactMobile ? "max-sm:rounded-[22px] max-sm:border-orange-200 max-sm:shadow-md" : ""}`}
+      className={`group relative overflow-hidden rounded-[30px] border bg-slate-900/90 shadow-xl shadow-slate-950/25 ring-1 ring-white/[0.03] transition hover:-translate-y-0.5 hover:shadow-2xl ${
+        featured ? "border-orange-400/40 md:col-span-2" : "border-white/10"
+      } ${compactMobile ? "max-sm:rounded-[22px] max-sm:border-orange-400/40 max-sm:shadow-md" : ""}`}
     >
       {compactMobile && (
         <div className="sm:hidden">
@@ -435,7 +435,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
           </div>
 
           <div className="p-3.5">
-            <p className="text-xs leading-5 text-slate-600">
+            <p className="text-xs leading-5 text-slate-300">
               {combo.description}
             </p>
 
@@ -443,7 +443,7 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
               {combo.includes.map((item) => (
                 <span
                   key={item}
-                  className="rounded-xl bg-orange-50 px-2 py-1.5 text-center text-[11px] font-black text-orange-800 ring-1 ring-orange-100"
+                  className="rounded-xl bg-white/10 px-2 py-1.5 text-center text-[11px] font-black text-orange-100 ring-1 ring-white/10"
                 >
                   {item}
                 </span>
@@ -454,15 +454,15 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
               {combo.chips?.map((chip) => (
                 <span
                   key={chip}
-                  className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600"
+                  className="rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-[11px] font-bold text-slate-200"
                 >
                   {chip}
                 </span>
               ))}
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
-              <div className="text-[11px] font-bold leading-4 text-slate-500">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-800/80 px-3 py-2 ring-1 ring-white/10">
+              <div className="text-[11px] font-bold leading-4 text-slate-300">
                 Side + drink choices ready for TourBot.
               </div>
               <AddButton targetId={combo.id} />
@@ -485,16 +485,16 @@ function ComboCard({ combo, index }: { combo: Combo; index: number }) {
         <div className="flex h-full flex-col p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-xl font-black tracking-tight text-slate-950">{combo.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{combo.description}</p>
+              <h3 className="text-xl font-black tracking-tight text-white">{combo.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-300">{combo.description}</p>
             </div>
             <Price>{combo.price}</Price>
           </div>
-          <div className="mt-5 rounded-2xl bg-slate-50 p-3">
-            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Includes</div>
+          <div className="mt-5 rounded-2xl bg-slate-800/80 p-3 ring-1 ring-white/10">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Includes</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {combo.includes.map((item) => (
-                <span key={item} className="rounded-full bg-white px-3 py-1 text-xs font-bold text-slate-700 shadow-sm">
+                <span key={item} className="rounded-full bg-slate-950/70 px-3 py-1 text-xs font-bold text-slate-200 shadow-sm ring-1 ring-white/10">
                   {item}
                 </span>
               ))}
@@ -518,14 +518,14 @@ function MenuRow({ item }: { item: Offer }) {
       id={item.id}
       data-tour-id={item.id}
       data-spotlight-mode="row"
-      className="group grid gap-3 rounded-3xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md sm:grid-cols-[1fr_auto] sm:items-center sm:p-5"
+      className="group grid gap-3 rounded-3xl border border-white/10 bg-slate-900/90 p-4 shadow-lg shadow-slate-950/20 transition hover:-translate-y-0.5 hover:border-orange-400/40 hover:shadow-xl sm:grid-cols-[1fr_auto] sm:items-center sm:p-5"
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-base font-black tracking-tight text-slate-950 sm:text-lg">{item.title}</h3>
+          <h3 className="text-base font-black tracking-tight text-white sm:text-lg">{item.title}</h3>
           {item.badge && <Badge>{item.badge}</Badge>}
         </div>
-        <p className="mt-1.5 text-sm leading-6 text-slate-600">{item.description}</p>
+        <p className="mt-1.5 text-sm leading-6 text-slate-300">{item.description}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {item.chips?.map((chip) => <Chip key={chip}>{chip}</Chip>)}
         </div>
@@ -551,7 +551,7 @@ function FoodCard({ item, tone = "orange" }: { item: Offer; tone?: "orange" | "y
       id={item.id}
       data-tour-id={item.id}
       data-spotlight-mode="card"
-      className="overflow-hidden rounded-[30px] border border-orange-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+      className="overflow-hidden rounded-[30px] border border-white/10 bg-slate-900/90 shadow-xl shadow-slate-950/20 transition hover:-translate-y-0.5 hover:border-orange-400/40 hover:shadow-2xl"
     >
       <div className={`h-28 bg-gradient-to-br ${toneClass} p-4 text-white`}>
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/20">
@@ -562,10 +562,10 @@ function FoodCard({ item, tone = "orange" }: { item: Offer; tone?: "orange" | "y
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-black tracking-tight text-slate-950">{item.title}</h3>
+              <h3 className="text-lg font-black tracking-tight text-white">{item.title}</h3>
               {item.badge && <Badge>{item.badge}</Badge>}
             </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">{item.description}</p>
           </div>
           <Price>{item.price}</Price>
         </div>
@@ -586,19 +586,19 @@ function SmallOfferTile({ item }: { item: Offer }) {
       id={item.id}
       data-tour-id={item.id}
       data-spotlight-mode="card"
-      className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+      className="rounded-[26px] border border-white/10 bg-slate-900/90 p-4 shadow-lg shadow-slate-950/20 transition hover:-translate-y-0.5 hover:border-orange-400/40 hover:shadow-xl"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-700">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-400/15 text-orange-200 ring-1 ring-orange-300/20">
           <Utensils className="h-5 w-5" />
         </div>
         <Price>{item.price}</Price>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-black tracking-tight text-slate-950">{item.title}</h3>
+        <h3 className="text-base font-black tracking-tight text-white">{item.title}</h3>
         {item.badge && <Badge>{item.badge}</Badge>}
       </div>
-      <p className="mt-2 text-sm leading-5 text-slate-600">{item.description}</p>
+      <p className="mt-2 text-sm leading-5 text-slate-300">{item.description}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {item.chips?.map((chip) => <Chip key={chip}>{chip}</Chip>)}
       </div>
@@ -616,20 +616,20 @@ function Header({
   tourBarNode?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-orange-100 bg-white/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 text-white shadow-xl shadow-slate-950/20 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
             <Menu className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-lg font-black tracking-tight text-slate-950">BurgerRush Carryout</div>
-            <div className="truncate text-sm text-slate-500">Fast food ordering without the menu maze</div>
+            <div className="truncate text-lg font-black tracking-tight text-white">BurgerRush Carryout</div>
+            <div className="truncate text-sm text-slate-300">Fast food ordering without the menu maze</div>
           </div>
         </div>
 
         <div className="flex w-full items-center justify-between gap-3 lg:w-auto lg:justify-end">
-          <nav data-tour-id="menu-category-tabs" data-spotlight-mode="navigation" className="min-w-0 flex-1 overflow-x-auto rounded-full bg-orange-50 p-1 lg:flex-none">
+          <nav data-tour-id="menu-category-tabs" data-spotlight-mode="navigation" className="min-w-0 flex-1 overflow-x-auto rounded-full bg-slate-900/90 p-1 ring-1 ring-white/10 lg:flex-none">
             <div className="flex gap-2">
               {menuTabs.map((tab) => (
                 <a
@@ -638,7 +638,7 @@ function Header({
                   data-tour-id={`tab-${tab.id}`}
                   onClick={() => onTabClick(tab.id)}
                   className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold transition sm:px-4 ${
-                    activeTab === tab.id ? "bg-slate-950 text-white shadow-sm" : "text-orange-800 hover:bg-white"
+                    activeTab === tab.id ? "bg-orange-400 text-slate-950 shadow-sm" : "text-orange-100 hover:bg-white/10"
                   }`}
                 >
                   {tab.label}
@@ -721,7 +721,7 @@ function QualifierPanel() {
       id="qualifier-completion-panel"
       data-tour-id="qualifier-completion-panel"
       data-spotlight-mode="region"
-      className="rounded-[30px] border border-amber-200 bg-amber-50 p-5 sm:p-6"
+      className="rounded-[30px] border border-amber-300/20 bg-slate-900/85 p-5 shadow-xl shadow-slate-950/20 ring-1 ring-white/[0.03] sm:p-6"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -729,12 +729,12 @@ function QualifierPanel() {
             <CheckCircle className="h-4 w-4" />
             Guided order completion
           </div>
-          <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-950">Missing choices become chips</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          <h2 className="mt-2 text-2xl font-black tracking-tight text-white">Missing choices become chips</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-300">
             When a requested item needs a required qualifier, TourBot can keep the item in the order and attach the right choices to that step: size, piece count, sauce, flavor, or combo options.
           </p>
         </div>
-        <div className="rounded-3xl bg-white p-4 shadow-sm" data-tour-id="sample-qualifier-chips" data-spotlight-mode="card">
+        <div className="rounded-3xl bg-slate-950/70 p-4 shadow-sm ring-1 ring-white/10" data-tour-id="sample-qualifier-chips" data-spotlight-mode="card">
           <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Example chips</div>
           <div className="mt-3 flex flex-wrap gap-2">
             {['Small', 'Medium', 'Large'].map((item) => (
@@ -765,19 +765,19 @@ function NuggetModule() {
             <p className="mt-3 text-sm leading-6 text-white/85">Choose 6-piece, 10-piece, or 20-piece. Sauce can be BBQ, Ranch, or Honey Mustard.</p>
           </div>
           <div className="grid gap-5 p-6 sm:p-8 md:grid-cols-2">
-            <div id="qualifier-nugget-count" data-tour-id="qualifier-nugget-count" data-spotlight-mode="card" className="rounded-[26px] bg-slate-50 p-5">
+            <div id="qualifier-nugget-count" data-tour-id="qualifier-nugget-count" data-spotlight-mode="card" className="rounded-[26px] bg-slate-800/80 p-5 ring-1 ring-white/10">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Piece count</div>
               <div className="mt-4 grid gap-2">
                 {['6-piece', '10-piece', '20-piece'].map((item) => (
-                  <button key={item} type="button" className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-black text-slate-800 shadow-sm ring-1 ring-slate-100">{item}</button>
+                  <button key={item} type="button" className="rounded-2xl bg-slate-950/70 px-4 py-3 text-left text-sm font-black text-slate-100 shadow-sm ring-1 ring-white/10">{item}</button>
                 ))}
               </div>
             </div>
-            <div id="qualifier-nugget-sauce" data-tour-id="qualifier-nugget-sauce" data-spotlight-mode="card" className="rounded-[26px] bg-slate-50 p-5">
+            <div id="qualifier-nugget-sauce" data-tour-id="qualifier-nugget-sauce" data-spotlight-mode="card" className="rounded-[26px] bg-slate-800/80 p-5 ring-1 ring-white/10">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Sauce</div>
               <div className="mt-4 grid gap-2">
                 {['BBQ', 'Ranch', 'Honey Mustard'].map((item) => (
-                  <button key={item} type="button" className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-black text-slate-800 shadow-sm ring-1 ring-slate-100">{item}</button>
+                  <button key={item} type="button" className="rounded-2xl bg-slate-950/70 px-4 py-3 text-left text-sm font-black text-slate-100 shadow-sm ring-1 ring-white/10">{item}</button>
                 ))}
               </div>
             </div>
@@ -828,7 +828,7 @@ function DrinksRack() {
 function CartPreview() {
   return (
     <aside id="cart-preview" data-tour-id="cart-preview" data-spotlight-mode="card" className="lg:sticky lg:top-28">
-      <Card className="border-slate-200">
+      <Card className="border-white/10">
         <div className="border-b border-slate-100 bg-slate-950 p-5 text-white">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -843,24 +843,24 @@ function CartPreview() {
         <div className="p-5">
           <div className="space-y-3">
             {sampleCart.map((item) => (
-              <div key={item.label} className="rounded-2xl bg-slate-50 p-3">
+              <div key={item.label} className="rounded-2xl bg-slate-800/80 p-3 ring-1 ring-white/10">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-black text-slate-950">{item.label}</div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-500">{item.detail}</div>
+                    <div className="text-sm font-black text-white">{item.label}</div>
+                    <div className="mt-0.5 text-xs font-semibold text-slate-300">{item.detail}</div>
                   </div>
-                  <div className="text-sm font-black text-slate-900">{item.price}</div>
+                  <div className="text-sm font-black text-slate-100">{item.price}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-5 rounded-3xl bg-orange-50 p-4">
-            <div className="flex items-center justify-between text-sm font-black text-slate-950">
+          <div className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
+            <div className="flex items-center justify-between text-sm font-black text-white">
               <span>Estimated subtotal</span>
               <span>$22.05</span>
             </div>
-            <p className="mt-2 text-xs leading-5 text-slate-600">Static demo preview. Future router will write validated line items into this order state.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-300">Static demo preview. Future router will write validated line items into this order state.</p>
           </div>
 
           <button
@@ -945,7 +945,7 @@ export default function AppCarryout() {
   };
 
   return (
-    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.16),_transparent_32%),linear-gradient(135deg,_#fff7ed_0%,_#ffffff_42%,_#fff7ed_100%)] text-slate-950">
+    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-white">
       <Header
         activeTab={activeTab}
         onTabClick={setActiveTab}
@@ -975,7 +975,7 @@ export default function AppCarryout() {
               title="Burgers"
               body="Every burger is orderable on its own, and can also be included inside combos."
             />
-            <div id="modifier-burger-toppings" data-tour-id="modifier-burger-toppings" data-spotlight-mode="card" className="mb-4 rounded-[28px] border border-slate-200 bg-white p-4">
+            <div id="modifier-burger-toppings" data-tour-id="modifier-burger-toppings" data-spotlight-mode="card" className="mb-4 rounded-[28px] border border-white/10 bg-slate-900/85 p-4 shadow-lg shadow-slate-950/20">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Common burger modifiers</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {['No onions', 'No pickles', 'Extra cheese', 'Add bacon', 'Extra sauce', 'No mayo'].map((item) => <Chip key={item}>{item}</Chip>)}
@@ -1005,10 +1005,10 @@ export default function AppCarryout() {
               title="Fries & sides"
               body="Sides are independently orderable offers, not just add-ons. Combos can include them, but customers can also order them directly."
             />
-            <div id="qualifier-fries-size" data-tour-id="qualifier-fries-size" data-spotlight-mode="card" className="mb-4 rounded-[28px] border border-orange-200 bg-orange-50 p-4">
+            <div id="qualifier-fries-size" data-tour-id="qualifier-fries-size" data-spotlight-mode="card" className="mb-4 rounded-[28px] border border-orange-300/20 bg-orange-500/10 p-4 shadow-lg shadow-slate-950/20">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-orange-700">Fries size choices</div>
               <div className="mt-3 flex flex-wrap gap-2">
-                {['Small', 'Medium', 'Large'].map((item) => <span key={item} className="rounded-full bg-white px-4 py-2 text-xs font-black text-orange-800 shadow-sm">{item}</span>)}
+                {['Small', 'Medium', 'Large'].map((item) => <span key={item} className="rounded-full bg-slate-950/80 px-4 py-2 text-xs font-black text-orange-100 shadow-sm ring-1 ring-white/10">{item}</span>)}
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1029,7 +1029,7 @@ export default function AppCarryout() {
             </div>
           </section>
 
-          <section id="checkout-section" data-tour-id="checkout-section" data-spotlight-mode="region" className="rounded-[34px] bg-slate-950 p-6 text-white sm:p-8">
+          <section id="checkout-section" data-tour-id="checkout-section" data-spotlight-mode="region" className="rounded-[34px] border border-white/10 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-950/30 sm:p-8">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-orange-200">
