@@ -999,7 +999,7 @@ function OrderReview({
                     {cannotMatchLabel(entry)}
                   </div>
                   <div className="mt-0.5 text-[11px] leading-4 text-amber-800">
-                    {cannotMatchReason(entry)}. This item was left out of the matched cart.
+                    {cannotMatchReason(entry)}. Left out of the matched cart.
                   </div>
                   {entry.suggestion && (
                     <div className="mt-1 text-[11px] font-semibold text-amber-900">
