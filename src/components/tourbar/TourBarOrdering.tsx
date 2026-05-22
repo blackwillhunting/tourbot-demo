@@ -878,7 +878,7 @@ function OrderReview({
     return (
       <div
         key={`${entry.key}-cart-${status}-${index}`}
-        className={`transform-gpu rounded-xl border bg-white p-2.5 shadow-sm transition duration-150 ease-out hover:scale-[1.015] hover:shadow-md hover:shadow-slate-200/80 ${pending ? "border-amber-200" : "border-emerald-100"}`}
+        className={`transform-gpu rounded-xl border bg-white p-2.5 shadow-sm transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80 ${pending ? "border-amber-200" : "border-emerald-100"}`}
       >
         <div className="flex items-start justify-between gap-2">
           <button
@@ -954,7 +954,7 @@ function OrderReview({
           : "All items are ready for checkout."}
       </div>
 
-      <div className="max-h-[min(62dvh,560px)] min-h-0 space-y-2 overflow-y-auto pr-1 [overscroll-behavior:contain]">
+      <div className="max-h-[min(62dvh,560px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-1 pr-1 [overscroll-behavior:contain]">
         {items.length ? (
           <>
             {renderCartSection("Needs choices", pendingItems, "pending")}
