@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Compass,
   Loader2,
   Search,
   SendHorizonal,
@@ -152,6 +151,12 @@ function resultBody(result: TourBarResult | null) {
   return result.answer || result.responseText || "";
 }
 
+function resizeTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return;
+  textarea.style.height = "0px";
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 132)}px`;
+}
+
 export default function TourBar({
   siteId = "nexapath",
   currentPageId,
@@ -168,6 +173,8 @@ export default function TourBar({
   const [isAnswering, setIsAnswering] = useState(false);
   const [result, setResult] = useState<TourBarResult | null>(null);
   const [error, setError] = useState("");
+  const queryRef = useRef<HTMLTextAreaElement | null>(null);
+  const followUpRef = useRef<HTMLTextAreaElement | null>(null);
 
   const canSubmit = query.trim().length > 1 && !isLoading;
   const canAskFollowUp = followUp.trim().length > 1 && !isAnswering && Boolean(result?.focusAreaId);
@@ -176,11 +183,25 @@ export default function TourBar({
     () => [
       "Do you help with DORA compliance?",
       "What services do you offer?",
-      "Show me cybersecurity.",
-      "How can I contact someone?",
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    window.requestAnimationFrame(() => {
+      queryRef.current?.focus();
+      resizeTextarea(queryRef.current);
+    });
+  }, [isOpen]);
+
+  useEffect(() => {
+    resizeTextarea(queryRef.current);
+  }, [query]);
+
+  useEffect(() => {
+    resizeTextarea(followUpRef.current);
+  }, [followUp, result?.focusAreaId]);
 
   const submitQuery = async (nextQuery = query) => {
     const cleanQuery = nextQuery.trim();
@@ -256,172 +277,167 @@ export default function TourBar({
     }
   };
 
+  const sheetVisible = isLoading || Boolean(error) || Boolean(result);
+
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-[10040] sm:left-auto sm:right-5 sm:w-[420px]">
+    <div className="relative z-[10060] h-9 w-9 shrink-0">
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
             key="tourbar-launcher"
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 16, scale: 0.98 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={() => setIsOpen(true)}
-            className="ml-auto flex w-full items-center justify-between rounded-full border border-slate-200 bg-white/94 px-3 py-2.5 text-left shadow-2xl shadow-slate-950/15 ring-1 ring-white/70 backdrop-blur-xl transition hover:bg-white sm:w-auto sm:min-w-[260px] sm:px-4"
+            className="group absolute inset-0 inline-flex items-center justify-center rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
+            aria-label="Open TourBar natural-language search"
+            title="TourBar natural-language search"
           >
-            <span className="flex min-w-0 items-center gap-2.5">
-              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
-                <Compass className="h-4 w-4" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-slate-950">TourBar</span>
-                <span className="block truncate text-xs text-slate-500">Ask. Focus. Understand.</span>
-              </span>
-            </span>
-            <Search className="ml-3 h-4 w-4 shrink-0 text-slate-500" />
+            <motion.span
+              aria-hidden="true"
+              className="absolute inset-0 rounded-full bg-slate-950/25"
+              animate={{ scale: [1, 1.45, 1], opacity: [0.35, 0, 0.35] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <Sparkles className="relative h-4 w-4" />
           </motion.button>
         ) : (
           <motion.div
             key="tourbar-open"
-            initial={{ opacity: 0, y: 22, scale: 0.985 }}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.985 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            className="overflow-hidden rounded-[28px] border border-white/80 bg-white/95 shadow-2xl shadow-slate-950/20 ring-1 ring-slate-950/[0.04] backdrop-blur-xl"
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]"
           >
-            <div className="flex items-center justify-between border-b border-slate-200/80 px-4 py-3">
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-slate-950 text-white">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <div>
-                  <div className="text-sm font-semibold text-slate-950">TourBar</div>
-                  <div className="text-xs text-slate-500">Generative site search</div>
+            <div className="relative">
+              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
+                <div className="flex items-end gap-2 px-2.5 py-2">
+                  <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
+                    <Search className="h-4 w-4" />
+                  </span>
+                  <textarea
+                    ref={queryRef}
+                    value={query}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      if (result || error) {
+                        setResult(null);
+                        setError("");
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void submitQuery();
+                      }
+                    }}
+                    placeholder="Ask TourBar in plain English..."
+                    rows={1}
+                    className="max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void submitQuery()}
+                    disabled={!canSubmit}
+                    className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                    aria-label="Submit TourBar query"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsOpen(false)}
+                    className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    aria-label="Close TourBar"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                aria-label="Close TourBar"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="p-3">
-              <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                <textarea
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    if (result) setResult(null);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      void submitQuery();
-                    }
-                  }}
-                  placeholder="Ask what you're looking for..."
-                  rows={1}
-                  className="min-h-9 flex-1 resize-none bg-transparent text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
-                />
-                <button
-                  type="button"
-                  onClick={() => void submitQuery()}
-                  disabled={!canSubmit}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                  aria-label="Submit TourBar query"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
-                </button>
-              </div>
-
-              {!result && !isLoading && !error && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {promptSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      onClick={() => void submitQuery(suggestion)}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition hover:bg-white hover:text-slate-950"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {isLoading && (
-                <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
-                  Finding the best focus area…
-                </div>
-              )}
-
-              {error && (
-                <div className="mt-3 rounded-2xl bg-rose-50 px-3 py-3 text-sm leading-5 text-rose-700">
-                  {error}
-                </div>
-              )}
 
               <AnimatePresence>
-                {result && (
+                {sheetVisible && (
                   <motion.div
-                    key={`${result.focusAreaId || result.action || "result"}-${result.mode || "route"}`}
-                    initial={{ opacity: 0, y: 12, height: 0 }}
+                    key={`${result?.focusAreaId || result?.action || "sheet"}-${result?.mode || (isLoading ? "loading" : "state")}`}
+                    initial={{ opacity: 0, y: -10, height: 0 }}
                     animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: 8, height: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="mt-3 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50"
+                    exit={{ opacity: 0, y: -8, height: 0 }}
+                    transition={{ duration: 0.22, ease: "easeOut" }}
+                    className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-[24px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                   >
-                    <div className="border-b border-slate-200 bg-white px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Focus result
+                    {isLoading && (
+                      <div className="px-4 py-4 text-sm font-medium text-slate-600">
+                        Finding the right part of this site…
                       </div>
-                      <div className="mt-1 text-sm font-semibold text-slate-950">{resultTitle(result)}</div>
-                    </div>
+                    )}
 
-                    <div className="space-y-3 px-4 py-3">
-                      {resultBody(result) && (
-                        <p className="text-sm leading-6 text-slate-700">{resultBody(result)}</p>
-                      )}
+                    {error && (
+                      <div className="px-4 py-4 text-sm leading-5 text-rose-700">
+                        {error}
+                      </div>
+                    )}
 
-                      {result.invitation?.text && (
-                        <div className="rounded-2xl bg-white px-3 py-2.5 text-sm font-medium leading-5 text-slate-900 shadow-sm">
-                          {result.invitation.text}
+                    {result && (
+                      <div>
+                        <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                            Focus result
+                          </div>
+                          <div className="mt-1 text-sm font-semibold text-slate-950">{resultTitle(result)}</div>
                         </div>
-                      )}
 
-                      {result.focusAreaId && (
-                        <div className="flex items-end gap-2 rounded-2xl bg-white px-3 py-2 shadow-sm">
-                          <input
-                            value={followUp}
-                            onChange={(event) => setFollowUp(event.target.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter") {
-                                event.preventDefault();
-                                void submitFollowUp();
-                              }
-                            }}
-                            placeholder="Ask a follow-up..."
-                            className="min-w-0 flex-1 bg-transparent text-sm font-medium text-slate-950 outline-none placeholder:text-slate-400"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void submitFollowUp()}
-                            disabled={!canAskFollowUp}
-                            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                            aria-label="Ask TourBar follow-up"
-                          >
-                            {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                          </button>
+                        <div className="space-y-3 px-4 py-3">
+                          {resultBody(result) && (
+                            <p className="text-sm leading-6 text-slate-700">{resultBody(result)}</p>
+                          )}
+
+                          {result.invitation?.text && (
+                            <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
+                              {result.invitation.text}
+                            </div>
+                          )}
+
+                          {result.focusAreaId && (
+                            <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                              <textarea
+                                ref={followUpRef}
+                                value={followUp}
+                                onChange={(event) => setFollowUp(event.target.value)}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" && !event.shiftKey) {
+                                    event.preventDefault();
+                                    void submitFollowUp();
+                                  }
+                                }}
+                                placeholder="Ask a follow-up..."
+                                rows={1}
+                                className="max-h-28 min-h-8 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => void submitFollowUp()}
+                                disabled={!canAskFollowUp}
+                                className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                                aria-label="Ask TourBar follow-up"
+                              >
+                                {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {!sheetVisible && (
+                <div className="pointer-events-none absolute left-0 right-0 top-full mt-2 hidden rounded-2xl border border-slate-200 bg-white/92 px-3 py-2 text-[11px] font-medium text-slate-500 shadow-lg shadow-slate-950/8 sm:block">
+                  Try: {promptSuggestions.join(" · ")}
+                </div>
+              )}
             </div>
           </motion.div>
         )}

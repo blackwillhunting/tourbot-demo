@@ -6,6 +6,7 @@ import {
   Shield,
   Cloud,
   Sparkles,
+  Search,
   Briefcase,
   ChevronRight,
   Landmark,
@@ -87,6 +88,26 @@ function Button({
       className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition ${variantClass} ${className}`}
     >
       {children}
+    </button>
+  );
+}
+
+function StaticSearchPresence({ compact = false }: { compact?: boolean }) {
+  return (
+    <button
+      type="button"
+      aria-label="Site search preview"
+      title="Standard site search"
+      className={`group/search inline-flex h-9 shrink-0 items-center overflow-hidden rounded-full border border-slate-200 bg-white/82 text-slate-500 shadow-sm transition-all duration-300 hover:border-slate-300 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 ${
+        compact ? "w-9 justify-center" : "w-9 justify-center hover:w-44 focus-visible:w-44"
+      }`}
+    >
+      <Search className="h-4 w-4 shrink-0" />
+      {!compact && (
+        <span className="ml-0 max-w-0 overflow-hidden whitespace-nowrap text-xs font-semibold opacity-0 transition-all duration-300 group-hover/search:ml-2 group-hover/search:max-w-[8rem] group-hover/search:opacity-100 group-focus-visible/search:ml-2 group-focus-visible/search:max-w-[8rem] group-focus-visible/search:opacity-100">
+          Search site
+        </span>
+      )}
     </button>
   );
 }
@@ -540,6 +561,7 @@ function Header({
   onPauseDemo,
   onResumeDemo,
   onStopDemo,
+  tourBarNode,
 }: {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
@@ -548,6 +570,7 @@ function Header({
   onPauseDemo: () => void;
   onResumeDemo: () => void;
   onStopDemo: () => void;
+  tourBarNode?: React.ReactNode;
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
@@ -582,6 +605,11 @@ function Header({
               );
             })}
           </nav>
+
+          <div className="hidden items-center gap-1.5 md:flex">
+            <StaticSearchPresence />
+            {tourBarNode}
+          </div>
 
           <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
             {demoStatus === "idle" && (
@@ -642,6 +670,11 @@ function Header({
             );
           })}
         </nav>
+
+        <div className="flex w-full items-center justify-end gap-2 md:hidden">
+          <StaticSearchPresence compact />
+          {tourBarNode}
+        </div>
       </div>
     </header>
   );
@@ -1470,6 +1503,15 @@ export default function App() {
         onPauseDemo={() => setDemoStatus("paused")}
         onResumeDemo={() => setDemoStatus("running")}
         onStopDemo={stopDemo}
+        tourBarNode={
+          showLegacyGuideShell ? null : (
+            <TourBar
+              siteId="nexapath"
+              currentPageId={currentPage}
+              onNavigateToFocus={goToTourBarFocus}
+            />
+          )
+        }
       />
       <AnimatePresence>
         {demoPreviewOpen && demoStatus === "idle" && (
@@ -1608,7 +1650,7 @@ export default function App() {
         />
       )}
 
-      {showLegacyGuideShell ? (
+      {showLegacyGuideShell && (
         <GuideShellStatic
           guideConfig={{
             mode: "hidden_cart",
@@ -1623,12 +1665,6 @@ export default function App() {
           initialShellState="launcher"
           suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
           demoInteractionLocked={isSelfDriveEntry}
-        />
-      ) : (
-        <TourBar
-          siteId="nexapath"
-          currentPageId={currentPage}
-          onNavigateToFocus={goToTourBarFocus}
         />
       )}
     </div>
