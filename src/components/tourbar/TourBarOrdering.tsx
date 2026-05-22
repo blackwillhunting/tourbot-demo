@@ -346,12 +346,22 @@ function optionKey(option: CarryoutQualifierOption) {
     .replace(/^-+|-+$/g, "");
 }
 
+function firstRawSelectedOption(group: CarryoutQualifierGroup) {
+  return (group.options || []).find((option) => option.selected || option.state === "selected");
+}
+
+function groupSelectedValue(group: CarryoutQualifierGroup) {
+  const selected = firstRawSelectedOption(group);
+  return group.selectedValue || group.selectedLabel || selected?.value || selected?.label || "";
+}
+
+function groupSelectedLabel(group: CarryoutQualifierGroup) {
+  const selected = firstRawSelectedOption(group);
+  return group.selectedLabel || group.selectedValue || selected?.label || selected?.value || "";
+}
+
 function groupHasSelection(group: CarryoutQualifierGroup) {
-  return Boolean(
-    group.selectedValue ||
-      group.selectedLabel ||
-      group.options?.some((option) => optionIsSelected(group, option)),
-  );
+  return Boolean(groupSelectedValue(group) || groupSelectedLabel(group));
 }
 
 function mergeQualifierGroups(
@@ -360,8 +370,8 @@ function mergeQualifierGroups(
 ) {
   const preferredSelected = groupHasSelection(preferred);
   const fallbackSelected = groupHasSelection(fallback);
-  const selectedValue = preferred.selectedValue || fallback.selectedValue;
-  const selectedLabel = preferred.selectedLabel || fallback.selectedLabel;
+  const selectedValue = groupSelectedValue(preferred) || groupSelectedValue(fallback);
+  const selectedLabel = groupSelectedLabel(preferred) || groupSelectedLabel(fallback);
 
   const options = new Map<string, CarryoutQualifierOption>();
   const addOption = (option: CarryoutQualifierOption) => {
@@ -372,17 +382,9 @@ function mergeQualifierGroups(
       return;
     }
 
-    const selected =
-      Boolean(existing.selected || existing.state === "selected") ||
-      Boolean(option.selected || option.state === "selected") ||
-      Boolean(selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
-      Boolean(selectedLabel && valuesEqual(option.label || option.value, selectedLabel));
-
     options.set(key, {
       ...option,
       ...existing,
-      selected,
-      state: selected ? "selected" : existing.state || option.state,
     });
   };
 
@@ -395,26 +397,25 @@ function mergeQualifierGroups(
     selectedValue,
     selectedLabel,
     missing: preferredSelected || fallbackSelected ? false : Boolean(preferred.missing || fallback.missing),
-    options: Array.from(options.values()),
-  };
-
-  if (selectedValue || selectedLabel) {
-    merged.options = (merged.options || []).map((option) => {
-      const selected =
-        Boolean(option.selected || option.state === "selected") ||
-        Boolean(selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
-        Boolean(selectedLabel && valuesEqual(option.label || option.value, selectedLabel));
+    options: Array.from(options.values()).map((option) => {
+      const selected = selectedValue || selectedLabel
+        ? Boolean(
+            (selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
+              (selectedLabel && valuesEqual(option.label || option.value, selectedLabel)),
+          )
+        : Boolean(option.selected || option.state === "selected");
 
       return {
         ...option,
         selected,
-        state: selected ? "selected" : option.state,
+        state: selected ? "selected" : "available",
       };
-    });
-  }
+    }),
+  };
 
   return merged;
 }
+
 
 function coalesceQualifierGroups(groups: CarryoutQualifierGroup[]) {
   const byQualifier = new Map<string, CarryoutQualifierGroup>();
@@ -530,9 +531,9 @@ function bodyFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null)
   if (items.length) {
     const pendingCount = items.filter((item) => item.pending).length;
     if (pendingCount > 0) {
-      return `Added the matched items. Review each item below and complete ${pendingCount === 1 ? "the missing choice" : `${pendingCount} missing choices`}.`;
+      return "Review items and pick the missing choices.";
     }
-    return "Added the matched items. Review each item below or change any option before checkout.";
+    return "Review items or show the cart.";
   }
 
   return response.answer || response.body || response.reply || response.message || "I received the order, but the backend did not return a response.";
@@ -573,14 +574,17 @@ function toShellResult(response: GuideAiCarryoutResponse): TourBarShellResult {
 }
 
 function optionIsSelected(group: CarryoutQualifierGroup, option: CarryoutQualifierOption) {
-  const optionValue = String(option.value || "");
-  const optionLabel = String(option.label || "");
-  return Boolean(
-    option.selected ||
-      option.state === "selected" ||
-      (group.selectedValue && optionValue && group.selectedValue === optionValue) ||
-      (group.selectedLabel && optionLabel && group.selectedLabel === optionLabel),
-  );
+  const selectedValue = groupSelectedValue(group);
+  const selectedLabel = groupSelectedLabel(group);
+
+  if (selectedValue || selectedLabel) {
+    return Boolean(
+      (selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
+        (selectedLabel && valuesEqual(option.label || option.value, selectedLabel)),
+    );
+  }
+
+  return Boolean(option.selected || option.state === "selected");
 }
 
 function valuesEqual(a: unknown, b: unknown) {
@@ -664,8 +668,11 @@ function updateLineWithLocalSelection(
     return true;
   });
 
+  const groupOptionLabels = (group.options || [])
+    .flatMap((candidate) => [candidate.label, candidate.value])
+    .filter(Boolean) as string[];
   const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
-  for (const label of oldSelectedLabels) knownSelections.delete(label);
+  for (const label of [...oldSelectedLabels, ...groupOptionLabels]) knownSelections.delete(label);
   if (group.selectedLabel) knownSelections.delete(group.selectedLabel);
   if (group.selectedValue) knownSelections.delete(group.selectedValue);
   if (selectedLabel) knownSelections.add(selectedLabel);
@@ -733,14 +740,6 @@ function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   return (line.missingQualifiers || []).filter((missing) => !missing.qualifierId || !covered.has(missing.qualifierId));
 }
 
-function selectedDetails(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
-  const fromKnown = (line.knownSelections || []).filter(Boolean);
-  const fromGroups = groups
-    .map((group) => group.selectedLabel || group.options?.find((option) => optionIsSelected(group, option))?.label)
-    .filter(Boolean) as string[];
-  return Array.from(new Set([...fromKnown, ...fromGroups]));
-}
-
 
 function navigateToItem(
   item: ReviewItem | undefined,
@@ -784,10 +783,8 @@ function OrderReview({
   if (!order || !item) return null;
 
   const groups = item.groups;
-  const details = selectedDetails(item.line, groups);
   const missing = missingLabels(item.line, groups);
-  const readyCount = items.filter((entry) => !entry.pending).length;
-  const pendingCount = items.length - readyCount;
+  const pendingCount = items.filter((entry) => entry.pending).length;
   const estimatedTotal = money(order.totals?.estimatedTotal);
   const price = linePrice(item.line);
 
@@ -801,7 +798,7 @@ function OrderReview({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-orange-50/70 px-3 py-2">
         <div className="min-w-0 text-[11px] font-black uppercase tracking-[0.13em] text-orange-700">
-          {readyCount} ready · {pendingCount} needs choices
+          {items.length} items · {pendingCount} needs choices
         </div>
         {estimatedTotal && (
           <div className="shrink-0 rounded-full bg-slate-950 px-2.5 py-1 text-[11px] font-black text-white">
@@ -828,7 +825,7 @@ function OrderReview({
           </div>
         </div>
 
-        {(groups.length > 0 || details.length > 0 || missing.length > 0) && (
+        {(groups.length > 0 || missing.length > 0) && (
           <div className="mt-3 space-y-3">
             {groups.map((group) => (
               <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`}>
@@ -859,21 +856,6 @@ function OrderReview({
                 </div>
               </div>
             ))}
-
-            {details.length > 0 && (
-              <div>
-                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-                  Selected details
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {details.map((detail) => (
-                    <span key={`${item.key}-${detail}`} className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-black text-emerald-800 ring-1 ring-emerald-100">
-                      ✓ {detail}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {missing.length > 0 && (
               <div className="space-y-1.5">
