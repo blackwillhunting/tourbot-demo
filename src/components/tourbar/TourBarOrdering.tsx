@@ -57,12 +57,22 @@ type CarryoutLine = {
   qualifierGroups?: CarryoutQualifierGroup[];
 };
 
+type CannotMatchItem = {
+  text?: string;
+  label?: string;
+  title?: string;
+  item?: string;
+  reason?: string;
+  suggestion?: string;
+};
+
 type CarryoutOrder = {
   type?: string;
   status?: "ready_cart" | "needs_qualifier" | "cannot_match" | string;
   nextAction?: string;
   completeItems?: CarryoutLine[];
   pendingItems?: CarryoutLine[];
+  cannotMatchItems?: CannotMatchItem[];
   items?: CarryoutLine[];
   currentStep?: {
     type?: string;
@@ -527,6 +537,7 @@ function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null
   if (action.includes("checkout_handoff")) return "Ready for checkout";
   if (action.includes("checkout_blocked")) return "Choices needed before checkout";
   if (status === "ready_cart" || action.includes("ready_cart")) return "Review order";
+  if (status === "partial_match" || action.includes("partial_match")) return "Partial order";
   if (status === "needs_qualifier" || action.includes("needs_qualifier")) return "Needs choices";
   if (status === "cannot_match" || action.includes("cannot_match")) return "Could not match that order";
   if (action.includes("show_cart")) return "Review order";
@@ -537,9 +548,13 @@ function bodyFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null)
   const items = reviewItemsFrom(response, order);
   if (items.length) {
     const pendingCount = items.filter((item) => item.pending).length;
+    const cannotCount = order?.cannotMatchItems?.length || 0;
     if (pendingCount > 0) {
-      return "Pick the missing choices, or open the cart to review everything.";
+      return cannotCount
+        ? "Pick the missing choices and review anything TourBar could not add."
+        : "Pick the missing choices, or open the cart to review everything.";
     }
+    if (cannotCount > 0) return "Review matched items and skipped requests before checkout.";
     return "Review the cart before checkout.";
   }
 
@@ -783,6 +798,18 @@ function lineMissingSummary(line: CarryoutLine, groups: CarryoutQualifierGroup[]
   return `${missing.map((item) => item.label || item.qualifierId || "Choice").join(", ")} needed`;
 }
 
+
+function cannotMatchLabel(item: CannotMatchItem) {
+  return String(item.text || item.label || item.title || item.item || "Requested item").replace(/\s+/g, " ").trim();
+}
+
+function cannotMatchReason(item: CannotMatchItem) {
+  const reason = String(item.reason || "not_on_menu").replace(/[_-]+/g, " ").trim().toLowerCase();
+  if (!reason || reason === "not on menu") return "Not on the BurgerRush menu";
+  if (reason === "no matching catalog offer or bundle") return "Not on the BurgerRush menu";
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
+}
+
 function formatLinePrice(line: CarryoutLine) {
   return linePrice(line) || "—";
 }
@@ -845,7 +872,9 @@ function OrderReview({
 
   const pendingItems = items.filter((entry) => entry.pending);
   const readyItems = items.filter((entry) => !entry.pending);
+  const cannotMatchItems = (order.cannotMatchItems || []).filter((entry) => cannotMatchLabel(entry));
   const hasPendingItems = pendingItems.length > 0;
+  const hasCannotMatchItems = cannotMatchItems.length > 0;
   const estimatedTotal = money(order.totals?.estimatedTotal);
   const subtotal = money(order.totals?.subtotal);
   const price = linePrice(item.line);
@@ -946,17 +975,65 @@ function OrderReview({
     );
   };
 
+  const renderCannotMatchSection = () => {
+    if (!cannotMatchItems.length) return null;
+    return (
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-600">
+            Couldn’t add
+          </div>
+          <div className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-700 ring-1 ring-amber-200">
+            Not charged
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          {cannotMatchItems.map((entry, index) => (
+            <div
+              key={`cannot-match-${cannotMatchLabel(entry)}-${index}`}
+              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-amber-950">
+                    {cannotMatchLabel(entry)}
+                  </div>
+                  <div className="mt-0.5 text-[11px] leading-4 text-amber-800">
+                    {cannotMatchReason(entry)}. This item was left out of the matched cart.
+                  </div>
+                  {entry.suggestion && (
+                    <div className="mt-1 text-[11px] font-semibold text-amber-900">
+                      Try: {entry.suggestion}
+                    </div>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-amber-800 ring-1 ring-amber-200">
+                  Skipped
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderCartView = () => (
     <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
-      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${sectionStatusClass(hasPendingItems)}`}>
+      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
         {hasPendingItems
-          ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
-          : "All items are ready for checkout."}
+          ? hasCannotMatchItems
+            ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+            : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
+          : hasCannotMatchItems
+            ? `Matched items are ready. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+            : "All items are ready for checkout."}
       </div>
 
       <div className="max-h-[clamp(180px,34dvh,340px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
-        {items.length ? (
+        {items.length || cannotMatchItems.length ? (
           <>
+            {renderCannotMatchSection()}
             {renderCartSection("Needs choices", pendingItems, "pending")}
             {renderCartSection("Ready items", readyItems, "ready")}
           </>
@@ -971,16 +1048,22 @@ function OrderReview({
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="text-xs font-semibold text-slate-900">
-              {hasPendingItems ? "Complete choices first" : "Review and checkout"}
+              {hasPendingItems ? "Complete choices first" : hasCannotMatchItems ? "Review matched items" : "Review and checkout"}
             </div>
             <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
               {estimatedTotal
-                ? `Estimated total: ${estimatedTotal}`
+                ? hasCannotMatchItems
+                  ? `Estimated total for matched items: ${estimatedTotal}`
+                  : `Estimated total: ${estimatedTotal}`
                 : subtotal
-                  ? `Current subtotal: ${subtotal}`
+                  ? hasCannotMatchItems
+                    ? `Current subtotal for matched items: ${subtotal}`
+                    : `Current subtotal: ${subtotal}`
                   : hasPendingItems
                     ? "Choose the pending item options to finish the draft cart."
-                    : "Checkout handoff is ready once items are complete."}
+                    : hasCannotMatchItems
+                      ? "Skipped items are not included in checkout."
+                      : "Checkout handoff is ready once items are complete."}
             </div>
           </div>
           <button
@@ -996,10 +1079,12 @@ function OrderReview({
             className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
               hasPendingItems
                 ? "bg-amber-600 text-white hover:bg-amber-700"
-                : "bg-emerald-700 text-white hover:bg-emerald-800"
+                : hasCannotMatchItems
+                  ? "bg-slate-950 text-white hover:bg-slate-800"
+                  : "bg-emerald-700 text-white hover:bg-emerald-800"
             }`}
           >
-            {hasPendingItems ? "Review choices" : "Checkout"}
+            {hasPendingItems ? "Review choices" : hasCannotMatchItems ? "Continue" : "Checkout"}
           </button>
         </div>
       </div>
