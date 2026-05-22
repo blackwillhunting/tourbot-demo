@@ -15,7 +15,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import GuideShellStatic, { type GuideShellDemoCommand } from "./components/GuideShellStatic";
-import TourBar, { type TourBarFocusTarget } from "./components/TourBar";
+import TourBarInformational, { type TourBarFocusTarget } from "./components/tourbar/TourBarInformational";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import { guidedDiscoveryDemo } from "./demo/demoScripts";
 
@@ -1505,7 +1505,7 @@ export default function App() {
         onStopDemo={stopDemo}
         tourBarNode={
           showLegacyGuideShell ? null : (
-            <TourBar
+            <TourBarInformational
               siteId="nexapath"
               currentPageId={currentPage}
               onNavigateToFocus={goToTourBarFocus}
