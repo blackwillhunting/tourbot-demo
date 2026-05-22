@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellResult,
@@ -248,39 +249,27 @@ function money(value: unknown) {
 }
 
 function lineStableKey(line: CarryoutLine, index = 0) {
-  return line.lineItemId || line.id || `${line.title || "item"}-${index}`;
+  if (line.lineItemId) return line.lineItemId;
+  const base = line.id || line.title || "item";
+  return `${base}-${index}`;
 }
 
 function lineIdentityKeys(line: CarryoutLine): string[] {
   return [line.lineItemId, line.id].filter((value): value is string => Boolean(value));
 }
 
-function mergeLine(existing: CarryoutLine | undefined, incoming: CarryoutLine) {
-  if (!existing) return incoming;
-  return {
-    ...existing,
-    ...incoming,
-    knownSelections: incoming.knownSelections || existing.knownSelections,
-    missingQualifiers: incoming.missingQualifiers || existing.missingQualifiers,
-    qualifierGroups: incoming.qualifierGroups || existing.qualifierGroups,
-  };
-}
-
 function allLines(order: CarryoutOrder | null) {
   if (!order) return [];
 
-  const map = new Map<string, CarryoutLine>();
-  const add = (line: CarryoutLine, index: number) => {
-    const key = lineStableKey(line, index);
-    map.set(key, mergeLine(map.get(key), line));
-  };
+  const base = order.items?.length
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
 
-  const base = order.items?.length ? order.items : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  base.forEach(add);
-  (order.completeItems || []).forEach(add);
-  (order.pendingItems || []).forEach(add);
-
-  return Array.from(map.values());
+  // Keep review traversal occurrence-based. Repeated menu items can share the
+  // same catalog id, so id-based map merging causes selections from item 1 to
+  // appear on item 2. Only the backend-provided lineItemId is treated as a
+  // globally stable identity; otherwise the line's position is part of identity.
+  return base.map((line) => ({ ...line }));
 }
 
 function lineIsPending(line: CarryoutLine) {
@@ -605,13 +594,6 @@ function groupMatchesGroup(a: CarryoutQualifierGroup, b: CarryoutQualifierGroup)
   );
 }
 
-function lineMatchesLine(a: CarryoutLine, b: CarryoutLine, aIndex = 0, bIndex = 0) {
-  const aKeys = lineIdentityKeys(a);
-  const bKeys = lineIdentityKeys(b);
-  if (aKeys.some((key) => bKeys.includes(key))) return true;
-  return lineStableKey(a, aIndex) === lineStableKey(b, bIndex);
-}
-
 function selectedOptionLabels(group: CarryoutQualifierGroup) {
   return (group.options || [])
     .filter((option) => optionIsSelected(group, option))
@@ -711,25 +693,18 @@ function applyLocalQualifierSelection(
 ): CarryoutOrder | null {
   if (!order) return order;
 
-  const updateArray = (lines?: CarryoutLine[]) =>
-    (lines || []).map((line, index) =>
-      lineMatchesLine(line, item.line, index, item.index)
-        ? updateLineWithLocalSelection(line, item, group, option)
-        : line,
-    );
+  const nextItems = allLines(order).map((line, index) =>
+    lineStableKey(line, index) === item.key
+      ? updateLineWithLocalSelection(line, item, group, option)
+      : line,
+  );
 
   const nextOrder: CarryoutOrder = {
     ...order,
-    items: order.items ? updateArray(order.items) : order.items,
-    completeItems: updateArray(order.completeItems),
-    pendingItems: updateArray(order.pendingItems),
-    currentQualifierControls: (order.currentQualifierControls || []).map((candidate) =>
-      groupMatchesGroup(candidate, group) ? withSelectedOption(candidate, option) : candidate,
-    ),
-    currentStep:
-      order.currentStep?.qualifierId && group.qualifierId && order.currentStep.qualifierId === group.qualifierId
-        ? { ...order.currentStep, label: option.label || option.value || order.currentStep.label }
-        : order.currentStep,
+    // Store local review changes on the occurrence list only. Do not mutate
+    // currentQualifierControls here; those controls can be shared fallback
+    // data, which would let selections bleed into repeated items.
+    items: nextItems,
   };
 
   return rebuildOrderCollections(nextOrder);
@@ -796,8 +771,8 @@ function OrderReview({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-orange-100 bg-orange-50/70 px-3 py-2">
-        <div className="min-w-0 text-[11px] font-black uppercase tracking-[0.13em] text-orange-700">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="min-w-0 text-[11px] font-black uppercase tracking-[0.13em] text-slate-500">
           {items.length} items · {pendingCount} needs choices
         </div>
         {estimatedTotal && (
@@ -807,68 +782,75 @@ function OrderReview({
         )}
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-              Reviewing item {safeIndex + 1} of {items.length}
-            </div>
-            <div className="mt-1 truncate text-sm font-black text-slate-950">
-              {item.label}
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${item.pending ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                {item.pending ? "Needs choices" : "Ready"}
-              </span>
-              {price && <span className="text-[11px] font-black text-slate-500">{price}</span>}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={item.key}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.09, ease: "easeOut" }}
+          className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                Reviewing item {safeIndex + 1} of {items.length}
+              </div>
+              <div className="mt-1 truncate text-sm font-black text-slate-950">
+                {item.label}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${item.pending ? "bg-slate-100 text-slate-700" : "bg-emerald-100 text-emerald-800"}`}>
+                  {item.pending ? "Needs choices" : "Ready"}
+                </span>
+                {price && <span className="text-[11px] font-black text-slate-500">{price}</span>}
+              </div>
             </div>
           </div>
-        </div>
 
-        {(groups.length > 0 || missing.length > 0) && (
-          <div className="mt-3 space-y-3">
-            {groups.map((group) => (
-              <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`}>
-                <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-                  {group.label || "Options"}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(group.options || []).map((option) => {
-                    const selected = optionIsSelected(group, option);
-                    return (
-                      <button
-                        key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
-                        type="button"
-                        onClick={() => onLocalOptionSelect(item, group, option)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
-                          selected
-                            ? "bg-slate-950 text-white"
-                            : group.missing
-                              ? "bg-amber-50 text-amber-800 ring-1 ring-amber-100 hover:bg-amber-100"
-                              : "bg-orange-50 text-orange-800 ring-1 ring-orange-100 hover:bg-orange-100"
-                        }`}
-                      >
-                        <span aria-hidden="true">{selected ? "✓ " : "○ "}</span>
-                        {option.label || option.value}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            {missing.length > 0 && (
-              <div className="space-y-1.5">
-                {missing.map((missingItem) => (
-                  <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-black text-amber-800 ring-1 ring-amber-100">
-                    ○ {missingItem.label || missingItem.qualifierId || "Choice"} needed
+          {(groups.length > 0 || missing.length > 0) && (
+            <div className="mt-3 space-y-3">
+              {groups.map((group) => (
+                <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`}>
+                  <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    {group.label || "Options"}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {(group.options || []).map((option) => {
+                      const selected = optionIsSelected(group, option);
+                      return (
+                        <button
+                          key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
+                          type="button"
+                          onClick={() => onLocalOptionSelect(item, group, option)}
+                          className={`rounded-full px-3 py-1.5 text-xs font-black transition ${
+                            selected
+                              ? "bg-slate-950 text-white"
+                              : "bg-slate-50 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span aria-hidden="true">{selected ? "✓ " : "○ "}</span>
+                          {option.label || option.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {missing.length > 0 && (
+                <div className="space-y-1.5">
+                  {missing.map((missingItem) => (
+                    <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-black text-slate-600 ring-1 ring-slate-200">
+                      ○ {missingItem.label || missingItem.qualifierId || "Choice"} needed
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         <button
@@ -895,7 +877,7 @@ function OrderReview({
       <button
         type="button"
         onClick={() => actions.submitFollowUp("show cart")}
-        className="flex w-full items-center justify-center rounded-2xl bg-orange-500 px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-orange-600"
+        className="flex w-full items-center justify-center rounded-2xl bg-slate-950 px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-slate-800"
       >
         Show cart
       </button>
