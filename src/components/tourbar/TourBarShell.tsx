@@ -7,6 +7,7 @@ import {
   tourBarPendingQueryFromResult,
   useTourBarBookingContext,
   type TourBarBookingContext,
+  type TourBarRequiredBookingField,
 } from "./tourbarBookingContext";
 import {
   ArrowRight,
@@ -80,6 +81,8 @@ export type TourBarShellActions = {
   submitFollowUp: (query: string) => void;
   submitPrimary: (query: string, bookingContextOverride?: TourBarBookingContext | null) => void;
   openStandaloneSheet: (result?: TourBarShellResult | null) => void;
+  openBookingContextSheet: (field: TourBarRequiredBookingField) => void;
+  bookingContext: TourBarBookingContext;
 };
 
 export type TourBarShellProps = {
@@ -294,6 +297,7 @@ export default function TourBarShell({
   const queryRef = useRef<HTMLTextAreaElement | null>(null);
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
   const bookingContextController = useTourBarBookingContext();
+  const [bookingContextReturnResult, setBookingContextReturnResult] = useState<TourBarShellResult | null>(null);
 
   const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
   const canAskFollowUp =
@@ -340,6 +344,7 @@ export default function TourBarShell({
 
     const shouldRetractSheet = Boolean(result || standaloneResult || error);
 
+    setBookingContextReturnResult(null);
     setIsOpen(true);
     setQuery(cleanQuery);
     setFollowUp("");
@@ -399,6 +404,7 @@ export default function TourBarShell({
 
     const priorThread = thread.slice(-8);
 
+    setBookingContextReturnResult(null);
     setIsOpen(true);
     setError("");
     setFollowUp("");
@@ -457,6 +463,43 @@ export default function TourBarShell({
     setIsAnswering(false);
   };
 
+  const openBookingContextSheet = (field: TourBarRequiredBookingField) => {
+    if (isLoading || isAnswering) return;
+
+    const activeResult = standaloneResult || result;
+    const collectionResult = {
+      ...(buildTourBarCollectionResult(field, "") as TourBarShellResult),
+      title: field === "dates" ? "Edit stay dates" : "Edit guests",
+      body:
+        field === "dates"
+          ? "Update the check-in and check-out dates for this booking."
+          : "Update the guest count for this stay.",
+    };
+
+    bookingContextController.openCollection(field);
+    setIsOpen(true);
+    setError("");
+    setFollowUp("");
+    setBookingContextReturnResult(activeResult || null);
+    setStandaloneResult(null);
+    setResult(collectionResult);
+  };
+
+  const completeBookingContextCollection = (
+    pendingQuery: string,
+    bookingContext: TourBarBookingContext,
+  ) => {
+    if (!pendingQuery && bookingContextReturnResult) {
+      setResult(null);
+      setStandaloneResult(bookingContextReturnResult);
+      setBookingContextReturnResult(null);
+      return;
+    }
+
+    setBookingContextReturnResult(null);
+    void submitQuery(pendingQuery, bookingContext);
+  };
+
   const runNextMove = async () => {
     const activeResult = result;
     const nextMove = activeResult?.nextMove;
@@ -493,6 +536,10 @@ export default function TourBarShell({
     openStandaloneSheet: (nextResult) => {
       void openStandaloneSheet(nextResult);
     },
+    openBookingContextSheet: (field) => {
+      openBookingContextSheet(field);
+    },
+    bookingContext: bookingContextController.context,
   };
 
   const standaloneSheet =
@@ -666,8 +713,9 @@ export default function TourBarShell({
                                     controller={bookingContextController}
                                     field={activeCollectionField}
                                     pendingQuery={activeCollectionPendingQuery}
+                                    mode={activeCollectionPendingQuery ? "required" : "edit"}
                                     onResume={(pendingQuery, bookingContext) => {
-                                      void submitQuery(pendingQuery, bookingContext);
+                                      completeBookingContextCollection(pendingQuery, bookingContext);
                                     }}
                                   />
                                 ) : (

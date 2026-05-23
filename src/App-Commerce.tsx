@@ -10,6 +10,7 @@ import {
   Hotel,
   Luggage,
   Moon,
+  Pencil,
   Plane,
   Search,
   Sparkles,
@@ -2788,12 +2789,54 @@ function tourBarBookingFocusTarget(raw: TourBarHotelBookingBackendResponse): Tou
 
 function TourBarHotelBookingHandoffSheet({
   bookingHandoff,
+  actions,
 }: {
   bookingHandoff: TourBarBookingHandoff | null;
+  actions?: TourBarShellActions;
 }) {
   // This is rendered as a standalone TourBar sheet so booking handoff details
   // do not stretch the answer sheet or force the page into a cutoff position.
   if (!bookingHandoff) return null;
+
+  const liveBookingContext = actions?.bookingContext;
+  const datesLabel =
+    liveBookingContext?.datesSelected && liveBookingContext.datesLabel
+      ? liveBookingContext.datesLabel
+      : bookingHandoff.datesLabel;
+  const guestsLabel =
+    liveBookingContext?.guestsSelected && liveBookingContext.guestLabel
+      ? liveBookingContext.guestLabel
+      : bookingHandoff.guestsLabel;
+
+  const editableRowClass =
+    "group flex w-full items-start justify-between gap-3 rounded-xl px-2 py-1.5 text-left transition hover:bg-emerald-100/70 focus:outline-none focus:ring-2 focus:ring-emerald-300";
+  const staticRowClass = "flex items-start justify-between gap-3 px-2 py-1.5";
+
+  const renderStaticRow = (label: string, value: string, bordered = false) => (
+    <div className={`${staticRowClass} ${bordered ? "border-t border-emerald-100 pt-2" : ""}`}>
+      <span className="text-emerald-800/75">{label}</span>
+      <strong className="text-right font-semibold">{value}</strong>
+    </div>
+  );
+
+  const renderEditableRow = (
+    label: string,
+    value: string,
+    field: "dates" | "guests",
+  ) => (
+    <button
+      type="button"
+      onClick={() => actions?.openBookingContextSheet(field)}
+      className={editableRowClass}
+      aria-label={`Edit ${label.toLowerCase()}`}
+    >
+      <span className="text-emerald-800/75">{label}</span>
+      <span className="flex min-w-0 items-start justify-end gap-2 text-right">
+        <strong className="font-semibold">{value}</strong>
+        <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700/55 transition group-hover:text-emerald-900" />
+      </span>
+    </button>
+  );
 
   return (
     <div
@@ -2803,36 +2846,21 @@ function TourBarHotelBookingHandoffSheet({
       <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/70">
         Booking handoff
       </div>
-      <div className="mt-2 space-y-1.5">
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-emerald-800/75">Room</span>
-          <strong className="text-right font-semibold">{bookingHandoff.roomTitle}</strong>
-        </div>
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-emerald-800/75">Add-ons</span>
-          <strong className="text-right font-semibold">{bookingHandoff.packageTitle}</strong>
-        </div>
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-emerald-800/75">Dates</span>
-          <strong className="text-right font-semibold">{bookingHandoff.datesLabel}</strong>
-        </div>
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-emerald-800/75">Guests</span>
-          <strong className="text-right font-semibold">{bookingHandoff.guestsLabel}</strong>
-        </div>
-        <div className="flex items-start justify-between gap-3">
-          <span className="text-emerald-800/75">Budget</span>
-          <strong className="text-right font-semibold">{bookingHandoff.budgetLabel}</strong>
-        </div>
-        <div className="flex items-start justify-between gap-3 border-t border-emerald-100 pt-1.5">
-          <span className="text-emerald-800/75">Estimate</span>
-          <strong className="text-right font-semibold">{bookingHandoff.priceLabel}</strong>
-        </div>
+      <div className="mt-2 space-y-0.5">
+        {renderStaticRow("Room", bookingHandoff.roomTitle)}
+        {renderStaticRow("Add-ons", bookingHandoff.packageTitle)}
+        {actions
+          ? renderEditableRow("Dates", datesLabel, "dates")
+          : renderStaticRow("Dates", datesLabel)}
+        {actions
+          ? renderEditableRow("Guests", guestsLabel, "guests")
+          : renderStaticRow("Guests", guestsLabel)}
+        {renderStaticRow("Budget", bookingHandoff.budgetLabel)}
+        {renderStaticRow("Estimate", bookingHandoff.priceLabel, true)}
       </div>
     </div>
   );
 }
-
 
 function TourBarBookingContextPanel({
   datesSelected,
@@ -4672,10 +4700,11 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
                 onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
               />
             )}
-            renderStandaloneSheet={() => (
+            renderStandaloneSheet={(_result, actions) => (
               tourBarBookingHandoffOpen ? (
                 <TourBarHotelBookingHandoffSheet
                   bookingHandoff={tourBarBookingHandoff}
+                  actions={actions}
                 />
               ) : null
             )}

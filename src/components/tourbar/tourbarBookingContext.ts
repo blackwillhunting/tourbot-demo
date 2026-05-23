@@ -607,11 +607,13 @@ export function TourBarBookingContextPanel({
   controller,
   field,
   pendingQuery,
+  mode = "required",
   onResume,
 }: {
   controller: TourBarBookingContextController;
   field: TourBarRequiredBookingField;
   pendingQuery: string;
+  mode?: "required" | "edit";
   onResume: (pendingQuery: string, bookingContext: TourBarBookingContext) => void;
 }) {
   const { context } = controller;
@@ -635,6 +637,7 @@ export function TourBarBookingContextPanel({
   const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
   const selectedDate = controller.activeDatePicker === "check-in" ? context.checkInDate : context.checkOutDate;
   const isDates = field === "dates";
+  const isEdit = mode === "edit";
 
   return h(
     "div",
@@ -644,8 +647,8 @@ export function TourBarBookingContextPanel({
     },
     h("div", { className: "flex items-start justify-between gap-3" },
       h("div", null,
-        h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400" }, isDates ? "Dates required" : "Guests required"),
-        h("div", { className: "mt-1 text-xs leading-4 text-slate-500" }, isDates ? "Choose check-in and check-out dates to continue." : "Confirm the adults and children for this stay."),
+        h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400" }, isDates ? (isEdit ? "Edit dates" : "Dates required") : (isEdit ? "Edit guests" : "Guests required")),
+        h("div", { className: "mt-1 text-xs leading-4 text-slate-500" }, isDates ? (isEdit ? "Update the check-in and check-out dates for this booking." : "Choose check-in and check-out dates to continue.") : (isEdit ? "Update the adults and children for this stay." : "Confirm the adults and children for this stay.")),
       ),
     ),
     isDates
