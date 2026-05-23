@@ -1425,18 +1425,27 @@ function SectionCard({
       className={`relative scroll-mt-20 sm:scroll-mt-28 ${spotlighted ? "z-[70]" : ""}`}
     >
       {spotlighted && (
-        <motion.div
-          aria-hidden="true"
-          initial={{ opacity: 0, scale: 0.985 }}
-          animate={{ opacity: [0.92, 1, 0.92], scale: [1, 1.006, 1] }}
-          transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -inset-2 z-20 rounded-[34px] border-4 border-cyan-300/95 shadow-[0_0_0_10px_rgba(34,211,238,0.20),0_24px_80px_rgba(34,211,238,0.45)]"
-        />
+        <>
+          <motion.div
+            aria-hidden="true"
+            initial={{ opacity: 0.96, scale: 1.015, backdropFilter: "blur(18px)" }}
+            animate={{ opacity: 0, scale: 1, backdropFilter: "blur(0px)" }}
+            transition={{ duration: 0.82, ease: "easeOut" }}
+            className="pointer-events-none absolute -inset-1 z-30 rounded-[32px] bg-white/60 shadow-[inset_0_0_40px_rgba(255,255,255,0.92)]"
+          />
+          <motion.div
+            aria-hidden="true"
+            initial={{ opacity: 0, scale: 0.992 }}
+            animate={{ opacity: [0.28, 0.46, 0.28], scale: [1, 1.004, 1] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+            className="pointer-events-none absolute -inset-2 z-10 rounded-[34px] shadow-[0_20px_70px_rgba(34,211,238,0.30)]"
+          />
+        </>
       )}
       <Card
         className={`md:hidden transition-all ${
           highlighted
-            ? "border-cyan-300 ring-4 ring-cyan-300/90 shadow-2xl shadow-cyan-300/70"
+            ? "border-white/70 ring-1 ring-cyan-200/70 shadow-xl shadow-cyan-200/25"
             : "border-slate-200 ring-1 ring-slate-200/80"
         } ${
           isSelectedRoom
@@ -1523,7 +1532,7 @@ function SectionCard({
       <Card
         className={`hidden md:block ${
           highlighted
-            ? "border-cyan-300 ring-4 ring-cyan-300/90 shadow-2xl shadow-cyan-300/70"
+            ? "border-white/70 ring-1 ring-cyan-200/70 shadow-xl shadow-cyan-200/25"
             : ""
         } ${
           isSelectedRoom
@@ -2278,10 +2287,12 @@ function TourBarHotelBookingHandoffSheet({
 
 function TourBarNavigationControls({
   state,
+  onBack,
   onNext,
   onStop,
 }: {
   state: TourBarNavigationState | null;
+  onBack: () => void;
   onNext: () => void;
   onStop: () => void;
 }) {
@@ -2289,7 +2300,9 @@ function TourBarNavigationControls({
 
   const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
   const active = state.steps[activeIndex];
+  const previous = state.steps[activeIndex - 1];
   const next = state.steps[activeIndex + 1];
+  const isFirst = activeIndex <= 0;
   const isLast = activeIndex >= state.steps.length - 1;
 
   return (
@@ -2305,6 +2318,11 @@ function TourBarNavigationControls({
           <div className="mt-1 truncate font-semibold">
             {active.targetText || active.targetId}
           </div>
+          {previous && (
+            <div className="mt-0.5 truncate text-xs font-medium text-cyan-800/55">
+              Back: {previous.targetText || previous.targetId}
+            </div>
+          )}
           {next && (
             <div className="mt-0.5 truncate text-xs font-medium text-cyan-800/70">
               Next: {next.targetText || next.targetId}
@@ -2312,6 +2330,14 @@ function TourBarNavigationControls({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isFirst}
+            className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Back
+          </button>
           <button
             type="button"
             onClick={onStop}
@@ -2552,9 +2578,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         };
         const computedPosition = window.getComputedStyle(el).position;
 
-        el.style.outline = "4px solid rgba(125, 211, 252, 0.98)";
-        el.style.outlineOffset = "7px";
-        el.style.boxShadow = "0 0 0 12px rgba(34, 211, 238, 0.22), 0 24px 90px rgba(34, 211, 238, 0.42)";
         if (computedPosition === "static") el.style.position = "relative";
         el.style.zIndex = "80";
 
@@ -2605,6 +2628,22 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     );
     setCurrentPage(pageId);
     spotlightTourBarAnchor(first.targetId, first.targetSelector, initialDelay);
+  };
+
+  const backTourBarNavigationStep = () => {
+    const current = tourBarNavigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const previousIndex = Math.max(current.activeIndex - 1, 0);
+    if (previousIndex === current.activeIndex) return;
+
+    const target = current.steps[previousIndex];
+    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
+
+    tourBarNavigationRunRef.current += 1;
+    setTourBarNavigationState({ ...current, activeIndex: previousIndex });
+    setCurrentPage(pageId);
+    spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
   };
 
   const advanceTourBarNavigationStep = () => {
@@ -3084,6 +3123,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             renderResultExtras={() => (
               <TourBarNavigationControls
                 state={tourBarNavigationState}
+                onBack={backTourBarNavigationStep}
                 onNext={advanceTourBarNavigationStep}
                 onStop={stopTourBarNavigationSequence}
               />
