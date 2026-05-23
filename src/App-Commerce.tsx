@@ -1876,13 +1876,7 @@ function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourB
   };
 }
 
-function TourBarHotelBookingExtras({
-  result,
-  onStageBooking,
-  onSelectDates,
-  onAddGuests,
-  actions,
-}: {
+function TourBarHotelBookingExtras(_props: {
   result: TourBarShellResult;
   onStageBooking: (raw: TourBarHotelBookingBackendResponse) => void;
   onSelectDates: () => void;
@@ -1892,44 +1886,9 @@ function TourBarHotelBookingExtras({
     submitPrimary: (query: string) => void;
   };
 }) {
-  const raw = asRecord(result.raw);
-  const chips = asStringArray(raw.chips || raw.refinementChips);
-
-  return (
-    <div className="space-y-3">
-      {chips.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {chips.slice(0, 3).map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => {
-                if (chip === "Prepare booking summary") {
-                  onStageBooking(raw);
-                  return;
-                }
-
-                if (chip === "Set dates") {
-                  onSelectDates();
-                  return;
-                }
-
-                if (chip === "Add guests") {
-                  onAddGuests();
-                  return;
-                }
-
-                actions.submitFollowUp(chip);
-              }}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950"
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  // TourBar hotel now uses one primary CTA from result.invitation.
+  // The older multi-chip row was useful during tuning but is redundant in the booking sheet.
+  return null;
 }
 
 
