@@ -1387,6 +1387,7 @@ function SectionCard({
   section,
   emphasized,
   spotlighted = false,
+  spotlightNonce = 0,
   pageId,
   index,
   selectedRoom,
@@ -1396,6 +1397,7 @@ function SectionCard({
   section: Section;
   emphasized: boolean;
   spotlighted?: boolean;
+  spotlightNonce?: number;
   pageId: PageId;
   index: number;
   selectedRoom?: string | null;
@@ -1427,18 +1429,20 @@ function SectionCard({
       {spotlighted && (
         <>
           <motion.div
+            key={`tourbar-focus-fog-${section.id}-${spotlightNonce}`}
             aria-hidden="true"
-            initial={{ opacity: 0.96, scale: 1.015, backdropFilter: "blur(18px)" }}
-            animate={{ opacity: 0, scale: 1, backdropFilter: "blur(0px)" }}
-            transition={{ duration: 0.82, ease: "easeOut" }}
-            className="pointer-events-none absolute -inset-1 z-30 rounded-[32px] bg-white/60 shadow-[inset_0_0_40px_rgba(255,255,255,0.92)]"
+            initial={{ opacity: 0.98, scale: 1.018, backdropFilter: "blur(18px)" }}
+            animate={{ opacity: [0.98, 0.84, 0], scale: [1.018, 1.006, 1], backdropFilter: ["blur(18px)", "blur(10px)", "blur(0px)"] }}
+            transition={{ duration: 1.12, times: [0, 0.34, 1], ease: "easeOut" }}
+            className="pointer-events-none absolute -inset-1 z-30 rounded-[32px] bg-slate-100/75 shadow-[inset_0_0_46px_rgba(255,255,255,0.96)] ring-1 ring-white/80 backdrop-blur-xl"
           />
           <motion.div
+            key={`tourbar-focus-glow-${section.id}-${spotlightNonce}`}
             aria-hidden="true"
-            initial={{ opacity: 0, scale: 0.992 }}
-            animate={{ opacity: [0.28, 0.46, 0.28], scale: [1, 1.004, 1] }}
-            transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-            className="pointer-events-none absolute -inset-2 z-10 rounded-[34px] shadow-[0_20px_70px_rgba(34,211,238,0.30)]"
+            initial={{ opacity: 0.86, scale: 0.992 }}
+            animate={{ opacity: [0.86, 0.62, 0.18], scale: [1, 1.006, 1] }}
+            transition={{ duration: 3.4, times: [0, 0.35, 1], ease: "easeOut" }}
+            className="pointer-events-none absolute -inset-2 z-20 rounded-[34px] ring-2 ring-cyan-300/65 shadow-[0_0_0_10px_rgba(34,211,238,0.12),0_24px_80px_rgba(34,211,238,0.34)]"
           />
         </>
       )}
@@ -2364,6 +2368,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [tourBarSpotlightTarget, setTourBarSpotlightTarget] = useState<string | null>(null);
+  const [tourBarSpotlightNonce, setTourBarSpotlightNonce] = useState(0);
   const [demoStatus, setDemoStatus] = useState<DemoStatus>("idle");
   const [guideDemoCommand, setGuideDemoCommand] =
     useState<GuideShellDemoCommand | null>(null);
@@ -2554,57 +2559,73 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     const sectionId = sectionIdFromTourBarTarget(targetId);
     if (!sectionId) return;
 
+    const runToken = tourBarNavigationRunRef.current;
     setActiveAnchor(sectionId);
-    setTourBarSpotlightTarget(sectionId);
+    setTourBarSpotlightTarget(null);
 
     window.setTimeout(() => {
+      if (tourBarNavigationRunRef.current !== runToken) return;
+
       const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
       const el =
         document.querySelector<HTMLElement>(selector) ||
         document.querySelector<HTMLElement>(`[data-tour-id="${sectionId}"]`) ||
         document.getElementById(sectionId);
 
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const revealSpotlight = () => {
+        if (tourBarNavigationRunRef.current !== runToken) return;
 
         const token = `${Date.now()}-${sectionId}`;
-        el.dataset.tourbarSpotlightToken = token;
-        const previous = {
-          outline: el.style.outline,
-          outlineOffset: el.style.outlineOffset,
-          boxShadow: el.style.boxShadow,
-          position: el.style.position,
-          zIndex: el.style.zIndex,
-        };
-        const computedPosition = window.getComputedStyle(el).position;
+        let previous: { position: string; zIndex: string } | null = null;
 
-        if (computedPosition === "static") el.style.position = "relative";
-        el.style.zIndex = "80";
+        if (el) {
+          el.dataset.tourbarSpotlightToken = token;
+          previous = {
+            position: el.style.position,
+            zIndex: el.style.zIndex,
+          };
+          const computedPosition = window.getComputedStyle(el).position;
+
+          if (computedPosition === "static") el.style.position = "relative";
+          el.style.zIndex = "80";
+        }
+
+        setTourBarSpotlightTarget(sectionId);
+        setTourBarSpotlightNonce((current) => current + 1);
+
+        window.dispatchEvent(
+          new CustomEvent("guide-spotlight-target", {
+            detail: {
+              targetId: sectionId,
+              selector,
+            },
+          }),
+        );
 
         window.setTimeout(() => {
-          if (el.dataset.tourbarSpotlightToken !== token) return;
-          el.style.outline = previous.outline;
-          el.style.outlineOffset = previous.outlineOffset;
-          el.style.boxShadow = previous.boxShadow;
-          el.style.position = previous.position;
-          el.style.zIndex = previous.zIndex;
-          delete el.dataset.tourbarSpotlightToken;
-          setTourBarSpotlightTarget((current) => (current === sectionId ? null : current));
-        }, 4600);
+          if (tourBarNavigationRunRef.current !== runToken) return;
+
+          if (el) {
+            if (el.dataset.tourbarSpotlightToken !== token) return;
+            if (previous) {
+              el.style.position = previous.position;
+              el.style.zIndex = previous.zIndex;
+            }
+            delete el.dataset.tourbarSpotlightToken;
+          }
+
+          setTourBarSpotlightTarget((current) =>
+            current === sectionId ? null : current,
+          );
+        }, 5200);
+      };
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        window.setTimeout(revealSpotlight, 620);
       } else {
-        window.setTimeout(() => {
-          setTourBarSpotlightTarget((current) => (current === sectionId ? null : current));
-        }, 4600);
+        window.setTimeout(revealSpotlight, 140);
       }
-
-      window.dispatchEvent(
-        new CustomEvent("guide-spotlight-target", {
-          detail: {
-            targetId: sectionId,
-            selector,
-          },
-        }),
-      );
     }, delay);
   };
 
@@ -3007,6 +3028,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
                   section={section}
                   emphasized={activeAnchor === section.id}
                   spotlighted={tourBarSpotlightTarget === section.id}
+                  spotlightNonce={tourBarSpotlightNonce}
                   pageId={currentPage}
                   index={index}
                   selectedRoom={selectedRoom}
