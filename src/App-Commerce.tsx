@@ -2030,6 +2030,139 @@ function buildTourBarActiveStayPlan(
   };
 }
 
+
+function tourBarWait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function tourBarNextFrame(frames = 1) {
+  return new Promise<void>((resolve) => {
+    let remaining = Math.max(1, frames);
+    const step = () => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+  });
+}
+
+function tourBarTargetElement(sectionId: string, selector?: string) {
+  return (
+    (selector ? document.querySelector<HTMLElement>(selector) : null) ||
+    document.querySelector<HTMLElement>(`[data-tour-id="${sectionId}"]`) ||
+    document.getElementById(sectionId)
+  );
+}
+
+function tourBarStickyHeaderBottom() {
+  const header = document.querySelector<HTMLElement>("header");
+  if (!header) return 0;
+
+  const rect = header.getBoundingClientRect();
+  return Math.max(0, Math.min(window.innerHeight * 0.35, rect.bottom));
+}
+
+function tourBarSafeViewport() {
+  const top = Math.min(window.innerHeight - 180, tourBarStickyHeaderBottom() + 22);
+  const bottom = Math.max(top + 160, window.innerHeight - 34);
+
+  return {
+    top,
+    bottom,
+    height: bottom - top,
+    center: top + (bottom - top) / 2,
+  };
+}
+
+function tourBarTargetScrollTop(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const safe = tourBarSafeViewport();
+  const documentHeight = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+  );
+  const maxScroll = Math.max(0, documentHeight - window.innerHeight);
+
+  const desiredTop =
+    rect.height > safe.height
+      ? window.scrollY + rect.top - safe.top
+      : window.scrollY + rect.top - (safe.top + (safe.height - rect.height) / 2);
+
+  return Math.max(0, Math.min(maxScroll, Math.round(desiredTop)));
+}
+
+function tourBarTargetIsSafelyPlaced(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const safe = tourBarSafeViewport();
+
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  if (rect.height > safe.height) {
+    return rect.top >= safe.top - 8 && rect.top <= safe.top + 56;
+  }
+
+  const center = rect.top + rect.height / 2;
+  const centerTolerance = Math.max(24, Math.min(82, safe.height * 0.14));
+
+  return (
+    rect.top >= safe.top - 8 &&
+    rect.bottom <= safe.bottom + 8 &&
+    Math.abs(center - safe.center) <= centerTolerance
+  );
+}
+
+async function tourBarFindTargetWhenReady(
+  sectionId: string,
+  selector: string,
+  isCurrentRun: () => boolean,
+) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    if (!isCurrentRun()) return null;
+
+    const el = tourBarTargetElement(sectionId, selector);
+    if (el) return el;
+
+    await tourBarNextFrame(1);
+    await tourBarWait(35);
+  }
+
+  return null;
+}
+
+async function tourBarCenterTargetWithVerification(
+  el: HTMLElement,
+  isCurrentRun: () => boolean,
+) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (!isCurrentRun()) return false;
+
+    const top = tourBarTargetScrollTop(el);
+    window.scrollTo({
+      top,
+      behavior: attempt === 3 ? "auto" : "smooth",
+    });
+
+    await tourBarWait(attempt === 0 ? 440 : 260);
+    await tourBarNextFrame(2);
+
+    if (tourBarTargetIsSafelyPlaced(el)) return true;
+  }
+
+  if (!isCurrentRun()) return false;
+
+  window.scrollTo({
+    top: tourBarTargetScrollTop(el),
+    behavior: "auto",
+  });
+  await tourBarNextFrame(3);
+
+  return tourBarTargetIsSafelyPlaced(el);
+}
+
 function packageNavigationTargetsFromCombo(combo: Record<string, any>) {
   const packageTargets = asRecordArray(combo.packageTargets);
   const packageIds = packageIdsFromTourBarCombination(combo);
@@ -2727,36 +2860,45 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     if (!sectionId) return;
 
     const runToken = tourBarNavigationRunRef.current;
-    setActiveAnchor(sectionId);
+    const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
+
     setTourBarSpotlightTarget(null);
 
     window.setTimeout(() => {
-      if (tourBarNavigationRunRef.current !== runToken) return;
+      void (async () => {
+        const isCurrentRun = () => tourBarNavigationRunRef.current === runToken;
+        if (!isCurrentRun()) return;
 
-      const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
-      const el =
-        document.querySelector<HTMLElement>(selector) ||
-        document.querySelector<HTMLElement>(`[data-tour-id="${sectionId}"]`) ||
-        document.getElementById(sectionId);
+        const el = await tourBarFindTargetWhenReady(sectionId, selector, isCurrentRun);
+        if (!el || !isCurrentRun()) return;
 
-      const revealSpotlight = () => {
-        if (tourBarNavigationRunRef.current !== runToken) return;
+        await tourBarNextFrame(2);
+        const centered = await tourBarCenterTargetWithVerification(el, isCurrentRun);
+        if (!isCurrentRun()) return;
 
-        const token = `${Date.now()}-${sectionId}`;
-        let previous: { position: string; zIndex: string } | null = null;
-
-        if (el) {
-          el.dataset.tourbarSpotlightToken = token;
-          previous = {
-            position: el.style.position,
-            zIndex: el.style.zIndex,
-          };
-          const computedPosition = window.getComputedStyle(el).position;
-
-          if (computedPosition === "static") el.style.position = "relative";
-          el.style.zIndex = "80";
+        // Traffic rule: do not mark the target active or draw the focus effect
+        // until after the target has had a chance to pass the viewport check.
+        if (!centered) {
+          window.scrollTo({
+            top: tourBarTargetScrollTop(el),
+            behavior: "auto",
+          });
+          await tourBarNextFrame(3);
+          if (!isCurrentRun()) return;
         }
 
+        const token = `${Date.now()}-${sectionId}`;
+        const previous = {
+          position: el.style.position,
+          zIndex: el.style.zIndex,
+        };
+        const computedPosition = window.getComputedStyle(el).position;
+
+        el.dataset.tourbarSpotlightToken = token;
+        if (computedPosition === "static") el.style.position = "relative";
+        el.style.zIndex = "80";
+
+        setActiveAnchor(sectionId);
         setTourBarSpotlightTarget(sectionId);
         setTourBarSpotlightNonce((current) => current + 1);
 
@@ -2770,31 +2912,20 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         );
 
         window.setTimeout(() => {
-          if (tourBarNavigationRunRef.current !== runToken) return;
+          if (el.dataset.tourbarSpotlightToken !== token) return;
 
-          if (el) {
-            if (el.dataset.tourbarSpotlightToken !== token) return;
-            if (previous) {
-              el.style.position = previous.position;
-              el.style.zIndex = previous.zIndex;
-            }
-            delete el.dataset.tourbarSpotlightToken;
-          }
+          el.style.position = previous.position;
+          el.style.zIndex = previous.zIndex;
+          delete el.dataset.tourbarSpotlightToken;
 
           setTourBarSpotlightTarget((current) =>
             current === sectionId ? null : current,
           );
         }, 5200);
-      };
-
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        window.setTimeout(revealSpotlight, 620);
-      } else {
-        window.setTimeout(revealSpotlight, 140);
-      }
+      })();
     }, delay);
   };
+
 
   const runTourBarNavigationSequence = (
     targets: TourBarPageTarget[],
