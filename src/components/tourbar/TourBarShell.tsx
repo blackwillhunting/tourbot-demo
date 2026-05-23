@@ -492,7 +492,7 @@ export default function TourBarShell({
                       animate={{ y: "0%" }}
                       exit={{ y: "-100%" }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className="rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                      className="max-h-[66vh] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
                       {isLoading && (
                         <div className="px-4 py-4 text-sm font-medium text-slate-600">
