@@ -1926,6 +1926,15 @@ function isBookingNextStepLabel(value?: string | null) {
   return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
 }
 
+function isExplicitTourBarBookingRequest(raw: TourBarHotelBookingBackendResponse) {
+  const artifacts = asRecord(raw.bookingArtifacts);
+  const promptText = [artifacts.normalizedPrompt, artifacts.rawPrompt, raw.message, raw.prompt]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+
+  return /\b(book|booking|reserve|reservation|checkout|prepare|stage|line\s+up|move\s+this)\b/.test(promptText);
+}
+
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
   const target = primaryTourBarTarget(raw);
   const legacyChips = asStringArray(raw.chips || raw.refinementChips);
@@ -2402,7 +2411,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     applyTourBarBookingContext(raw);
 
-    if (target.isBookingAction) {
+    if (target.isBookingAction && isExplicitTourBarBookingRequest(raw)) {
       stageTourBarBooking(raw);
       return;
     }

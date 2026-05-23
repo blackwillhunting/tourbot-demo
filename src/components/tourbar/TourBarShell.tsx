@@ -276,6 +276,7 @@ export default function TourBarShell({
   const [isAnswering, setIsAnswering] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState(initialLoadingMessage);
   const [result, setResult] = useState<TourBarShellResult | null>(null);
+  const [standaloneResult, setStandaloneResult] = useState<TourBarShellResult | null>(null);
   const [thread, setThread] = useState<TourBarThreadMessage[]>([]);
   const [error, setError] = useState("");
   const queryRef = useRef<HTMLTextAreaElement | null>(null);
@@ -321,7 +322,7 @@ export default function TourBarShell({
     const cleanQuery = nextQuery.trim();
     if (!cleanQuery || isLoading || isAnswering) return;
 
-    const shouldRetractSheet = Boolean(result || error);
+    const shouldRetractSheet = Boolean(result || standaloneResult || error);
 
     setIsOpen(true);
     setQuery(cleanQuery);
@@ -330,11 +331,13 @@ export default function TourBarShell({
     if (shouldRetractSheet) {
       setError("");
       setResult(null);
+      setStandaloneResult(null);
       setIsLoading(false);
       await wait(TOURBAR_SHEET_RETRACT_MS);
     } else {
       setError("");
       setResult(null);
+      setStandaloneResult(null);
     }
 
     setLoadingMessage(initialLoadingMessage);
@@ -369,6 +372,7 @@ export default function TourBarShell({
     setFollowUp("");
     setIsAnswering(true);
     setResult(null);
+    setStandaloneResult(null);
     setLoadingMessage(followUpLoadingMessage);
 
     await wait(TOURBAR_SHEET_RETRACT_MS);
@@ -393,13 +397,25 @@ export default function TourBarShell({
     }
   };
 
-  const runNextMove = () => {
+  const runNextMove = async () => {
     const activeResult = result;
     const nextMove = activeResult?.nextMove;
     if (!activeResult || isLoading || isAnswering) return;
 
     const handled = onNextMove?.(activeResult, nextMove);
-    if (handled) return;
+    if (handled) {
+      if (!renderStandaloneSheet) return;
+
+      setFollowUp("");
+      setError("");
+      setStandaloneResult(null);
+      setIsAnswering(true);
+      setResult(null);
+      await wait(TOURBAR_SHEET_RETRACT_MS);
+      setStandaloneResult(activeResult);
+      setIsAnswering(false);
+      return;
+    }
 
     const nextQuery = (nextMove?.query || nextMove?.label || activeResult.invitation?.text || "").trim();
     if (!nextQuery) return;
@@ -414,7 +430,7 @@ export default function TourBarShell({
     void submitFollowUp(nextQuery);
   };
 
-  const sheetVisible = isLoading || Boolean(error) || Boolean(result);
+  const sheetVisible = isLoading || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
 
   const shellActions: TourBarShellActions = {
     submitFollowUp: (nextQuery) => {
@@ -426,8 +442,8 @@ export default function TourBarShell({
   };
 
   const standaloneSheet =
-    result && !isLoading && !error ? renderStandaloneSheet?.(result, shellActions) : null;
-  const isStandaloneSheet = Boolean(standaloneSheet);
+    standaloneResult && !isLoading && !error ? renderStandaloneSheet?.(standaloneResult, shellActions) : null;
+  const isStandaloneSheet = Boolean(standaloneResult);
 
   const followUpComposer =
     onFollowUpSubmit && result?.canFollowUp !== false ? (
@@ -532,7 +548,7 @@ export default function TourBarShell({
               <AnimatePresence>
                 {sheetVisible && (
                   <motion.div
-                    key={`${result?.focusAreaId || result?.action || "sheet"}-${result?.mode || (isLoading ? "loading" : "state")}`}
+                    key={`${standaloneResult ? "standalone" : result?.focusAreaId || result?.action || "sheet"}-${standaloneResult?.mode || result?.mode || (isLoading ? "loading" : "state")}`}
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
@@ -558,7 +574,7 @@ export default function TourBarShell({
                         </div>
                       )}
 
-                      {result && (
+                      {(result || standaloneResult) && (
                         <div>
                           {isStandaloneSheet ? (
                             <>
@@ -567,13 +583,12 @@ export default function TourBarShell({
                                   Booking handoff
                                 </div>
                                 <div className="mt-1 text-sm font-semibold text-emerald-950">
-                                  {result.title}
+                                  {standaloneResult?.title || result?.title || "Booking handoff"}
                                 </div>
                               </div>
 
                               <div className="space-y-3 px-4 py-3">
                                 {standaloneSheet}
-                                {followUpComposer}
                               </div>
                             </>
                           ) : (
@@ -582,30 +597,30 @@ export default function TourBarShell({
                                 <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                                   {resultEyebrow}
                                 </div>
-                                <div className="mt-1 text-sm font-semibold text-slate-950">{result.title}</div>
+                                <div className="mt-1 text-sm font-semibold text-slate-950">{result!.title}</div>
                               </div>
 
                               <div className="space-y-3 px-4 py-3">
-                                {result.body && (
-                                  <MarkdownLite text={result.body} />
+                                {result!.body && (
+                                  <MarkdownLite text={result!.body} />
                                 )}
 
-                                {renderResultExtras?.(result, shellActions)}
+                                {renderResultExtras?.(result!, shellActions)}
 
-                                {result.invitation?.text && (
-                                  result.nextMove?.query || result.nextMove?.focusAreaId ? (
+                                {result!.invitation?.text && (
+                                  result!.nextMove?.query || result!.nextMove?.focusAreaId ? (
                                     <button
                                       type="button"
-                                      onClick={runNextMove}
+                                      onClick={() => void runNextMove()}
                                       disabled={isLoading || isAnswering}
                                       className="group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
                                     >
-                                      <span>{result.invitation.text}</span>
+                                      <span>{result!.invitation!.text}</span>
                                       <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5" />
                                     </button>
                                   ) : (
                                     <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
-                                      {result.invitation.text}
+                                      {result!.invitation!.text}
                                     </div>
                                   )
                                 )}
