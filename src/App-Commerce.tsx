@@ -21,10 +21,11 @@ import {
 import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
-import TourBarShell, {
-  type TourBarShellActions,
-  type TourBarShellResult,
-  type TourBarShellTurnContext,
+import TourBarBooking from "./components/tourbar/TourBarBooking";
+import type {
+  TourBarShellActions,
+  TourBarShellResult,
+  TourBarShellTurnContext,
 } from "./components/tourbar/TourBarShell";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
@@ -4679,19 +4680,10 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
       {tourBarMode ? (
         <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
-          <TourBarShell
-            primaryPlaceholder="Ask TourBar to find the right stay..."
-            followUpPlaceholder="Refine this stay..."
-            launcherTitle="Open TourBar hotel booking"
-            launcherAriaLabel="Open TourBar hotel booking"
-            resultEyebrow="TourBar booking"
-            initialLoadingMessage="Resolving the lowest valid room setup…"
-            followUpLoadingMessage="Rechecking the matrix…"
-            onPrimarySubmit={submitTourBarHotelBooking}
-            onFollowUpSubmit={submitTourBarHotelBooking}
+          <TourBarBooking
+            onSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
-            requireBookingContext
             renderResultExtras={(result, actions) => (
               <TourBarNavigationControls
                 state={tourBarNavigationState}
