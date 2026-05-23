@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
-  focusTourBarPageTarget,
   type TourBarShellActions,
   type TourBarShellResult,
   type TourBarThreadMessage,
@@ -901,17 +900,14 @@ function sectionStatusClass(hasPendingItems: boolean) {
 function navigateToItem(
   item: ReviewItem | undefined,
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
-  initialDelayMs = 180,
 ) {
   const targetId = pageTarget(item?.targetId);
   if (!targetId && !item?.targetSelector) return;
-  const target = {
+  onNavigateToFocus?.({
     targetId,
     targetSelector: item?.targetSelector,
     label: item?.label,
-  };
-  onNavigateToFocus?.(target);
-  void focusTourBarPageTarget(target, { initialDelayMs });
+  });
 }
 
 function OrderReview({
@@ -1460,19 +1456,17 @@ export default function TourBarOrdering({
         const items = reviewItemsFrom(response, order);
         const pendingItem = items.find((item) => item.pending);
         if (pendingItem) {
-          navigateToItem(pendingItem, onNavigateToFocus, 720);
+          navigateToItem(pendingItem, onNavigateToFocus);
           return;
         }
 
         const targetId = pageTarget(result.targetId);
         if (targetId || result.targetSelector) {
-          const target = {
+          onNavigateToFocus?.({
             targetId,
             targetSelector: result.targetSelector,
             label: result.label,
-          };
-          onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target, { initialDelayMs: 720 });
+          });
         }
       }}
     />
