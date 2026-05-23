@@ -87,6 +87,7 @@ export type TourBarShellProps = {
   onNextMove?: (result: TourBarShellResult, nextMove: TourBarNextMove | undefined) => boolean | void;
   buildThreadMessage?: (result: TourBarShellResult) => string;
   renderResultExtras?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
+  renderStandaloneSheet?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
 };
 
 function resultMessage(result: TourBarShellResult | null) {
@@ -266,6 +267,7 @@ export default function TourBarShell({
   onNextMove,
   buildThreadMessage = resultMessage,
   renderResultExtras,
+  renderStandaloneSheet,
 }: TourBarShellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -414,6 +416,48 @@ export default function TourBarShell({
 
   const sheetVisible = isLoading || Boolean(error) || Boolean(result);
 
+  const shellActions: TourBarShellActions = {
+    submitFollowUp: (nextQuery) => {
+      void submitFollowUp(nextQuery);
+    },
+    submitPrimary: (nextQuery) => {
+      void submitQuery(nextQuery);
+    },
+  };
+
+  const standaloneSheet =
+    result && !isLoading && !error ? renderStandaloneSheet?.(result, shellActions) : null;
+  const isStandaloneSheet = Boolean(standaloneSheet);
+
+  const followUpComposer =
+    onFollowUpSubmit && result?.canFollowUp !== false ? (
+      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+        <textarea
+          ref={followUpRef}
+          value={followUp}
+          onChange={(event) => setFollowUp(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+              event.preventDefault();
+              void submitFollowUp();
+            }
+          }}
+          placeholder={followUpPlaceholder}
+          rows={1}
+          className="max-h-28 min-h-8 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+        />
+        <button
+          type="button"
+          onClick={() => void submitFollowUp()}
+          disabled={!canAskFollowUp}
+          className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label="Ask TourBar follow-up"
+        >
+          {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+        </button>
+      </div>
+    ) : null;
+
   return (
     <div className="relative z-[10060] h-9 w-9 shrink-0">
       <AnimatePresence mode="wait">
@@ -516,73 +560,60 @@ export default function TourBarShell({
 
                       {result && (
                         <div>
-                          <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                              {resultEyebrow}
-                            </div>
-                            <div className="mt-1 text-sm font-semibold text-slate-950">{result.title}</div>
-                          </div>
-
-                          <div className="space-y-3 px-4 py-3">
-                            {result.body && (
-                              <MarkdownLite text={result.body} />
-                            )}
-
-                            {renderResultExtras?.(result, {
-                              submitFollowUp: (nextQuery) => {
-                                void submitFollowUp(nextQuery);
-                              },
-                              submitPrimary: (nextQuery) => {
-                                void submitQuery(nextQuery);
-                              },
-                            })}
-
-                            {result.invitation?.text && (
-                              result.nextMove?.query || result.nextMove?.focusAreaId ? (
-                                <button
-                                  type="button"
-                                  onClick={runNextMove}
-                                  disabled={isLoading || isAnswering}
-                                  className="group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
-                                >
-                                  <span>{result.invitation.text}</span>
-                                  <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5" />
-                                </button>
-                              ) : (
-                                <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
-                                  {result.invitation.text}
+                          {isStandaloneSheet ? (
+                            <>
+                              <div className="border-b border-emerald-100 bg-emerald-50/90 px-4 py-3">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/70">
+                                  Booking handoff
                                 </div>
-                              )
-                            )}
-
-                            {onFollowUpSubmit && result.canFollowUp !== false && (
-                              <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-                                <textarea
-                                  ref={followUpRef}
-                                  value={followUp}
-                                  onChange={(event) => setFollowUp(event.target.value)}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" && !event.shiftKey) {
-                                      event.preventDefault();
-                                      void submitFollowUp();
-                                    }
-                                  }}
-                                  placeholder={followUpPlaceholder}
-                                  rows={1}
-                                  className="max-h-28 min-h-8 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => void submitFollowUp()}
-                                  disabled={!canAskFollowUp}
-                                  className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                                  aria-label="Ask TourBar follow-up"
-                                >
-                                  {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                                </button>
+                                <div className="mt-1 text-sm font-semibold text-emerald-950">
+                                  {result.title}
+                                </div>
                               </div>
-                            )}
-                          </div>
+
+                              <div className="space-y-3 px-4 py-3">
+                                {standaloneSheet}
+                                {followUpComposer}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                  {resultEyebrow}
+                                </div>
+                                <div className="mt-1 text-sm font-semibold text-slate-950">{result.title}</div>
+                              </div>
+
+                              <div className="space-y-3 px-4 py-3">
+                                {result.body && (
+                                  <MarkdownLite text={result.body} />
+                                )}
+
+                                {renderResultExtras?.(result, shellActions)}
+
+                                {result.invitation?.text && (
+                                  result.nextMove?.query || result.nextMove?.focusAreaId ? (
+                                    <button
+                                      type="button"
+                                      onClick={runNextMove}
+                                      disabled={isLoading || isAnswering}
+                                      className="group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
+                                    >
+                                      <span>{result.invitation.text}</span>
+                                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5" />
+                                    </button>
+                                  ) : (
+                                    <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
+                                      {result.invitation.text}
+                                    </div>
+                                  )
+                                )}
+
+                                {followUpComposer}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </motion.div>

@@ -2069,27 +2069,19 @@ function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): To
   };
 }
 
-function TourBarHotelBookingExtras({
+function TourBarHotelBookingHandoffSheet({
   bookingHandoff,
 }: {
-  result: TourBarShellResult;
   bookingHandoff: TourBarBookingHandoff | null;
-  onStageBooking: (raw: TourBarHotelBookingBackendResponse) => void;
-  onSelectDates: () => void;
-  onAddGuests: () => void;
-  actions: {
-    submitFollowUp: (query: string) => void;
-    submitPrimary: (query: string) => void;
-  };
 }) {
-  // TourBar hotel now uses one primary CTA from result.invitation.
-  // When that CTA prepares a booking, the handoff lives inside the sheet instead of a page-side booking panel.
+  // This is rendered as a standalone TourBar sheet so booking handoff details
+  // do not stretch the answer sheet or force the page into a cutoff position.
   if (!bookingHandoff) return null;
 
   return (
     <div
       data-tour-id="tourbar-booking-handoff"
-      className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950"
+      className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-3 text-sm text-emerald-950 shadow-sm ring-1 ring-emerald-100/80"
     >
       <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/70">
         Booking handoff
@@ -2822,18 +2814,9 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onFollowUpSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
-            renderResultExtras={(result, actions) => (
-              <TourBarHotelBookingExtras
-                result={result}
+            renderStandaloneSheet={() => (
+              <TourBarHotelBookingHandoffSheet
                 bookingHandoff={tourBarBookingHandoff}
-                actions={actions}
-                onStageBooking={stageTourBarBooking}
-                onSelectDates={() => {
-                  window.dispatchEvent(new CustomEvent("guide-commerce-select-dates"));
-                }}
-                onAddGuests={() => {
-                  window.dispatchEvent(new CustomEvent("guide-commerce-add-guests"));
-                }}
               />
             )}
           />
