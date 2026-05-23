@@ -2242,6 +2242,12 @@ function tourBarPendingQueryFromResult(result?: TourBarShellResult | null) {
 }
 
 
+void extractTourBarDatesFromPrompt;
+void extractTourBarGuestsFromPrompt;
+void buildTourBarCollectionResult;
+void tourBarCollectionWidgetFromResult;
+void tourBarPendingQueryFromResult;
+
 function addTourBarNavigationTarget(
   targets: TourBarPageTarget[],
   value: Record<string, any>,
@@ -3692,6 +3698,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       lockedWidget={lockedWidget}
     />
   );
+  void renderTourBarBookingContextPanel;
 
   const updateTourBarWorkingStayFromTarget = (target?: TourBarPageTarget | null) => {
     if (!target) return;
@@ -4038,18 +4045,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
 
   const focusTourBarTarget = (result: TourBarShellResult) => {
-    const collectionWidget = tourBarCollectionWidgetFromResult(result);
-    if (collectionWidget) {
-      setActiveTourBarBookingWidget(collectionWidget);
-      if (collectionWidget === "dates") {
-        syncTourBarCalendarMonthToDate(checkInDate || "2026-06-12");
-        setTourBarDatePicker("check-in");
-      } else {
-        setTourBarDatePicker(null);
-      }
-      return;
-    }
-
     const raw = asRecord(result.raw);
     const target = primaryTourBarTarget(raw);
 
@@ -4100,111 +4095,47 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
-    const resumeOverride = tourBarBookingResumeOverrideRef.current;
-    tourBarBookingResumeOverrideRef.current = null;
-
-    const parsedDates =
-      resumeOverride?.datesSelected || datesSelected
-        ? null
-        : extractTourBarDatesFromPrompt(query);
-    const parsedGuests =
-      resumeOverride?.guestsSelected || guestsSelected
-        ? null
-        : extractTourBarGuestsFromPrompt(query);
-
-    const effectiveDatesSelected =
-      (resumeOverride?.datesSelected ?? datesSelected) || Boolean(parsedDates);
-    const effectiveGuestsSelected =
-      (resumeOverride?.guestsSelected ?? guestsSelected) || Boolean(parsedGuests);
-    const effectiveCheckInDate =
-      parsedDates?.checkInDate || resumeOverride?.checkInDate || checkInDate;
-    const effectiveCheckOutDate =
-      parsedDates?.checkOutDate || resumeOverride?.checkOutDate || checkOutDate;
-    const effectiveGuestAdults =
-      parsedGuests?.adults ?? resumeOverride?.guestAdults ?? guestAdults;
-    const effectiveGuestChildren =
-      parsedGuests?.children ?? resumeOverride?.guestChildren ?? guestChildren;
+    const shellBookingContext = context.bookingContext || null;
+    const effectiveDatesSelected = Boolean(shellBookingContext?.datesSelected || datesSelected);
+    const effectiveGuestsSelected = Boolean(shellBookingContext?.guestsSelected || guestsSelected);
+    const effectiveCheckInDate = String(shellBookingContext?.checkInDate || checkInDate || "");
+    const effectiveCheckOutDate = String(shellBookingContext?.checkOutDate || checkOutDate || "");
+    const effectiveGuestAdults = Math.max(
+      1,
+      Number(shellBookingContext?.guestAdults ?? shellBookingContext?.adults ?? guestAdults ?? 1),
+    );
+    const effectiveGuestChildren = Math.max(
+      0,
+      Number(shellBookingContext?.guestChildren ?? shellBookingContext?.children ?? guestChildren ?? 0),
+    );
     const effectiveGuestLabel =
-      parsedGuests?.guestLabel ||
-      resumeOverride?.guestLabel ||
+      shellBookingContext?.guestLabel ||
       guestLabel ||
       tourBarGuestLabel(effectiveGuestAdults, effectiveGuestChildren);
 
-    if (
-      resumeOverride?.datesSelected &&
-      resumeOverride.checkInDate &&
-      resumeOverride.checkOutDate
-    ) {
-      setCheckInDate(resumeOverride.checkInDate);
-      setCheckOutDate(resumeOverride.checkOutDate);
+    if (shellBookingContext?.datesSelected && effectiveCheckInDate && effectiveCheckOutDate) {
+      setCheckInDate(effectiveCheckInDate);
+      setCheckOutDate(effectiveCheckOutDate);
       setDatesSelected(true);
       setTourBarDatePicker(null);
       commitTourBarBookingContextToWorkingStay({
-        checkInDate: resumeOverride.checkInDate,
-        checkOutDate: resumeOverride.checkOutDate,
-        datesLabel: formatBookingDateRange(
-          resumeOverride.checkInDate,
-          resumeOverride.checkOutDate,
-        ),
+        checkInDate: effectiveCheckInDate,
+        checkOutDate: effectiveCheckOutDate,
+        datesLabel: formatBookingDateRange(effectiveCheckInDate, effectiveCheckOutDate),
       });
     }
 
-    if (
-      resumeOverride?.guestsSelected &&
-      resumeOverride.guestAdults != null &&
-      resumeOverride.guestChildren != null
-    ) {
-      const resumeGuestLabel =
-        resumeOverride.guestLabel ||
-        tourBarGuestLabel(resumeOverride.guestAdults, resumeOverride.guestChildren);
-      setGuestAdults(resumeOverride.guestAdults);
-      setGuestChildren(resumeOverride.guestChildren);
-      setGuestLabel(resumeGuestLabel);
+    if (shellBookingContext?.guestsSelected) {
+      setGuestAdults(effectiveGuestAdults);
+      setGuestChildren(effectiveGuestChildren);
+      setGuestLabel(effectiveGuestLabel);
       setGuestsSelected(true);
       commitTourBarBookingContextToWorkingStay({
-        adults: resumeOverride.guestAdults,
-        children: resumeOverride.guestChildren,
-        guests: resumeOverride.guestAdults + resumeOverride.guestChildren,
-        guestLabel: resumeGuestLabel,
+        adults: effectiveGuestAdults,
+        children: effectiveGuestChildren,
+        guests: effectiveGuestAdults + effectiveGuestChildren,
+        guestLabel: effectiveGuestLabel,
       });
-    }
-
-    if (parsedDates) {
-      setCheckInDate(parsedDates.checkInDate);
-      setCheckOutDate(parsedDates.checkOutDate);
-      setDatesSelected(true);
-      setTourBarDatePicker(null);
-      commitTourBarBookingContextToWorkingStay({
-        checkInDate: parsedDates.checkInDate,
-        checkOutDate: parsedDates.checkOutDate,
-        datesLabel: parsedDates.datesLabel,
-      });
-    }
-
-    if (parsedGuests) {
-      setGuestAdults(parsedGuests.adults);
-      setGuestChildren(parsedGuests.children);
-      setGuestLabel(parsedGuests.guestLabel);
-      setGuestsSelected(true);
-      commitTourBarBookingContextToWorkingStay({
-        adults: parsedGuests.adults,
-        children: parsedGuests.children,
-        guests: parsedGuests.guests,
-        guestLabel: parsedGuests.guestLabel,
-      });
-    }
-
-    if (!effectiveDatesSelected) {
-      setActiveTourBarBookingWidget("dates");
-      syncTourBarCalendarMonthToDate(checkInDate || "2026-06-12");
-      setTourBarDatePicker("check-in");
-      return buildTourBarCollectionResult("dates", query);
-    }
-
-    if (!effectiveGuestsSelected) {
-      setActiveTourBarBookingWidget("guests");
-      setTourBarDatePicker(null);
-      return buildTourBarCollectionResult("guests", query);
     }
 
     setActiveTourBarBookingWidget(null);
@@ -4732,23 +4663,15 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onFollowUpSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
-            renderResultExtras={(result, actions) => {
-              const collectionWidget = tourBarCollectionWidgetFromResult(result);
-              const pendingQuery = tourBarPendingQueryFromResult(result);
-
-              if (collectionWidget) {
-                return renderTourBarBookingContextPanel(actions, collectionWidget, pendingQuery);
-              }
-
-              return (
-                <TourBarNavigationControls
-                  state={tourBarNavigationState}
-                  onBack={backTourBarNavigationStep}
-                  onNext={advanceTourBarNavigationStep}
-                  onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
-                />
-              );
-            }}
+            requireBookingContext
+            renderResultExtras={(result, actions) => (
+              <TourBarNavigationControls
+                state={tourBarNavigationState}
+                onBack={backTourBarNavigationStep}
+                onNext={advanceTourBarNavigationStep}
+                onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
+              />
+            )}
             renderStandaloneSheet={() => (
               tourBarBookingHandoffOpen ? (
                 <TourBarHotelBookingHandoffSheet

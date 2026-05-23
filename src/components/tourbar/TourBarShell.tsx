@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  buildTourBarCollectionResult,
+  TourBarBookingContextPanel,
+  tourBarCollectionFieldFromResult,
+  tourBarPendingQueryFromResult,
+  useTourBarBookingContext,
+  type TourBarBookingContext,
+} from "./tourbarBookingContext";
+import {
   ArrowRight,
   Loader2,
   Search,
@@ -63,13 +71,14 @@ export type TourBarShellResult = {
 export type TourBarShellTurnContext = {
   currentResult: TourBarShellResult | null;
   thread: TourBarThreadMessage[];
+  bookingContext?: TourBarBookingContext | null;
 };
 
 export type TourBarShellTurnKind = "primary" | "followup";
 
 export type TourBarShellActions = {
   submitFollowUp: (query: string) => void;
-  submitPrimary: (query: string) => void;
+  submitPrimary: (query: string, bookingContextOverride?: TourBarBookingContext | null) => void;
   openStandaloneSheet: (result?: TourBarShellResult | null) => void;
 };
 
@@ -81,6 +90,7 @@ export type TourBarShellProps = {
   resultEyebrow?: string;
   initialLoadingMessage?: string;
   followUpLoadingMessage?: string;
+  requireBookingContext?: boolean;
   onPrimarySubmit: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   onFollowUpSubmit?: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   getNextMoveTurnKind?: (nextMove: TourBarNextMove | undefined, currentResult: TourBarShellResult | null) => TourBarShellTurnKind;
@@ -261,6 +271,7 @@ export default function TourBarShell({
   resultEyebrow = "Focus result",
   initialLoadingMessage = "Finding the right part of this site…",
   followUpLoadingMessage = "Thinking through that follow-up…",
+  requireBookingContext = false,
   onPrimarySubmit,
   onFollowUpSubmit,
   getNextMoveTurnKind,
@@ -282,6 +293,7 @@ export default function TourBarShell({
   const [error, setError] = useState("");
   const queryRef = useRef<HTMLTextAreaElement | null>(null);
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
+  const bookingContextController = useTourBarBookingContext();
 
   const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
   const canAskFollowUp =
@@ -319,7 +331,10 @@ export default function TourBarShell({
     ]);
   };
 
-  const submitQuery = async (nextQuery = query) => {
+  const submitQuery = async (
+    nextQuery = query,
+    bookingContextOverride?: TourBarBookingContext | null,
+  ) => {
     const cleanQuery = nextQuery.trim();
     if (!cleanQuery || isLoading || isAnswering) return;
 
@@ -341,6 +356,18 @@ export default function TourBarShell({
       setStandaloneResult(null);
     }
 
+    const bookingGate = requireBookingContext
+      ? bookingContextController.prepareSubmission(cleanQuery, bookingContextOverride)
+      : { context: bookingContextOverride || bookingContextController.context, missingField: null };
+
+    if (bookingGate.missingField) {
+      bookingContextController.openCollection(bookingGate.missingField);
+      const collectionResult = buildTourBarCollectionResult(bookingGate.missingField, cleanQuery) as TourBarShellResult;
+      setResult(collectionResult);
+      appendThread([], cleanQuery, collectionResult);
+      return;
+    }
+
     setLoadingMessage(initialLoadingMessage);
     setIsLoading(true);
 
@@ -348,6 +375,7 @@ export default function TourBarShell({
       const response = await onPrimarySubmit(cleanQuery, {
         currentResult: null,
         thread: [],
+        bookingContext: bookingGate.context,
       });
 
       setResult(response);
@@ -360,7 +388,10 @@ export default function TourBarShell({
     }
   };
 
-  const submitFollowUp = async (nextFollowUp = followUp) => {
+  const submitFollowUp = async (
+    nextFollowUp = followUp,
+    bookingContextOverride?: TourBarBookingContext | null,
+  ) => {
     const cleanFollowUp = nextFollowUp.trim();
     const activeResult = result;
 
@@ -378,6 +409,19 @@ export default function TourBarShell({
 
     await wait(TOURBAR_SHEET_RETRACT_MS);
 
+    const bookingGate = requireBookingContext
+      ? bookingContextController.prepareSubmission(cleanFollowUp, bookingContextOverride)
+      : { context: bookingContextOverride || bookingContextController.context, missingField: null };
+
+    if (bookingGate.missingField) {
+      bookingContextController.openCollection(bookingGate.missingField);
+      const collectionResult = buildTourBarCollectionResult(bookingGate.missingField, cleanFollowUp) as TourBarShellResult;
+      setResult(collectionResult);
+      appendThread(priorThread, cleanFollowUp, collectionResult);
+      setIsAnswering(false);
+      return;
+    }
+
     setIsLoading(true);
     setIsAnswering(false);
 
@@ -385,6 +429,7 @@ export default function TourBarShell({
       const response = await onFollowUpSubmit(cleanFollowUp, {
         currentResult: activeResult,
         thread: priorThread,
+        bookingContext: bookingGate.context,
       });
 
       setResult(response);
@@ -442,8 +487,8 @@ export default function TourBarShell({
     submitFollowUp: (nextQuery) => {
       void submitFollowUp(nextQuery);
     },
-    submitPrimary: (nextQuery) => {
-      void submitQuery(nextQuery);
+    submitPrimary: (nextQuery, bookingContextOverride) => {
+      void submitQuery(nextQuery, bookingContextOverride);
     },
     openStandaloneSheet: (nextResult) => {
       void openStandaloneSheet(nextResult);
@@ -453,6 +498,8 @@ export default function TourBarShell({
   const standaloneSheet =
     standaloneResult && !isLoading && !error ? renderStandaloneSheet?.(standaloneResult, shellActions) : null;
   const isStandaloneSheet = Boolean(standaloneResult);
+  const activeCollectionField = tourBarCollectionFieldFromResult(result);
+  const activeCollectionPendingQuery = tourBarPendingQueryFromResult(result);
 
   const followUpComposer =
     onFollowUpSubmit && result?.canFollowUp !== false ? (
@@ -614,7 +661,18 @@ export default function TourBarShell({
                                   <MarkdownLite text={result!.body} />
                                 )}
 
-                                {renderResultExtras?.(result!, shellActions)}
+                                {activeCollectionField ? (
+                                  <TourBarBookingContextPanel
+                                    controller={bookingContextController}
+                                    field={activeCollectionField}
+                                    pendingQuery={activeCollectionPendingQuery}
+                                    onResume={(pendingQuery, bookingContext) => {
+                                      void submitQuery(pendingQuery, bookingContext);
+                                    }}
+                                  />
+                                ) : (
+                                  renderResultExtras?.(result!, shellActions)
+                                )}
 
                                 {result!.invitation?.text && (
                                   result!.nextMove?.query || result!.nextMove?.focusAreaId ? (
