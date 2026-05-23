@@ -53,6 +53,14 @@ function asStringArray(value: unknown): string[] {
     : [];
 }
 
+function asRecordArray(value: unknown): Record<string, any>[] {
+  return Array.isArray(value)
+    ? value
+        .map((item) => asRecord(item))
+        .filter((item) => Object.keys(item).length > 0)
+    : [];
+}
+
 function guestCountFromLabel(label: string): number | null {
   const direct = Number(label);
   if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
@@ -1416,7 +1424,7 @@ function SectionCard({
       <Card
         className={`md:hidden transition-all ${
           emphasized
-            ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60"
+            ? "border-white ring-4 ring-cyan-200/95 shadow-2xl shadow-cyan-200/80"
             : "border-slate-200 ring-1 ring-slate-200/80"
         } ${
           isSelectedRoom
@@ -1503,7 +1511,7 @@ function SectionCard({
       <Card
         className={`hidden md:block ${
           emphasized
-            ? "border-slate-900 ring-2 ring-slate-300 shadow-2xl shadow-slate-300/60"
+            ? "border-white ring-4 ring-cyan-200/95 shadow-2xl shadow-cyan-200/80"
             : ""
         } ${
           isSelectedRoom
@@ -1809,13 +1817,23 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
   const action = asRecord(raw.action || raw.suggestedAction);
   const ranked = Array.isArray(raw.rankedDestinations) ? raw.rankedDestinations : [];
   const firstRanked = asRecord(ranked[0]);
-  const selected = asRecord(raw.selectedCombination);
+  const selected = tourBarCombinationFromRaw(raw);
+  const packageIds = packageIdsFromTourBarCombination(selected);
   const bookingAction = String(raw.commerceAction || raw.intent || raw.displayMode || "");
+  const plannerText = [
+    asRecord(raw.bookingArtifacts).normalizedPrompt,
+    asRecord(raw.bookingArtifacts).rawPrompt,
+    raw.answer,
+    raw.body,
+  ].join(" ").toLowerCase();
+  const packageFocused =
+    packageIds.length > 0 &&
+    /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
 
   const targetId =
     action.targetId ||
     firstRanked.targetId ||
-    selected.roomId ||
+    (packageFocused ? packageIds[0] : selected.roomId) ||
     raw.targetId ||
     raw.focusAreaId ||
     "";
@@ -1858,6 +1876,47 @@ function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
 function isBookingNextStepLabel(value?: string | null) {
   const text = String(value || "").toLowerCase();
   return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
+}
+
+function hasTourBarStayContext(context: TourBarShellTurnContext) {
+  return Boolean(context.currentResult || context.thread.length > 0);
+}
+
+function shouldPreferPackageTarget(raw: TourBarHotelBookingBackendResponse, combo: Record<string, any>) {
+  const packageIds = packageIdsFromTourBarCombination(combo);
+  if (!packageIds.length) return false;
+
+  const plannerText = [
+    asRecord(raw.bookingArtifacts).normalizedPrompt,
+    asRecord(raw.bookingArtifacts).rawPrompt,
+    raw.answer,
+    raw.body,
+    asRecord(raw.nextStep).label,
+    asRecord(raw.nextStep).query,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
+}
+
+function spotlightTargetFromTourBarRaw(
+  raw: TourBarHotelBookingBackendResponse,
+  { preferNextStep = false }: { preferNextStep?: boolean } = {},
+) {
+  const selected = tourBarCombinationFromRaw(raw, { preferNextStep });
+  const packageIds = packageIdsFromTourBarCombination(selected);
+  const targetId = shouldPreferPackageTarget(raw, selected)
+    ? packageIds[0]
+    : String(selected.roomId || "");
+
+  if (!targetId) return null;
+
+  return {
+    targetId,
+    pageId: pageIdFromTourBarTarget(targetId),
+    targetSelector: `[data-tour-id="${targetId}"], #${targetId}`,
+  };
 }
 
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
@@ -1932,22 +1991,65 @@ function priceLabelFromTourBarCombination(selected: Record<string, any>) {
   return "Rate ready";
 }
 
+function tourBarCombinationFromRaw(
+  raw: TourBarHotelBookingBackendResponse,
+  { preferNextStep = false }: { preferNextStep?: boolean } = {},
+) {
+  const nextStep = asRecord(raw.nextStep);
+  const nextStepComboId = String(nextStep.comboId || "").trim();
+  const candidates = [
+    asRecord(raw.nextStepCombination),
+    asRecord(raw.selectedCombination),
+    ...asRecordArray(raw.matrixResults),
+    ...asRecordArray(raw.alternatives),
+  ];
+
+  if (preferNextStep && nextStepComboId) {
+    const match = candidates.find((combo) => String(combo.comboId || "") === nextStepComboId);
+    if (match) return match;
+  }
+
+  const nextStepCombination = asRecord(raw.nextStepCombination);
+  if (preferNextStep && nextStepCombination.comboId) return nextStepCombination;
+
+  const selected = asRecord(raw.selectedCombination);
+  if (selected.comboId || selected.roomId) return selected;
+
+  return nextStepCombination.comboId || nextStepCombination.roomId ? nextStepCombination : {};
+}
+
+function packageIdsFromTourBarCombination(combo: Record<string, any>) {
+  return normalizeBookingPackageIds(asStringArray(combo.packageIds));
+}
+
+function packageIdsFromStayPlan(stayPlan: Record<string, any>) {
+  return normalizeBookingPackageIds([
+    ...asStringArray(stayPlan.packageIds),
+    ...asRecordArray(stayPlan.packages).map((item) => String(item.targetId || item.packageId || "")),
+  ]);
+}
+
 function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): TourBarBookingHandoff {
   const visibleContext = asRecord(raw.visibleContext);
   const bookingContext = asRecord(visibleContext.bookingContext);
-  const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
-  const selected = asRecord(raw.selectedCombination);
+  const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+  const activeRoom = asRecord(activeStayPlan.room);
+  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
   const roomId = String(
     activeStayPlan.roomId ||
       activeStayPlan.roomTargetId ||
+      activeRoom.targetId ||
+      activeRoom.roomId ||
       selected.roomId ||
       visibleContext.selectedRoomId ||
       "",
   );
   const roomMeta = getRoomMeta(roomId);
-  const packageIds = normalizeBookingPackageIds(
-    asStringArray(activeStayPlan.packageIds || selected.packageIds || visibleContext.selectedPackageIds),
-  );
+  const packageIds = normalizeBookingPackageIds([
+    ...packageIdsFromStayPlan(activeStayPlan),
+    ...packageIdsFromTourBarCombination(selected),
+    ...asStringArray(visibleContext.selectedPackageIds),
+  ]);
   const packageTitles = asStringArray(selected.packageTitles);
   const derivedPackageTitles = packageIds
     .map((packageId) => getPackageMeta(packageId)?.title)
@@ -2152,29 +2254,36 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }, 220);
   };
 
-  const applyTourBarBookingContext = (raw: TourBarHotelBookingBackendResponse) => {
+  const applyTourBarBookingContext = (raw: TourBarHotelBookingBackendResponse, { preferNextStep = false }: { preferNextStep?: boolean } = {}) => {
     const visibleContext = asRecord(raw.visibleContext);
     const bookingContext = asRecord(visibleContext.bookingContext);
-    const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
-    const selected = asRecord(raw.selectedCombination);
+    const activeStayPlan = asRecord(
+      preferNextStep
+        ? raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan
+        : raw.activeStayPlan || visibleContext.activeStayPlan,
+    );
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep });
     const roomId = String(
       activeStayPlan.roomId ||
       activeStayPlan.roomTargetId ||
+      activeRoom.targetId ||
+      activeRoom.roomId ||
       selected.roomId ||
       visibleContext.selectedRoomId ||
       "",
     );
-    const packageIds = asStringArray(
-      activeStayPlan.packageIds ||
-        selected.packageIds ||
-        (visibleContext.suggestedPackageId ? [visibleContext.suggestedPackageId] : []),
-    );
+    const packageIds = normalizeBookingPackageIds([
+      ...packageIdsFromStayPlan(activeStayPlan),
+      ...packageIdsFromTourBarCombination(selected),
+      ...(visibleContext.suggestedPackageId ? [String(visibleContext.suggestedPackageId)] : []),
+    ]);
 
     if (roomId && roomStepOrder.includes(roomId)) {
       setSelectedRoom(roomId);
     }
 
-    setSelectedPackages(normalizeBookingPackageIds(packageIds));
+    setSelectedPackages(packageIds);
 
     if (bookingContext.checkInDate && bookingContext.checkOutDate) {
       setCheckInDate(String(bookingContext.checkInDate));
@@ -2199,10 +2308,32 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   };
 
   const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
-    applyTourBarBookingContext(raw);
+    applyTourBarBookingContext(raw, { preferNextStep: true });
     setTourBarBookingHandoff(buildTourBarBookingHandoff(raw));
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
+  };
+
+  const spotlightTourBarAnchor = (targetId: string, targetSelector?: string, delay = 420) => {
+    if (!targetId) return;
+
+    window.setTimeout(() => {
+      const selector = targetSelector || `[data-tour-id="${targetId}"], #${targetId}`;
+      const el =
+        document.querySelector<HTMLElement>(selector) ||
+        document.getElementById(targetId);
+
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      window.dispatchEvent(
+        new CustomEvent("guide-spotlight-target", {
+          detail: {
+            targetId,
+            selector,
+          },
+        }),
+      );
+    }, delay);
   };
 
   const focusTourBarTarget = (result: TourBarShellResult) => {
@@ -2213,6 +2344,17 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     if (target.isBookingAction) {
       stageTourBarBooking(raw);
+
+      const spotlightTarget = spotlightTargetFromTourBarRaw(raw, { preferNextStep: true });
+      if (spotlightTarget) {
+        setCurrentPage(spotlightTarget.pageId);
+        setActiveAnchor(spotlightTarget.targetId);
+        spotlightTourBarAnchor(
+          spotlightTarget.targetId,
+          spotlightTarget.targetSelector,
+          420,
+        );
+      }
       return;
     }
 
@@ -2222,27 +2364,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       setActiveAnchor(target.targetId);
     }
 
-    window.setTimeout(() => {
-      const selector =
-        target.targetSelector ||
-        (target.targetId ? `[data-tour-id="${target.targetId}"], #${target.targetId}` : "");
-      const el = selector
-        ? document.querySelector<HTMLElement>(selector) || document.getElementById(target.targetId)
-        : null;
-
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-
-      if (target.targetId) {
-        window.dispatchEvent(
-          new CustomEvent("guide-spotlight-target", {
-            detail: {
-              targetId: target.targetId,
-              selector: target.targetSelector || `[data-tour-id="${target.targetId}"], #${target.targetId}`,
-            },
-          }),
-        );
-      }
-    }, 420);
+    spotlightTourBarAnchor(target.targetId, target.targetSelector, 420);
   };
 
   const handleTourBarNextMove = (result: TourBarShellResult) => {
@@ -2270,6 +2392,25 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   ): Promise<TourBarShellResult> => {
     setTourBarBookingHandoff(null);
 
+    const includeStayContext = hasTourBarStayContext(context);
+    const visibleStayContext = includeStayContext
+      ? {
+          selectedRoomId: selectedRoom,
+          selectedPackageIds: selectedPackages,
+          bookingContext: {
+            checkInDate: datesSelected ? checkInDate : null,
+            checkOutDate: datesSelected ? checkOutDate : null,
+            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
+            guestLabel: guestsSelected ? guestLabel : null,
+            budgetBand,
+          },
+        }
+      : {
+          selectedRoomId: null,
+          selectedPackageIds: [],
+          bookingContext: {},
+        };
+
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
       headers: {
@@ -2292,15 +2433,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         visibleContext: {
           currentPage,
           activeAnchor,
-          selectedRoomId: selectedRoom,
-          selectedPackageIds: selectedPackages,
-          bookingContext: {
-            checkInDate: datesSelected ? checkInDate : null,
-            checkOutDate: datesSelected ? checkOutDate : null,
-            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
-            guestLabel: guestsSelected ? guestLabel : null,
-            budgetBand,
-          },
+          ...visibleStayContext,
         },
         conversationContext: {
           currentResult: context.currentResult?.raw || context.currentResult || null,
