@@ -1152,6 +1152,44 @@ function formatBookingDateRange(checkIn: string, checkOut: string) {
   return `${startLabel}–${endLabel}`;
 }
 
+function formatBookingDate(value: string) {
+  if (!value) return "Select date";
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return "Select date";
+
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function tourBarGuestLabel(adults: number, children: number) {
+  const safeAdults = Math.max(1, Math.floor(adults || 1));
+  const safeChildren = Math.max(0, Math.floor(children || 0));
+  const adultsLabel = `${safeAdults} adult${safeAdults === 1 ? "" : "s"}`;
+  const childrenLabel =
+    safeChildren > 0 ? `, ${safeChildren} child${safeChildren === 1 ? "" : "ren"}` : "";
+  return `${adultsLabel}${childrenLabel}`;
+}
+
+function tourBarGuestCountsFromLabel(label: string) {
+  const text = String(label || "");
+  const adultMatch = text.match(/(\d+)\s*adult/i);
+  const childMatch = text.match(/(\d+)\s*(?:child|children|kid|kids)/i);
+  const total = guestCountFromLabel(text);
+
+  if (adultMatch || childMatch) {
+    return {
+      adults: Math.max(1, Number(adultMatch?.[1] || total || 1)),
+      children: Math.max(0, Number(childMatch?.[1] || 0)),
+    };
+  }
+
+  if (total) return { adults: Math.max(1, total), children: 0 };
+  return null;
+}
+
 function BookingMock({
   compact = false,
   selectedRoom,
@@ -1942,10 +1980,22 @@ type TourBarWorkingStayContext = {
   activeTargetId: string | null;
   activeRoomId: string | null;
   activePackageId: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  datesLabel?: string | null;
+  adults?: number | null;
+  children?: number | null;
+  guests?: number | null;
+  guestLabel?: string | null;
+  budgetBand?: string | null;
   lastPlannerIntent?: string | null;
   lastResultTitle?: string | null;
   lastResultAction?: string | null;
 };
+
+type TourBarBookingWidget = "dates" | "guests" | null;
+type TourBarDatePickerKind = "check-in" | "check-out" | null;
+type TourBarCalendarMonth = { year: number; monthIndex: number };
 
 function addTourBarNavigationTarget(
   targets: TourBarPageTarget[],
@@ -2024,6 +2074,16 @@ function buildTourBarActiveStayPlan(
     activeTargetId: workingStay.activeTargetId || roomId || null,
     activeRoomId: workingStay.activeRoomId || roomId || null,
     activePackageId: workingStay.activePackageId || packageIds[0] || null,
+    bookingContext: {
+      checkInDate: workingStay.checkInDate || null,
+      checkOutDate: workingStay.checkOutDate || null,
+      datesLabel: workingStay.datesLabel || null,
+      adults: workingStay.adults ?? null,
+      children: workingStay.children ?? null,
+      guests: workingStay.guests ?? null,
+      guestLabel: workingStay.guestLabel || null,
+      budgetBand: workingStay.budgetBand || null,
+    },
     lastPlannerIntent: workingStay.lastPlannerIntent || null,
     lastResultTitle: workingStay.lastResultTitle || null,
     lastResultAction: workingStay.lastResultAction || null,
@@ -2387,9 +2447,15 @@ function packageIdsFromStayPlan(stayPlan: Record<string, any>) {
   ]);
 }
 
-function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): TourBarBookingHandoff {
+function buildTourBarBookingHandoff(
+  raw: TourBarHotelBookingBackendResponse,
+  bookingContextOverride: Record<string, any> = {},
+): TourBarBookingHandoff {
   const visibleContext = asRecord(raw.visibleContext);
-  const bookingContext = asRecord(visibleContext.bookingContext);
+  const bookingContext = {
+    ...asRecord(visibleContext.bookingContext),
+    ...bookingContextOverride,
+  };
   const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
   const activeRoom = asRecord(activeStayPlan.room);
   const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
@@ -2428,7 +2494,9 @@ function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): To
       ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
       : bookingContext.maxTotalBudgetUsd
         ? `Under $${bookingContext.maxTotalBudgetUsd} total`
-        : "No budget limit set";
+        : bookingContext.budgetBand
+          ? String(bookingContext.budgetBand)
+          : "No budget limit set";
 
   return {
     roomTitle: String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room"),
@@ -2510,6 +2578,340 @@ function TourBarHotelBookingHandoffSheet({
           <strong className="text-right font-semibold">{bookingHandoff.priceLabel}</strong>
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function TourBarBookingContextPanel({
+  datesSelected,
+  guestsSelected,
+  checkInDate,
+  checkOutDate,
+  guestAdults,
+  guestChildren,
+  activeWidget,
+  activeDatePicker,
+  calendarMonth,
+  onOpenWidget,
+  onCloseWidget,
+  onOpenDatePicker,
+  onSelectCalendarDate,
+  onShiftCalendarMonth,
+  onApplyDates,
+  onClearDates,
+  onGuestAdultsChange,
+  onGuestChildrenChange,
+  onApplyGuests,
+  onClearGuests,
+}: {
+  datesSelected: boolean;
+  guestsSelected: boolean;
+  checkInDate: string;
+  checkOutDate: string;
+  guestAdults: number;
+  guestChildren: number;
+  activeWidget: TourBarBookingWidget;
+  activeDatePicker: TourBarDatePickerKind;
+  calendarMonth: TourBarCalendarMonth;
+  onOpenWidget: (widget: Exclude<TourBarBookingWidget, null>) => void;
+  onCloseWidget: () => void;
+  onOpenDatePicker: (kind: Exclude<TourBarDatePickerKind, null>) => void;
+  onSelectCalendarDate: (kind: Exclude<TourBarDatePickerKind, null>, value: string) => void;
+  onShiftCalendarMonth: (delta: number) => void;
+  onApplyDates: () => void;
+  onClearDates: () => void;
+  onGuestAdultsChange: (value: number) => void;
+  onGuestChildrenChange: (value: number) => void;
+  onApplyGuests: () => void;
+  onClearGuests: () => void;
+}) {
+  const datesReady = Boolean(checkInDate && checkOutDate && checkOutDate > checkInDate);
+  const guestLabel = tourBarGuestLabel(guestAdults, guestChildren);
+  const dateLabel = datesSelected
+    ? formatBookingDateRange(checkInDate, checkOutDate)
+    : "Add dates";
+  const monthName = new Date(
+    calendarMonth.year,
+    calendarMonth.monthIndex,
+    1,
+  ).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const firstDay = new Date(calendarMonth.year, calendarMonth.monthIndex, 1).getDay();
+  const daysInMonth = new Date(calendarMonth.year, calendarMonth.monthIndex + 1, 0).getDate();
+  const blanks = Array.from({ length: firstDay });
+  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
+  const selectedDate = activeDatePicker === "check-in" ? checkInDate : checkOutDate;
+
+  return (
+    <div
+      data-tour-id="tourbar-booking-context-controls"
+      className="rounded-2xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-white/80"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Stay details
+          </div>
+          <div className="mt-1 text-xs leading-4 text-slate-500">
+            Dates and guests are carried into every follow-up and booking handoff.
+          </div>
+        </div>
+        {activeWidget && (
+          <button
+            type="button"
+            onClick={onCloseWidget}
+            className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-900"
+          >
+            Close
+          </button>
+        )}
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => onOpenWidget("dates")}
+          className={`rounded-xl border px-3 py-2 text-left transition ${
+            activeWidget === "dates"
+              ? "border-slate-900 bg-white shadow-sm"
+              : datesSelected
+                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
+                : "border-dashed border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            <CalendarDays className="h-3 w-3" /> Dates
+          </span>
+          <strong className="mt-1 block truncate text-xs text-slate-950">{dateLabel}</strong>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onOpenWidget("guests")}
+          className={`rounded-xl border px-3 py-2 text-left transition ${
+            activeWidget === "guests"
+              ? "border-slate-900 bg-white shadow-sm"
+              : guestsSelected
+                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
+                : "border-dashed border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            <Users className="h-3 w-3" /> Guests
+          </span>
+          <strong className="mt-1 block truncate text-xs text-slate-950">
+            {guestsSelected ? guestLabel : "Add guests"}
+          </strong>
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeWidget === "dates" && (
+          <motion.div
+            key="tourbar-dates-widget"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+          >
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { kind: "check-in" as const, label: "Check-in", value: checkInDate },
+                { kind: "check-out" as const, label: "Check-out", value: checkOutDate },
+              ].map((item) => (
+                <button
+                  key={item.kind}
+                  type="button"
+                  onClick={() => onOpenDatePicker(item.kind)}
+                  className={`rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100 ${
+                    activeDatePicker === item.kind ? "ring-2 ring-slate-900/10" : ""
+                  }`}
+                >
+                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    {item.label}
+                  </span>
+                  <strong className="mt-1 block text-xs text-slate-950">
+                    {formatBookingDate(item.value)}
+                  </strong>
+                </button>
+              ))}
+            </div>
+
+            {activeDatePicker && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      {activeDatePicker === "check-in" ? "Check-in calendar" : "Check-out calendar"}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-slate-950">{monthName}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onShiftCalendarMonth(-1)}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onShiftCalendarMonth(1)}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                    >
+                      →
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-400">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <div key={day} className="py-0.5">{day}</div>
+                  ))}
+                </div>
+                <div className="mt-1 grid grid-cols-7 gap-1">
+                  {blanks.map((_, index) => (
+                    <div key={`blank-${index}`} />
+                  ))}
+                  {days.map((day) => {
+                    const value = `${calendarMonth.year}-${String(calendarMonth.monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+                    const disabled = Boolean(
+                      activeDatePicker === "check-out" && checkInDate && value <= checkInDate,
+                    );
+                    const isSelected = selectedDate === value;
+
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onSelectCalendarDate(activeDatePicker, value)}
+                        className={`min-h-8 rounded-lg px-0 py-1 text-xs font-semibold transition ${
+                          isSelected
+                            ? "bg-slate-950 text-white shadow-sm"
+                            : disabled
+                              ? "cursor-not-allowed bg-slate-50 text-slate-300"
+                              : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs leading-4 text-slate-500">
+                {datesSelected
+                  ? `Saved: ${formatBookingDateRange(checkInDate, checkOutDate)}`
+                  : datesReady
+                    ? "Ready to save dates."
+                    : "Choose a check-out date after check-in."}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {datesSelected && (
+                  <button
+                    type="button"
+                    onClick={onClearDates}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={!datesReady}
+                  onClick={onApplyDates}
+                  className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  Apply dates
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeWidget === "guests" && (
+          <motion.div
+            key="tourbar-guests-widget"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+          >
+            {[
+              {
+                label: "Adults",
+                value: guestAdults,
+                min: 1,
+                onChange: onGuestAdultsChange,
+              },
+              {
+                label: "Children",
+                value: guestChildren,
+                min: 0,
+                onChange: onGuestChildrenChange,
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2"
+              >
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    {item.label}
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.value}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => item.onChange(Math.max(item.min, item.value - 1))}
+                    className="h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => item.onChange(item.value + 1)}
+                    className="h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs leading-4 text-slate-500">
+                {guestsSelected ? `Saved: ${guestLabel}` : `Ready to save ${guestLabel}.`}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {guestsSelected && (
+                  <button
+                    type="button"
+                    onClick={onClearGuests}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onApplyGuests}
+                  className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                >
+                  Apply guests
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -2621,8 +3023,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
   const [datesSelected, setDatesSelected] = useState(false);
   const [guestsSelected, setGuestsSelected] = useState(false);
-  const [guestLabel, setGuestLabel] = useState("1 guest");
+  const [guestAdults, setGuestAdults] = useState(1);
+  const [guestChildren, setGuestChildren] = useState(0);
+  const [guestLabel, setGuestLabel] = useState(tourBarGuestLabel(1, 0));
   const [budgetBand, setBudgetBand] = useState("");
+  const [activeTourBarBookingWidget, setActiveTourBarBookingWidget] =
+    useState<TourBarBookingWidget>(null);
+  const [tourBarDatePicker, setTourBarDatePicker] =
+    useState<TourBarDatePickerKind>(null);
+  const [tourBarCalendarMonth, setTourBarCalendarMonth] =
+    useState<TourBarCalendarMonth>({ year: 2026, monthIndex: 5 });
   const [activeFormSpotlight, setActiveFormSpotlight] = useState<
     "guests" | null
   >(null);
@@ -2642,6 +3052,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       activeTargetId: "room-business-king",
       activeRoomId: "room-business-king",
       activePackageId: null,
+      checkInDate: null,
+      checkOutDate: null,
+      datesLabel: null,
+      adults: null,
+      children: null,
+      guests: null,
+      guestLabel: null,
     });
   const tourBarNavigationRunRef = React.useRef(0);
 
@@ -2735,6 +3152,217 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }, 220);
   };
 
+  const currentTourBarBookingContext = () => ({
+    checkInDate: datesSelected ? checkInDate : null,
+    checkOutDate: datesSelected ? checkOutDate : null,
+    datesLabel: datesSelected ? formatBookingDateRange(checkInDate, checkOutDate) : null,
+    nights: datesSelected ? bookingNights(checkInDate, checkOutDate) : null,
+    adults: guestsSelected ? guestAdults : null,
+    children: guestsSelected ? guestChildren : null,
+    guests: guestsSelected ? guestAdults + guestChildren : null,
+    guestLabel: guestsSelected ? guestLabel : null,
+    budgetBand,
+  });
+
+  const commitTourBarBookingContextToWorkingStay = (next: {
+    checkInDate?: string | null;
+    checkOutDate?: string | null;
+    datesLabel?: string | null;
+    adults?: number | null;
+    children?: number | null;
+    guests?: number | null;
+    guestLabel?: string | null;
+    budgetBand?: string | null;
+  }) => {
+    setTourBarWorkingStay((current) => ({
+      ...current,
+      ...next,
+    }));
+  };
+
+  const syncTourBarCalendarMonthToDate = (value: string) => {
+    if (!value) return;
+    const [year, month] = value.split("-").map(Number);
+    if (!year || !month) return;
+    setTourBarCalendarMonth({ year, monthIndex: month - 1 });
+  };
+
+  const openTourBarBookingWidget = (widget: Exclude<TourBarBookingWidget, null>) => {
+    setActiveTourBarBookingWidget(widget);
+    if (widget === "dates") {
+      syncTourBarCalendarMonthToDate(checkInDate || "2026-06-12");
+      setTourBarDatePicker("check-in");
+      return;
+    }
+
+    setTourBarDatePicker(null);
+  };
+
+  const closeTourBarBookingWidget = () => {
+    setActiveTourBarBookingWidget(null);
+    setTourBarDatePicker(null);
+  };
+
+  const openTourBarDatePicker = (kind: Exclude<TourBarDatePickerKind, null>) => {
+    syncTourBarCalendarMonthToDate(kind === "check-in" ? checkInDate : checkOutDate || checkInDate);
+    setTourBarDatePicker(kind);
+  };
+
+  const selectTourBarCalendarDate = (
+    kind: Exclude<TourBarDatePickerKind, null>,
+    value: string,
+  ) => {
+    if (kind === "check-in") {
+      setCheckInDate(value);
+      if (checkOutDate && checkOutDate <= value) {
+        setCheckOutDate("");
+      }
+      setDatesSelected(false);
+      syncTourBarCalendarMonthToDate(checkOutDate && checkOutDate > value ? checkOutDate : value);
+      setTourBarDatePicker("check-out");
+      commitTourBarBookingContextToWorkingStay({
+        checkInDate: null,
+        checkOutDate: null,
+        datesLabel: null,
+      });
+      return;
+    }
+
+    setCheckOutDate(value);
+    setDatesSelected(false);
+    setTourBarDatePicker(null);
+    commitTourBarBookingContextToWorkingStay({
+      checkInDate: null,
+      checkOutDate: null,
+      datesLabel: null,
+    });
+  };
+
+  const shiftTourBarCalendarMonth = (delta: number) => {
+    setTourBarCalendarMonth((current) => {
+      const next = new Date(current.year, current.monthIndex + delta, 1);
+      return { year: next.getFullYear(), monthIndex: next.getMonth() };
+    });
+  };
+
+  const applyTourBarDates = () => {
+    if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate) return;
+    const datesLabel = formatBookingDateRange(checkInDate, checkOutDate);
+    setDatesSelected(true);
+    setTourBarDatePicker(null);
+    setTourBarBookingHandoff((current) =>
+      current ? { ...current, datesLabel } : current,
+    );
+    commitTourBarBookingContextToWorkingStay({
+      checkInDate,
+      checkOutDate,
+      datesLabel,
+    });
+
+    if (!guestsSelected) {
+      setActiveTourBarBookingWidget("guests");
+      return;
+    }
+
+    setActiveTourBarBookingWidget(null);
+  };
+
+  const clearTourBarDates = () => {
+    setDatesSelected(false);
+    setCheckInDate("2026-06-12");
+    setCheckOutDate("2026-06-15");
+    setTourBarBookingHandoff((current) =>
+      current ? { ...current, datesLabel: "Dates can be added in the next step" } : current,
+    );
+    setTourBarDatePicker("check-in");
+    syncTourBarCalendarMonthToDate("2026-06-12");
+    commitTourBarBookingContextToWorkingStay({
+      checkInDate: null,
+      checkOutDate: null,
+      datesLabel: null,
+    });
+  };
+
+  const applyTourBarGuests = () => {
+    const safeAdults = Math.max(1, Math.floor(guestAdults || 1));
+    const safeChildren = Math.max(0, Math.floor(guestChildren || 0));
+    const nextGuestLabel = tourBarGuestLabel(safeAdults, safeChildren);
+    setGuestAdults(safeAdults);
+    setGuestChildren(safeChildren);
+    setGuestLabel(nextGuestLabel);
+    setGuestsSelected(true);
+    setTourBarBookingHandoff((current) =>
+      current ? { ...current, guestsLabel: nextGuestLabel } : current,
+    );
+    commitTourBarBookingContextToWorkingStay({
+      adults: safeAdults,
+      children: safeChildren,
+      guests: safeAdults + safeChildren,
+      guestLabel: nextGuestLabel,
+    });
+    setActiveTourBarBookingWidget(null);
+    setActiveFormSpotlight(null);
+  };
+
+  const clearTourBarGuests = () => {
+    setGuestsSelected(false);
+    setGuestAdults(1);
+    setGuestChildren(0);
+    setGuestLabel(tourBarGuestLabel(1, 0));
+    setTourBarBookingHandoff((current) =>
+      current ? { ...current, guestsLabel: "Guests can be added in the next step" } : current,
+    );
+    commitTourBarBookingContextToWorkingStay({
+      adults: null,
+      children: null,
+      guests: null,
+      guestLabel: null,
+    });
+  };
+
+  const renderTourBarBookingContextPanel = () => (
+    <TourBarBookingContextPanel
+      datesSelected={datesSelected}
+      guestsSelected={guestsSelected}
+      checkInDate={checkInDate}
+      checkOutDate={checkOutDate}
+      guestAdults={guestAdults}
+      guestChildren={guestChildren}
+      activeWidget={activeTourBarBookingWidget}
+      activeDatePicker={tourBarDatePicker}
+      calendarMonth={tourBarCalendarMonth}
+      onOpenWidget={openTourBarBookingWidget}
+      onCloseWidget={closeTourBarBookingWidget}
+      onOpenDatePicker={openTourBarDatePicker}
+      onSelectCalendarDate={selectTourBarCalendarDate}
+      onShiftCalendarMonth={shiftTourBarCalendarMonth}
+      onApplyDates={applyTourBarDates}
+      onClearDates={clearTourBarDates}
+      onGuestAdultsChange={(value) => {
+        setGuestAdults(Math.max(1, value));
+        setGuestsSelected(false);
+        commitTourBarBookingContextToWorkingStay({
+          adults: null,
+          children: null,
+          guests: null,
+          guestLabel: null,
+        });
+      }}
+      onGuestChildrenChange={(value) => {
+        setGuestChildren(Math.max(0, value));
+        setGuestsSelected(false);
+        commitTourBarBookingContextToWorkingStay({
+          adults: null,
+          children: null,
+          guests: null,
+          guestLabel: null,
+        });
+      }}
+      onApplyGuests={applyTourBarGuests}
+      onClearGuests={clearTourBarGuests}
+    />
+  );
+
   const updateTourBarWorkingStayFromTarget = (target?: TourBarPageTarget | null) => {
     if (!target) return;
 
@@ -2816,17 +3444,42 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       lastResultAction: String(raw.commerceAction || raw.intent || current.lastResultAction || ""),
     }));
 
-    if (bookingContext.checkInDate && bookingContext.checkOutDate) {
-      setCheckInDate(String(bookingContext.checkInDate));
-      setCheckOutDate(String(bookingContext.checkOutDate));
+    const nextCheckInDate = bookingContext.checkInDate ? String(bookingContext.checkInDate) : "";
+    const nextCheckOutDate = bookingContext.checkOutDate ? String(bookingContext.checkOutDate) : "";
+    const nextGuests = Number(bookingContext.guests || 0);
+    const nextAdults = Number(bookingContext.adults || 0);
+    const nextChildren = Number(bookingContext.children || 0);
+
+    if (nextCheckInDate && nextCheckOutDate) {
+      setCheckInDate(nextCheckInDate);
+      setCheckOutDate(nextCheckOutDate);
       setDatesSelected(true);
       setActiveFormSpotlight(null);
+      commitTourBarBookingContextToWorkingStay({
+        checkInDate: nextCheckInDate,
+        checkOutDate: nextCheckOutDate,
+        datesLabel: formatBookingDateRange(nextCheckInDate, nextCheckOutDate),
+      });
     }
 
-    if (bookingContext.guests || bookingContext.guestLabel) {
-      setGuestLabel(String(bookingContext.guestLabel || `${bookingContext.guests} guests`));
+    if (bookingContext.guests || bookingContext.guestLabel || bookingContext.adults) {
+      const fromLabel = tourBarGuestCountsFromLabel(String(bookingContext.guestLabel || ""));
+      const adults = Math.max(1, nextAdults || fromLabel?.adults || nextGuests || 1);
+      const children = Math.max(0, nextChildren || fromLabel?.children || 0);
+      const nextGuestLabel = String(
+        bookingContext.guestLabel || tourBarGuestLabel(adults, children),
+      );
+      setGuestAdults(adults);
+      setGuestChildren(children);
+      setGuestLabel(nextGuestLabel);
       setGuestsSelected(true);
       setActiveFormSpotlight(null);
+      commitTourBarBookingContextToWorkingStay({
+        adults,
+        children,
+        guests: adults + children,
+        guestLabel: nextGuestLabel,
+      });
     }
 
     if (bookingContext.maxNightlyBudgetUsd || bookingContext.maxTotalBudgetUsd) {
@@ -2840,7 +3493,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
   const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
     applyTourBarBookingContext(raw, { preferNextStep: true });
-    setTourBarBookingHandoff(buildTourBarBookingHandoff(raw));
+    setTourBarBookingHandoff(buildTourBarBookingHandoff(raw, currentTourBarBookingContext()));
     setTourBarBookingHandoffOpen(true);
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
@@ -3019,6 +3672,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       activeTargetId: activeTargetId || roomId,
       activeRoomId: roomId,
       activePackageId: activePackageId || nextPackageIds[0] || null,
+      ...currentTourBarBookingContext(),
       lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
       lastResultTitle: roomMeta?.title || active.targetText || null,
       lastResultAction: "tourbar_guided_stop_booking",
@@ -3104,11 +3758,15 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
-    const activeStayPlan = buildTourBarActiveStayPlan(
-      tourBarWorkingStay,
-      selectedRoom,
-      selectedPackages,
-    );
+    const bookingContext = currentTourBarBookingContext();
+    const activeStayPlan = {
+      ...buildTourBarActiveStayPlan(
+        tourBarWorkingStay,
+        selectedRoom,
+        selectedPackages,
+      ),
+      bookingContext,
+    };
 
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
@@ -3139,13 +3797,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
           selectedPackageIds: activeStayPlan.packageIds,
           activeStayPlan,
           tourBarWorkingStay,
-          bookingContext: {
-            checkInDate: datesSelected ? checkInDate : null,
-            checkOutDate: datesSelected ? checkOutDate : null,
-            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
-            guestLabel: guestsSelected ? guestLabel : null,
-            budgetBand,
-          },
+          bookingContext,
         },
         conversationContext: {
           currentResult: context.currentResult?.raw || context.currentResult || null,
@@ -3154,6 +3806,21 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
           commerceContext: {
             activeStayPlan,
             tourBarWorkingStay,
+            dates: datesSelected
+              ? {
+                  checkIn: checkInDate,
+                  checkOut: checkOutDate,
+                  label: formatBookingDateRange(checkInDate, checkOutDate),
+                }
+              : null,
+            guests: guestsSelected
+              ? {
+                  adults: guestAdults,
+                  children: guestChildren,
+                  label: guestLabel,
+                }
+              : null,
+            budget: budgetBand ? { band: budgetBand } : null,
           },
         },
       }),
@@ -3179,6 +3846,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       activeTargetId: section.id,
       activeRoomId: section.id,
       activePackageId: null,
+      ...currentTourBarBookingContext(),
       lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
       lastResultTitle: section.title,
       lastResultAction: "manual_room_book",
@@ -3241,7 +3909,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       }
 
       if (context.guests) {
-        setGuestLabel(context.guests.label || "1 guest");
+        const adults = Math.max(1, Number(context.guests.adults || 1));
+        const children = Math.max(0, Number(context.guests.children || 0));
+        const nextGuestLabel = context.guests.label || tourBarGuestLabel(adults, children);
+        setGuestAdults(adults);
+        setGuestChildren(children);
+        setGuestLabel(nextGuestLabel);
         setGuestsSelected(true);
         setActiveFormSpotlight(null);
       }
@@ -3252,6 +3925,36 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
       setSelectedRoom(normalizedRoomId);
       setSelectedPackages(normalizedPackageIds);
+      setTourBarWorkingStay((current) => ({
+        ...current,
+        roomId: normalizedRoomId,
+        packageIds: normalizedPackageIds,
+        activeTargetId: normalizedRoomId,
+        activeRoomId: normalizedRoomId,
+        activePackageId: normalizedPackageIds[0] || null,
+        ...(context.dates?.checkIn && context.dates?.checkOut
+          ? {
+              checkInDate: context.dates.checkIn,
+              checkOutDate: context.dates.checkOut,
+              datesLabel: context.dates.label || formatBookingDateRange(context.dates.checkIn, context.dates.checkOut),
+            }
+          : {}),
+        ...(context.guests
+          ? {
+              adults: Math.max(1, Number(context.guests.adults || 1)),
+              children: Math.max(0, Number(context.guests.children || 0)),
+              guests:
+                Math.max(1, Number(context.guests.adults || 1)) +
+                Math.max(0, Number(context.guests.children || 0)),
+              guestLabel:
+                context.guests.label ||
+                tourBarGuestLabel(
+                  Math.max(1, Number(context.guests.adults || 1)),
+                  Math.max(0, Number(context.guests.children || 0)),
+                ),
+            }
+          : {}),
+      }));
       setActiveFormSpotlight(null);
 
       if (tourBarMode) {
@@ -3283,6 +3986,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
       if (tourBarMode) {
         setBookingRailSpotlight(false);
+        openTourBarBookingWidget("dates");
         return;
       }
 
@@ -3306,14 +4010,17 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     };
 
     const handleAddGuests = () => {
-      setGuestLabel("1 guest");
-      setGuestsSelected(true);
-      setActiveFormSpotlight("guests");
-
       if (tourBarMode) {
         setBookingRailSpotlight(false);
+        openTourBarBookingWidget("guests");
         return;
       }
+
+      setGuestAdults(1);
+      setGuestChildren(0);
+      setGuestLabel(tourBarGuestLabel(1, 0));
+      setGuestsSelected(true);
+      setActiveFormSpotlight("guests");
 
       setBookingRailSpotlight(true);
       openBookingPanel();
@@ -3539,18 +4246,24 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
             renderResultExtras={(result, actions) => (
-              <TourBarNavigationControls
-                state={tourBarNavigationState}
-                onBack={backTourBarNavigationStep}
-                onNext={advanceTourBarNavigationStep}
-                onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
-              />
+              <>
+                <TourBarNavigationControls
+                  state={tourBarNavigationState}
+                  onBack={backTourBarNavigationStep}
+                  onNext={advanceTourBarNavigationStep}
+                  onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
+                />
+                {renderTourBarBookingContextPanel()}
+              </>
             )}
             renderStandaloneSheet={() => (
               tourBarBookingHandoffOpen ? (
-                <TourBarHotelBookingHandoffSheet
-                  bookingHandoff={tourBarBookingHandoff}
-                />
+                <>
+                  <TourBarHotelBookingHandoffSheet
+                    bookingHandoff={tourBarBookingHandoff}
+                  />
+                  {renderTourBarBookingContextPanel()}
+                </>
               ) : null
             )}
           />
