@@ -53,6 +53,21 @@ function asStringArray(value: unknown): string[] {
     : [];
 }
 
+function guestCountFromLabel(label: string): number | null {
+  const direct = Number(label);
+  if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
+
+  const numbers = Array.from(label.matchAll(/\d+/g)).map((match) => Number(match[0]));
+  if (!numbers.length) return null;
+
+  // Labels like "2 adults, 1 child" should carry the total guest count.
+  if (/adult|child|children|kid|guest|people|traveler|traveller/i.test(label)) {
+    return numbers.reduce((total, value) => total + value, 0);
+  }
+
+  return numbers[0] || null;
+}
+
 export type PageId = "home" | "rooms" | "packages" | "amenities" | "booking";
 
 export type Section = {
@@ -2276,7 +2291,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
           bookingContext: {
             checkInDate: datesSelected ? checkInDate : null,
             checkOutDate: datesSelected ? checkOutDate : null,
-            guests: guestsSelected ? guestLabel : null,
+            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
             guestLabel: guestsSelected ? guestLabel : null,
             budgetBand,
           },
