@@ -98,32 +98,55 @@ async function waitForFocusElement(target: SmartBarFocusTarget, attempts = 18) {
   return smartbarFindFocusElement(target);
 }
 
-function visibleRectBottom(selector: string) {
-  if (typeof document === "undefined") return 0;
+type SmartBarPanelRect = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
 
-  return Array.from(document.querySelectorAll<HTMLElement>(selector)).reduce((bottom, node) => {
-    const rect = node.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return bottom;
-    if (rect.bottom <= 0 || rect.top >= viewportHeight()) return bottom;
-    return Math.max(bottom, Math.min(rect.bottom, viewportHeight()));
-  }, 0);
+function visiblePanelRects() {
+  if (typeof document === "undefined") return [] as SmartBarPanelRect[];
+
+  return SMARTBAR_OPEN_PANEL_SELECTORS.flatMap((selector) =>
+    Array.from(document.querySelectorAll<HTMLElement>(selector))
+      .map((node) => node.getBoundingClientRect())
+      .filter((rect) => rect.width > 0 && rect.height > 0)
+      .filter((rect) => rect.bottom > 0 && rect.top < viewportHeight())
+      .map((rect) => ({
+        left: Math.max(0, rect.left),
+        right: Math.min(viewportWidth(), rect.right),
+        top: Math.max(0, rect.top),
+        bottom: Math.min(rect.bottom, viewportHeight()),
+      })),
+  );
 }
 
-function smartBarSafeTop() {
-  const baseTop = 92;
-  const shellBottom = Math.max(
-    ...SMARTBAR_OPEN_PANEL_SELECTORS.map((selector) => visibleRectBottom(selector)),
-  );
+function rectsOverlapHorizontally(targetRect: DOMRect, panelRect: SmartBarPanelRect) {
+  const targetLeft = Math.max(0, targetRect.left);
+  const targetRight = Math.min(viewportWidth(), targetRect.right);
 
-  // Keep the highlighted target below the visible SmartBar sheet, but avoid
-  // making small mobile viewports impossible to satisfy.
+  return targetRight > panelRect.left && targetLeft < panelRect.right;
+}
+
+function smartBarSafeTop(targetRect?: DOMRect | null) {
+  const baseTop = 92;
+  const relevantPanels = targetRect
+    ? visiblePanelRects().filter((panelRect) => rectsOverlapHorizontally(targetRect, panelRect))
+    : visiblePanelRects();
+  const shellBottom = Math.max(0, ...relevantPanels.map((rect) => rect.bottom));
+
+  // Keep the highlighted target below an open SmartBar sheet only when that
+  // sheet is in the same horizontal lane as the target. On desktop, the chat
+  // panel can sit on the right while the target is in the left page column; in
+  // that case, reserving the panel's vertical height pushes cards too low.
   const dynamicTop = shellBottom > 0 ? shellBottom + 26 : baseTop;
   return Math.min(Math.max(baseTop, dynamicTop), Math.max(120, viewportHeight() - 240));
 }
 
 function focusElementTop(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  const safeTop = smartBarSafeTop();
+  const safeTop = smartBarSafeTop(rect);
   const safeBottom = 108;
   const elementTop = window.scrollY + rect.top;
   const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
@@ -138,7 +161,7 @@ function focusElementTop(element: HTMLElement) {
 
 function focusElementIsPlaced(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  const safeTop = smartBarSafeTop();
+  const safeTop = smartBarSafeTop(rect);
   const safeBottom = 108;
   const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
   const availableHeight = Math.max(180, availableBottom - safeTop);
