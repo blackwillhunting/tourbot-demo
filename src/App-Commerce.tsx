@@ -1842,6 +1842,24 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
   };
 }
 
+function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
+  if (!nextStepLabel) return body;
+
+  const cleaned = body
+    .replace(
+      /\s*(?:Would you like me to|Would you like to|Do you want me to|Want me to|Should I|Ready to)\s+[^.?!\n]*(?:\?|$)\s*$/i,
+      "",
+    )
+    .trim();
+
+  return cleaned || body;
+}
+
+function isBookingNextStepLabel(value?: string | null) {
+  const text = String(value || "").toLowerCase();
+  return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
+}
+
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
   const target = primaryTourBarTarget(raw);
   const legacyChips = asStringArray(raw.chips || raw.refinementChips);
@@ -1864,16 +1882,17 @@ function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourB
     selected.roomTitle ||
     raw.title ||
     "TourBar booking match";
-  const body =
+  const rawBody =
     raw.body ||
     raw.answer ||
     raw.message ||
     raw.reply ||
     "TourBar found a booking option.";
+  const body = stripInlineNextStepPrompt(String(rawBody), nextStepLabel);
 
   return {
     title: String(title),
-    body: String(body),
+    body,
     invitation: nextStepLabel ? { kind: "next_step", text: nextStepLabel } : undefined,
     nextMove: nextStepLabel ? { type: nextStepType, label: nextStepLabel, query: nextStepQuery } : undefined,
     canFollowUp: true,
@@ -2151,6 +2170,25 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         );
       }
     }, 420);
+  };
+
+  const handleTourBarNextMove = (result: TourBarShellResult) => {
+    const raw = asRecord(result.raw);
+    const nextStep = asRecord(raw.nextStep);
+    const label = String(
+      result.nextMove?.label ||
+        result.invitation?.text ||
+        nextStep.label ||
+        "",
+    );
+    const query = String(result.nextMove?.query || nextStep.query || "");
+
+    if (!isBookingNextStepLabel(`${label} ${query}`)) {
+      return false;
+    }
+
+    stageTourBarBooking(raw);
+    return true;
   };
 
   const submitTourBarHotelBooking = async (
@@ -2520,6 +2558,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onPrimarySubmit={submitTourBarHotelBooking}
             onFollowUpSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
+            onNextMove={handleTourBarNextMove}
             renderResultExtras={(result, actions) => (
               <TourBarHotelBookingExtras
                 result={result}

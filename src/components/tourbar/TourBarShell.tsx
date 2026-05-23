@@ -84,6 +84,7 @@ export type TourBarShellProps = {
   onFollowUpSubmit?: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   getNextMoveTurnKind?: (nextMove: TourBarNextMove | undefined, currentResult: TourBarShellResult | null) => TourBarShellTurnKind;
   onResult?: (result: TourBarShellResult, turnKind: TourBarShellTurnKind) => void;
+  onNextMove?: (result: TourBarShellResult, nextMove: TourBarNextMove | undefined) => boolean | void;
   buildThreadMessage?: (result: TourBarShellResult) => string;
   renderResultExtras?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
 };
@@ -262,6 +263,7 @@ export default function TourBarShell({
   onFollowUpSubmit,
   getNextMoveTurnKind,
   onResult,
+  onNextMove,
   buildThreadMessage = resultMessage,
   renderResultExtras,
 }: TourBarShellProps) {
@@ -390,11 +392,17 @@ export default function TourBarShell({
   };
 
   const runNextMove = () => {
-    const nextMove = result?.nextMove;
-    const nextQuery = (nextMove?.query || nextMove?.label || result?.invitation?.text || "").trim();
-    if (!nextQuery || isLoading || isAnswering) return;
+    const activeResult = result;
+    const nextMove = activeResult?.nextMove;
+    if (!activeResult || isLoading || isAnswering) return;
 
-    const nextTurnKind = getNextMoveTurnKind?.(nextMove, result) || "followup";
+    const handled = onNextMove?.(activeResult, nextMove);
+    if (handled) return;
+
+    const nextQuery = (nextMove?.query || nextMove?.label || activeResult.invitation?.text || "").trim();
+    if (!nextQuery) return;
+
+    const nextTurnKind = getNextMoveTurnKind?.(nextMove, activeResult) || "followup";
 
     if (nextTurnKind === "primary") {
       void submitQuery(nextQuery);
