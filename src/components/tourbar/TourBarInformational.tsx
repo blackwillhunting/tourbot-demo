@@ -239,7 +239,7 @@ export default function TourBarInformational({
             label: result.label,
           };
           onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target);
+          void focusTourBarPageTarget(target, { initialDelayMs: 720 });
         }
       }}
     />

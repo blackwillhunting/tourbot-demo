@@ -25,6 +25,9 @@ const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
 const TOURBAR_SHEET_RETRACT_MS = 680;
 const THINKING_WIGGLE_DURATION = 1.15;
 const THINKING_WIGGLE_STAGGER = 0.025;
+const TOURBAR_FOCUS_DEFAULT_DELAY_MS = 700;
+const TOURBAR_FROST_Z_INDEX = 10040;
+
 
 export type TourBarInvitation = {
   kind?: string;
@@ -316,65 +319,115 @@ async function waitForFocusElement(target: TourBarPageFocusTarget, attempts = 18
   return findFocusElement(target);
 }
 
+function viewportHeight() {
+  return window.innerHeight || document.documentElement.clientHeight || 720;
+}
+
+function viewportWidth() {
+  return window.innerWidth || document.documentElement.clientWidth || 360;
+}
+
+function visibleRectBottom(selector: string) {
+  if (typeof document === "undefined") return 0;
+
+  return Array.from(document.querySelectorAll<HTMLElement>(selector)).reduce((bottom, node) => {
+    const rect = node.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return bottom;
+    if (rect.bottom <= 0 || rect.top >= viewportHeight()) return bottom;
+    return Math.max(bottom, Math.min(rect.bottom, viewportHeight()));
+  }, 0);
+}
+
+function tourBarSafeTop() {
+  const baseTop = 92;
+  const shellBottom = Math.max(
+    visibleRectBottom("[data-tourbar-open-panel='true']"),
+    visibleRectBottom("[data-tourbar-sheet-panel='true']"),
+  );
+
+  // The target should not slide underneath the open SmartBar sheet. Cap the
+  // protected zone so very tall sheets do not make navigation impossible on
+  // small screens.
+  const dynamicTop = shellBottom > 0 ? shellBottom + 26 : baseTop;
+  return Math.min(Math.max(baseTop, dynamicTop), Math.max(120, viewportHeight() - 240));
+}
+
 function focusElementTop(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-  const safeTop = 92;
+  const safeTop = tourBarSafeTop();
   const safeBottom = 108;
-  const maxVisibleHeight = Math.max(220, viewportHeight - safeTop - safeBottom);
   const elementTop = window.scrollY + rect.top;
+  const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
+  const availableHeight = Math.max(180, availableBottom - safeTop);
 
-  if (rect.height > maxVisibleHeight) {
+  if (rect.height >= availableHeight) {
     return Math.max(0, elementTop - safeTop);
   }
 
-  return Math.max(0, elementTop - (viewportHeight - rect.height) / 2);
+  return Math.max(0, elementTop - (safeTop + (availableHeight - rect.height) / 2));
 }
 
 function focusElementIsPlaced(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
-  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 360;
-  const centerY = rect.top + rect.height / 2;
+  const safeTop = tourBarSafeTop();
+  const safeBottom = 108;
+  const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
+  const availableHeight = Math.max(180, availableBottom - safeTop);
   const centerX = rect.left + rect.width / 2;
+  const horizontallyOk = centerX >= 0 && centerX <= viewportWidth();
 
-  return (
-    centerX >= 0 &&
-    centerX <= viewportWidth &&
-    centerY >= Math.min(180, viewportHeight * 0.28) &&
-    centerY <= Math.max(viewportHeight - 160, viewportHeight * 0.72)
-  );
+  if (!horizontallyOk) return false;
+
+  if (rect.height <= availableHeight) {
+    return rect.top >= safeTop - 18 && rect.bottom <= availableBottom + 24;
+  }
+
+  // Tall targets are allowed to extend below the fold, but they should start
+  // below SmartBar instead of sitting behind the sheet.
+  return rect.top >= safeTop - 20 && rect.top <= safeTop + 28 && rect.bottom >= safeTop + 160;
 }
 
-function clearExistingFrostFocus(element: HTMLElement) {
-  element
-    .querySelectorAll<HTMLElement>(":scope > [data-tourbar-frost-focus='true']")
+function clearExistingFrostFocus() {
+  if (typeof document === "undefined") return;
+  document
+    .querySelectorAll<HTMLElement>("[data-tourbar-frost-focus='true']")
     .forEach((node) => node.remove());
 }
 
+function targetBorderRadius(element: HTMLElement) {
+  const radius = window.getComputedStyle(element).borderRadius;
+  return radius && radius !== "0px" ? radius : "32px";
+}
+
 function runFrostFocusEffect(element: HTMLElement) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || typeof document === "undefined") return;
 
-  clearExistingFrostFocus(element);
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
 
-  const computed = window.getComputedStyle(element);
-  const previousPosition = element.style.position;
-  const previousZIndex = element.style.zIndex;
-  const shouldRestorePosition = !previousPosition && computed.position === "static";
-  const shouldRestoreZIndex = !previousZIndex;
+  clearExistingFrostFocus();
 
-  if (computed.position === "static") element.style.position = "relative";
-  if (!element.style.zIndex) element.style.zIndex = "70";
+  const radius = targetBorderRadius(element);
+  const frame = document.createElement("div");
+  frame.setAttribute("data-tourbar-frost-focus", "true");
+  frame.setAttribute("aria-hidden", "true");
+  frame.style.cssText = [
+    "pointer-events:none",
+    "position:fixed",
+    `left:${rect.left}px`,
+    `top:${rect.top}px`,
+    `width:${rect.width}px`,
+    `height:${rect.height}px`,
+    `z-index:${TOURBAR_FROST_Z_INDEX}`,
+    "isolation:isolate",
+  ].join(";");
 
   const frost = document.createElement("div");
-  frost.setAttribute("data-tourbar-frost-focus", "true");
-  frost.setAttribute("aria-hidden", "true");
   frost.style.cssText = [
-    "pointer-events:none",
     "position:absolute",
     "inset:-4px",
-    "z-index:30",
-    "border-radius:32px",
+    "z-index:2",
+    `border-radius:${radius}`,
     "background:rgba(241,245,249,0.76)",
     "box-shadow:inset 0 0 46px rgba(255,255,255,0.96)",
     "outline:1px solid rgba(255,255,255,0.82)",
@@ -383,19 +436,17 @@ function runFrostFocusEffect(element: HTMLElement) {
   ].join(";");
 
   const border = document.createElement("div");
-  border.setAttribute("data-tourbar-frost-focus", "true");
-  border.setAttribute("aria-hidden", "true");
   border.style.cssText = [
-    "pointer-events:none",
     "position:absolute",
     "inset:-8px",
-    "z-index:20",
-    "border-radius:34px",
+    "z-index:1",
+    `border-radius:${radius}`,
     "box-shadow:0 0 0 2px rgba(103,232,249,0.65), 0 0 0 10px rgba(34,211,238,0.12), 0 24px 80px rgba(34,211,238,0.34)",
   ].join(";");
 
-  element.appendChild(border);
-  element.appendChild(frost);
+  frame.appendChild(border);
+  frame.appendChild(frost);
+  document.body.appendChild(frame);
 
   frost.animate(
     [
@@ -417,28 +468,35 @@ function runFrostFocusEffect(element: HTMLElement) {
   );
 
   window.setTimeout(() => {
-    frost.remove();
-    border.remove();
-    if (shouldRestorePosition) element.style.position = previousPosition;
-    if (shouldRestoreZIndex) element.style.zIndex = previousZIndex;
+    frame.remove();
   }, 3600);
 }
 
-export async function focusTourBarPageTarget(target: TourBarPageFocusTarget) {
+export async function focusTourBarPageTarget(
+  target: TourBarPageFocusTarget,
+  options: { initialDelayMs?: number } = {},
+) {
   if (typeof window === "undefined" || typeof document === "undefined") return false;
+
+  const initialDelayMs = options.initialDelayMs ?? TOURBAR_FOCUS_DEFAULT_DELAY_MS;
+  if (initialDelayMs > 0) {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, initialDelayMs));
+  }
 
   await waitForFrame();
   const element = await waitForFocusElement(target);
   if (!element) return false;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    window.scrollTo({ top: focusElementTop(element), behavior: "smooth" });
-    await new Promise<void>((resolve) => window.setTimeout(resolve, attempt === 0 ? 520 : 300));
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    window.scrollTo({ top: focusElementTop(element), behavior: attempt === 0 ? "smooth" : "auto" });
+    await new Promise<void>((resolve) => window.setTimeout(resolve, attempt === 0 ? 520 : 180));
+    await waitForFrame();
     if (focusElementIsPlaced(element)) break;
   }
 
-  // Let layout settle after the final scroll. The frost should visibly drop
-  // onto the target after the target is already in the safe viewport.
+  // Let layout settle after the final scroll. The frost is a fixed overlay
+  // derived from the target's final viewport rect, so the target itself never
+  // needs to be raised above SmartBar.
   await new Promise<void>((resolve) => window.setTimeout(resolve, 90));
   runFrostFocusEffect(element);
   window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));
@@ -775,7 +833,7 @@ export default function TourBarShell({
     ) : null;
 
   return (
-    <div className="relative z-[10060] h-9 w-9 shrink-0">
+    <div data-tourbar-shell-root="true" className="relative z-[10060] h-9 w-9 shrink-0">
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
@@ -797,6 +855,7 @@ export default function TourBarShell({
         ) : (
           <motion.div
             key="tourbar-open"
+            data-tourbar-open-panel="true"
             initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
@@ -849,6 +908,7 @@ export default function TourBarShell({
                 {sheetVisible && (
                   <motion.div
                     key={`${standaloneResult ? "standalone" : result?.focusAreaId || result?.action || "sheet"}-${standaloneResult?.mode || result?.mode || (isLoading ? "loading" : "state")}`}
+                    data-tourbar-sheet-panel="true"
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}

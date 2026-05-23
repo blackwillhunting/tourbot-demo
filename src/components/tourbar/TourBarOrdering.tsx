@@ -901,6 +901,7 @@ function sectionStatusClass(hasPendingItems: boolean) {
 function navigateToItem(
   item: ReviewItem | undefined,
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
+  initialDelayMs = 180,
 ) {
   const targetId = pageTarget(item?.targetId);
   if (!targetId && !item?.targetSelector) return;
@@ -910,7 +911,7 @@ function navigateToItem(
     label: item?.label,
   };
   onNavigateToFocus?.(target);
-  void focusTourBarPageTarget(target);
+  void focusTourBarPageTarget(target, { initialDelayMs });
 }
 
 function OrderReview({
@@ -1459,7 +1460,7 @@ export default function TourBarOrdering({
         const items = reviewItemsFrom(response, order);
         const pendingItem = items.find((item) => item.pending);
         if (pendingItem) {
-          navigateToItem(pendingItem, onNavigateToFocus);
+          navigateToItem(pendingItem, onNavigateToFocus, 720);
           return;
         }
 
@@ -1471,7 +1472,7 @@ export default function TourBarOrdering({
             label: result.label,
           };
           onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target);
+          void focusTourBarPageTarget(target, { initialDelayMs: 720 });
         }
       }}
     />
