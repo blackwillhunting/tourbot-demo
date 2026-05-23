@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import AppCommerce from "./App-Commerce";
@@ -82,6 +82,13 @@ function redirectToLaunchSelector() {
   window.location.replace(`/?returnTo=${returnTo}`);
 }
 
+function isLocalDemoAuthBypassEnabled() {
+  return (
+    import.meta.env.DEV &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  );
+}
+
 function CheckingAccessScreen() {
   return (
     <main className="flex h-[100svh] items-center justify-center bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] px-6 text-slate-950 sm:h-screen">
@@ -94,9 +101,14 @@ function CheckingAccessScreen() {
 }
 
 function ProtectedDemoRoute({ children }: { children: ReactNode }) {
-  const [isAllowed, setIsAllowed] = useState(false);
+  const [isAllowed, setIsAllowed] = useState(() => isLocalDemoAuthBypassEnabled());
 
   useEffect(() => {
+    if (isLocalDemoAuthBypassEnabled()) {
+      setIsAllowed(true);
+      return;
+    }
+
     let isCancelled = false;
 
     const verify = async () => {
@@ -130,6 +142,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <AppCommerce />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/tourbar-transactional") {
+    return (
+      <ProtectedDemoRoute>
+        <AppCommerce tourBarMode />
       </ProtectedDemoRoute>
     );
   }

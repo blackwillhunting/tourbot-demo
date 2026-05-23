@@ -20,6 +20,10 @@ import {
 import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
+import TourBarShell, {
+  type TourBarShellResult,
+  type TourBarShellTurnContext,
+} from "./components/tourbar/TourBarShell";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
   guidedCommerceRichIntentDemo,
@@ -27,6 +31,27 @@ import {
   type DemoScript,
 } from "./demo/demoScripts";
 import { commerceGuideConfig } from "./commerce/commerceGuideConfig";
+
+const TOURBAR_HOTEL_BOOKING_ENDPOINT = "/api/guide_ai";
+const TOURBAR_HOTEL_BOOKING_MODE = "tourbar_hotel_booking";
+
+type TourBarHotelBookingBackendResponse = Record<string, any>;
+
+type AppCommerceProps = {
+  tourBarMode?: boolean;
+};
+
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {};
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+}
 
 export type PageId = "home" | "rooms" | "packages" | "amenities" | "booking";
 
@@ -697,6 +722,7 @@ function Header({
   onPauseDemo,
   onResumeDemo,
   onStopDemo,
+  showDemoControls = true,
 }: {
   currentPage: PageId;
   onNavigate: (page: PageId) => void;
@@ -705,6 +731,7 @@ function Header({
   onPauseDemo: () => void;
   onResumeDemo: () => void;
   onStopDemo: () => void;
+  showDemoControls?: boolean;
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
@@ -742,41 +769,43 @@ function Header({
             })}
           </nav>
 
-          <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
-            {demoStatus === "idle" && (
-              <button
-                data-demo-target="start-demo"
-                onClick={onStartDemo}
-                className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
-              >
-                Self-Drive Stay
-              </button>
-            )}
-            {demoStatus === "running" && (
-              <button
-                onClick={onPauseDemo}
-                className="rounded-full bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-200"
-              >
-                Pause
-              </button>
-            )}
-            {demoStatus === "paused" && (
-              <button
-                onClick={onResumeDemo}
-                className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-200"
-              >
-                Resume
-              </button>
-            )}
-            {demoStatus !== "idle" && (
-              <button
-                onClick={onStopDemo}
-                className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-              >
-                Stop
-              </button>
-            )}
-          </div>
+          {showDemoControls && (
+            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
+              {demoStatus === "idle" && (
+                <button
+                  data-demo-target="start-demo"
+                  onClick={onStartDemo}
+                  className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Self-Drive Stay
+                </button>
+              )}
+              {demoStatus === "running" && (
+                <button
+                  onClick={onPauseDemo}
+                  className="rounded-full bg-amber-100 px-3 py-2 text-xs font-semibold text-amber-900 transition hover:bg-amber-200"
+                >
+                  Pause
+                </button>
+              )}
+              {demoStatus === "paused" && (
+                <button
+                  onClick={onResumeDemo}
+                  className="rounded-full bg-emerald-100 px-3 py-2 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-200"
+                >
+                  Resume
+                </button>
+              )}
+              {demoStatus !== "idle" && (
+                <button
+                  onClick={onStopDemo}
+                  className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                >
+                  Stop
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <nav className="flex w-full gap-2 overflow-x-auto pb-1 md:hidden">
@@ -1749,7 +1778,176 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function AppCommerce() {
+
+function pageIdFromTourBarTarget(targetId?: string | null): PageId {
+  const target = String(targetId || "");
+
+  if (target.startsWith("package-")) return "packages";
+  if (target.startsWith("amenity-")) return "amenities";
+  if (target.startsWith("booking-") || target === "payment-module") return "booking";
+  if (target.startsWith("room-")) return "rooms";
+
+  return "home";
+}
+
+function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
+  const action = asRecord(raw.action || raw.suggestedAction);
+  const ranked = Array.isArray(raw.rankedDestinations) ? raw.rankedDestinations : [];
+  const firstRanked = asRecord(ranked[0]);
+  const selected = asRecord(raw.selectedCombination);
+  const bookingAction = String(raw.commerceAction || raw.intent || raw.displayMode || "");
+
+  const targetId =
+    action.targetId ||
+    firstRanked.targetId ||
+    selected.roomId ||
+    raw.targetId ||
+    raw.focusAreaId ||
+    "";
+
+  const pageId =
+    action.pageId ||
+    firstRanked.pageId ||
+    raw.pageId ||
+    pageIdFromTourBarTarget(targetId);
+
+  const targetSelector =
+    action.targetSelector ||
+    firstRanked.targetSelector ||
+    (targetId ? `[data-tour-id="${targetId}"], #${targetId}` : undefined);
+
+  return {
+    pageId: pageId as PageId,
+    targetId: String(targetId || ""),
+    targetSelector: typeof targetSelector === "string" ? targetSelector : undefined,
+    isBookingAction:
+      bookingAction.includes("prepare_booking") ||
+      targetId === "booking-panel" ||
+      pageId === "booking",
+  };
+}
+
+function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
+  const target = primaryTourBarTarget(raw);
+  const chips = asStringArray(raw.chips || raw.refinementChips);
+  const selected = asRecord(raw.selectedCombination);
+  const title =
+    selected.roomShortTitle ||
+    selected.roomTitle ||
+    raw.title ||
+    "TourBar booking match";
+  const body =
+    raw.body ||
+    raw.answer ||
+    raw.message ||
+    raw.reply ||
+    "TourBar found a booking option.";
+
+  return {
+    title: String(title),
+    body: String(body),
+    invitation: chips[0] ? { kind: "chip", text: chips[0] } : undefined,
+    nextMove: chips[0] ? { type: "tourbar_chip", label: chips[0], query: chips[0] } : undefined,
+    canFollowUp: true,
+    focusAreaId: target.targetId || undefined,
+    answerMode: String(raw.displayMode || raw.intent || "tourbar_hotel_booking"),
+    pageId: target.pageId,
+    targetId: target.targetId || undefined,
+    targetSelector: target.targetSelector,
+    label: String(raw.label || title),
+    mode: String(raw.mode || TOURBAR_HOTEL_BOOKING_MODE),
+    action: String(raw.commerceAction || raw.intent || "tourbar_booking_recommendation"),
+    raw,
+  };
+}
+
+function TourBarHotelBookingExtras({
+  result,
+  onStageBooking,
+  onSelectDates,
+  onAddGuests,
+  actions,
+}: {
+  result: TourBarShellResult;
+  onStageBooking: (raw: TourBarHotelBookingBackendResponse) => void;
+  onSelectDates: () => void;
+  onAddGuests: () => void;
+  actions: {
+    submitFollowUp: (query: string) => void;
+    submitPrimary: (query: string) => void;
+  };
+}) {
+  const raw = asRecord(result.raw);
+  const selected = asRecord(raw.selectedCombination);
+  const pricing = asRecord(selected.pricing);
+  const chips = asStringArray(raw.chips || raw.refinementChips);
+  const packageTitles = asStringArray(selected.packageTitles);
+
+  return (
+    <div className="space-y-3">
+      {selected.roomId && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-700">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Deterministic selection
+              </div>
+              <div className="mt-1 font-semibold text-slate-950">
+                {selected.roomShortTitle || selected.roomTitle}
+              </div>
+            </div>
+            {pricing.effectiveNightlyUsd != null && (
+              <div className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-900 ring-1 ring-slate-200">
+                ${Number(pricing.effectiveNightlyUsd).toLocaleString()}/night
+              </div>
+            )}
+          </div>
+
+          {packageTitles.length > 0 && (
+            <div className="mt-2 text-xs leading-5 text-slate-500">
+              Add-ons: {packageTitles.join(", ")}
+            </div>
+          )}
+        </div>
+      )}
+
+      {chips.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {chips.slice(0, 3).map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => {
+                if (chip === "Prepare booking summary") {
+                  onStageBooking(raw);
+                  return;
+                }
+
+                if (chip === "Set dates") {
+                  onSelectDates();
+                  return;
+                }
+
+                if (chip === "Add guests") {
+                  onAddGuests();
+                  return;
+                }
+
+                actions.submitFollowUp(chip);
+              }}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-950"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = {}) {
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const [demoStatus, setDemoStatus] = useState<DemoStatus>("idle");
@@ -1861,6 +2059,194 @@ export default function AppCommerce() {
       const el = document.getElementById("booking-panel");
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 220);
+  };
+
+  const applyTourBarBookingContext = (raw: TourBarHotelBookingBackendResponse) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const bookingContext = asRecord(visibleContext.bookingContext);
+    const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
+    const selected = asRecord(raw.selectedCombination);
+    const roomId = String(
+      activeStayPlan.roomId ||
+      activeStayPlan.roomTargetId ||
+      selected.roomId ||
+      visibleContext.selectedRoomId ||
+      "",
+    );
+    const packageIds = asStringArray(
+      activeStayPlan.packageIds ||
+        selected.packageIds ||
+        (visibleContext.suggestedPackageId ? [visibleContext.suggestedPackageId] : []),
+    );
+
+    if (roomId && roomStepOrder.includes(roomId)) {
+      setSelectedRoom(roomId);
+    }
+
+    setSelectedPackages(normalizeBookingPackageIds(packageIds));
+
+    if (bookingContext.checkInDate && bookingContext.checkOutDate) {
+      setCheckInDate(String(bookingContext.checkInDate));
+      setCheckOutDate(String(bookingContext.checkOutDate));
+      setDatesSelected(true);
+      setActiveFormSpotlight(null);
+    }
+
+    if (bookingContext.guests || bookingContext.guestLabel) {
+      setGuestLabel(String(bookingContext.guestLabel || `${bookingContext.guests} guests`));
+      setGuestsSelected(true);
+      setActiveFormSpotlight(null);
+    }
+
+    if (bookingContext.maxNightlyBudgetUsd || bookingContext.maxTotalBudgetUsd) {
+      setBudgetBand(
+        bookingContext.maxNightlyBudgetUsd
+          ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
+          : `Under $${bookingContext.maxTotalBudgetUsd} total`,
+      );
+    }
+  };
+
+  const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
+    applyTourBarBookingContext(raw);
+    setBookingRailSpotlight(true);
+    openBookingPanel();
+
+    const visibleContext = asRecord(raw.visibleContext);
+    const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
+    const selected = asRecord(raw.selectedCombination);
+    const packageIds = asStringArray(activeStayPlan.packageIds || selected.packageIds);
+
+    window.dispatchEvent(
+      new CustomEvent("guide-commerce-book", {
+        detail: {
+          targetId: activeStayPlan.roomId || selected.roomId || visibleContext.selectedRoomId,
+          packageIds,
+          stayPlan: activeStayPlan,
+          commerceContext: {
+            dates:
+              visibleContext.bookingContext?.checkInDate &&
+              visibleContext.bookingContext?.checkOutDate
+                ? {
+                    checkIn: visibleContext.bookingContext.checkInDate,
+                    checkOut: visibleContext.bookingContext.checkOutDate,
+                    label: `${visibleContext.bookingContext.checkInDate} → ${visibleContext.bookingContext.checkOutDate}`,
+                  }
+                : null,
+            guests: visibleContext.bookingContext?.guests
+              ? {
+                  adults: visibleContext.bookingContext.adults,
+                  children: visibleContext.bookingContext.children,
+                  label: visibleContext.bookingContext.guestLabel,
+                }
+              : null,
+            budget: {
+              band:
+                visibleContext.bookingContext?.maxNightlyBudgetUsd ||
+                visibleContext.bookingContext?.maxTotalBudgetUsd ||
+                "",
+            },
+            savedTrip: {
+              packages: packageIds.map((targetId) => ({ targetId })),
+            },
+          },
+        },
+      }),
+    );
+  };
+
+  const focusTourBarTarget = (result: TourBarShellResult) => {
+    const raw = asRecord(result.raw);
+    const target = primaryTourBarTarget(raw);
+
+    applyTourBarBookingContext(raw);
+
+    if (target.isBookingAction) {
+      stageTourBarBooking(raw);
+      return;
+    }
+
+    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
+    setCurrentPage(pageId);
+    if (target.targetId) {
+      setActiveAnchor(target.targetId);
+    }
+
+    window.setTimeout(() => {
+      const selector =
+        target.targetSelector ||
+        (target.targetId ? `[data-tour-id="${target.targetId}"], #${target.targetId}` : "");
+      const el = selector
+        ? document.querySelector<HTMLElement>(selector) || document.getElementById(target.targetId)
+        : null;
+
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      if (target.targetId) {
+        window.dispatchEvent(
+          new CustomEvent("guide-spotlight-target", {
+            detail: {
+              targetId: target.targetId,
+              selector: target.targetSelector || `[data-tour-id="${target.targetId}"], #${target.targetId}`,
+            },
+          }),
+        );
+      }
+    }, 420);
+  };
+
+  const submitTourBarHotelBooking = async (
+    query: string,
+    context: TourBarShellTurnContext,
+  ): Promise<TourBarShellResult> => {
+    const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        mode: TOURBAR_HOTEL_BOOKING_MODE,
+        catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
+        message: query,
+        guideConfig: {
+          ...commerceGuideConfig,
+          mode: TOURBAR_HOTEL_BOOKING_MODE,
+          catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
+          packIds: {
+            ...commerceGuideConfig.packIds,
+            catalog: "tourbar_hotel_booking_matrix",
+          },
+        },
+        visibleContext: {
+          currentPage,
+          activeAnchor,
+          selectedRoomId: selectedRoom,
+          selectedPackageIds: selectedPackages,
+          bookingContext: {
+            checkInDate: datesSelected ? checkInDate : null,
+            checkOutDate: datesSelected ? checkOutDate : null,
+            guests: guestsSelected ? guestLabel : null,
+            guestLabel: guestsSelected ? guestLabel : null,
+            budgetBand,
+          },
+        },
+        conversationContext: {
+          currentResult: context.currentResult?.raw || context.currentResult || null,
+          thread: context.thread,
+        },
+      }),
+    });
+
+    const raw = (await response.json().catch(() => ({}))) as TourBarHotelBookingBackendResponse;
+
+    if (!response.ok) {
+      throw new Error(
+        String(raw.message || raw.error || "TourBar hotel booking request failed."),
+      );
+    }
+
+    return buildTourBarShellResult(raw);
   };
 
   const onBookRoom = (section: Section) => {
@@ -2020,10 +2406,11 @@ export default function AppCommerce() {
         onPauseDemo={() => setDemoStatus("paused")}
         onResumeDemo={() => setDemoStatus("running")}
         onStopDemo={stopDemo}
+        showDemoControls={!tourBarMode}
       />
 
       <AnimatePresence>
-        {demoPreviewOpen && demoStatus === "idle" && (
+        {!tourBarMode && demoPreviewOpen && demoStatus === "idle" && (
           <DemoPreviewCard
             title="Guided Commerce"
             options={[
@@ -2041,7 +2428,7 @@ export default function AppCommerce() {
             onClose={closeDemoPreview}
           />
         )}
-        {demoClosingOpen && demoStatus === "idle" && (
+        {!tourBarMode && demoClosingOpen && demoStatus === "idle" && (
           <DemoClosingCard onClose={disengageDemo} />
         )}
       </AnimatePresence>
@@ -2162,22 +2549,54 @@ export default function AppCommerce() {
         </aside>
       </main>
 
-      <DemoController
-        script={activeDemoScript}
-        status={demoStatus}
-        onStatusChange={setDemoStatus}
-        onGuideCommand={setGuideDemoCommand}
-        onFinished={() => setDemoClosingOpen(true)}
-        finishDelayMs={5000}
-      />
-      <GuideShellStatic
-        demoCommand={guideDemoCommand}
-        guideConfig={commerceGuideConfig}
-        initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
-        suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
-        demoStatus={demoStatus}
-        demoInteractionLocked={isSelfDriveEntry}
-      />
+      {tourBarMode ? (
+        <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
+          <TourBarShell
+            primaryPlaceholder="Ask TourBar to find the right stay..."
+            followUpPlaceholder="Refine this stay..."
+            launcherTitle="Open TourBar hotel booking"
+            launcherAriaLabel="Open TourBar hotel booking"
+            resultEyebrow="TourBar booking"
+            initialLoadingMessage="Resolving the lowest valid room setup…"
+            followUpLoadingMessage="Rechecking the matrix…"
+            onPrimarySubmit={submitTourBarHotelBooking}
+            onFollowUpSubmit={submitTourBarHotelBooking}
+            onResult={focusTourBarTarget}
+            renderResultExtras={(result, actions) => (
+              <TourBarHotelBookingExtras
+                result={result}
+                actions={actions}
+                onStageBooking={stageTourBarBooking}
+                onSelectDates={() => {
+                  window.dispatchEvent(new CustomEvent("guide-commerce-select-dates"));
+                }}
+                onAddGuests={() => {
+                  window.dispatchEvent(new CustomEvent("guide-commerce-add-guests"));
+                }}
+              />
+            )}
+          />
+        </div>
+      ) : (
+        <>
+          <DemoController
+            script={activeDemoScript}
+            status={demoStatus}
+            onStatusChange={setDemoStatus}
+            onGuideCommand={setGuideDemoCommand}
+            onFinished={() => setDemoClosingOpen(true)}
+            finishDelayMs={5000}
+          />
+          <GuideShellStatic
+            demoCommand={guideDemoCommand}
+            guideConfig={commerceGuideConfig}
+            initialShellState={isSelfDriveEntry ? "launcher" : "welcome"}
+            suppressWelcomeCard={isSelfDriveEntry || demoPreviewOpen || demoClosingOpen}
+            demoStatus={demoStatus}
+            demoInteractionLocked={isSelfDriveEntry}
+          />
+        </>
+      )}
     </div>
   );
 }
