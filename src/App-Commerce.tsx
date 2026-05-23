@@ -1936,6 +1936,17 @@ type TourBarNavigationState = {
   activeIndex: number;
 };
 
+type TourBarWorkingStayContext = {
+  roomId: string | null;
+  packageIds: string[];
+  activeTargetId: string | null;
+  activeRoomId: string | null;
+  activePackageId: string | null;
+  lastPlannerIntent?: string | null;
+  lastResultTitle?: string | null;
+  lastResultAction?: string | null;
+};
+
 function addTourBarNavigationTarget(
   targets: TourBarPageTarget[],
   value: Record<string, any>,
@@ -1963,6 +1974,60 @@ function addTourBarNavigationTarget(
     targetText: typeof value.targetText === "string" ? value.targetText : undefined,
     reason: typeof value.reason === "string" ? value.reason : undefined,
   });
+}
+
+function roomIdFromTourBarTarget(targetId?: string | null) {
+  const sectionId = sectionIdFromTourBarTarget(targetId);
+  return roomBookingMeta[sectionId] ? sectionId : "";
+}
+
+function packageIdFromTourBarTarget(targetId?: string | null) {
+  const sectionId = sectionIdFromTourBarTarget(targetId);
+  return packageBookingMeta[sectionId] ? sectionId : "";
+}
+
+function buildTourBarActiveStayPlan(
+  workingStay: TourBarWorkingStayContext,
+  fallbackRoomId: string | null,
+  fallbackPackageIds: string[],
+) {
+  const roomId = workingStay.roomId || fallbackRoomId || "";
+  const roomMeta = getRoomMeta(roomId);
+  const packageIds = normalizeBookingPackageIds([
+    ...fallbackPackageIds,
+    ...workingStay.packageIds,
+  ]);
+
+  return {
+    roomId: roomId || null,
+    roomTargetId: roomId || null,
+    room: roomId
+      ? {
+          roomId,
+          targetId: roomId,
+          title: roomMeta?.title || roomId,
+          price: roomMeta?.price || "",
+          signal: roomMeta?.signal || "",
+        }
+      : null,
+    packageIds,
+    packages: packageIds.map((packageId) => {
+      const meta = getPackageMeta(packageId);
+      return {
+        packageId,
+        targetId: packageId,
+        title: meta?.title || packageId,
+        price: meta?.price || "",
+        signal: meta?.signal || "",
+      };
+    }),
+    activeTargetId: workingStay.activeTargetId || roomId || null,
+    activeRoomId: workingStay.activeRoomId || roomId || null,
+    activePackageId: workingStay.activePackageId || packageIds[0] || null,
+    lastPlannerIntent: workingStay.lastPlannerIntent || null,
+    lastResultTitle: workingStay.lastResultTitle || null,
+    lastResultAction: workingStay.lastResultAction || null,
+  };
 }
 
 function packageNavigationTargetsFromCombo(combo: Record<string, any>) {
@@ -2437,6 +2502,14 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     useState(false);
   const [tourBarNavigationState, setTourBarNavigationState] =
     useState<TourBarNavigationState | null>(null);
+  const [tourBarWorkingStay, setTourBarWorkingStay] =
+    useState<TourBarWorkingStayContext>({
+      roomId: "room-business-king",
+      packageIds: [],
+      activeTargetId: "room-business-king",
+      activeRoomId: "room-business-king",
+      activePackageId: null,
+    });
   const tourBarNavigationRunRef = React.useRef(0);
 
   const isSelfDriveEntry = useMemo(() => {
@@ -2529,6 +2602,39 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }, 220);
   };
 
+  const updateTourBarWorkingStayFromTarget = (target?: TourBarPageTarget | null) => {
+    if (!target) return;
+
+    const targetId = sectionIdFromTourBarTarget(target.targetId);
+    const roomId = roomIdFromTourBarTarget(targetId);
+    const packageId = packageIdFromTourBarTarget(targetId);
+
+    if (roomId) {
+      setSelectedRoom(roomId);
+    }
+
+    if (packageId) {
+      setSelectedPackages((current) => normalizeBookingPackageIds([...current, packageId]));
+    }
+
+    setTourBarWorkingStay((current) => {
+      const currentPackages = normalizeBookingPackageIds(current.packageIds);
+      const nextPackageIds = packageId
+        ? normalizeBookingPackageIds([...currentPackages, packageId])
+        : currentPackages;
+      const nextRoomId = roomId || current.roomId || selectedRoom || null;
+
+      return {
+        ...current,
+        roomId: nextRoomId,
+        packageIds: nextPackageIds,
+        activeTargetId: targetId || current.activeTargetId || nextRoomId,
+        activeRoomId: roomId || current.activeRoomId || nextRoomId,
+        activePackageId: packageId || current.activePackageId || nextPackageIds[0] || null,
+      };
+    });
+  };
+
   const applyTourBarBookingContext = (raw: TourBarHotelBookingBackendResponse, { preferNextStep = false }: { preferNextStep?: boolean } = {}) => {
     const visibleContext = asRecord(raw.visibleContext);
     const bookingContext = asRecord(visibleContext.bookingContext);
@@ -2553,12 +2659,29 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       ...packageIdsFromTourBarCombination(selected),
       ...(visibleContext.suggestedPackageId ? [String(visibleContext.suggestedPackageId)] : []),
     ]);
+    const validRoomId = roomId && roomStepOrder.includes(roomId) ? roomId : "";
+    const activeTargetId =
+      validRoomId ||
+      packageIds[0] ||
+      sectionIdFromTourBarTarget(visibleContext.activeTargetId || visibleContext.activeAnchor || "") ||
+      null;
 
-    if (roomId && roomStepOrder.includes(roomId)) {
-      setSelectedRoom(roomId);
+    if (validRoomId) {
+      setSelectedRoom(validRoomId);
     }
 
     setSelectedPackages(packageIds);
+    setTourBarWorkingStay((current) => ({
+      ...current,
+      roomId: validRoomId || current.roomId || selectedRoom || null,
+      packageIds,
+      activeTargetId: activeTargetId || current.activeTargetId || validRoomId || selectedRoom || null,
+      activeRoomId: validRoomId || current.activeRoomId || selectedRoom || null,
+      activePackageId: packageIds[0] || current.activePackageId || null,
+      lastPlannerIntent: String(raw.intent || raw.displayMode || raw.commerceAction || current.lastPlannerIntent || ""),
+      lastResultTitle: String(raw.title || selected.roomShortTitle || selected.roomTitle || current.lastResultTitle || ""),
+      lastResultAction: String(raw.commerceAction || raw.intent || current.lastResultAction || ""),
+    }));
 
     if (bookingContext.checkInDate && bookingContext.checkOutDate) {
       setCheckInDate(String(bookingContext.checkInDate));
@@ -2691,6 +2814,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         ? { steps: cappedSteps, activeIndex: 0 }
         : null,
     );
+    updateTourBarWorkingStayFromTarget(first);
     setCurrentPage(pageId);
     spotlightTourBarAnchor(first.targetId, first.targetSelector, initialDelay);
   };
@@ -2707,6 +2831,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState({ ...current, activeIndex: previousIndex });
+    updateTourBarWorkingStayFromTarget(target);
     setCurrentPage(pageId);
     spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
   };
@@ -2723,6 +2848,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState({ ...current, activeIndex: nextIndex });
+    updateTourBarWorkingStayFromTarget(target);
     setCurrentPage(pageId);
     spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
   };
@@ -2740,10 +2866,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     const activePackageId = packageBookingMeta[activeTargetId] ? activeTargetId : "";
     const roomId = roomStepOrder.includes(activeTargetId)
       ? activeTargetId
-      : selectedRoom || "room-business-king";
+      : tourBarWorkingStay.roomId || selectedRoom || "room-business-king";
     const roomMeta = getRoomMeta(roomId);
     const nextPackageIds = normalizeBookingPackageIds(
-      activePackageId ? [...selectedPackages, activePackageId] : selectedPackages,
+      activePackageId
+        ? [...selectedPackages, ...tourBarWorkingStay.packageIds, activePackageId]
+        : [...selectedPackages, ...tourBarWorkingStay.packageIds],
     );
     const packageTitles = nextPackageIds
       .map((packageId) => getPackageMeta(packageId)?.title)
@@ -2754,6 +2882,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarSpotlightTarget(null);
     setSelectedRoom(roomId);
     setSelectedPackages(nextPackageIds);
+    setTourBarWorkingStay({
+      roomId,
+      packageIds: nextPackageIds,
+      activeTargetId: activeTargetId || roomId,
+      activeRoomId: roomId,
+      activePackageId: activePackageId || nextPackageIds[0] || null,
+      lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
+      lastResultTitle: roomMeta?.title || active.targetText || null,
+      lastResultAction: "tourbar_guided_stop_booking",
+    });
     setTourBarBookingHandoff({
       roomTitle: roomMeta?.title || active.targetText || "Selected room",
       packageTitle: packageTitles[0] || "No package selected",
@@ -2835,6 +2973,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
+    const activeStayPlan = buildTourBarActiveStayPlan(
+      tourBarWorkingStay,
+      selectedRoom,
+      selectedPackages,
+    );
+
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
       headers: {
@@ -2857,8 +3001,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         visibleContext: {
           currentPage,
           activeAnchor,
-          selectedRoomId: selectedRoom,
-          selectedPackageIds: selectedPackages,
+          activeTargetId: tourBarWorkingStay.activeTargetId || activeAnchor,
+          activeRoomId: activeStayPlan.activeRoomId,
+          activePackageId: activeStayPlan.activePackageId,
+          selectedRoomId: activeStayPlan.roomId || selectedRoom,
+          selectedPackageIds: activeStayPlan.packageIds,
+          activeStayPlan,
+          tourBarWorkingStay,
           bookingContext: {
             checkInDate: datesSelected ? checkInDate : null,
             checkOutDate: datesSelected ? checkOutDate : null,
@@ -2870,6 +3019,11 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         conversationContext: {
           currentResult: context.currentResult?.raw || context.currentResult || null,
           thread: context.thread,
+          activeStayPlan,
+          commerceContext: {
+            activeStayPlan,
+            tourBarWorkingStay,
+          },
         },
       }),
     });
@@ -2888,6 +3042,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const onBookRoom = (section: Section) => {
     setSelectedRoom(section.id);
     setSelectedPackages([]);
+    setTourBarWorkingStay({
+      roomId: section.id,
+      packageIds: [],
+      activeTargetId: section.id,
+      activeRoomId: section.id,
+      activePackageId: null,
+      lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
+      lastResultTitle: section.title,
+      lastResultAction: "manual_room_book",
+    });
 
     if (tourBarMode) {
       setCurrentPage("rooms");
@@ -3055,6 +3219,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       roomStepOrder[0];
     setCurrentPage("rooms");
     setActiveAnchor(nextRoomId);
+    setSelectedRoom(nextRoomId);
+    setTourBarWorkingStay((current) => ({
+      ...current,
+      roomId: nextRoomId,
+      activeTargetId: nextRoomId,
+      activeRoomId: nextRoomId,
+    }));
     window.setTimeout(() => {
       const el = document.getElementById(nextRoomId);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
