@@ -44,6 +44,42 @@ export type TourBarCollectionResultLike = {
   raw?: unknown;
 };
 
+export type TourBarResultModeLike = {
+  answerMode?: string;
+  mode?: string;
+  action?: string;
+  raw?: unknown;
+};
+
+function resultModeText(result?: TourBarResultModeLike | null) {
+  const raw = asRecord(result?.raw);
+  return [
+    result?.answerMode,
+    result?.mode,
+    result?.action,
+    raw.answerMode,
+    raw.displayMode,
+    raw.mode,
+    raw.action,
+    raw.commerceAction,
+    raw.intent,
+    raw.resultMode,
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+}
+
+export function isTourBarAnswerOnlyResult(result?: TourBarResultModeLike | null) {
+  const text = resultModeText(result);
+  return Boolean(
+    text.includes("tourbar_scope_limit") ||
+      text.includes("scope_limit") ||
+      text.includes("matrix_answer") ||
+      text.includes("tourbar_answer") ||
+      text.includes("tourbar_hotel_answer"),
+  );
+}
+
 const DEFAULT_BOOKING_YEAR = 2026;
 const DEFAULT_CALENDAR_MONTH: TourBarCalendarMonth = { year: 2026, monthIndex: 5 };
 const MONTH_PATTERN =

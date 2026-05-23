@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   buildTourBarCollectionResult,
   buildTourBarScopeLimitResult,
+  isTourBarAnswerOnlyResult,
   TourBarBookingContextPanel,
   tourBarCollectionFieldFromResult,
   tourBarPendingQueryFromResult,
@@ -566,6 +567,7 @@ export default function TourBarShell({
   const isStandaloneSheet = Boolean(standaloneResult);
   const activeCollectionField = tourBarCollectionFieldFromResult(result);
   const activeCollectionPendingQuery = tourBarPendingQueryFromResult(result);
+  const answerOnlyResult = isTourBarAnswerOnlyResult(result);
 
   const followUpComposer =
     onFollowUpSubmit && result?.canFollowUp !== false ? (
@@ -737,7 +739,7 @@ export default function TourBarShell({
                                       completeBookingContextCollection(pendingQuery, bookingContext);
                                     }}
                                   />
-                                ) : (
+                                ) : answerOnlyResult ? null : (
                                   renderResultExtras?.(result!, shellActions)
                                 )}
 
