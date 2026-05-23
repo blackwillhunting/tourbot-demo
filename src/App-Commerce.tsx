@@ -1844,7 +1844,20 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
 
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
   const target = primaryTourBarTarget(raw);
-  const chips = asStringArray(raw.chips || raw.refinementChips);
+  const legacyChips = asStringArray(raw.chips || raw.refinementChips);
+  const nextStep = asRecord(raw.nextStep);
+  const nextStepLabel =
+    typeof nextStep.label === "string" && nextStep.label.trim()
+      ? nextStep.label.trim()
+      : legacyChips[0] || "";
+  const nextStepQuery =
+    typeof nextStep.query === "string" && nextStep.query.trim()
+      ? nextStep.query.trim()
+      : nextStepLabel;
+  const nextStepType =
+    typeof nextStep.type === "string" && nextStep.type.trim()
+      ? nextStep.type.trim()
+      : "tourbar_next_step";
   const selected = asRecord(raw.selectedCombination);
   const title =
     selected.roomShortTitle ||
@@ -1861,8 +1874,8 @@ function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourB
   return {
     title: String(title),
     body: String(body),
-    invitation: chips[0] ? { kind: "chip", text: chips[0] } : undefined,
-    nextMove: chips[0] ? { type: "tourbar_chip", label: chips[0], query: chips[0] } : undefined,
+    invitation: nextStepLabel ? { kind: "next_step", text: nextStepLabel } : undefined,
+    nextMove: nextStepLabel ? { type: nextStepType, label: nextStepLabel, query: nextStepQuery } : undefined,
     canFollowUp: true,
     focusAreaId: target.targetId || undefined,
     answerMode: String(raw.displayMode || raw.intent || "tourbar_hotel_booking"),
