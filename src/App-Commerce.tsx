@@ -1905,11 +1905,86 @@ function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourB
     mode: String(raw.mode || TOURBAR_HOTEL_BOOKING_MODE),
     action: String(raw.commerceAction || raw.intent || "tourbar_booking_recommendation"),
     raw,
+
   };
 }
 
-function TourBarHotelBookingExtras(_props: {
+type TourBarBookingHandoff = {
+  roomTitle: string;
+  packageTitle: string;
+  datesLabel: string;
+  guestsLabel: string;
+  budgetLabel: string;
+  priceLabel: string;
+};
+
+function priceLabelFromTourBarCombination(selected: Record<string, any>) {
+  const pricing = asRecord(selected.pricing);
+  const effectiveNightly =
+    typeof pricing.effectiveNightlyUsd === "number"
+      ? pricing.effectiveNightlyUsd
+      : Number(pricing.effectiveNightlyUsd || selected.oneNightTotalUsd || selected.effectiveNightlyUsd || 0);
+
+  if (Number.isFinite(effectiveNightly) && effectiveNightly > 0) {
+    return `$${Math.round(effectiveNightly).toLocaleString("en-US")}/night`;
+  }
+
+  return "Rate ready";
+}
+
+function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): TourBarBookingHandoff {
+  const visibleContext = asRecord(raw.visibleContext);
+  const bookingContext = asRecord(visibleContext.bookingContext);
+  const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
+  const selected = asRecord(raw.selectedCombination);
+  const roomId = String(
+    activeStayPlan.roomId ||
+      activeStayPlan.roomTargetId ||
+      selected.roomId ||
+      visibleContext.selectedRoomId ||
+      "",
+  );
+  const roomMeta = getRoomMeta(roomId);
+  const packageIds = normalizeBookingPackageIds(
+    asStringArray(activeStayPlan.packageIds || selected.packageIds || visibleContext.selectedPackageIds),
+  );
+  const packageTitles = asStringArray(selected.packageTitles);
+  const derivedPackageTitles = packageIds
+    .map((packageId) => getPackageMeta(packageId)?.title)
+    .filter((title): title is string => Boolean(title));
+
+  const datesLabel =
+    bookingContext.checkInDate && bookingContext.checkOutDate
+      ? formatBookingDateRange(String(bookingContext.checkInDate), String(bookingContext.checkOutDate))
+      : "Dates can be added in the next step";
+  const guestsLabel =
+    typeof bookingContext.guestLabel === "string" && bookingContext.guestLabel.trim()
+      ? bookingContext.guestLabel.trim()
+      : bookingContext.guests
+        ? `${bookingContext.guests} guest${Number(bookingContext.guests) === 1 ? "" : "s"}`
+        : "Guests can be added in the next step";
+  const budgetLabel =
+    bookingContext.maxNightlyBudgetUsd
+      ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
+      : bookingContext.maxTotalBudgetUsd
+        ? `Under $${bookingContext.maxTotalBudgetUsd} total`
+        : "No budget limit set";
+
+  return {
+    roomTitle: String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room"),
+    packageTitle: (packageTitles[0] || derivedPackageTitles[0] || "No package selected").replace(/\s+/g, " "),
+    datesLabel,
+    guestsLabel,
+    budgetLabel,
+    priceLabel: priceLabelFromTourBarCombination(selected),
+  };
+}
+
+function TourBarHotelBookingExtras({
+  bookingHandoff,
+}: {
   result: TourBarShellResult;
+  bookingHandoff: TourBarBookingHandoff | null;
   onStageBooking: (raw: TourBarHotelBookingBackendResponse) => void;
   onSelectDates: () => void;
   onAddGuests: () => void;
@@ -1919,8 +1994,45 @@ function TourBarHotelBookingExtras(_props: {
   };
 }) {
   // TourBar hotel now uses one primary CTA from result.invitation.
-  // The older multi-chip row was useful during tuning but is redundant in the booking sheet.
-  return null;
+  // When that CTA prepares a booking, the handoff lives inside the sheet instead of a page-side booking panel.
+  if (!bookingHandoff) return null;
+
+  return (
+    <div
+      data-tour-id="tourbar-booking-handoff"
+      className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3 py-3 text-sm text-emerald-950"
+    >
+      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/70">
+        Booking handoff
+      </div>
+      <div className="mt-2 space-y-1.5">
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-emerald-800/75">Room</span>
+          <strong className="text-right font-semibold">{bookingHandoff.roomTitle}</strong>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-emerald-800/75">Add-ons</span>
+          <strong className="text-right font-semibold">{bookingHandoff.packageTitle}</strong>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-emerald-800/75">Dates</span>
+          <strong className="text-right font-semibold">{bookingHandoff.datesLabel}</strong>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-emerald-800/75">Guests</span>
+          <strong className="text-right font-semibold">{bookingHandoff.guestsLabel}</strong>
+        </div>
+        <div className="flex items-start justify-between gap-3">
+          <span className="text-emerald-800/75">Budget</span>
+          <strong className="text-right font-semibold">{bookingHandoff.budgetLabel}</strong>
+        </div>
+        <div className="flex items-start justify-between gap-3 border-t border-emerald-100 pt-1.5">
+          <span className="text-emerald-800/75">Estimate</span>
+          <strong className="text-right font-semibold">{bookingHandoff.priceLabel}</strong>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 
@@ -1949,6 +2061,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const [bookingRailSpotlight, setBookingRailSpotlight] = useState(false);
   const [checkInDate, setCheckInDate] = useState("2026-06-12");
   const [checkOutDate, setCheckOutDate] = useState("2026-06-15");
+  const [tourBarBookingHandoff, setTourBarBookingHandoff] =
+    useState<TourBarBookingHandoff | null>(null);
 
   const isSelfDriveEntry = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -2086,50 +2200,9 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
   const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
     applyTourBarBookingContext(raw);
-    setBookingRailSpotlight(true);
-    openBookingPanel();
-
-    const visibleContext = asRecord(raw.visibleContext);
-    const activeStayPlan = asRecord(raw.activeStayPlan || visibleContext.activeStayPlan);
-    const selected = asRecord(raw.selectedCombination);
-    const packageIds = asStringArray(activeStayPlan.packageIds || selected.packageIds);
-
-    window.dispatchEvent(
-      new CustomEvent("guide-commerce-book", {
-        detail: {
-          targetId: activeStayPlan.roomId || selected.roomId || visibleContext.selectedRoomId,
-          packageIds,
-          stayPlan: activeStayPlan,
-          commerceContext: {
-            dates:
-              visibleContext.bookingContext?.checkInDate &&
-              visibleContext.bookingContext?.checkOutDate
-                ? {
-                    checkIn: visibleContext.bookingContext.checkInDate,
-                    checkOut: visibleContext.bookingContext.checkOutDate,
-                    label: `${visibleContext.bookingContext.checkInDate} → ${visibleContext.bookingContext.checkOutDate}`,
-                  }
-                : null,
-            guests: visibleContext.bookingContext?.guests
-              ? {
-                  adults: visibleContext.bookingContext.adults,
-                  children: visibleContext.bookingContext.children,
-                  label: visibleContext.bookingContext.guestLabel,
-                }
-              : null,
-            budget: {
-              band:
-                visibleContext.bookingContext?.maxNightlyBudgetUsd ||
-                visibleContext.bookingContext?.maxTotalBudgetUsd ||
-                "",
-            },
-            savedTrip: {
-              packages: packageIds.map((targetId) => ({ targetId })),
-            },
-          },
-        },
-      }),
-    );
+    setTourBarBookingHandoff(buildTourBarBookingHandoff(raw));
+    setBookingRailSpotlight(false);
+    setActiveFormSpotlight(null);
   };
 
   const focusTourBarTarget = (result: TourBarShellResult) => {
@@ -2195,6 +2268,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     query: string,
     context: TourBarShellTurnContext,
   ): Promise<TourBarShellResult> => {
+    setTourBarBookingHandoff(null);
+
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
       headers: {
@@ -2248,6 +2323,21 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const onBookRoom = (section: Section) => {
     setSelectedRoom(section.id);
     setSelectedPackages([]);
+
+    if (tourBarMode) {
+      setCurrentPage("rooms");
+      setActiveAnchor(section.id);
+      setTourBarBookingHandoff({
+        roomTitle: section.title,
+        packageTitle: "No package selected",
+        datesLabel: datesSelected ? formatBookingDateRange(checkInDate, checkOutDate) : "Dates can be added in the next step",
+        guestsLabel: guestsSelected ? guestLabel : "Guests can be added in the next step",
+        budgetLabel: budgetBand || "No budget limit set",
+        priceLabel: section.price || "Rate ready",
+      });
+      return;
+    }
+
     openBookingPanel();
   };
 
@@ -2303,6 +2393,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       setSelectedRoom(normalizedRoomId);
       setSelectedPackages(normalizedPackageIds);
       setActiveFormSpotlight(null);
+
+      if (tourBarMode) {
+        setBookingRailSpotlight(false);
+        return;
+      }
+
       setBookingRailSpotlight(true);
       openBookingPanel();
       window.setTimeout(() => {
@@ -2324,6 +2420,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     const handleSelectDates = () => {
       setActiveFormSpotlight(null);
+
+      if (tourBarMode) {
+        setBookingRailSpotlight(false);
+        return;
+      }
+
       setBookingRailSpotlight(true);
       openBookingPanel();
       window.setTimeout(() => {
@@ -2347,6 +2449,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       setGuestLabel("1 guest");
       setGuestsSelected(true);
       setActiveFormSpotlight("guests");
+
+      if (tourBarMode) {
+        setBookingRailSpotlight(false);
+        return;
+      }
+
       setBookingRailSpotlight(true);
       openBookingPanel();
       window.setTimeout(() => {
@@ -2373,7 +2481,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       );
       window.removeEventListener("guide-commerce-add-guests", handleAddGuests);
     };
-  }, [activeAnchor, selectedRoom]);
+  }, [activeAnchor, selectedRoom, tourBarMode]);
 
   const onNextRoomOption = (section: Section) => {
     const currentIndex = roomStepOrder.indexOf(section.id);
@@ -2495,20 +2603,22 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             </div>
           </Card>
 
-          <div>
-            <BookingMock
-              compact={currentPage !== "booking"}
-              selectedRoom={selectedRoom}
-              selectedPackages={selectedPackages}
-              datesSelected={datesSelected}
-              guestsSelected={guestsSelected}
-              guestLabel={guestLabel}
-              budgetBand={budgetBand}
-              activeFormSpotlight={activeFormSpotlight}
-              checkInDate={checkInDate}
-              checkOutDate={checkOutDate}
-            />
-          </div>
+          {!tourBarMode && (
+            <div>
+              <BookingMock
+                compact={currentPage !== "booking"}
+                selectedRoom={selectedRoom}
+                selectedPackages={selectedPackages}
+                datesSelected={datesSelected}
+                guestsSelected={guestsSelected}
+                guestLabel={guestLabel}
+                budgetBand={budgetBand}
+                activeFormSpotlight={activeFormSpotlight}
+                checkInDate={checkInDate}
+                checkOutDate={checkOutDate}
+              />
+            </div>
+          )}
 
           <Card
             className={`bg-gradient-to-br ${pageVisuals[currentPage].accent} text-white`}
@@ -2562,6 +2672,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             renderResultExtras={(result, actions) => (
               <TourBarHotelBookingExtras
                 result={result}
+                bookingHandoff={tourBarBookingHandoff}
                 actions={actions}
                 onStageBooking={stageTourBarBooking}
                 onSelectDates={() => {
