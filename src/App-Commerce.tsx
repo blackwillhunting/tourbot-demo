@@ -21,6 +21,7 @@ import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
 import TourBarShell, {
+  type TourBarShellActions,
   type TourBarShellResult,
   type TourBarShellTurnContext,
 } from "./components/tourbar/TourBarShell";
@@ -2320,12 +2321,12 @@ function TourBarNavigationControls({
   state,
   onBack,
   onNext,
-  onStop,
+  onBook,
 }: {
   state: TourBarNavigationState | null;
   onBack: () => void;
   onNext: () => void;
-  onStop: () => void;
+  onBook: () => void;
 }) {
   if (!state || state.steps.length < 2) return null;
 
@@ -2363,7 +2364,11 @@ function TourBarNavigationControls({
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={onBack}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onBack();
+            }}
             disabled={isFirst}
             className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -2371,14 +2376,22 @@ function TourBarNavigationControls({
           </button>
           <button
             type="button"
-            onClick={onStop}
-            className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onBook();
+            }}
+            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700"
           >
-            Stop
+            Book
           </button>
           <button
             type="button"
-            onClick={onNext}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onNext();
+            }}
             disabled={isLast}
             className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
           >
@@ -2714,10 +2727,60 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
   };
 
-  const stopTourBarNavigationSequence = () => {
+  const bookCurrentTourBarNavigationStep = (
+    actions: TourBarShellActions,
+    result: TourBarShellResult,
+  ) => {
+    const current = tourBarNavigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const activeIndex = Math.min(Math.max(current.activeIndex, 0), current.steps.length - 1);
+    const active = current.steps[activeIndex];
+    const activeTargetId = sectionIdFromTourBarTarget(active.targetId);
+    const activePackageId = packageBookingMeta[activeTargetId] ? activeTargetId : "";
+    const roomId = roomStepOrder.includes(activeTargetId)
+      ? activeTargetId
+      : selectedRoom || "room-business-king";
+    const roomMeta = getRoomMeta(roomId);
+    const nextPackageIds = normalizeBookingPackageIds(
+      activePackageId ? [...selectedPackages, activePackageId] : selectedPackages,
+    );
+    const packageTitles = nextPackageIds
+      .map((packageId) => getPackageMeta(packageId)?.title)
+      .filter((title): title is string => Boolean(title));
+
     tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState(null);
     setTourBarSpotlightTarget(null);
+    setSelectedRoom(roomId);
+    setSelectedPackages(nextPackageIds);
+    setTourBarBookingHandoff({
+      roomTitle: roomMeta?.title || active.targetText || "Selected room",
+      packageTitle: packageTitles[0] || "No package selected",
+      datesLabel: datesSelected
+        ? formatBookingDateRange(checkInDate, checkOutDate)
+        : "Dates can be added in the next step",
+      guestsLabel: guestsSelected ? guestLabel : "Guests can be added in the next step",
+      budgetLabel: budgetBand || "No budget limit set",
+      priceLabel: roomMeta?.price || "Rate ready",
+    });
+    setTourBarBookingHandoffOpen(true);
+    setBookingRailSpotlight(false);
+    setActiveFormSpotlight(null);
+
+    setCurrentPage(pageIdFromTourBarTarget(roomId));
+    spotlightTourBarAnchor(roomId, `[data-tour-id="${roomId}"], #${roomId}`, 180);
+
+    actions.openStandaloneSheet({
+      ...result,
+      title: roomMeta?.title || active.targetText || result.title || "Booking handoff",
+      focusAreaId: roomId,
+      targetId: roomId,
+      targetSelector: `[data-tour-id="${roomId}"], #${roomId}`,
+      pageId: pageIdFromTourBarTarget(roomId),
+      mode: "tourbar_booking_handoff",
+      action: "tourbar_guided_stop_booking",
+    });
   };
 
 
@@ -3173,12 +3236,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onFollowUpSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
-            renderResultExtras={() => (
+            renderResultExtras={(result, actions) => (
               <TourBarNavigationControls
                 state={tourBarNavigationState}
                 onBack={backTourBarNavigationStep}
                 onNext={advanceTourBarNavigationStep}
-                onStop={stopTourBarNavigationSequence}
+                onBook={() => bookCurrentTourBarNavigationStep(actions, result)}
               />
             )}
             renderStandaloneSheet={() => (

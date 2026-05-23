@@ -70,6 +70,7 @@ export type TourBarShellTurnKind = "primary" | "followup";
 export type TourBarShellActions = {
   submitFollowUp: (query: string) => void;
   submitPrimary: (query: string) => void;
+  openStandaloneSheet: (result?: TourBarShellResult | null) => void;
 };
 
 export type TourBarShellProps = {
@@ -397,6 +398,20 @@ export default function TourBarShell({
     }
   };
 
+  const openStandaloneSheet = async (nextStandaloneResult?: TourBarShellResult | null) => {
+    const activeResult = nextStandaloneResult || result;
+    if (!activeResult || isLoading || isAnswering || !renderStandaloneSheet) return;
+
+    setFollowUp("");
+    setError("");
+    setStandaloneResult(null);
+    setIsAnswering(true);
+    setResult(null);
+    await wait(TOURBAR_SHEET_RETRACT_MS);
+    setStandaloneResult(activeResult);
+    setIsAnswering(false);
+  };
+
   const runNextMove = async () => {
     const activeResult = result;
     const nextMove = activeResult?.nextMove;
@@ -404,16 +419,7 @@ export default function TourBarShell({
 
     const handled = onNextMove?.(activeResult, nextMove);
     if (handled) {
-      if (!renderStandaloneSheet) return;
-
-      setFollowUp("");
-      setError("");
-      setStandaloneResult(null);
-      setIsAnswering(true);
-      setResult(null);
-      await wait(TOURBAR_SHEET_RETRACT_MS);
-      setStandaloneResult(activeResult);
-      setIsAnswering(false);
+      await openStandaloneSheet(activeResult);
       return;
     }
 
@@ -438,6 +444,9 @@ export default function TourBarShell({
     },
     submitPrimary: (nextQuery) => {
       void submitQuery(nextQuery);
+    },
+    openStandaloneSheet: (nextResult) => {
+      void openStandaloneSheet(nextResult);
     },
   };
 
