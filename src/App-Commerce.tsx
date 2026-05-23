@@ -2239,6 +2239,33 @@ function buildTourBarBookingHandoff(raw: TourBarHotelBookingBackendResponse): To
     budgetLabel,
     priceLabel: priceLabelFromTourBarCombination(selected),
   };
+
+}
+
+function tourBarBookingFocusTarget(raw: TourBarHotelBookingBackendResponse): TourBarPageTarget | null {
+  const visibleContext = asRecord(raw.visibleContext);
+  const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+  const activeRoom = asRecord(activeStayPlan.room);
+  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+  const roomId = String(
+    activeStayPlan.roomId ||
+      activeStayPlan.roomTargetId ||
+      activeRoom.targetId ||
+      activeRoom.roomId ||
+      selected.roomId ||
+      visibleContext.selectedRoomId ||
+      "",
+  );
+  const targetId = sectionIdFromTourBarTarget(roomId);
+  if (!targetId || !roomStepOrder.includes(targetId)) return null;
+
+  return {
+    pageId: pageIdFromTourBarTarget(targetId),
+    targetId,
+    targetSelector: `[data-tour-id="${targetId}"], #${targetId}`,
+    targetText: String(selected.roomShortTitle || selected.roomTitle || getRoomMeta(targetId)?.title || "Selected room"),
+    reason: "Room staged for booking handoff.",
+  };
 }
 
 function TourBarHotelBookingHandoffSheet({
@@ -2336,11 +2363,7 @@ function TourBarNavigationControls({
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onBack();
-            }}
+            onClick={onBack}
             disabled={isFirst}
             className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -2348,22 +2371,14 @@ function TourBarNavigationControls({
           </button>
           <button
             type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onStop();
-            }}
+            onClick={onStop}
             className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70"
           >
             Stop
           </button>
           <button
             type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onNext();
-            }}
+            onClick={onNext}
             disabled={isLast}
             className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
           >
@@ -2560,24 +2575,14 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoffOpen(true);
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
-
-    // A booking handoff is a settled summary, not a guided comparison tour.
-    // Keep the page focus aligned with the staged room so Stop cannot leave the
-    // summary pointing at one room while the page highlights another option.
-    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
-    const handoffTargets = comboNavigationTargets(selected).filter((target) =>
-      target.targetId.startsWith("room-"),
-    );
-    const handoffTarget = handoffTargets[0];
-
-    tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState(null);
     setTourBarSpotlightTarget(null);
 
-    if (handoffTarget) {
-      const pageId = handoffTarget.pageId || pageIdFromTourBarTarget(handoffTarget.targetId);
-      setCurrentPage(pageId);
-      spotlightTourBarAnchor(handoffTarget.targetId, handoffTarget.targetSelector, 360);
+    const bookingTarget = tourBarBookingFocusTarget(raw);
+    if (bookingTarget) {
+      tourBarNavigationRunRef.current += 1;
+      setCurrentPage(bookingTarget.pageId);
+      spotlightTourBarAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 560);
     }
   };
 
@@ -2586,12 +2591,11 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     if (!sectionId) return;
 
     const runToken = tourBarNavigationRunRef.current;
+    setActiveAnchor(sectionId);
     setTourBarSpotlightTarget(null);
 
     window.setTimeout(() => {
       if (tourBarNavigationRunRef.current !== runToken) return;
-
-      setActiveAnchor(sectionId);
 
       const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
       const el =
@@ -2711,19 +2715,9 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   };
 
   const stopTourBarNavigationSequence = () => {
-    const current = tourBarNavigationState;
-    const activeStep = current?.steps[Math.min(Math.max(current.activeIndex, 0), current.steps.length - 1)];
-    const activeSectionId = sectionIdFromTourBarTarget(activeStep?.targetId);
-
     tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState(null);
     setTourBarSpotlightTarget(null);
-
-    // Stopping should freeze the tour where the user is, not trigger another
-    // pending target or fall back to a stale summary target.
-    if (activeSectionId) {
-      setActiveAnchor(activeSectionId);
-    }
   };
 
 
