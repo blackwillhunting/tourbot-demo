@@ -105,7 +105,7 @@ function Card({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border border-white/70 bg-white/92 shadow-sm shadow-slate-200/70 ring-1 ring-slate-950/[0.03] backdrop-blur sm:rounded-[30px] ${className}`}
+      className={`overflow-hidden rounded-[18px] border border-white/35 bg-slate-50/82 shadow-sm shadow-slate-950/20 ring-1 ring-white/[0.08] backdrop-blur sm:rounded-[30px] ${className}`}
     >
       {children}
     </div>
@@ -749,17 +749,17 @@ function Header({
   showDemoControls?: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-slate-800/80 bg-slate-950/90 text-slate-100 shadow-lg shadow-slate-950/30 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-2.5 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-950 shadow-sm shadow-slate-950/30 sm:h-11 sm:w-11">
             <Compass className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
               Domi Coast Resort
             </div>
-            <div className="truncate text-xs text-slate-500 sm:text-sm">
+            <div className="truncate text-xs text-slate-400 sm:text-sm">
               Resort commerce playground
             </div>
           </div>
@@ -785,7 +785,7 @@ function Header({
           </nav>
 
           {showDemoControls && (
-            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1 shadow-sm">
+            <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 p-1 shadow-sm shadow-slate-950/30">
               {demoStatus === "idle" && (
                 <button
                   data-demo-target="start-demo"
@@ -814,7 +814,7 @@ function Header({
               {demoStatus !== "idle" && (
                 <button
                   onClick={onStopDemo}
-                  className="rounded-full px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
+                  className="rounded-full px-3 py-2 text-xs font-semibold text-slate-300 transition hover:bg-slate-800"
                 >
                   Stop
                 </button>
@@ -836,7 +836,7 @@ function Header({
                   "inline-flex shrink-0 items-center justify-center rounded-full border px-3 py-2 text-xs font-semibold transition " +
                   (active
                     ? "border-slate-950 bg-slate-950 text-white shadow-sm"
-                    : "border-slate-200 bg-white/80 text-slate-700 hover:bg-white")
+                    : "border-slate-700 bg-slate-900/75 text-slate-200 hover:bg-slate-800")
                 }
               >
                 <Icon className="mr-1.5 h-3.5 w-3.5" />
@@ -855,7 +855,7 @@ function Hero({ page }: { page: Page }) {
   return (
     <section className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 sm:pb-10 sm:pt-10">
       <div
-        className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-300/40 sm:rounded-[40px] sm:px-6 sm:py-8 md:px-10 md:py-12`}
+        className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-950/50 sm:rounded-[40px] sm:px-6 sm:py-8 md:px-10 md:py-12`}
       >
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute -bottom-24 left-20 h-72 w-72 rounded-full bg-cyan-300/10 blur-3xl" />
@@ -2462,7 +2462,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const anchorButtons = useMemo(() => page.sections.slice(0, 7), [page]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34%),linear-gradient(180deg,#f8fafc_0%,#eef7fb_48%,#f8fafc_100%)] text-slate-950">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.26),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(79,70,229,0.18),transparent_34%),linear-gradient(180deg,#020617_0%,#0f172a_46%,#111827_100%)] text-slate-100">
       <Header
         currentPage={currentPage}
         onNavigate={onNavigate}
