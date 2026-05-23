@@ -1,10 +1,10 @@
 import TourBarShell, {
-  focusTourBarPageTarget,
   type TourBarInvitation,
   type TourBarNextMove,
   type TourBarShellResult,
   type TourBarThreadMessage,
 } from "./TourBarShell";
+import { smartbarFocusTarget } from "./smartbarFocusController";
 
 const TOURBAR_API_URL = "/api/tourbar";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
@@ -239,7 +239,7 @@ export default function TourBarInformational({
             label: result.label,
           };
           onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target, { initialDelayMs: 720 });
+          void smartbarFocusTarget(target, { initialDelayMs: 720 });
         }
       }}
     />
