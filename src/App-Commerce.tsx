@@ -1908,6 +1908,131 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
   };
 }
 
+
+type TourBarPageTarget = {
+  pageId: PageId;
+  targetId: string;
+  targetSelector?: string;
+  targetText?: string;
+  reason?: string;
+};
+
+function addTourBarNavigationTarget(
+  targets: TourBarPageTarget[],
+  value: Record<string, any>,
+) {
+  const rawTargetId = String(value.targetId || value.focusAreaId || "").trim();
+  const targetId = sectionIdFromTourBarTarget(rawTargetId);
+  if (!targetId || targetId === "booking-panel" || targetId.startsWith("booking-")) {
+    return;
+  }
+
+  const pageId = String(value.pageId || pageIdFromTourBarTarget(targetId)) as PageId;
+  const targetSelector =
+    typeof value.targetSelector === "string" && value.targetSelector.trim()
+      ? value.targetSelector.trim()
+      : `[data-tour-id="${targetId}"], #${targetId}`;
+  const key = `${pageId}:${targetId}`;
+  if (targets.some((item) => `${item.pageId}:${item.targetId}` === key)) {
+    return;
+  }
+
+  targets.push({
+    pageId,
+    targetId,
+    targetSelector,
+    targetText: typeof value.targetText === "string" ? value.targetText : undefined,
+    reason: typeof value.reason === "string" ? value.reason : undefined,
+  });
+}
+
+function packageNavigationTargetsFromCombo(combo: Record<string, any>) {
+  const packageTargets = asRecordArray(combo.packageTargets);
+  const packageIds = packageIdsFromTourBarCombination(combo);
+
+  return packageIds.map((packageId, index) => {
+    const target = asRecord(packageTargets[index]);
+    const targetId = String(target.targetId || packageId);
+    return {
+      pageId: String(target.pageId || pageIdFromTourBarTarget(targetId)) as PageId,
+      targetId,
+      targetSelector:
+        typeof target.targetSelector === "string" && target.targetSelector.trim()
+          ? target.targetSelector.trim()
+          : `[data-tour-id="${targetId}"], #${targetId}`,
+      targetText:
+        asStringArray(combo.packageTitles)[index] ||
+        getPackageMeta(packageId)?.title ||
+        "Package",
+      reason: "Recommended add-on for this stay.",
+    };
+  });
+}
+
+function comboNavigationTargets(
+  combo: Record<string, any>,
+  { packageFirst = false }: { packageFirst?: boolean } = {},
+) {
+  const targets: TourBarPageTarget[] = [];
+  const roomTarget = asRecord(combo.roomTarget);
+  const roomId = String(combo.roomId || roomTarget.targetId || "").trim();
+  const roomStep = roomId
+    ? {
+        pageId: String(roomTarget.pageId || pageIdFromTourBarTarget(roomId)) as PageId,
+        targetId: roomId,
+        targetSelector:
+          typeof roomTarget.targetSelector === "string" && roomTarget.targetSelector.trim()
+            ? roomTarget.targetSelector.trim()
+            : `[data-tour-id="${roomId}"], #${roomId}`,
+        targetText: String(combo.roomShortTitle || combo.roomTitle || getRoomMeta(roomId)?.title || "Room"),
+        reason: "Recommended room option.",
+      }
+    : null;
+  const packageSteps = packageNavigationTargetsFromCombo(combo);
+
+  [...(packageFirst ? packageSteps : []), ...(roomStep ? [roomStep] : []), ...(packageFirst ? [] : packageSteps)]
+    .forEach((target) => addTourBarNavigationTarget(targets, target));
+
+  return targets;
+}
+
+function tourBarNavigationTargets(raw: TourBarHotelBookingBackendResponse) {
+  const targets: TourBarPageTarget[] = [];
+  const action = asRecord(raw.action || raw.suggestedAction);
+  const ranked = asRecordArray(raw.rankedDestinations);
+  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+  const packageIds = packageIdsFromTourBarCombination(selected);
+  const plannerText = [
+    asRecord(raw.bookingArtifacts).normalizedPrompt,
+    asRecord(raw.bookingArtifacts).rawPrompt,
+    raw.answer,
+    raw.body,
+    raw.message,
+    raw.reply,
+  ].join(" ").toLowerCase();
+  const packageFocused =
+    packageIds.length > 0 &&
+    /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
+
+  addTourBarNavigationTarget(targets, action);
+  ranked.forEach((item) => addTourBarNavigationTarget(targets, item));
+
+  const combos = [
+    tourBarCombinationFromRaw(raw, { preferNextStep: true }),
+    asRecord(raw.selectedCombination),
+    ...asRecordArray(raw.matrixResults),
+    ...asRecordArray(raw.alternatives),
+  ];
+
+  combos.forEach((combo) => {
+    if (!combo.comboId && !combo.roomId) return;
+    comboNavigationTargets(combo, { packageFirst: packageFocused })
+      .forEach((target) => addTourBarNavigationTarget(targets, target));
+  });
+
+  return targets.slice(0, 4);
+}
+
 function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
   if (!nextStepLabel) return body;
 
@@ -2176,6 +2301,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     useState<TourBarBookingHandoff | null>(null);
   const [tourBarBookingHandoffOpen, setTourBarBookingHandoffOpen] =
     useState(false);
+  const tourBarNavigationRunRef = React.useRef(0);
 
   const isSelfDriveEntry = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -2325,22 +2451,9 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
 
-    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
-    const packageIds = packageIdsFromTourBarCombination(selected);
-    const plannerText = [
-      asRecord(raw.bookingArtifacts).normalizedPrompt,
-      asRecord(raw.bookingArtifacts).rawPrompt,
-      raw.answer,
-      raw.body,
-    ].join(" ").toLowerCase();
-    const packageFocused =
-      packageIds.length > 0 &&
-      /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
-    const handoffTargetId = packageFocused ? packageIds[0] : String(selected.roomId || "");
-
-    if (handoffTargetId) {
-      setCurrentPage(pageIdFromTourBarTarget(handoffTargetId));
-      spotlightTourBarAnchor(handoffTargetId, undefined, 560);
+    const navigationTargets = tourBarNavigationTargets(raw);
+    if (navigationTargets.length) {
+      runTourBarNavigationSequence(navigationTargets, { initialDelay: 560 });
     }
   };
 
@@ -2405,6 +2518,33 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }, delay);
   };
 
+  const runTourBarNavigationSequence = (
+    targets: TourBarPageTarget[],
+    { initialDelay = 520, stepDelay = 3200 }: { initialDelay?: number; stepDelay?: number } = {},
+  ) => {
+    const steps: TourBarPageTarget[] = [];
+    targets.forEach((target) => addTourBarNavigationTarget(steps, target));
+    if (!steps.length) return;
+
+    const runId = tourBarNavigationRunRef.current + 1;
+    tourBarNavigationRunRef.current = runId;
+
+    steps.slice(0, 4).forEach((target, index) => {
+      window.setTimeout(() => {
+        if (tourBarNavigationRunRef.current !== runId) return;
+
+        const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
+        setCurrentPage(pageId);
+        spotlightTourBarAnchor(
+          target.targetId,
+          target.targetSelector,
+          index === 0 ? initialDelay : 420,
+        );
+      }, index * stepDelay);
+    });
+  };
+
+
   const focusTourBarTarget = (result: TourBarShellResult) => {
     const raw = asRecord(result.raw);
     const target = primaryTourBarTarget(raw);
@@ -2413,6 +2553,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     if (target.isBookingAction && isExplicitTourBarBookingRequest(raw)) {
       stageTourBarBooking(raw);
+      return;
+    }
+
+    const navigationTargets = tourBarNavigationTargets(raw);
+    if (navigationTargets.length) {
+      runTourBarNavigationSequence(navigationTargets, { initialDelay: 520 });
       return;
     }
 
@@ -2444,6 +2590,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     query: string,
     context: TourBarShellTurnContext,
   ): Promise<TourBarShellResult> => {
+    tourBarNavigationRunRef.current += 1;
+    setTourBarSpotlightTarget(null);
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
