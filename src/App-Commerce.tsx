@@ -22,6 +22,7 @@ import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
 import TourBarBooking from "./components/tourbar/TourBarBooking";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./components/tourbar/smartbarFocusController";
 import type {
   TourBarShellActions,
   TourBarShellResult,
@@ -2476,6 +2477,12 @@ async function tourBarCenterTargetWithVerification(
   return tourBarTargetIsSafelyPlaced(el);
 }
 
+// These older Domi-specific centering helpers stay parked for now while
+// booking focus moves to the shared SmartBar controller. Keeping references
+// avoids turning this visual wiring patch into a helper-deletion refactor.
+void tourBarFindTargetWhenReady;
+void tourBarCenterTargetWithVerification;
+
 function packageNavigationTargetsFromCombo(combo: Record<string, any>) {
   const packageTargets = asRecordArray(combo.packageTargets);
   const packageIds = packageIdsFromTourBarCombination(combo);
@@ -3880,68 +3887,30 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     const runToken = tourBarNavigationRunRef.current;
     const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
+    const pageId = pageIdFromTourBarTarget(sectionId);
 
+    // Booking now uses the SmartBar-owned focus controller for scroll,
+    // placement verification, and the frost/glow overlay. Keep App-Commerce
+    // responsible only for page state and active anchor bookkeeping.
     setTourBarSpotlightTarget(null);
+    setTourBarSpotlightNonce((current) => current + 1);
+    clearSmartBarFocusOverlay();
 
     window.setTimeout(() => {
-      void (async () => {
-        const isCurrentRun = () => tourBarNavigationRunRef.current === runToken;
-        if (!isCurrentRun()) return;
+      const isCurrentRun = () => tourBarNavigationRunRef.current === runToken;
+      if (!isCurrentRun()) return;
 
-        const el = await tourBarFindTargetWhenReady(sectionId, selector, isCurrentRun);
-        if (!el || !isCurrentRun()) return;
-
-        await tourBarNextFrame(2);
-        const centered = await tourBarCenterTargetWithVerification(el, isCurrentRun);
-        if (!isCurrentRun()) return;
-
-        // Traffic rule: do not mark the target active or draw the focus effect
-        // until after the target has had a chance to pass the viewport check.
-        if (!centered) {
-          window.scrollTo({
-            top: tourBarTargetScrollTop(el),
-            behavior: "auto",
-          });
-          await tourBarNextFrame(3);
-          if (!isCurrentRun()) return;
-        }
-
-        const token = `${Date.now()}-${sectionId}`;
-        const previous = {
-          position: el.style.position,
-          zIndex: el.style.zIndex,
-        };
-        const computedPosition = window.getComputedStyle(el).position;
-
-        el.dataset.tourbarSpotlightToken = token;
-        if (computedPosition === "static") el.style.position = "relative";
-        el.style.zIndex = "80";
-
-        setActiveAnchor(sectionId);
-        setTourBarSpotlightTarget(sectionId);
-        setTourBarSpotlightNonce((current) => current + 1);
-
-        window.dispatchEvent(
-          new CustomEvent("guide-spotlight-target", {
-            detail: {
-              targetId: sectionId,
-              selector,
-            },
-          }),
-        );
-
-        window.setTimeout(() => {
-          if (el.dataset.tourbarSpotlightToken !== token) return;
-
-          el.style.position = previous.position;
-          el.style.zIndex = previous.zIndex;
-          delete el.dataset.tourbarSpotlightToken;
-
-          setTourBarSpotlightTarget((current) =>
-            current === sectionId ? null : current,
-          );
-        }, 5200);
-      })();
+      setActiveAnchor(sectionId);
+      void smartbarFocusTarget(
+        {
+          pageId,
+          targetId: sectionId,
+          targetSelector: selector,
+        },
+        { initialDelayMs: 0 },
+      ).then(() => {
+        if (!isCurrentRun()) clearSmartBarFocusOverlay();
+      });
     }, delay);
   };
 
