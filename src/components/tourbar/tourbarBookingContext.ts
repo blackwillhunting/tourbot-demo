@@ -341,6 +341,67 @@ export function buildTourBarCollectionResult(
   };
 }
 
+export type TourBarScopeLimitKind = "policy" | "general";
+
+export function tourBarScopeLimitKindFromPrompt(prompt: string): TourBarScopeLimitKind | null {
+  const text = String(prompt || "")
+    .toLowerCase()
+    .replace(/[–—]/g, "-")
+    .replace(/check\s+in/g, "check-in")
+    .replace(/check\s+out/g, "check-out")
+    .replace(/checkout/g, "check-out")
+    .replace(/checkin/g, "check-in");
+
+  if (!text.trim()) return null;
+
+  const policyPatterns = [
+    /\bwhat\s+time\b.*\bcheck-?in\b/,
+    /\bwhen\s+(?:can|do|does|is|are|will)?\s*.*\bcheck-?in\b/,
+    /\bcheck-?in\s+time\b/,
+    /\bwhat\s+time\b.*\bcheck-?out\b/,
+    /\bwhen\s+(?:can|do|does|is|are|will)?\s*.*\bcheck-?out\b/,
+    /\bcheck-?out\s+time\b/,
+    /\b(?:cancellation|cancelation|refund)\s+(?:policy|rules?|terms?)\b/,
+    /\b(?:pet|dog|cat|animal)\s+(?:policy|rules?|allowed|friendly)\b/,
+    /\b(?:resort|amenity|destination)\s+fee\b/,
+    /\b(?:deposit|incidental|hold)\s+(?:policy|amount|fee|charge|required)\b/,
+    /\b(?:pool|restaurant|bar|spa|gym|fitness|breakfast)\s+hours?\b/,
+    /\bhours?\s+(?:for|of)\s+(?:the\s+)?(?:pool|restaurant|bar|spa|gym|fitness|breakfast)\b/,
+    /\bminimum\s+age\b/,
+    /\bsmoking\s+policy\b/,
+  ];
+
+  if (policyPatterns.some((pattern) => pattern.test(text))) {
+    return "policy";
+  }
+
+  return null;
+}
+
+export function buildTourBarScopeLimitResult(prompt: string): TourBarCollectionResultLike {
+  const kind = tourBarScopeLimitKindFromPrompt(prompt);
+  const policyDetail =
+    kind === "policy"
+      ? "I don’t have general hotel policy details like check-in times, cancellation terms, fees, or property hours in this booking matrix."
+      : "I don’t have enough site knowledge to answer that from this booking matrix.";
+
+  return {
+    title: "TourBar is for booking options",
+    body: `${policyDetail}\n\nI can help compare rooms, find room and package combinations, add breakfast or parking, adjust dates or guests, and prepare a booking summary.`,
+    canFollowUp: true,
+    answerMode: "tourbar_scope_limit",
+    mode: "tourbar_scope_limit",
+    action: "tourbar_scope_limit",
+    label: "Booking options only",
+    raw: {
+      mode: "tourbar_scope_limit",
+      action: "tourbar_scope_limit",
+      scopeLimitKind: kind || "general",
+      prompt,
+    },
+  };
+}
+
 export function tourBarCollectionFieldFromResult(
   result?: TourBarCollectionResultLike | null,
 ): TourBarRequiredBookingField | null {

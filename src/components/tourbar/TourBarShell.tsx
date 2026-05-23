@@ -2,9 +2,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   buildTourBarCollectionResult,
+  buildTourBarScopeLimitResult,
   TourBarBookingContextPanel,
   tourBarCollectionFieldFromResult,
   tourBarPendingQueryFromResult,
+  tourBarScopeLimitKindFromPrompt,
   useTourBarBookingContext,
   type TourBarBookingContext,
   type TourBarRequiredBookingField,
@@ -267,7 +269,7 @@ function MarkdownLite({ text }: { text: string }) {
 }
 
 export default function TourBarShell({
-  primaryPlaceholder = "Ask TourBar in plain English...",
+  primaryPlaceholder = "Ask SmartBar in plain English...",
   followUpPlaceholder = "Ask a follow-up...",
   launcherTitle = "TourBar natural-language search",
   launcherAriaLabel = "Open TourBar natural-language search",
@@ -361,6 +363,14 @@ export default function TourBarShell({
       setStandaloneResult(null);
     }
 
+    const scopeLimitKind = requireBookingContext ? tourBarScopeLimitKindFromPrompt(cleanQuery) : null;
+    if (scopeLimitKind) {
+      const scopeResult = buildTourBarScopeLimitResult(cleanQuery) as TourBarShellResult;
+      setResult(scopeResult);
+      appendThread([], cleanQuery, scopeResult);
+      return;
+    }
+
     const bookingGate = requireBookingContext
       ? bookingContextController.prepareSubmission(cleanQuery, bookingContextOverride)
       : { context: bookingContextOverride || bookingContextController.context, missingField: null };
@@ -414,6 +424,15 @@ export default function TourBarShell({
     setLoadingMessage(followUpLoadingMessage);
 
     await wait(TOURBAR_SHEET_RETRACT_MS);
+
+    const scopeLimitKind = requireBookingContext ? tourBarScopeLimitKindFromPrompt(cleanFollowUp) : null;
+    if (scopeLimitKind) {
+      const scopeResult = buildTourBarScopeLimitResult(cleanFollowUp) as TourBarShellResult;
+      setResult(scopeResult);
+      appendThread(priorThread, cleanFollowUp, scopeResult);
+      setIsAnswering(false);
+      return;
+    }
 
     const bookingGate = requireBookingContext
       ? bookingContextController.prepareSubmission(cleanFollowUp, bookingContextOverride)
