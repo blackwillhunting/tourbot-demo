@@ -1386,6 +1386,7 @@ function BookingMock({
 function SectionCard({
   section,
   emphasized,
+  spotlighted = false,
   pageId,
   index,
   selectedRoom,
@@ -1394,6 +1395,7 @@ function SectionCard({
 }: {
   section: Section;
   emphasized: boolean;
+  spotlighted?: boolean;
   pageId: PageId;
   index: number;
   selectedRoom?: string | null;
@@ -1405,6 +1407,7 @@ function SectionCard({
   const dark = visual.shape === "dark" || visual.shape === "booking";
   const isRoom = visual.shape === "room";
   const isSelectedRoom = isRoom && selectedRoom === section.id;
+  const highlighted = emphasized || spotlighted;
   const isRecommendedStart = section.id === "room-business-king";
   const mobileChips = (section.tags || visual.chips).slice(0, 3);
   const mobileSignal = section.price
@@ -1417,14 +1420,23 @@ function SectionCard({
       data-tour-id={section.id}
       layout
       initial={false}
-      animate={{ scale: emphasized || isSelectedRoom ? 1.012 : 1, opacity: 1 }}
+      animate={{ scale: highlighted || isSelectedRoom ? 1.018 : 1, opacity: 1 }}
       transition={{ duration: 0.25 }}
-      className="scroll-mt-20 sm:scroll-mt-28"
+      className={`relative scroll-mt-20 sm:scroll-mt-28 ${spotlighted ? "z-[70]" : ""}`}
     >
+      {spotlighted && (
+        <motion.div
+          aria-hidden="true"
+          initial={{ opacity: 0, scale: 0.985 }}
+          animate={{ opacity: [0.92, 1, 0.92], scale: [1, 1.006, 1] }}
+          transition={{ duration: 1.25, repeat: Infinity, ease: "easeInOut" }}
+          className="pointer-events-none absolute -inset-2 z-20 rounded-[34px] border-4 border-cyan-300/95 shadow-[0_0_0_10px_rgba(34,211,238,0.20),0_24px_80px_rgba(34,211,238,0.45)]"
+        />
+      )}
       <Card
         className={`md:hidden transition-all ${
-          emphasized
-            ? "border-white ring-4 ring-cyan-200/95 shadow-2xl shadow-cyan-200/80"
+          highlighted
+            ? "border-cyan-300 ring-4 ring-cyan-300/90 shadow-2xl shadow-cyan-300/70"
             : "border-slate-200 ring-1 ring-slate-200/80"
         } ${
           isSelectedRoom
@@ -1510,8 +1522,8 @@ function SectionCard({
 
       <Card
         className={`hidden md:block ${
-          emphasized
-            ? "border-white ring-4 ring-cyan-200/95 shadow-2xl shadow-cyan-200/80"
+          highlighted
+            ? "border-cyan-300 ring-4 ring-cyan-300/90 shadow-2xl shadow-cyan-300/70"
             : ""
         } ${
           isSelectedRoom
@@ -1813,6 +1825,22 @@ function pageIdFromTourBarTarget(targetId?: string | null): PageId {
   return "home";
 }
 
+function sectionIdFromTourBarTarget(targetId?: string | null) {
+  const target = String(targetId || "").trim();
+  if (!target) return "";
+
+  const sections = Object.values(PAGES).flatMap((page) => page.sections);
+  const exact = sections.find((section) => section.id === target);
+  if (exact) return exact.id;
+
+  const prefix = sections
+    .slice()
+    .sort((a, b) => b.id.length - a.id.length)
+    .find((section) => target.startsWith(`${section.id}-`) || target.startsWith(`${section.id}_`));
+
+  return prefix?.id || target;
+}
+
 function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
   const action = asRecord(raw.action || raw.suggestedAction);
   const ranked = Array.isArray(raw.rankedDestinations) ? raw.rankedDestinations : [];
@@ -1876,47 +1904,6 @@ function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
 function isBookingNextStepLabel(value?: string | null) {
   const text = String(value || "").toLowerCase();
   return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
-}
-
-function hasTourBarStayContext(context: TourBarShellTurnContext) {
-  return Boolean(context.currentResult || context.thread.length > 0);
-}
-
-function shouldPreferPackageTarget(raw: TourBarHotelBookingBackendResponse, combo: Record<string, any>) {
-  const packageIds = packageIdsFromTourBarCombination(combo);
-  if (!packageIds.length) return false;
-
-  const plannerText = [
-    asRecord(raw.bookingArtifacts).normalizedPrompt,
-    asRecord(raw.bookingArtifacts).rawPrompt,
-    raw.answer,
-    raw.body,
-    asRecord(raw.nextStep).label,
-    asRecord(raw.nextStep).query,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
-}
-
-function spotlightTargetFromTourBarRaw(
-  raw: TourBarHotelBookingBackendResponse,
-  { preferNextStep = false }: { preferNextStep?: boolean } = {},
-) {
-  const selected = tourBarCombinationFromRaw(raw, { preferNextStep });
-  const packageIds = packageIdsFromTourBarCombination(selected);
-  const targetId = shouldPreferPackageTarget(raw, selected)
-    ? packageIds[0]
-    : String(selected.roomId || "");
-
-  if (!targetId) return null;
-
-  return {
-    targetId,
-    pageId: pageIdFromTourBarTarget(targetId),
-    targetSelector: `[data-tour-id="${targetId}"], #${targetId}`,
-  };
 }
 
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
@@ -2141,6 +2128,7 @@ function TourBarHotelBookingExtras({
 export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = {}) {
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
+  const [tourBarSpotlightTarget, setTourBarSpotlightTarget] = useState<string | null>(null);
   const [demoStatus, setDemoStatus] = useState<DemoStatus>("idle");
   const [guideDemoCommand, setGuideDemoCommand] =
     useState<GuideShellDemoCommand | null>(null);
@@ -2312,23 +2300,80 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoff(buildTourBarBookingHandoff(raw));
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
+
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const packageIds = packageIdsFromTourBarCombination(selected);
+    const plannerText = [
+      asRecord(raw.bookingArtifacts).normalizedPrompt,
+      asRecord(raw.bookingArtifacts).rawPrompt,
+      raw.answer,
+      raw.body,
+    ].join(" ").toLowerCase();
+    const packageFocused =
+      packageIds.length > 0 &&
+      /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
+    const handoffTargetId = packageFocused ? packageIds[0] : String(selected.roomId || "");
+
+    if (handoffTargetId) {
+      setCurrentPage(pageIdFromTourBarTarget(handoffTargetId));
+      spotlightTourBarAnchor(handoffTargetId, undefined, 560);
+    }
   };
 
   const spotlightTourBarAnchor = (targetId: string, targetSelector?: string, delay = 420) => {
-    if (!targetId) return;
+    const sectionId = sectionIdFromTourBarTarget(targetId);
+    if (!sectionId) return;
+
+    setActiveAnchor(sectionId);
+    setTourBarSpotlightTarget(sectionId);
 
     window.setTimeout(() => {
-      const selector = targetSelector || `[data-tour-id="${targetId}"], #${targetId}`;
+      const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
       const el =
         document.querySelector<HTMLElement>(selector) ||
-        document.getElementById(targetId);
+        document.querySelector<HTMLElement>(`[data-tour-id="${sectionId}"]`) ||
+        document.getElementById(sectionId);
 
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+        const token = `${Date.now()}-${sectionId}`;
+        el.dataset.tourbarSpotlightToken = token;
+        const previous = {
+          outline: el.style.outline,
+          outlineOffset: el.style.outlineOffset,
+          boxShadow: el.style.boxShadow,
+          position: el.style.position,
+          zIndex: el.style.zIndex,
+        };
+        const computedPosition = window.getComputedStyle(el).position;
+
+        el.style.outline = "4px solid rgba(125, 211, 252, 0.98)";
+        el.style.outlineOffset = "7px";
+        el.style.boxShadow = "0 0 0 12px rgba(34, 211, 238, 0.22), 0 24px 90px rgba(34, 211, 238, 0.42)";
+        if (computedPosition === "static") el.style.position = "relative";
+        el.style.zIndex = "80";
+
+        window.setTimeout(() => {
+          if (el.dataset.tourbarSpotlightToken !== token) return;
+          el.style.outline = previous.outline;
+          el.style.outlineOffset = previous.outlineOffset;
+          el.style.boxShadow = previous.boxShadow;
+          el.style.position = previous.position;
+          el.style.zIndex = previous.zIndex;
+          delete el.dataset.tourbarSpotlightToken;
+          setTourBarSpotlightTarget((current) => (current === sectionId ? null : current));
+        }, 4600);
+      } else {
+        window.setTimeout(() => {
+          setTourBarSpotlightTarget((current) => (current === sectionId ? null : current));
+        }, 4600);
+      }
 
       window.dispatchEvent(
         new CustomEvent("guide-spotlight-target", {
           detail: {
-            targetId,
+            targetId: sectionId,
             selector,
           },
         }),
@@ -2344,27 +2389,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     if (target.isBookingAction) {
       stageTourBarBooking(raw);
-
-      const spotlightTarget = spotlightTargetFromTourBarRaw(raw, { preferNextStep: true });
-      if (spotlightTarget) {
-        setCurrentPage(spotlightTarget.pageId);
-        setActiveAnchor(spotlightTarget.targetId);
-        spotlightTourBarAnchor(
-          spotlightTarget.targetId,
-          spotlightTarget.targetSelector,
-          420,
-        );
-      }
       return;
     }
 
     const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
     setCurrentPage(pageId);
-    if (target.targetId) {
-      setActiveAnchor(target.targetId);
-    }
-
-    spotlightTourBarAnchor(target.targetId, target.targetSelector, 420);
+    spotlightTourBarAnchor(target.targetId, target.targetSelector, 520);
   };
 
   const handleTourBarNextMove = (result: TourBarShellResult) => {
@@ -2392,25 +2422,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   ): Promise<TourBarShellResult> => {
     setTourBarBookingHandoff(null);
 
-    const includeStayContext = hasTourBarStayContext(context);
-    const visibleStayContext = includeStayContext
-      ? {
-          selectedRoomId: selectedRoom,
-          selectedPackageIds: selectedPackages,
-          bookingContext: {
-            checkInDate: datesSelected ? checkInDate : null,
-            checkOutDate: datesSelected ? checkOutDate : null,
-            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
-            guestLabel: guestsSelected ? guestLabel : null,
-            budgetBand,
-          },
-        }
-      : {
-          selectedRoomId: null,
-          selectedPackageIds: [],
-          bookingContext: {},
-        };
-
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
       headers: {
@@ -2433,7 +2444,15 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
         visibleContext: {
           currentPage,
           activeAnchor,
-          ...visibleStayContext,
+          selectedRoomId: selectedRoom,
+          selectedPackageIds: selectedPackages,
+          bookingContext: {
+            checkInDate: datesSelected ? checkInDate : null,
+            checkOutDate: datesSelected ? checkOutDate : null,
+            guests: guestsSelected ? guestCountFromLabel(guestLabel) : null,
+            guestLabel: guestsSelected ? guestLabel : null,
+            budgetBand,
+          },
         },
         conversationContext: {
           currentResult: context.currentResult?.raw || context.currentResult || null,
@@ -2689,6 +2708,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
                   key={section.id}
                   section={section}
                   emphasized={activeAnchor === section.id}
+                  spotlighted={tourBarSpotlightTarget === section.id}
                   pageId={currentPage}
                   index={index}
                   selectedRoom={selectedRoom}
