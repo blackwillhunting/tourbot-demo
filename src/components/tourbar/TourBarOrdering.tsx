@@ -919,6 +919,7 @@ function OrderReview({
   onActiveIndexChange,
   onReviewModeChange,
   onLocalOptionSelect,
+  onSilentReprice,
   onRemoveItem,
   onNavigateToFocus,
 }: {
@@ -930,6 +931,7 @@ function OrderReview({
   onActiveIndexChange: (index: number) => void;
   onReviewModeChange: (mode: ReviewMode) => void;
   onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => CarryoutOrder | null;
+  onSilentReprice: (order: CarryoutOrder | null) => void;
   onRemoveItem: (item: ReviewItem) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 }) {
@@ -1296,9 +1298,7 @@ function OrderReview({
                               const nextOrder = onLocalOptionSelect(item, group, option);
                               if (orderNeedsBackendReprice(nextOrder)) {
                                 onReviewModeChange("cart");
-                                window.setTimeout(() => {
-                                  actions.submitFollowUp("show cart");
-                                }, 0);
+                                onSilentReprice(nextOrder);
                               }
                             }}
                             aria-pressed={selected}
@@ -1359,7 +1359,10 @@ function OrderReview({
 
       <button
         type="button"
-        onClick={() => onReviewModeChange("cart")}
+        onClick={() => {
+          onReviewModeChange("cart");
+          actions.openStandaloneSheet(result);
+        }}
         className="flex w-full items-center justify-center rounded-full bg-cyan-950 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-cyan-900"
       >
         Back to order review
@@ -1404,6 +1407,27 @@ export default function TourBarOrdering({
     });
   };
 
+  const silentReprice = async (nextOrder: CarryoutOrder | null) => {
+    if (!nextOrder) return;
+
+    try {
+      const response = await postGuideAi("show cart", nextOrder, []);
+      const repricedOrder = extractCarryoutOrder(response);
+      if (!repricedOrder) return;
+
+      setCarryoutOrder(repricedOrder);
+      const nextItems = reviewItemsFrom(response, repricedOrder);
+      setActiveReviewIndex((index) =>
+        nextItems.length ? Math.min(Math.max(index, 0), nextItems.length - 1) : 0,
+      );
+      setReviewMode("cart");
+    } catch (error) {
+      // Silent repricing should not collapse/reopen the visible sheet. If the
+      // backend reprice fails, keep the locally completed order visible.
+      console.warn("TourBar silent reprice failed", error);
+    }
+  };
+
   const submit = async (query: string, thread: TourBarThreadMessage[]) => {
     const response = await postGuideAi(query, carryoutOrder, thread);
     const nextOrder = extractCarryoutOrder(response);
@@ -1446,6 +1470,22 @@ export default function TourBarOrdering({
           onActiveIndexChange={setActiveReviewIndex}
           onReviewModeChange={setReviewMode}
           onLocalOptionSelect={updateLocalOption}
+          onSilentReprice={silentReprice}
+          onRemoveItem={removeLocalItem}
+          onNavigateToFocus={onNavigateToFocus}
+        />
+      )}
+      renderStandaloneSheet={(result, actions) => (
+        <OrderReview
+          result={result}
+          actions={actions}
+          carryoutOrder={carryoutOrder}
+          activeIndex={activeReviewIndex}
+          reviewMode={reviewMode}
+          onActiveIndexChange={setActiveReviewIndex}
+          onReviewModeChange={setReviewMode}
+          onLocalOptionSelect={updateLocalOption}
+          onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
           onNavigateToFocus={onNavigateToFocus}
         />
