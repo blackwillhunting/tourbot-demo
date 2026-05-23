@@ -808,6 +808,18 @@ function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
   return (line.missingQualifiers || []).filter((missing) => !missing.qualifierId || !covered.has(missing.qualifierId));
 }
 
+function orderNeedsBackendReprice(order: CarryoutOrder | null) {
+  if (!order) return false;
+  const lines = allLines(order);
+  if (!lines.length) return false;
+  if (lines.some(lineIsPending)) return false;
+
+  // Local qualifier clicks can make a variant-priced line ready before the
+  // backend has recomputed catalog prices. Reconcile once the matched order is
+  // complete so variant items like medium fries get lineSubtotal/totals back.
+  return lines.some((line) => !linePrice(line));
+}
+
 type ReviewMode = "review" | "cart";
 
 function formatPriceDelta(value?: number | null) {
@@ -917,7 +929,7 @@ function OrderReview({
   reviewMode: ReviewMode;
   onActiveIndexChange: (index: number) => void;
   onReviewModeChange: (mode: ReviewMode) => void;
-  onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => void;
+  onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => CarryoutOrder | null;
   onRemoveItem: (item: ReviewItem) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 }) {
@@ -1280,7 +1292,15 @@ function OrderReview({
                             type="button"
                             data-demo-active-group-index={groupIndex}
                             data-demo-active-option-index={optionIndex}
-                            onClick={() => onLocalOptionSelect(item, group, option)}
+                            onClick={() => {
+                              const nextOrder = onLocalOptionSelect(item, group, option);
+                              if (orderNeedsBackendReprice(nextOrder)) {
+                                onReviewModeChange("cart");
+                                window.setTimeout(() => {
+                                  actions.submitFollowUp("show cart");
+                                }, 0);
+                              }
+                            }}
                             aria-pressed={selected}
                             className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
                               selected
@@ -1369,7 +1389,9 @@ export default function TourBarOrdering({
   const [reviewMode, setReviewMode] = useState<ReviewMode>("review");
 
   const updateLocalOption = (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
-    setCarryoutOrder((current) => applyLocalQualifierSelection(current, item, group, option));
+    const nextOrder = applyLocalQualifierSelection(carryoutOrder, item, group, option);
+    setCarryoutOrder(nextOrder);
+    return nextOrder;
   };
 
   const removeLocalItem = (item: ReviewItem) => {
