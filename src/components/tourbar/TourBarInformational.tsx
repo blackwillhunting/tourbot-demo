@@ -1,4 +1,5 @@
 import TourBarShell, {
+  focusTourBarPageTarget,
   type TourBarInvitation,
   type TourBarNextMove,
   type TourBarShellResult,
@@ -231,12 +232,15 @@ export default function TourBarInformational({
       }}
       onResult={(result) => {
         if (result.targetId || result.targetSelector) {
-          onNavigateToFocus?.({
+          const target = {
             pageId: result.pageId,
             targetId: result.targetId,
             targetSelector: result.targetSelector,
             label: result.label,
-          });
+          };
+
+          onNavigateToFocus?.(target);
+          void focusTourBarPageTarget(target, { delay: 520 });
         }
       }}
     />

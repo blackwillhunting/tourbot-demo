@@ -123,6 +123,240 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
+
+export type TourBarPageFocusTarget = {
+  pageId?: string | null;
+  targetId?: string | null;
+  targetSelector?: string | null;
+  label?: string | null;
+};
+
+type TourBarPageFocusOptions = {
+  delay?: number;
+  restoreAfterMs?: number;
+};
+
+let tourBarPageFocusRun = 0;
+
+function safeCssEscape(value: string) {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
+    return CSS.escape(value);
+  }
+
+  return value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+}
+
+function safeQuerySelector(selector?: string | null) {
+  if (!selector || typeof document === "undefined") return null;
+
+  try {
+    return document.querySelector<HTMLElement>(selector);
+  } catch {
+    return null;
+  }
+}
+
+function tourBarPageTargetElement(target: TourBarPageFocusTarget) {
+  const targetId = String(target.targetId || "").trim();
+  const targetSelector = String(target.targetSelector || "").trim();
+
+  return (
+    safeQuerySelector(targetSelector) ||
+    (targetId ? safeQuerySelector(`[data-tour-id="${safeCssEscape(targetId)}"]`) : null) ||
+    (targetId && typeof document !== "undefined" ? document.getElementById(targetId) : null)
+  );
+}
+
+function tourBarStickyHeaderBottom() {
+  if (typeof document === "undefined" || typeof window === "undefined") return 0;
+  const header = document.querySelector<HTMLElement>("header");
+  if (!header) return 0;
+
+  const rect = header.getBoundingClientRect();
+  return Math.max(0, Math.min(window.innerHeight * 0.35, rect.bottom));
+}
+
+function tourBarSafeViewport() {
+  const top = Math.min(window.innerHeight - 180, tourBarStickyHeaderBottom() + 22);
+  const bottom = Math.max(top + 160, window.innerHeight - 34);
+
+  return {
+    top,
+    bottom,
+    height: bottom - top,
+    center: top + (bottom - top) / 2,
+  };
+}
+
+function tourBarPageTargetScrollTop(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const safe = tourBarSafeViewport();
+  const documentHeight = Math.max(
+    document.body.scrollHeight,
+    document.documentElement.scrollHeight,
+  );
+  const maxScroll = Math.max(0, documentHeight - window.innerHeight);
+
+  const desiredTop =
+    rect.height > safe.height
+      ? window.scrollY + rect.top - safe.top
+      : window.scrollY + rect.top - (safe.top + (safe.height - rect.height) / 2);
+
+  return Math.max(0, Math.min(maxScroll, Math.round(desiredTop)));
+}
+
+function tourBarPageTargetIsSafelyPlaced(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const safe = tourBarSafeViewport();
+
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  if (rect.height > safe.height) {
+    return rect.top >= safe.top - 8 && rect.top <= safe.top + 56;
+  }
+
+  const center = rect.top + rect.height / 2;
+  const centerTolerance = Math.max(24, Math.min(82, safe.height * 0.14));
+
+  return (
+    rect.top >= safe.top - 8 &&
+    rect.bottom <= safe.bottom + 8 &&
+    Math.abs(center - safe.center) <= centerTolerance
+  );
+}
+
+async function tourBarNextFrame(count = 1) {
+  for (let index = 0; index < count; index += 1) {
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+}
+
+async function tourBarFindPageTargetWhenReady(
+  target: TourBarPageFocusTarget,
+  isCurrentRun: () => boolean,
+) {
+  for (let attempt = 0; attempt < 24; attempt += 1) {
+    if (!isCurrentRun()) return null;
+
+    const el = tourBarPageTargetElement(target);
+    if (el) return el;
+
+    await tourBarNextFrame(1);
+    await wait(35);
+  }
+
+  return null;
+}
+
+async function tourBarCenterPageTargetWithVerification(
+  el: HTMLElement,
+  isCurrentRun: () => boolean,
+) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (!isCurrentRun()) return false;
+
+    window.scrollTo({
+      top: tourBarPageTargetScrollTop(el),
+      behavior: attempt === 3 ? "auto" : "smooth",
+    });
+
+    await wait(attempt === 0 ? 440 : 260);
+    await tourBarNextFrame(2);
+
+    if (tourBarPageTargetIsSafelyPlaced(el)) return true;
+  }
+
+  if (!isCurrentRun()) return false;
+
+  window.scrollTo({
+    top: tourBarPageTargetScrollTop(el),
+    behavior: "auto",
+  });
+  await tourBarNextFrame(3);
+
+  return tourBarPageTargetIsSafelyPlaced(el);
+}
+
+export async function focusTourBarPageTarget(
+  target: TourBarPageFocusTarget,
+  { delay = 420, restoreAfterMs = 5200 }: TourBarPageFocusOptions = {},
+) {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+
+  const targetId = String(target.targetId || "").trim();
+  const targetSelector = String(target.targetSelector || "").trim();
+  if (!targetId && !targetSelector) return false;
+
+  tourBarPageFocusRun += 1;
+  const runToken = tourBarPageFocusRun;
+  const isCurrentRun = () => tourBarPageFocusRun === runToken;
+
+  await wait(delay);
+  if (!isCurrentRun()) return false;
+
+  const el = await tourBarFindPageTargetWhenReady(target, isCurrentRun);
+  if (!el || !isCurrentRun()) return false;
+
+  await tourBarNextFrame(2);
+  const centered = await tourBarCenterPageTargetWithVerification(el, isCurrentRun);
+  if (!isCurrentRun()) return false;
+
+  if (!centered) {
+    window.scrollTo({
+      top: tourBarPageTargetScrollTop(el),
+      behavior: "auto",
+    });
+    await tourBarNextFrame(3);
+    if (!isCurrentRun()) return false;
+  }
+
+  const selector =
+    targetSelector ||
+    (targetId ? `[data-tour-id="${safeCssEscape(targetId)}"], #${safeCssEscape(targetId)}` : "");
+  const spotlightToken = `${Date.now()}-${targetId || selector}`;
+  const computedPosition = window.getComputedStyle(el).position;
+  const previous = {
+    position: el.style.position,
+    zIndex: el.style.zIndex,
+    boxShadow: el.style.boxShadow,
+    outline: el.style.outline,
+    outlineOffset: el.style.outlineOffset,
+    transition: el.style.transition,
+  };
+
+  el.dataset.tourbarSpotlightToken = spotlightToken;
+  if (computedPosition === "static") el.style.position = "relative";
+  el.style.zIndex = "80";
+  el.style.transition = previous.transition || "box-shadow 260ms ease, outline-color 260ms ease";
+  el.style.outline = "2px solid rgba(34, 211, 238, 0.72)";
+  el.style.outlineOffset = "3px";
+  el.style.boxShadow = "0 0 0 10px rgba(34, 211, 238, 0.14), 0 24px 80px rgba(34, 211, 238, 0.34)";
+
+  window.dispatchEvent(
+    new CustomEvent("guide-spotlight-target", {
+      detail: {
+        targetId: targetId || undefined,
+        selector: selector || targetSelector || undefined,
+        label: target.label || undefined,
+      },
+    }),
+  );
+
+  window.setTimeout(() => {
+    if (el.dataset.tourbarSpotlightToken !== spotlightToken) return;
+
+    el.style.position = previous.position;
+    el.style.zIndex = previous.zIndex;
+    el.style.boxShadow = previous.boxShadow;
+    el.style.outline = previous.outline;
+    el.style.outlineOffset = previous.outlineOffset;
+    el.style.transition = previous.transition;
+    delete el.dataset.tourbarSpotlightToken;
+  }, restoreAfterMs);
+
+  return true;
+}
+
 function ThinkingText({ body }: { body: string }) {
   const tokens = body.match(/\S+|\s+/g) || [];
   let characterIndex = 0;

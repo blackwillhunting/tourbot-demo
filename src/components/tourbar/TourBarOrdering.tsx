@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
+  focusTourBarPageTarget,
   type TourBarShellActions,
   type TourBarShellResult,
   type TourBarThreadMessage,
@@ -903,11 +904,15 @@ function navigateToItem(
 ) {
   const targetId = pageTarget(item?.targetId);
   if (!targetId && !item?.targetSelector) return;
-  onNavigateToFocus?.({
+
+  const target = {
     targetId,
     targetSelector: item?.targetSelector,
     label: item?.label,
-  });
+  };
+
+  onNavigateToFocus?.(target);
+  void focusTourBarPageTarget(target, { delay: 360 });
 }
 
 function OrderReview({
@@ -1462,11 +1467,14 @@ export default function TourBarOrdering({
 
         const targetId = pageTarget(result.targetId);
         if (targetId || result.targetSelector) {
-          onNavigateToFocus?.({
+          const target = {
             targetId,
             targetSelector: result.targetSelector,
             label: result.label,
-          });
+          };
+
+          onNavigateToFocus?.(target);
+          void focusTourBarPageTarget(target, { delay: 520 });
         }
       }}
     />
