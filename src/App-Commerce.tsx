@@ -1917,6 +1917,11 @@ type TourBarPageTarget = {
   reason?: string;
 };
 
+type TourBarNavigationState = {
+  steps: TourBarPageTarget[];
+  activeIndex: number;
+};
+
 function addTourBarNavigationTarget(
   targets: TourBarPageTarget[],
   value: Record<string, any>,
@@ -2271,6 +2276,64 @@ function TourBarHotelBookingHandoffSheet({
 }
 
 
+function TourBarNavigationControls({
+  state,
+  onNext,
+  onStop,
+}: {
+  state: TourBarNavigationState | null;
+  onNext: () => void;
+  onStop: () => void;
+}) {
+  if (!state || state.steps.length < 2) return null;
+
+  const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+  const active = state.steps[activeIndex];
+  const next = state.steps[activeIndex + 1];
+  const isLast = activeIndex >= state.steps.length - 1;
+
+  return (
+    <div
+      data-tour-id="tourbar-navigation-controls"
+      className="rounded-2xl border border-cyan-100 bg-cyan-50/85 px-3 py-2.5 text-sm text-cyan-950 shadow-sm ring-1 ring-cyan-100/80"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700/70">
+            Guided stops · {activeIndex + 1} of {state.steps.length}
+          </div>
+          <div className="mt-1 truncate font-semibold">
+            {active.targetText || active.targetId}
+          </div>
+          {next && (
+            <div className="mt-0.5 truncate text-xs font-medium text-cyan-800/70">
+              Next: {next.targetText || next.targetId}
+            </div>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onStop}
+            className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70"
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={isLast}
+            className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isLast ? "Last stop" : "Next stop"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = {}) {
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
@@ -2301,6 +2364,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     useState<TourBarBookingHandoff | null>(null);
   const [tourBarBookingHandoffOpen, setTourBarBookingHandoffOpen] =
     useState(false);
+  const [tourBarNavigationState, setTourBarNavigationState] =
+    useState<TourBarNavigationState | null>(null);
   const tourBarNavigationRunRef = React.useRef(0);
 
   const isSelfDriveEntry = useMemo(() => {
@@ -2312,6 +2377,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const pageIndex = pageOrder.indexOf(currentPage);
 
   const onNavigate = (nextPage: PageId) => {
+    tourBarNavigationRunRef.current += 1;
+    setTourBarNavigationState(null);
     setCurrentPage(nextPage);
     setActiveAnchor(null);
     setBookingRailSpotlight(false);
@@ -2520,28 +2587,46 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
   const runTourBarNavigationSequence = (
     targets: TourBarPageTarget[],
-    { initialDelay = 520, stepDelay = 3200 }: { initialDelay?: number; stepDelay?: number } = {},
+    { initialDelay = 520 }: { initialDelay?: number } = {},
   ) => {
     const steps: TourBarPageTarget[] = [];
     targets.forEach((target) => addTourBarNavigationTarget(steps, target));
-    if (!steps.length) return;
+    const cappedSteps = steps.slice(0, 4);
+    if (!cappedSteps.length) return;
 
-    const runId = tourBarNavigationRunRef.current + 1;
-    tourBarNavigationRunRef.current = runId;
+    tourBarNavigationRunRef.current += 1;
+    const first = cappedSteps[0];
+    const pageId = first.pageId || pageIdFromTourBarTarget(first.targetId);
 
-    steps.slice(0, 4).forEach((target, index) => {
-      window.setTimeout(() => {
-        if (tourBarNavigationRunRef.current !== runId) return;
+    setTourBarNavigationState(
+      cappedSteps.length > 1
+        ? { steps: cappedSteps, activeIndex: 0 }
+        : null,
+    );
+    setCurrentPage(pageId);
+    spotlightTourBarAnchor(first.targetId, first.targetSelector, initialDelay);
+  };
 
-        const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
-        setCurrentPage(pageId);
-        spotlightTourBarAnchor(
-          target.targetId,
-          target.targetSelector,
-          index === 0 ? initialDelay : 420,
-        );
-      }, index * stepDelay);
-    });
+  const advanceTourBarNavigationStep = () => {
+    const current = tourBarNavigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const nextIndex = Math.min(current.activeIndex + 1, current.steps.length - 1);
+    if (nextIndex === current.activeIndex) return;
+
+    const target = current.steps[nextIndex];
+    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
+
+    tourBarNavigationRunRef.current += 1;
+    setTourBarNavigationState({ ...current, activeIndex: nextIndex });
+    setCurrentPage(pageId);
+    spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
+  };
+
+  const stopTourBarNavigationSequence = () => {
+    tourBarNavigationRunRef.current += 1;
+    setTourBarNavigationState(null);
+    setTourBarSpotlightTarget(null);
   };
 
 
@@ -2591,6 +2676,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     context: TourBarShellTurnContext,
   ): Promise<TourBarShellResult> => {
     tourBarNavigationRunRef.current += 1;
+    setTourBarNavigationState(null);
     setTourBarSpotlightTarget(null);
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
@@ -2995,6 +3081,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onFollowUpSubmit={submitTourBarHotelBooking}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
+            renderResultExtras={() => (
+              <TourBarNavigationControls
+                state={tourBarNavigationState}
+                onNext={advanceTourBarNavigationStep}
+                onStop={stopTourBarNavigationSequence}
+              />
+            )}
             renderStandaloneSheet={() => (
               tourBarBookingHandoffOpen ? (
                 <TourBarHotelBookingHandoffSheet
