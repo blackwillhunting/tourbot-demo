@@ -1877,14 +1877,34 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
     firstRanked.targetSelector ||
     (targetId ? `[data-tour-id="${targetId}"], #${targetId}` : undefined);
 
+  const explicitBookingActionText = [
+    bookingAction,
+    action.type,
+    action.kind,
+    action.intent,
+    action.action,
+    action.commerceAction,
+    action.displayMode,
+    raw.commerceAction,
+    raw.intent,
+    raw.displayMode,
+  ]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+
   return {
     pageId: pageId as PageId,
     targetId: String(targetId || ""),
     targetSelector: typeof targetSelector === "string" ? targetSelector : undefined,
+    // Do not treat every result that merely mentions or links to booking as a
+    // handoff. Normal room recommendations should stay as answer sheets; the
+    // booking handoff sheet opens only for explicit booking actions or CTA clicks.
     isBookingAction:
-      bookingAction.includes("prepare_booking") ||
+      explicitBookingActionText.includes("prepare_booking") ||
+      explicitBookingActionText.includes("booking_handoff") ||
+      explicitBookingActionText.includes("checkout_handoff") ||
       targetId === "booking-panel" ||
-      pageId === "booking",
+      action.targetId === "booking-panel",
   };
 }
 
@@ -2145,6 +2165,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const [checkOutDate, setCheckOutDate] = useState("2026-06-15");
   const [tourBarBookingHandoff, setTourBarBookingHandoff] =
     useState<TourBarBookingHandoff | null>(null);
+  const [tourBarBookingHandoffOpen, setTourBarBookingHandoffOpen] =
+    useState(false);
 
   const isSelfDriveEntry = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -2290,6 +2312,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
     applyTourBarBookingContext(raw, { preferNextStep: true });
     setTourBarBookingHandoff(buildTourBarBookingHandoff(raw));
+    setTourBarBookingHandoffOpen(true);
     setBookingRailSpotlight(false);
     setActiveFormSpotlight(null);
 
@@ -2413,6 +2436,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     context: TourBarShellTurnContext,
   ): Promise<TourBarShellResult> => {
     setTourBarBookingHandoff(null);
+    setTourBarBookingHandoffOpen(false);
 
     const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
       method: "POST",
@@ -2815,9 +2839,11 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
             renderStandaloneSheet={() => (
-              <TourBarHotelBookingHandoffSheet
-                bookingHandoff={tourBarBookingHandoff}
-              />
+              tourBarBookingHandoffOpen ? (
+                <TourBarHotelBookingHandoffSheet
+                  bookingHandoff={tourBarBookingHandoff}
+                />
+              ) : null
             )}
           />
         </div>
