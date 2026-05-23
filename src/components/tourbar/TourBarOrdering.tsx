@@ -904,15 +904,13 @@ function navigateToItem(
 ) {
   const targetId = pageTarget(item?.targetId);
   if (!targetId && !item?.targetSelector) return;
-
   const target = {
     targetId,
     targetSelector: item?.targetSelector,
     label: item?.label,
   };
-
   onNavigateToFocus?.(target);
-  void focusTourBarPageTarget(target, { delay: 360 });
+  void focusTourBarPageTarget(target);
 }
 
 function OrderReview({
@@ -1472,9 +1470,8 @@ export default function TourBarOrdering({
             targetSelector: result.targetSelector,
             label: result.label,
           };
-
           onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target, { delay: 520 });
+          void focusTourBarPageTarget(target);
         }
       }}
     />

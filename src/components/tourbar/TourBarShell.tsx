@@ -123,240 +123,6 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
-
-export type TourBarPageFocusTarget = {
-  pageId?: string | null;
-  targetId?: string | null;
-  targetSelector?: string | null;
-  label?: string | null;
-};
-
-type TourBarPageFocusOptions = {
-  delay?: number;
-  restoreAfterMs?: number;
-};
-
-let tourBarPageFocusRun = 0;
-
-function safeCssEscape(value: string) {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-    return CSS.escape(value);
-  }
-
-  return value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-}
-
-function safeQuerySelector(selector?: string | null) {
-  if (!selector || typeof document === "undefined") return null;
-
-  try {
-    return document.querySelector<HTMLElement>(selector);
-  } catch {
-    return null;
-  }
-}
-
-function tourBarPageTargetElement(target: TourBarPageFocusTarget) {
-  const targetId = String(target.targetId || "").trim();
-  const targetSelector = String(target.targetSelector || "").trim();
-
-  return (
-    safeQuerySelector(targetSelector) ||
-    (targetId ? safeQuerySelector(`[data-tour-id="${safeCssEscape(targetId)}"]`) : null) ||
-    (targetId && typeof document !== "undefined" ? document.getElementById(targetId) : null)
-  );
-}
-
-function tourBarStickyHeaderBottom() {
-  if (typeof document === "undefined" || typeof window === "undefined") return 0;
-  const header = document.querySelector<HTMLElement>("header");
-  if (!header) return 0;
-
-  const rect = header.getBoundingClientRect();
-  return Math.max(0, Math.min(window.innerHeight * 0.35, rect.bottom));
-}
-
-function tourBarSafeViewport() {
-  const top = Math.min(window.innerHeight - 180, tourBarStickyHeaderBottom() + 22);
-  const bottom = Math.max(top + 160, window.innerHeight - 34);
-
-  return {
-    top,
-    bottom,
-    height: bottom - top,
-    center: top + (bottom - top) / 2,
-  };
-}
-
-function tourBarPageTargetScrollTop(el: HTMLElement) {
-  const rect = el.getBoundingClientRect();
-  const safe = tourBarSafeViewport();
-  const documentHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-  );
-  const maxScroll = Math.max(0, documentHeight - window.innerHeight);
-
-  const desiredTop =
-    rect.height > safe.height
-      ? window.scrollY + rect.top - safe.top
-      : window.scrollY + rect.top - (safe.top + (safe.height - rect.height) / 2);
-
-  return Math.max(0, Math.min(maxScroll, Math.round(desiredTop)));
-}
-
-function tourBarPageTargetIsSafelyPlaced(el: HTMLElement) {
-  const rect = el.getBoundingClientRect();
-  const safe = tourBarSafeViewport();
-
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  if (rect.height > safe.height) {
-    return rect.top >= safe.top - 8 && rect.top <= safe.top + 56;
-  }
-
-  const center = rect.top + rect.height / 2;
-  const centerTolerance = Math.max(24, Math.min(82, safe.height * 0.14));
-
-  return (
-    rect.top >= safe.top - 8 &&
-    rect.bottom <= safe.bottom + 8 &&
-    Math.abs(center - safe.center) <= centerTolerance
-  );
-}
-
-async function tourBarNextFrame(count = 1) {
-  for (let index = 0; index < count; index += 1) {
-    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-  }
-}
-
-async function tourBarFindPageTargetWhenReady(
-  target: TourBarPageFocusTarget,
-  isCurrentRun: () => boolean,
-) {
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    if (!isCurrentRun()) return null;
-
-    const el = tourBarPageTargetElement(target);
-    if (el) return el;
-
-    await tourBarNextFrame(1);
-    await wait(35);
-  }
-
-  return null;
-}
-
-async function tourBarCenterPageTargetWithVerification(
-  el: HTMLElement,
-  isCurrentRun: () => boolean,
-) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (!isCurrentRun()) return false;
-
-    window.scrollTo({
-      top: tourBarPageTargetScrollTop(el),
-      behavior: attempt === 3 ? "auto" : "smooth",
-    });
-
-    await wait(attempt === 0 ? 440 : 260);
-    await tourBarNextFrame(2);
-
-    if (tourBarPageTargetIsSafelyPlaced(el)) return true;
-  }
-
-  if (!isCurrentRun()) return false;
-
-  window.scrollTo({
-    top: tourBarPageTargetScrollTop(el),
-    behavior: "auto",
-  });
-  await tourBarNextFrame(3);
-
-  return tourBarPageTargetIsSafelyPlaced(el);
-}
-
-export async function focusTourBarPageTarget(
-  target: TourBarPageFocusTarget,
-  { delay = 420, restoreAfterMs = 5200 }: TourBarPageFocusOptions = {},
-) {
-  if (typeof window === "undefined" || typeof document === "undefined") return false;
-
-  const targetId = String(target.targetId || "").trim();
-  const targetSelector = String(target.targetSelector || "").trim();
-  if (!targetId && !targetSelector) return false;
-
-  tourBarPageFocusRun += 1;
-  const runToken = tourBarPageFocusRun;
-  const isCurrentRun = () => tourBarPageFocusRun === runToken;
-
-  await wait(delay);
-  if (!isCurrentRun()) return false;
-
-  const el = await tourBarFindPageTargetWhenReady(target, isCurrentRun);
-  if (!el || !isCurrentRun()) return false;
-
-  await tourBarNextFrame(2);
-  const centered = await tourBarCenterPageTargetWithVerification(el, isCurrentRun);
-  if (!isCurrentRun()) return false;
-
-  if (!centered) {
-    window.scrollTo({
-      top: tourBarPageTargetScrollTop(el),
-      behavior: "auto",
-    });
-    await tourBarNextFrame(3);
-    if (!isCurrentRun()) return false;
-  }
-
-  const selector =
-    targetSelector ||
-    (targetId ? `[data-tour-id="${safeCssEscape(targetId)}"], #${safeCssEscape(targetId)}` : "");
-  const spotlightToken = `${Date.now()}-${targetId || selector}`;
-  const computedPosition = window.getComputedStyle(el).position;
-  const previous = {
-    position: el.style.position,
-    zIndex: el.style.zIndex,
-    boxShadow: el.style.boxShadow,
-    outline: el.style.outline,
-    outlineOffset: el.style.outlineOffset,
-    transition: el.style.transition,
-  };
-
-  el.dataset.tourbarSpotlightToken = spotlightToken;
-  if (computedPosition === "static") el.style.position = "relative";
-  el.style.zIndex = "80";
-  el.style.transition = previous.transition || "box-shadow 260ms ease, outline-color 260ms ease";
-  el.style.outline = "2px solid rgba(34, 211, 238, 0.72)";
-  el.style.outlineOffset = "3px";
-  el.style.boxShadow = "0 0 0 10px rgba(34, 211, 238, 0.14), 0 24px 80px rgba(34, 211, 238, 0.34)";
-
-  window.dispatchEvent(
-    new CustomEvent("guide-spotlight-target", {
-      detail: {
-        targetId: targetId || undefined,
-        selector: selector || targetSelector || undefined,
-        label: target.label || undefined,
-      },
-    }),
-  );
-
-  window.setTimeout(() => {
-    if (el.dataset.tourbarSpotlightToken !== spotlightToken) return;
-
-    el.style.position = previous.position;
-    el.style.zIndex = previous.zIndex;
-    el.style.boxShadow = previous.boxShadow;
-    el.style.outline = previous.outline;
-    el.style.outlineOffset = previous.outlineOffset;
-    el.style.transition = previous.transition;
-    delete el.dataset.tourbarSpotlightToken;
-  }, restoreAfterMs);
-
-  return true;
-}
-
 function ThinkingText({ body }: { body: string }) {
   const tokens = body.match(/\S+|\s+/g) || [];
   let characterIndex = 0;
@@ -501,6 +267,182 @@ function MarkdownLite({ text }: { text: string }) {
       })}
     </div>
   );
+}
+
+
+
+export type TourBarPageFocusTarget = {
+  pageId?: string;
+  targetId?: string;
+  targetSelector?: string;
+  label?: string;
+};
+
+function waitForFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
+function targetSelectorFromFocus(target: TourBarPageFocusTarget) {
+  if (target.targetSelector?.trim()) return target.targetSelector.trim();
+  const cleanId = String(target.targetId || "").trim();
+  if (!cleanId || typeof CSS === "undefined") return "";
+  return `#${CSS.escape(cleanId)}, [data-tour-id="${CSS.escape(cleanId)}"]`;
+}
+
+function findFocusElement(target: TourBarPageFocusTarget) {
+  if (typeof document === "undefined") return null;
+
+  const selector = targetSelectorFromFocus(target);
+  if (selector) {
+    try {
+      const bySelector = document.querySelector<HTMLElement>(selector);
+      if (bySelector) return bySelector;
+    } catch {
+      // Fall through to id lookup below.
+    }
+  }
+
+  const cleanId = String(target.targetId || "").trim();
+  return cleanId ? document.getElementById(cleanId) : null;
+}
+
+async function waitForFocusElement(target: TourBarPageFocusTarget, attempts = 18) {
+  for (let index = 0; index < attempts; index += 1) {
+    const element = findFocusElement(target);
+    if (element) return element;
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 90));
+  }
+
+  return findFocusElement(target);
+}
+
+function focusElementTop(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+  const safeTop = 92;
+  const safeBottom = 108;
+  const maxVisibleHeight = Math.max(220, viewportHeight - safeTop - safeBottom);
+  const elementTop = window.scrollY + rect.top;
+
+  if (rect.height > maxVisibleHeight) {
+    return Math.max(0, elementTop - safeTop);
+  }
+
+  return Math.max(0, elementTop - (viewportHeight - rect.height) / 2);
+}
+
+function focusElementIsPlaced(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 360;
+  const centerY = rect.top + rect.height / 2;
+  const centerX = rect.left + rect.width / 2;
+
+  return (
+    centerX >= 0 &&
+    centerX <= viewportWidth &&
+    centerY >= Math.min(180, viewportHeight * 0.28) &&
+    centerY <= Math.max(viewportHeight - 160, viewportHeight * 0.72)
+  );
+}
+
+function clearExistingFrostFocus(element: HTMLElement) {
+  element
+    .querySelectorAll<HTMLElement>(":scope > [data-tourbar-frost-focus='true']")
+    .forEach((node) => node.remove());
+}
+
+function runFrostFocusEffect(element: HTMLElement) {
+  if (typeof window === "undefined") return;
+
+  clearExistingFrostFocus(element);
+
+  const computed = window.getComputedStyle(element);
+  const previousPosition = element.style.position;
+  const previousZIndex = element.style.zIndex;
+  const shouldRestorePosition = !previousPosition && computed.position === "static";
+  const shouldRestoreZIndex = !previousZIndex;
+
+  if (computed.position === "static") element.style.position = "relative";
+  if (!element.style.zIndex) element.style.zIndex = "70";
+
+  const frost = document.createElement("div");
+  frost.setAttribute("data-tourbar-frost-focus", "true");
+  frost.setAttribute("aria-hidden", "true");
+  frost.style.cssText = [
+    "pointer-events:none",
+    "position:absolute",
+    "inset:-4px",
+    "z-index:30",
+    "border-radius:32px",
+    "background:rgba(241,245,249,0.76)",
+    "box-shadow:inset 0 0 46px rgba(255,255,255,0.96)",
+    "outline:1px solid rgba(255,255,255,0.82)",
+    "backdrop-filter:blur(18px)",
+    "-webkit-backdrop-filter:blur(18px)",
+  ].join(";");
+
+  const border = document.createElement("div");
+  border.setAttribute("data-tourbar-frost-focus", "true");
+  border.setAttribute("aria-hidden", "true");
+  border.style.cssText = [
+    "pointer-events:none",
+    "position:absolute",
+    "inset:-8px",
+    "z-index:20",
+    "border-radius:34px",
+    "box-shadow:0 0 0 2px rgba(103,232,249,0.65), 0 0 0 10px rgba(34,211,238,0.12), 0 24px 80px rgba(34,211,238,0.34)",
+  ].join(";");
+
+  element.appendChild(border);
+  element.appendChild(frost);
+
+  frost.animate(
+    [
+      { opacity: 0.98, transform: "scale(1.018)", backdropFilter: "blur(18px)" },
+      { opacity: 0.84, transform: "scale(1.006)", backdropFilter: "blur(10px)", offset: 0.34 },
+      { opacity: 0, transform: "scale(1)", backdropFilter: "blur(0px)" },
+    ],
+    { duration: 1120, easing: "ease-out", fill: "forwards" },
+  );
+
+  border.animate(
+    [
+      { opacity: 0.86, transform: "scale(0.992)" },
+      { opacity: 0.62, transform: "scale(1)", offset: 0.35 },
+      { opacity: 0.18, transform: "scale(1.006)", offset: 0.82 },
+      { opacity: 0, transform: "scale(1)" },
+    ],
+    { duration: 3400, easing: "ease-out", fill: "forwards" },
+  );
+
+  window.setTimeout(() => {
+    frost.remove();
+    border.remove();
+    if (shouldRestorePosition) element.style.position = previousPosition;
+    if (shouldRestoreZIndex) element.style.zIndex = previousZIndex;
+  }, 3600);
+}
+
+export async function focusTourBarPageTarget(target: TourBarPageFocusTarget) {
+  if (typeof window === "undefined" || typeof document === "undefined") return false;
+
+  await waitForFrame();
+  const element = await waitForFocusElement(target);
+  if (!element) return false;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    window.scrollTo({ top: focusElementTop(element), behavior: "smooth" });
+    await new Promise<void>((resolve) => window.setTimeout(resolve, attempt === 0 ? 520 : 300));
+    if (focusElementIsPlaced(element)) break;
+  }
+
+  // Let layout settle after the final scroll. The frost should visibly drop
+  // onto the target after the target is already in the safe viewport.
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 90));
+  runFrostFocusEffect(element);
+  window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));
+  return true;
 }
 
 export default function TourBarShell({

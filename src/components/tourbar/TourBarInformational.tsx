@@ -238,9 +238,8 @@ export default function TourBarInformational({
             targetSelector: result.targetSelector,
             label: result.label,
           };
-
           onNavigateToFocus?.(target);
-          void focusTourBarPageTarget(target, { delay: 520 });
+          void focusTourBarPageTarget(target);
         }
       }}
     />
