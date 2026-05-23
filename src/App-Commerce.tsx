@@ -3318,6 +3318,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       guestLabel: null,
     });
   const tourBarNavigationRunRef = React.useRef(0);
+  const tourBarBookingResumeOverrideRef =
+    React.useRef<TourBarBookingContextOverride | null>(null);
 
   const isSelfDriveEntry = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -3453,6 +3455,15 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }));
   };
 
+  const queueTourBarBookingResumeOverride = (
+    next: TourBarBookingContextOverride,
+  ) => {
+    tourBarBookingResumeOverrideRef.current = {
+      ...(tourBarBookingResumeOverrideRef.current || {}),
+      ...next,
+    };
+  };
+
   const syncTourBarCalendarMonthToDate = (value: string) => {
     if (!value) return;
     const [year, month] = value.split("-").map(Number);
@@ -3536,6 +3547,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   ) => {
     if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate) return;
     const datesLabel = formatBookingDateRange(checkInDate, checkOutDate);
+    queueTourBarBookingResumeOverride({
+      datesSelected: true,
+      guestsSelected,
+      checkInDate,
+      checkOutDate,
+      guestAdults,
+      guestChildren,
+      guestLabel,
+      budgetBand,
+    });
     setDatesSelected(true);
     setTourBarDatePicker(null);
     setTourBarBookingHandoff((current) =>
@@ -3580,6 +3601,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     const safeAdults = Math.max(1, Math.floor(guestAdults || 1));
     const safeChildren = Math.max(0, Math.floor(guestChildren || 0));
     const nextGuestLabel = tourBarGuestLabel(safeAdults, safeChildren);
+    queueTourBarBookingResumeOverride({
+      datesSelected: Boolean(checkInDate && checkOutDate && checkOutDate > checkInDate),
+      guestsSelected: true,
+      checkInDate,
+      checkOutDate,
+      guestAdults: safeAdults,
+      guestChildren: safeChildren,
+      guestLabel: nextGuestLabel,
+      budgetBand,
+    });
     setGuestAdults(safeAdults);
     setGuestChildren(safeChildren);
     setGuestLabel(nextGuestLabel);
@@ -4069,17 +4100,74 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
-    const parsedDates = datesSelected ? null : extractTourBarDatesFromPrompt(query);
-    const parsedGuests = guestsSelected ? null : extractTourBarGuestsFromPrompt(query);
+    const resumeOverride = tourBarBookingResumeOverrideRef.current;
+    tourBarBookingResumeOverrideRef.current = null;
 
-    const effectiveDatesSelected = datesSelected || Boolean(parsedDates);
-    const effectiveGuestsSelected = guestsSelected || Boolean(parsedGuests);
-    const effectiveCheckInDate = parsedDates?.checkInDate || checkInDate;
-    const effectiveCheckOutDate = parsedDates?.checkOutDate || checkOutDate;
-    const effectiveGuestAdults = parsedGuests?.adults ?? guestAdults;
-    const effectiveGuestChildren = parsedGuests?.children ?? guestChildren;
+    const parsedDates =
+      resumeOverride?.datesSelected || datesSelected
+        ? null
+        : extractTourBarDatesFromPrompt(query);
+    const parsedGuests =
+      resumeOverride?.guestsSelected || guestsSelected
+        ? null
+        : extractTourBarGuestsFromPrompt(query);
+
+    const effectiveDatesSelected =
+      (resumeOverride?.datesSelected ?? datesSelected) || Boolean(parsedDates);
+    const effectiveGuestsSelected =
+      (resumeOverride?.guestsSelected ?? guestsSelected) || Boolean(parsedGuests);
+    const effectiveCheckInDate =
+      parsedDates?.checkInDate || resumeOverride?.checkInDate || checkInDate;
+    const effectiveCheckOutDate =
+      parsedDates?.checkOutDate || resumeOverride?.checkOutDate || checkOutDate;
+    const effectiveGuestAdults =
+      parsedGuests?.adults ?? resumeOverride?.guestAdults ?? guestAdults;
+    const effectiveGuestChildren =
+      parsedGuests?.children ?? resumeOverride?.guestChildren ?? guestChildren;
     const effectiveGuestLabel =
-      parsedGuests?.guestLabel || guestLabel || tourBarGuestLabel(effectiveGuestAdults, effectiveGuestChildren);
+      parsedGuests?.guestLabel ||
+      resumeOverride?.guestLabel ||
+      guestLabel ||
+      tourBarGuestLabel(effectiveGuestAdults, effectiveGuestChildren);
+
+    if (
+      resumeOverride?.datesSelected &&
+      resumeOverride.checkInDate &&
+      resumeOverride.checkOutDate
+    ) {
+      setCheckInDate(resumeOverride.checkInDate);
+      setCheckOutDate(resumeOverride.checkOutDate);
+      setDatesSelected(true);
+      setTourBarDatePicker(null);
+      commitTourBarBookingContextToWorkingStay({
+        checkInDate: resumeOverride.checkInDate,
+        checkOutDate: resumeOverride.checkOutDate,
+        datesLabel: formatBookingDateRange(
+          resumeOverride.checkInDate,
+          resumeOverride.checkOutDate,
+        ),
+      });
+    }
+
+    if (
+      resumeOverride?.guestsSelected &&
+      resumeOverride.guestAdults != null &&
+      resumeOverride.guestChildren != null
+    ) {
+      const resumeGuestLabel =
+        resumeOverride.guestLabel ||
+        tourBarGuestLabel(resumeOverride.guestAdults, resumeOverride.guestChildren);
+      setGuestAdults(resumeOverride.guestAdults);
+      setGuestChildren(resumeOverride.guestChildren);
+      setGuestLabel(resumeGuestLabel);
+      setGuestsSelected(true);
+      commitTourBarBookingContextToWorkingStay({
+        adults: resumeOverride.guestAdults,
+        children: resumeOverride.guestChildren,
+        guests: resumeOverride.guestAdults + resumeOverride.guestChildren,
+        guestLabel: resumeGuestLabel,
+      });
+    }
 
     if (parsedDates) {
       setCheckInDate(parsedDates.checkInDate);
@@ -4177,7 +4265,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
           selectedRoomId: activeStayPlan.roomId || selectedRoom,
           selectedPackageIds: activeStayPlan.packageIds,
           activeStayPlan,
-          tourBarWorkingStay,
+          tourBarWorkingStay: {
+            ...tourBarWorkingStay,
+            checkInDate: bookingContext.checkInDate,
+            checkOutDate: bookingContext.checkOutDate,
+            datesLabel: bookingContext.datesLabel,
+            adults: bookingContext.adults,
+            children: bookingContext.children,
+            guests: bookingContext.guests,
+            guestLabel: bookingContext.guestLabel,
+          },
           bookingContext,
         },
         conversationContext: {
@@ -4186,7 +4283,16 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
           activeStayPlan,
           commerceContext: {
             activeStayPlan,
-            tourBarWorkingStay,
+            tourBarWorkingStay: {
+              ...tourBarWorkingStay,
+              checkInDate: bookingContext.checkInDate,
+              checkOutDate: bookingContext.checkOutDate,
+              datesLabel: bookingContext.datesLabel,
+              adults: bookingContext.adults,
+              children: bookingContext.children,
+              guests: bookingContext.guests,
+              guestLabel: bookingContext.guestLabel,
+            },
             dates: effectiveDatesSelected
               ? {
                   checkIn: effectiveCheckInDate,
