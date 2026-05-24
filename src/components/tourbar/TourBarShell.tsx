@@ -12,6 +12,7 @@ import {
   type TourBarBookingContext,
   type TourBarRequiredBookingField,
 } from "./tourbarBookingContext";
+import { smartbarFocusTarget } from "./smartbarFocusController";
 import {
   ArrowRight,
   Loader2,
@@ -25,9 +26,6 @@ const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
 const TOURBAR_SHEET_RETRACT_MS = 680;
 const THINKING_WIGGLE_DURATION = 1.15;
 const THINKING_WIGGLE_STAGGER = 0.025;
-const TOURBAR_FOCUS_DEFAULT_DELAY_MS = 700;
-const TOURBAR_FROST_Z_INDEX = 10040;
-
 
 export type TourBarInvitation = {
   kind?: string;
@@ -281,226 +279,14 @@ export type TourBarPageFocusTarget = {
   label?: string;
 };
 
-function waitForFrame() {
-  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
-function targetSelectorFromFocus(target: TourBarPageFocusTarget) {
-  if (target.targetSelector?.trim()) return target.targetSelector.trim();
-  const cleanId = String(target.targetId || "").trim();
-  if (!cleanId || typeof CSS === "undefined") return "";
-  return `#${CSS.escape(cleanId)}, [data-tour-id="${CSS.escape(cleanId)}"]`;
-}
-
-function findFocusElement(target: TourBarPageFocusTarget) {
-  if (typeof document === "undefined") return null;
-
-  const selector = targetSelectorFromFocus(target);
-  if (selector) {
-    try {
-      const bySelector = document.querySelector<HTMLElement>(selector);
-      if (bySelector) return bySelector;
-    } catch {
-      // Fall through to id lookup below.
-    }
-  }
-
-  const cleanId = String(target.targetId || "").trim();
-  return cleanId ? document.getElementById(cleanId) : null;
-}
-
-async function waitForFocusElement(target: TourBarPageFocusTarget, attempts = 18) {
-  for (let index = 0; index < attempts; index += 1) {
-    const element = findFocusElement(target);
-    if (element) return element;
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 90));
-  }
-
-  return findFocusElement(target);
-}
-
-function viewportHeight() {
-  return window.innerHeight || document.documentElement.clientHeight || 720;
-}
-
-function viewportWidth() {
-  return window.innerWidth || document.documentElement.clientWidth || 360;
-}
-
-function visibleRectBottom(selector: string) {
-  if (typeof document === "undefined") return 0;
-
-  return Array.from(document.querySelectorAll<HTMLElement>(selector)).reduce((bottom, node) => {
-    const rect = node.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return bottom;
-    if (rect.bottom <= 0 || rect.top >= viewportHeight()) return bottom;
-    return Math.max(bottom, Math.min(rect.bottom, viewportHeight()));
-  }, 0);
-}
-
-function tourBarSafeTop() {
-  const baseTop = 92;
-  const shellBottom = Math.max(
-    visibleRectBottom("[data-tourbar-open-panel='true']"),
-    visibleRectBottom("[data-tourbar-sheet-panel='true']"),
-  );
-
-  // The target should not slide underneath the open SmartBar sheet. Cap the
-  // protected zone so very tall sheets do not make navigation impossible on
-  // small screens.
-  const dynamicTop = shellBottom > 0 ? shellBottom + 26 : baseTop;
-  return Math.min(Math.max(baseTop, dynamicTop), Math.max(120, viewportHeight() - 240));
-}
-
-function focusElementTop(element: HTMLElement) {
-  const rect = element.getBoundingClientRect();
-  const safeTop = tourBarSafeTop();
-  const safeBottom = 108;
-  const elementTop = window.scrollY + rect.top;
-  const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
-  const availableHeight = Math.max(180, availableBottom - safeTop);
-
-  if (rect.height >= availableHeight) {
-    return Math.max(0, elementTop - safeTop);
-  }
-
-  return Math.max(0, elementTop - (safeTop + (availableHeight - rect.height) / 2));
-}
-
-function focusElementIsPlaced(element: HTMLElement) {
-  const rect = element.getBoundingClientRect();
-  const safeTop = tourBarSafeTop();
-  const safeBottom = 108;
-  const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
-  const availableHeight = Math.max(180, availableBottom - safeTop);
-  const centerX = rect.left + rect.width / 2;
-  const horizontallyOk = centerX >= 0 && centerX <= viewportWidth();
-
-  if (!horizontallyOk) return false;
-
-  if (rect.height <= availableHeight) {
-    return rect.top >= safeTop - 18 && rect.bottom <= availableBottom + 24;
-  }
-
-  // Tall targets are allowed to extend below the fold, but they should start
-  // below SmartBar instead of sitting behind the sheet.
-  return rect.top >= safeTop - 20 && rect.top <= safeTop + 28 && rect.bottom >= safeTop + 160;
-}
-
-function clearExistingFrostFocus() {
-  if (typeof document === "undefined") return;
-  document
-    .querySelectorAll<HTMLElement>("[data-tourbar-frost-focus='true']")
-    .forEach((node) => node.remove());
-}
-
-function targetBorderRadius(element: HTMLElement) {
-  const radius = window.getComputedStyle(element).borderRadius;
-  return radius && radius !== "0px" ? radius : "32px";
-}
-
-function runFrostFocusEffect(element: HTMLElement) {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-
-  const rect = element.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) return;
-
-  clearExistingFrostFocus();
-
-  const radius = targetBorderRadius(element);
-  const frame = document.createElement("div");
-  frame.setAttribute("data-tourbar-frost-focus", "true");
-  frame.setAttribute("aria-hidden", "true");
-  frame.style.cssText = [
-    "pointer-events:none",
-    "position:fixed",
-    `left:${rect.left}px`,
-    `top:${rect.top}px`,
-    `width:${rect.width}px`,
-    `height:${rect.height}px`,
-    `z-index:${TOURBAR_FROST_Z_INDEX}`,
-    "isolation:isolate",
-  ].join(";");
-
-  const frost = document.createElement("div");
-  frost.style.cssText = [
-    "position:absolute",
-    "inset:-4px",
-    "z-index:2",
-    `border-radius:${radius}`,
-    "background:rgba(241,245,249,0.76)",
-    "box-shadow:inset 0 0 46px rgba(255,255,255,0.96)",
-    "outline:1px solid rgba(255,255,255,0.82)",
-    "backdrop-filter:blur(18px)",
-    "-webkit-backdrop-filter:blur(18px)",
-  ].join(";");
-
-  const border = document.createElement("div");
-  border.style.cssText = [
-    "position:absolute",
-    "inset:-8px",
-    "z-index:1",
-    `border-radius:${radius}`,
-    "box-shadow:0 0 0 2px rgba(103,232,249,0.65), 0 0 0 10px rgba(34,211,238,0.12), 0 24px 80px rgba(34,211,238,0.34)",
-  ].join(";");
-
-  frame.appendChild(border);
-  frame.appendChild(frost);
-  document.body.appendChild(frame);
-
-  frost.animate(
-    [
-      { opacity: 0.98, transform: "scale(1.018)", backdropFilter: "blur(18px)" },
-      { opacity: 0.84, transform: "scale(1.006)", backdropFilter: "blur(10px)", offset: 0.34 },
-      { opacity: 0, transform: "scale(1)", backdropFilter: "blur(0px)" },
-    ],
-    { duration: 1120, easing: "ease-out", fill: "forwards" },
-  );
-
-  border.animate(
-    [
-      { opacity: 0.86, transform: "scale(0.992)" },
-      { opacity: 0.62, transform: "scale(1)", offset: 0.35 },
-      { opacity: 0.18, transform: "scale(1.006)", offset: 0.82 },
-      { opacity: 0, transform: "scale(1)" },
-    ],
-    { duration: 3400, easing: "ease-out", fill: "forwards" },
-  );
-
-  window.setTimeout(() => {
-    frame.remove();
-  }, 3600);
-}
-
 export async function focusTourBarPageTarget(
   target: TourBarPageFocusTarget,
   options: { initialDelayMs?: number } = {},
 ) {
-  if (typeof window === "undefined" || typeof document === "undefined") return false;
-
-  const initialDelayMs = options.initialDelayMs ?? TOURBAR_FOCUS_DEFAULT_DELAY_MS;
-  if (initialDelayMs > 0) {
-    await new Promise<void>((resolve) => window.setTimeout(resolve, initialDelayMs));
-  }
-
-  await waitForFrame();
-  const element = await waitForFocusElement(target);
-  if (!element) return false;
-
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    window.scrollTo({ top: focusElementTop(element), behavior: attempt === 0 ? "smooth" : "auto" });
-    await new Promise<void>((resolve) => window.setTimeout(resolve, attempt === 0 ? 520 : 180));
-    await waitForFrame();
-    if (focusElementIsPlaced(element)) break;
-  }
-
-  // Let layout settle after the final scroll. The frost is a fixed overlay
-  // derived from the target's final viewport rect, so the target itself never
-  // needs to be raised above SmartBar.
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 90));
-  runFrostFocusEffect(element);
-  window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));
-  return true;
+  return smartbarFocusTarget(target, {
+    initialDelayMs: options.initialDelayMs,
+    dispatchLegacyEvent: false,
+  });
 }
 
 export default function TourBarShell({
