@@ -19,6 +19,7 @@ export type SmartBarFocusOptions = {
   scrollBehavior?: ScrollBehavior;
   overlayDurationMs?: number;
   debug?: boolean;
+  dispatchLegacyEvent?: boolean;
 };
 
 type SmartBarFocusDebugDetail = {
@@ -342,7 +343,9 @@ export async function smartbarFocusTarget(
   const overlayShown = runSmartBarFocusOverlay(element, options);
   const rect = element.getBoundingClientRect();
 
-  window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));
+  if (options.dispatchLegacyEvent !== false) {
+    window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));
+  }
   if (options.debug) dispatchFocusDebug({ target, found: true, placed, rect });
 
   return overlayShown;
