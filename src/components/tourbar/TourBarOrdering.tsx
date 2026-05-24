@@ -972,13 +972,11 @@ function OrderReview({
     const clamped = Math.min(Math.max(nextIndex, 0), items.length - 1);
     onReviewModeChange("review");
     onActiveIndexChange(clamped);
-    navigateToItem(items[clamped], onNavigateToFocus);
   };
 
   const openItem = (nextItem: ReviewItem) => {
     onReviewModeChange("review");
     onActiveIndexChange(nextItem.index);
-    navigateToItem(nextItem, onNavigateToFocus);
   };
 
   const openFirstPending = () => {
@@ -1556,7 +1554,9 @@ export default function TourBarOrdering({
         const items = reviewItemsFrom(response, order);
         const pendingItem = items.find((item) => item.pending);
         if (pendingItem) {
-          navigateToItem(pendingItem, focusOrderingTarget);
+          // OrderReview owns item-level focus after it mounts. Calling focus
+          // here as well creates duplicate overlays: one from onResult and
+          // another from the review useEffect.
           return;
         }
 

@@ -30,6 +30,13 @@ type SmartBarFocusDebugDetail = {
   reason?: string;
 };
 
+const SMARTBAR_FOCUS_DUPLICATE_SUPPRESS_MS = 850;
+
+let smartBarFocusRunId = 0;
+let lastSmartBarFocusKey = "";
+let lastSmartBarFocusStartedAt = 0;
+let activeSmartBarFocusOverlayCleanup: (() => void) | null = null;
+
 declare global {
   interface Window {
     __smartbarFocusTest?: (
@@ -183,6 +190,9 @@ function focusElementIsPlaced(element: HTMLElement) {
 export function clearSmartBarFocusOverlay() {
   if (typeof document === "undefined") return;
 
+  activeSmartBarFocusOverlayCleanup?.();
+  activeSmartBarFocusOverlayCleanup = null;
+
   document
     .querySelectorAll<HTMLElement>("[data-smartbar-focus-overlay='true']")
     .forEach((node) => node.remove());
@@ -209,6 +219,13 @@ function expandedCssRect(rect: DOMRect, inset: number) {
   };
 }
 
+function applyFixedRect(node: HTMLElement, rect: ReturnType<typeof expandedCssRect>) {
+  node.style.left = `${rect.left}px`;
+  node.style.top = `${rect.top}px`;
+  node.style.width = `${rect.width}px`;
+  node.style.height = `${rect.height}px`;
+}
+
 function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOptions = {}) {
   if (typeof window === "undefined" || typeof document === "undefined") return false;
 
@@ -217,10 +234,6 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
 
   clearSmartBarFocusOverlay();
 
-  const radius = targetBorderRadius(element);
-  const inset = overlayInsetFor(element);
-  const frostRect = expandedCssRect(rect, inset.frost);
-  const borderRect = expandedCssRect(rect, inset.border);
   const duration = options.overlayDurationMs ?? 3600;
 
   const frame = document.createElement("div");
@@ -237,24 +250,14 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
   const border = document.createElement("div");
   border.style.cssText = [
     "position:fixed",
-    `left:${borderRect.left}px`,
-    `top:${borderRect.top}px`,
-    `width:${borderRect.width}px`,
-    `height:${borderRect.height}px`,
     "z-index:1",
-    `border-radius:${radius}`,
     "box-shadow:0 0 0 2px rgba(103,232,249,0.65), 0 0 0 10px rgba(34,211,238,0.12), 0 24px 80px rgba(34,211,238,0.34)",
   ].join(";");
 
   const frost = document.createElement("div");
   frost.style.cssText = [
     "position:fixed",
-    `left:${frostRect.left}px`,
-    `top:${frostRect.top}px`,
-    `width:${frostRect.width}px`,
-    `height:${frostRect.height}px`,
     "z-index:2",
-    `border-radius:${radius}`,
     "background:rgba(241,245,249,0.76)",
     "box-shadow:inset 0 0 46px rgba(255,255,255,0.96)",
     "outline:1px solid rgba(255,255,255,0.82)",
@@ -262,9 +265,58 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     "-webkit-backdrop-filter:blur(18px)",
   ].join(";");
 
+  const updateOverlayGeometry = () => {
+    const nextRect = element.getBoundingClientRect();
+    if (nextRect.width <= 0 || nextRect.height <= 0) {
+      frame.remove();
+      return false;
+    }
+
+    const radius = targetBorderRadius(element);
+    const inset = overlayInsetFor(element);
+    const frostRect = expandedCssRect(nextRect, inset.frost);
+    const borderRect = expandedCssRect(nextRect, inset.border);
+
+    border.style.borderRadius = radius;
+    frost.style.borderRadius = radius;
+    applyFixedRect(border, borderRect);
+    applyFixedRect(frost, frostRect);
+    return true;
+  };
+
+  if (!updateOverlayGeometry()) return false;
+
   frame.appendChild(border);
   frame.appendChild(frost);
   document.body.appendChild(frame);
+  updateOverlayGeometry();
+
+  let animationFrame = 0;
+  const scheduleGeometryUpdate = () => {
+    if (animationFrame || !frame.isConnected) return;
+    animationFrame = window.requestAnimationFrame(() => {
+      animationFrame = 0;
+      updateOverlayGeometry();
+    });
+  };
+
+  window.addEventListener("scroll", scheduleGeometryUpdate, true);
+  window.addEventListener("resize", scheduleGeometryUpdate);
+  window.visualViewport?.addEventListener("scroll", scheduleGeometryUpdate);
+  window.visualViewport?.addEventListener("resize", scheduleGeometryUpdate);
+
+  const cleanup = () => {
+    window.removeEventListener("scroll", scheduleGeometryUpdate, true);
+    window.removeEventListener("resize", scheduleGeometryUpdate);
+    window.visualViewport?.removeEventListener("scroll", scheduleGeometryUpdate);
+    window.visualViewport?.removeEventListener("resize", scheduleGeometryUpdate);
+    if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+    frame.remove();
+    if (activeSmartBarFocusOverlayCleanup === cleanup) activeSmartBarFocusOverlayCleanup = null;
+  };
+
+  activeSmartBarFocusOverlayCleanup = cleanup;
 
   frost.animate(
     [
@@ -285,9 +337,7 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     { duration: Math.min(Math.max(duration - 200, 1600), 4800), easing: "ease-out", fill: "forwards" },
   );
 
-  window.setTimeout(() => {
-    frame.remove();
-  }, duration);
+  window.setTimeout(cleanup, duration);
 
   return true;
 }
@@ -295,6 +345,13 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
 function normalizeTarget(target: string | SmartBarFocusTarget): SmartBarFocusTarget {
   if (typeof target === "string") return { targetId: target };
   return target;
+}
+
+function focusTargetKey(target: SmartBarFocusTarget) {
+  return [target.targetSelector, target.targetId, target.pageId]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .join("|");
 }
 
 function dispatchFocusDebug(detail: SmartBarFocusDebugDetail) {
@@ -309,10 +366,26 @@ export async function smartbarFocusTarget(
   if (typeof window === "undefined" || typeof document === "undefined") return false;
 
   const target = normalizeTarget(rawTarget);
+  const targetKey = focusTargetKey(target);
+  const now = Date.now();
+
+  if (targetKey && targetKey === lastSmartBarFocusKey && now - lastSmartBarFocusStartedAt < SMARTBAR_FOCUS_DUPLICATE_SUPPRESS_MS) {
+    if (options.debug) dispatchFocusDebug({ target, found: true, placed: true, reason: "duplicate_suppressed" });
+    return true;
+  }
+
+  lastSmartBarFocusKey = targetKey;
+  lastSmartBarFocusStartedAt = now;
+  const focusRunId = ++smartBarFocusRunId;
+
+  const isCurrentFocusRun = () => focusRunId === smartBarFocusRunId;
+
   const initialDelayMs = options.initialDelayMs ?? SMARTBAR_FOCUS_DEFAULT_DELAY_MS;
   if (initialDelayMs > 0) await wait(initialDelayMs);
+  if (!isCurrentFocusRun()) return false;
 
   await waitForFrame();
+  if (!isCurrentFocusRun()) return false;
 
   const element = await waitForFocusElement(target, options.attempts ?? 18);
   if (!element) {
@@ -329,7 +402,9 @@ export async function smartbarFocusTarget(
     });
 
     await wait(attempt === 0 ? 520 : 180);
+    if (!isCurrentFocusRun()) return false;
     await waitForFrame();
+    if (!isCurrentFocusRun()) return false;
 
     placed = focusElementIsPlaced(element);
     if (placed) break;
@@ -339,6 +414,7 @@ export async function smartbarFocusTarget(
   // measured from the target's final viewport rect, so the customer site DOM is
   // not modified and the target does not need to be raised above SmartBar.
   await wait(90);
+  if (!isCurrentFocusRun()) return false;
 
   const overlayShown = runSmartBarFocusOverlay(element, options);
   const rect = element.getBoundingClientRect();
