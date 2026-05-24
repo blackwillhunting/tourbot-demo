@@ -286,7 +286,7 @@ function lineIdentityKeys(line: CarryoutLine): string[] {
 function allLines(order: CarryoutOrder | null) {
   if (!order) return [];
 
-  const base = order.items?.length
+  const base = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
 
@@ -294,6 +294,10 @@ function allLines(order: CarryoutOrder | null) {
   // same catalog id, so id-based map merging causes selections from item 1 to
   // appear on item 2. Only the backend-provided lineItemId is treated as a
   // globally stable identity; otherwise the line's position is part of identity.
+  //
+  // Important: when local deletion removes the final matched line, `items` is
+  // intentionally an empty array. Do not fall back to the old complete/pending
+  // arrays in that case or the deleted final item will reappear.
   return base.map((line) => ({ ...line }));
 }
 
