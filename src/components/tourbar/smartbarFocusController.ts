@@ -133,8 +133,25 @@ function visiblePanelRects() {
 function rectsOverlapHorizontally(targetRect: DOMRect, panelRect: SmartBarPanelRect) {
   const targetLeft = Math.max(0, targetRect.left);
   const targetRight = Math.min(viewportWidth(), targetRect.right);
+  const targetWidth = Math.max(0, targetRight - targetLeft);
+  const panelWidth = Math.max(0, panelRect.right - panelRect.left);
+  const overlapWidth = Math.max(
+    0,
+    Math.min(targetRight, panelRect.right) - Math.max(targetLeft, panelRect.left),
+  );
 
-  return targetRight > panelRect.left && targetLeft < panelRect.right;
+  if (overlapWidth <= 0 || targetWidth <= 0 || panelWidth <= 0) return false;
+
+  const targetCenterX = targetLeft + targetWidth / 2;
+  const targetCenterCovered = targetCenterX >= panelRect.left && targetCenterX <= panelRect.right;
+  const overlapShareOfTarget = overlapWidth / targetWidth;
+  const meaningfulPanelOverlap = Math.min(220, Math.max(120, panelWidth * 0.35));
+
+  // Wide BurgerRush-style sections can barely graze the TourBar sheet on the
+  // right edge. Treating that shallow overlap as blocked reserves the full
+  // sheet height and pushes otherwise-centerable targets too low. Only reserve
+  // vertical space when the panel materially covers the target's lane.
+  return targetCenterCovered || overlapShareOfTarget >= 0.45 || overlapWidth >= meaningfulPanelOverlap;
 }
 
 function smartBarSafeTop(targetRect?: DOMRect | null) {
