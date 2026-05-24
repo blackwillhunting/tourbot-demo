@@ -196,6 +196,14 @@ export default function TourBarInformational({
 }) {
   return (
     <TourBarShell
+      consultantChat={{
+        enabled: true,
+        eyebrow: "Consultant handoff",
+        title: "Talk to a consultant",
+        placeholder: "Tell us what you would like help with...",
+        waitingMessage: "Hold for next consultant...",
+        confirmationMessage: "Thanks — someone will be with you shortly.",
+      }}
       buildThreadMessage={messageFromResult}
       getNextMoveTurnKind={(nextMove, currentResult) =>
         nextMoveShouldRoute(nextMove, currentResult?.focusAreaId) ? "primary" : "followup"

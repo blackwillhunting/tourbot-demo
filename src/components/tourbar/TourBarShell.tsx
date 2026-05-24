@@ -13,9 +13,14 @@ import {
   type TourBarRequiredBookingField,
 } from "./tourbarBookingContext";
 import { smartbarFocusTarget } from "./smartbarFocusController";
+import TourBarConsultantChat, {
+  type TourBarConsultantChatMessage,
+  type TourBarConsultantChatCopy,
+} from "./TourBarConsultantChat";
 import {
   ArrowRight,
   Loader2,
+  MessageSquare,
   Search,
   SendHorizonal,
   Sparkles,
@@ -89,6 +94,10 @@ export type TourBarShellActions = {
   bookingContext: TourBarBookingContext;
 };
 
+export type TourBarConsultantChatConfig = TourBarConsultantChatCopy & {
+  enabled?: boolean;
+};
+
 export type TourBarShellProps = {
   primaryPlaceholder?: string;
   followUpPlaceholder?: string;
@@ -98,6 +107,7 @@ export type TourBarShellProps = {
   initialLoadingMessage?: string;
   followUpLoadingMessage?: string;
   requireBookingContext?: boolean;
+  consultantChat?: TourBarConsultantChatConfig;
   onPrimarySubmit: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   onFollowUpSubmit?: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   getNextMoveTurnKind?: (nextMove: TourBarNextMove | undefined, currentResult: TourBarShellResult | null) => TourBarShellTurnKind;
@@ -122,6 +132,57 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function makeConsultantChatId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+function compactIntentText(value?: string | null) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function textLooksLikeConsultantRequest(value?: string | null) {
+  const text = compactIntentText(value);
+  if (!text) return false;
+
+  return /\b(talk|speak|chat|connect|contact|call|reach)\b/.test(text) &&
+    /\b(consultant|specialist|advisor|adviser|expert|sales|someone|person|human|representative|rep|team)\b/.test(text);
+}
+
+function textLooksLikeConsultantAcceptance(value?: string | null) {
+  const text = compactIntentText(value);
+  if (!text) return false;
+
+  return (
+    /^(yes|yeah|yep|sure|ok|okay|please|do that|that works|sounds good)\b/.test(text) ||
+    /\b(connect me|talk to someone|speak to someone|contact me|put me in touch|consultant|specialist|human)\b/.test(text)
+  );
+}
+
+function resultLooksLikeConsultantOffer(result?: TourBarShellResult | null, nextMove?: TourBarNextMove) {
+  const text = compactIntentText([
+    result?.title,
+    result?.body,
+    result?.invitation?.text,
+    result?.nextMove?.label,
+    result?.nextMove?.query,
+    result?.nextMove?.type,
+    nextMove?.label,
+    nextMove?.query,
+    nextMove?.type,
+  ].filter(Boolean).join(" "));
+
+  if (!text) return false;
+
+  const hasHumanTarget = /\b(consultant|consultation|specialist|advisor|adviser|expert|sales|someone|person|human|representative|rep|team)\b/.test(text);
+  const hasHandoffVerb = /\b(talk|speak|chat|connect|contact|call|handoff|consultation|intake)\b/.test(text);
+
+  return hasHumanTarget && hasHandoffVerb;
+}
+
+function consultantChatIsEnabled(config?: TourBarConsultantChatConfig) {
+  return Boolean(config?.enabled);
 }
 
 function ThinkingText({ body }: { body: string }) {
@@ -298,6 +359,7 @@ export default function TourBarShell({
   initialLoadingMessage = "Finding the right part of this site…",
   followUpLoadingMessage = "Thinking through that follow-up…",
   requireBookingContext = false,
+  consultantChat,
   onPrimarySubmit,
   onFollowUpSubmit,
   getNextMoveTurnKind,
@@ -321,6 +383,12 @@ export default function TourBarShell({
   const followUpRef = useRef<HTMLTextAreaElement | null>(null);
   const bookingContextController = useTourBarBookingContext();
   const [bookingContextReturnResult, setBookingContextReturnResult] = useState<TourBarShellResult | null>(null);
+  const [consultantChatAvailable, setConsultantChatAvailable] = useState(false);
+  const [consultantChatOpen, setConsultantChatOpen] = useState(false);
+  const [consultantChatDraft, setConsultantChatDraft] = useState("");
+  const [consultantChatThread, setConsultantChatThread] = useState<TourBarConsultantChatMessage[]>([]);
+  const [consultantChatWaiting, setConsultantChatWaiting] = useState(false);
+  const pendingConsultantOfferRef = useRef(false);
 
   const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
   const activeFollowUpResult = standaloneResult || result;
@@ -359,12 +427,82 @@ export default function TourBarShell({
     ]);
   };
 
+  const activateConsultantChat = () => {
+    if (!consultantChatIsEnabled(consultantChat)) return;
+
+    pendingConsultantOfferRef.current = false;
+    setConsultantChatAvailable(true);
+    setConsultantChatOpen(true);
+    setIsOpen(true);
+    setError("");
+    setResult(null);
+    setStandaloneResult(null);
+    setFollowUp("");
+  };
+
+  const noteConsultantOffer = (tourBarResult: TourBarShellResult) => {
+    pendingConsultantOfferRef.current = resultLooksLikeConsultantOffer(tourBarResult);
+  };
+
+  const shouldOpenConsultantChatForMessage = (
+    message: string,
+    activeResult?: TourBarShellResult | null,
+  ) => {
+    if (!consultantChatIsEnabled(consultantChat)) return false;
+    if (textLooksLikeConsultantRequest(message)) return true;
+    return Boolean(pendingConsultantOfferRef.current && resultLooksLikeConsultantOffer(activeResult) && textLooksLikeConsultantAcceptance(message));
+  };
+
+  const submitConsultantChatMessage = (message = consultantChatDraft) => {
+    const cleanMessage = message.trim();
+    if (!cleanMessage || consultantChatWaiting) return;
+
+    const waitingMessage = consultantChat?.waitingMessage || "Hold for next consultant...";
+    const confirmationMessage =
+      consultantChat?.confirmationMessage || "Thanks — someone will be with you shortly.";
+    const waitingId = makeConsultantChatId();
+
+    setConsultantChatThread((items) => [
+      ...items,
+      {
+        id: makeConsultantChatId(),
+        role: "visitor",
+        body: cleanMessage,
+      },
+      {
+        id: waitingId,
+        role: "consultant",
+        body: waitingMessage,
+        status: "thinking",
+      },
+    ]);
+    setConsultantChatDraft("");
+    setConsultantChatWaiting(true);
+
+    window.setTimeout(() => {
+      setConsultantChatThread((items) =>
+        items.map((item) =>
+          item.id === waitingId
+            ? { ...item, body: confirmationMessage, status: "done" }
+            : item,
+        ),
+      );
+      setConsultantChatWaiting(false);
+    }, 2600);
+  };
+
   const submitQuery = async (
     nextQuery = query,
     bookingContextOverride?: TourBarBookingContext | null,
   ) => {
     const cleanQuery = nextQuery.trim();
     if (!cleanQuery || isLoading || isAnswering) return;
+
+    if (shouldOpenConsultantChatForMessage(cleanQuery)) {
+      setQuery("");
+      activateConsultantChat();
+      return;
+    }
 
     const shouldRetractSheet = Boolean(result || standaloneResult || error);
 
@@ -417,6 +555,7 @@ export default function TourBarShell({
 
       setResult(response);
       appendThread([], cleanQuery, response);
+      noteConsultantOffer(response);
       onResult?.(response, "primary");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "TourBar hit an unexpected error.");
@@ -433,6 +572,12 @@ export default function TourBarShell({
     const activeResult = standaloneResult || result;
 
     if (!cleanFollowUp || isLoading || isAnswering || !activeResult || !onFollowUpSubmit) return;
+
+    if (shouldOpenConsultantChatForMessage(cleanFollowUp, activeResult)) {
+      setFollowUp("");
+      activateConsultantChat();
+      return;
+    }
 
     const priorThread = thread.slice(-8);
 
@@ -481,6 +626,7 @@ export default function TourBarShell({
 
       setResult(response);
       appendThread(priorThread, cleanFollowUp, response);
+      noteConsultantOffer(response);
       onResult?.(response, "followup");
     } catch (exc) {
       setError(exc instanceof Error ? exc.message : "TourBar could not answer that follow-up.");
@@ -546,6 +692,11 @@ export default function TourBarShell({
     const nextMove = activeResult?.nextMove;
     if (!activeResult || isLoading || isAnswering) return;
 
+    if (consultantChatIsEnabled(consultantChat) && resultLooksLikeConsultantOffer(activeResult, nextMove)) {
+      activateConsultantChat();
+      return;
+    }
+
     const handled = onNextMove?.(activeResult, nextMove);
     if (handled) {
       await openStandaloneSheet(activeResult);
@@ -566,6 +717,8 @@ export default function TourBarShell({
   };
 
   const sheetVisible = isLoading || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
+  const consultantChatVisible = consultantChatIsEnabled(consultantChat) && consultantChatOpen;
+  const regularSheetVisible = sheetVisible && !consultantChatVisible;
 
   const shellActions: TourBarShellActions = {
     submitFollowUp: (nextQuery) => {
@@ -680,6 +833,24 @@ export default function TourBarShell({
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
                   </button>
+                  {consultantChatIsEnabled(consultantChat) && consultantChatAvailable && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsOpen(true);
+                        setConsultantChatOpen((open) => !open);
+                      }}
+                      className={`mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+                        consultantChatOpen
+                          ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
+                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                      aria-label={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
+                      title={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
@@ -692,7 +863,7 @@ export default function TourBarShell({
               </div>
 
               <AnimatePresence>
-                {sheetVisible && (
+                {regularSheetVisible && (
                   <motion.div
                     key={`${standaloneResult ? "standalone" : result?.focusAreaId || result?.action || "sheet"}-${standaloneResult?.mode || result?.mode || (isLoading ? "loading" : "state")}`}
                     data-tourbar-sheet-panel="true"
@@ -791,6 +962,37 @@ export default function TourBarShell({
                           )}
                         </div>
                       )}
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {consultantChatVisible && (
+                  <motion.div
+                    key="consultant-chat-sheet"
+                    data-tourbar-sheet-panel="true"
+                    initial={{ height: 0 }}
+                    animate={{ height: "auto" }}
+                    exit={{ height: 0 }}
+                    transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
+                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
+                  >
+                    <motion.div
+                      initial={{ y: "-100%" }}
+                      animate={{ y: "0%" }}
+                      exit={{ y: "-100%" }}
+                      transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
+                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                    >
+                      <TourBarConsultantChat
+                        copy={consultantChat}
+                        draft={consultantChatDraft}
+                        isWaiting={consultantChatWaiting}
+                        thread={consultantChatThread}
+                        onDraftChange={setConsultantChatDraft}
+                        onSubmit={() => submitConsultantChatMessage()}
+                      />
                     </motion.div>
                   </motion.div>
                 )}
