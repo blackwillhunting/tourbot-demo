@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -20,23 +20,7 @@ import {
 import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
-import TourBarBooking, {
-  isBookingNextStepLabel,
-  isExplicitTourBarBookingRequest,
-  priceLabelFromTourBarCombination,
-  tourBarCombinationFromRaw,
-  type TourBarBookingHandoff,
-  type TourBarBookingNavigationState as TourBarNavigationState,
-  type TourBarBookingPageTarget as TourBarPageTarget,
-  type TourBarBookingRawResponse,
-  type TourBarBookingRequestContext,
-  type TourBarBookingTurnContext,
-} from "./components/tourbar/TourBarBooking";
-import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./components/tourbar/smartbarFocusController";
-import type {
-  TourBarShellActions,
-  TourBarShellResult,
-} from "./components/tourbar/TourBarShell";
+import TourBarBooking from "./components/tourbar/TourBarBooking";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
   guidedCommerceRichIntentDemo,
@@ -45,32 +29,9 @@ import {
 } from "./demo/demoScripts";
 import { commerceGuideConfig } from "./commerce/commerceGuideConfig";
 
-type TourBarHotelBookingBackendResponse = TourBarBookingRawResponse;
-
 type AppCommerceProps = {
   tourBarMode?: boolean;
 };
-
-function asRecord(value: unknown): Record<string, any> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, any>)
-    : {};
-}
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-    : [];
-}
-
-function asRecordArray(value: unknown): Record<string, any>[] {
-  return Array.isArray(value)
-    ? value
-        .map((item) => asRecord(item))
-        .filter((item) => Object.keys(item).length > 0)
-    : [];
-}
-
 function guestCountFromLabel(label: string): number | null {
   const direct = Number(label);
   if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
@@ -216,9 +177,9 @@ export const PAGES: Record<PageId, Page> = {
         title: "Business King Suite",
         price: "$289/night",
         body:
-          "A quiet upper-floor king suite in the Executive Tower with ergonomic desk, fast Wi‑Fi, blackout curtains, lounge access, and easy conference-center routing.",
+          "A quiet upper-floor king suite in the Executive Tower with ergonomic desk, fast Wiâ€‘Fi, blackout curtains, lounge access, and easy conference-center routing.",
         details: ["King bed", "Executive Tower", "Desk + task lighting", "Lounge access", "Quiet wing"],
-        tags: ["Quiet", "Business", "Wi‑Fi", "Desk"],
+        tags: ["Quiet", "Business", "Wiâ€‘Fi", "Desk"],
       },
       {
         id: "room-executive-tower-king",
@@ -305,8 +266,8 @@ export const PAGES: Record<PageId, Page> = {
         title: "Business Ready Package",
         price: "+$45/night",
         body:
-          "Includes breakfast, meeting pod credit, premium Wi‑Fi tier, and 6pm late checkout. Best paired with Business King or Executive Tower rooms.",
-        details: ["Breakfast", "Meeting pod credit", "Premium Wi‑Fi", "Late checkout"],
+          "Includes breakfast, meeting pod credit, premium Wiâ€‘Fi tier, and 6pm late checkout. Best paired with Business King or Executive Tower rooms.",
+        details: ["Breakfast", "Meeting pod credit", "Premium Wiâ€‘Fi", "Late checkout"],
         tags: ["Business", "Meetings", "Productivity"],
       },
       {
@@ -325,8 +286,8 @@ export const PAGES: Record<PageId, Page> = {
         title: "Breakfast Flex Plan",
         price: "+$32/night",
         body:
-          "Daily breakfast credit that works across the lobby café, buffet, and grab-and-go market. Useful when guests mention breakfast but not a full package.",
-        details: ["Daily credit", "Café", "Buffet", "Grab-and-go"],
+          "Daily breakfast credit that works across the lobby cafÃ©, buffet, and grab-and-go market. Useful when guests mention breakfast but not a full package.",
+        details: ["Daily credit", "CafÃ©", "Buffet", "Grab-and-go"],
         tags: ["Breakfast", "Flexible", "Value"],
       },
       {
@@ -405,7 +366,7 @@ export const PAGES: Record<PageId, Page> = {
         eyebrow: "Dining",
         title: "Dining District",
         body:
-          "Guests can choose lobby café breakfast, coastal seafood dining, a market for quick meals, poolside service, and private dining options for events or special occasions.",
+          "Guests can choose lobby cafÃ© breakfast, coastal seafood dining, a market for quick meals, poolside service, and private dining options for events or special occasions.",
         tags: ["Breakfast", "Seafood", "Poolside"],
       },
       {
@@ -520,16 +481,16 @@ const pageVisuals: Record<
     eyebrow: "Deal and upgrade routing",
     gradient: "from-violet-950 via-slate-900 to-rose-900",
     accent: "from-violet-950 to-rose-800",
-    metricA: "Business · leisure",
-    metricB: "Family · events",
+    metricA: "Business Â· leisure",
+    metricB: "Family Â· events",
     proof: "Layered add-ons",
   },
   amenities: {
     eyebrow: "Property knowledge layer",
     gradient: "from-emerald-950 via-slate-900 to-cyan-900",
     accent: "from-emerald-950 to-cyan-800",
-    metricA: "Dining · spa",
-    metricB: "Kids · conference",
+    metricA: "Dining Â· spa",
+    metricB: "Kids Â· conference",
     proof: "Explains recommendations",
   },
   booking: {
@@ -644,7 +605,7 @@ const sectionVisuals: Record<
   "package-breakfast-flex": {
     icon: Coffee,
     tone: "from-amber-900 to-slate-800",
-    chips: ["Breakfast", "Café", "Flexible"],
+    chips: ["Breakfast", "CafÃ©", "Flexible"],
     shape: "dark",
   },
   "package-relaxation-weekend": {
@@ -933,7 +894,7 @@ function Hero({ page }: { page: Page }) {
               ))}
             </div>
             <div className="mt-3 rounded-xl bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-950 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-              Ask about the resort → compare options → booking preloads
+              Ask about the resort â†’ compare options â†’ booking preloads
             </div>
           </div>
         </div>
@@ -1138,7 +1099,7 @@ function bookingRateLabel(price?: string | null, nights?: number | null) {
   const parsed = parseBookingPrice(price);
   if (!parsed) return price || "Pending";
   if (parsed.unit === "per_stay") return `$${parsed.amount}/stay`;
-  return nights ? `$${parsed.amount} × ${nights} night${nights === 1 ? "" : "s"}` : `$${parsed.amount}/night`;
+  return nights ? `$${parsed.amount} Ã— ${nights} night${nights === 1 ? "" : "s"}` : `$${parsed.amount}/night`;
 }
 
 function formatBookingDateRange(checkIn: string, checkOut: string) {
@@ -1158,19 +1119,7 @@ function formatBookingDateRange(checkIn: string, checkOut: string) {
     day: "numeric",
     year: "numeric",
   });
-  return `${startLabel}–${endLabel}`;
-}
-
-function formatBookingDate(value: string) {
-  if (!value) return "Select date";
-  const [year, month, day] = value.split("-").map(Number);
-  if (!year || !month || !day) return "Select date";
-
-  return new Date(year, month - 1, day).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return `${startLabel}â€“${endLabel}`;
 }
 
 function tourBarGuestLabel(adults: number, children: number) {
@@ -1385,7 +1334,7 @@ function BookingMock({
               <div className="flex items-start justify-between gap-3">
                 <span>Room subtotal</span>
                 <strong className="text-slate-900">
-                  {roomMeta && nights ? `${bookingRateLabel(roomMeta.price, nights)} · ${formatBookingCurrency(roomSubtotal)}` : roomMeta?.price || "Pending"}
+                  {roomMeta && nights ? `${bookingRateLabel(roomMeta.price, nights)} Â· ${formatBookingCurrency(roomSubtotal)}` : roomMeta?.price || "Pending"}
                 </strong>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -1461,8 +1410,8 @@ function SectionCard({
   const isRecommendedStart = section.id === "room-business-king";
   const mobileChips = (section.tags || visual.chips).slice(0, 3);
   const mobileSignal = section.price
-    ? `${section.price} · ${visual.chips.slice(0, 2).join(" · ")}`
-    : visual.chips.slice(0, 2).join(" · ");
+    ? `${section.price} Â· ${visual.chips.slice(0, 2).join(" Â· ")}`
+    : visual.chips.slice(0, 2).join(" Â· ");
 
   return (
     <motion.section
@@ -1752,7 +1701,7 @@ function SectionCard({
                       variant="outline"
                       className="rounded-full px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm"
                     >
-                      See next option →
+                      See next option â†’
                     </Button>
                   </>
                 ) : (
@@ -1875,1146 +1824,9 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
 }
 
 
-function pageIdFromTourBarTarget(targetId?: string | null): PageId {
-  const target = String(targetId || "");
-
-  if (target.startsWith("package-")) return "packages";
-  if (target.startsWith("amenity-")) return "amenities";
-  if (target.startsWith("booking-") || target === "payment-module") return "booking";
-  if (target.startsWith("room-")) return "rooms";
-
-  return "home";
-}
-
-function sectionIdFromTourBarTarget(targetId?: string | null) {
-  const target = String(targetId || "").trim();
-  if (!target) return "";
-
-  const sections = Object.values(PAGES).flatMap((page) => page.sections);
-  const exact = sections.find((section) => section.id === target);
-  if (exact) return exact.id;
-
-  const prefix = sections
-    .slice()
-    .sort((a, b) => b.id.length - a.id.length)
-    .find((section) => target.startsWith(`${section.id}-`) || target.startsWith(`${section.id}_`));
-
-  return prefix?.id || target;
-}
-
-function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
-  const action = asRecord(raw.action || raw.suggestedAction);
-  const ranked = Array.isArray(raw.rankedDestinations) ? raw.rankedDestinations : [];
-  const firstRanked = asRecord(ranked[0]);
-  const selected = tourBarCombinationFromRaw(raw);
-  const packageIds = packageIdsFromTourBarCombination(selected);
-  const bookingAction = String(raw.commerceAction || raw.intent || raw.displayMode || "");
-  const plannerText = [
-    asRecord(raw.bookingArtifacts).normalizedPrompt,
-    asRecord(raw.bookingArtifacts).rawPrompt,
-    raw.answer,
-    raw.body,
-  ].join(" ").toLowerCase();
-  const packageFocused =
-    packageIds.length > 0 &&
-    /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
-
-  const targetId =
-    action.targetId ||
-    firstRanked.targetId ||
-    (packageFocused ? packageIds[0] : selected.roomId) ||
-    raw.targetId ||
-    raw.focusAreaId ||
-    "";
-
-  const pageId =
-    action.pageId ||
-    firstRanked.pageId ||
-    raw.pageId ||
-    pageIdFromTourBarTarget(targetId);
-
-  const targetSelector =
-    action.targetSelector ||
-    firstRanked.targetSelector ||
-    (targetId ? `[data-tour-id="${targetId}"], #${targetId}` : undefined);
-
-  const explicitBookingActionText = [
-    bookingAction,
-    action.type,
-    action.kind,
-    action.intent,
-    action.action,
-    action.commerceAction,
-    action.displayMode,
-    raw.commerceAction,
-    raw.intent,
-    raw.displayMode,
-  ]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-
-  return {
-    pageId: pageId as PageId,
-    targetId: String(targetId || ""),
-    targetSelector: typeof targetSelector === "string" ? targetSelector : undefined,
-    // Do not treat every result that merely mentions or links to booking as a
-    // handoff. Normal room recommendations should stay as answer sheets; the
-    // booking handoff sheet opens only for explicit booking actions or CTA clicks.
-    isBookingAction:
-      explicitBookingActionText.includes("prepare_booking") ||
-      explicitBookingActionText.includes("booking_handoff") ||
-      explicitBookingActionText.includes("checkout_handoff") ||
-      targetId === "booking-panel" ||
-      action.targetId === "booking-panel",
-  };
-}
-
-
-type TourBarWorkingStayContext = {
-  roomId: string | null;
-  packageIds: string[];
-  activeTargetId: string | null;
-  activeRoomId: string | null;
-  activePackageId: string | null;
-  checkInDate?: string | null;
-  checkOutDate?: string | null;
-  datesLabel?: string | null;
-  adults?: number | null;
-  children?: number | null;
-  guests?: number | null;
-  guestLabel?: string | null;
-  budgetBand?: string | null;
-  lastPlannerIntent?: string | null;
-  lastResultTitle?: string | null;
-  lastResultAction?: string | null;
-};
-
-type TourBarBookingWidget = "dates" | "guests" | null;
-type TourBarDatePickerKind = "check-in" | "check-out" | null;
-type TourBarCalendarMonth = { year: number; monthIndex: number };
-
-type TourBarRequiredBookingField = "dates" | "guests";
-
-type TourBarBookingContextOverride = {
-  datesSelected?: boolean;
-  guestsSelected?: boolean;
-  checkInDate?: string;
-  checkOutDate?: string;
-  guestAdults?: number;
-  guestChildren?: number;
-  guestLabel?: string;
-  budgetBand?: string;
-};
-
-type TourBarParsedDates = {
-  checkInDate: string;
-  checkOutDate: string;
-  datesLabel: string;
-};
-
-type TourBarParsedGuests = {
-  adults: number;
-  children: number;
-  guests: number;
-  guestLabel: string;
-};
-
-const TOURBAR_DEFAULT_BOOKING_YEAR = 2026;
-const TOURBAR_MONTH_NAMES: Record<string, number> = {
-  jan: 0,
-  january: 0,
-  feb: 1,
-  february: 1,
-  mar: 2,
-  march: 2,
-  apr: 3,
-  april: 3,
-  may: 4,
-  jun: 5,
-  june: 5,
-  jul: 6,
-  july: 6,
-  aug: 7,
-  august: 7,
-  sep: 8,
-  sept: 8,
-  september: 8,
-  oct: 9,
-  october: 9,
-  nov: 10,
-  november: 10,
-  dec: 11,
-  december: 11,
-};
-const TOURBAR_MONTH_PATTERN =
-  "jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?";
-const TOURBAR_NUMBER_WORDS: Record<string, number> = {
-  one: 1,
-  two: 2,
-  three: 3,
-  four: 4,
-  five: 5,
-  six: 6,
-  seven: 7,
-  eight: 8,
-  nine: 9,
-  ten: 10,
-};
-
-function tourBarNumberFromText(value?: string | null) {
-  const text = String(value || "").trim().toLowerCase();
-  if (!text) return null;
-
-  const direct = Number(text);
-  if (Number.isFinite(direct) && direct >= 0) return Math.floor(direct);
-
-  return TOURBAR_NUMBER_WORDS[text] ?? null;
-}
-
-function tourBarYearFromText(value?: string | null) {
-  const raw = String(value || "").trim();
-  if (!raw) return TOURBAR_DEFAULT_BOOKING_YEAR;
-
-  const year = Number(raw);
-  if (!Number.isFinite(year)) return TOURBAR_DEFAULT_BOOKING_YEAR;
-  if (year < 100) return 2000 + year;
-  return year;
-}
-
-function tourBarIsoDate(year: number, monthIndex: number, day: number) {
-  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function tourBarMonthIndex(value?: string | null) {
-  const key = String(value || "").trim().toLowerCase();
-  return TOURBAR_MONTH_NAMES[key] ?? null;
-}
-
-function extractTourBarDatesFromPrompt(prompt: string): TourBarParsedDates | null {
-  const text = String(prompt || "").replace(/[–—]/g, "-");
-  const monthRange = new RegExp(
-    `\\b(${TOURBAR_MONTH_PATTERN})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*(?:-|to|through|thru|until)\\s*(?:(${TOURBAR_MONTH_PATTERN})\\s+)?(\\d{1,2})(?:st|nd|rd|th)?(?:,?\\s*(20\\d{2}|\\d{2}))?`,
-    "i",
-  );
-  const monthMatch = text.match(monthRange);
-
-  if (monthMatch) {
-    const startMonth = tourBarMonthIndex(monthMatch[1]);
-    const startDay = Number(monthMatch[2]);
-    const endMonth = tourBarMonthIndex(monthMatch[3]) ?? startMonth;
-    const endDay = Number(monthMatch[4]);
-    const year = tourBarYearFromText(monthMatch[5]);
-
-    if (
-      startMonth != null &&
-      endMonth != null &&
-      Number.isFinite(startDay) &&
-      Number.isFinite(endDay)
-    ) {
-      const checkInDate = tourBarIsoDate(year, startMonth, startDay);
-      const checkOutYear = endMonth < startMonth ? year + 1 : year;
-      const checkOutDate = tourBarIsoDate(checkOutYear, endMonth, endDay);
-      if (checkOutDate > checkInDate) {
-        return {
-          checkInDate,
-          checkOutDate,
-          datesLabel: formatBookingDateRange(checkInDate, checkOutDate),
-        };
-      }
-    }
-  }
-
-  const numericRange = text.match(
-    /\b(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\s*(?:-|to|through|thru|until)\s*(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b/i,
-  );
-
-  if (numericRange) {
-    const startMonth = Number(numericRange[1]) - 1;
-    const startDay = Number(numericRange[2]);
-    const startYear = tourBarYearFromText(numericRange[3] || numericRange[6]);
-    const endMonth = Number(numericRange[4]) - 1;
-    const endDay = Number(numericRange[5]);
-    const endYear = tourBarYearFromText(numericRange[6] || numericRange[3]);
-
-    if (
-      startMonth >= 0 &&
-      startMonth <= 11 &&
-      endMonth >= 0 &&
-      endMonth <= 11 &&
-      Number.isFinite(startDay) &&
-      Number.isFinite(endDay)
-    ) {
-      const checkInDate = tourBarIsoDate(startYear, startMonth, startDay);
-      const checkOutDate = tourBarIsoDate(endYear, endMonth, endDay);
-      if (checkOutDate > checkInDate) {
-        return {
-          checkInDate,
-          checkOutDate,
-          datesLabel: formatBookingDateRange(checkInDate, checkOutDate),
-        };
-      }
-    }
-  }
-
-  return null;
-}
-
-function extractTourBarGuestsFromPrompt(prompt: string): TourBarParsedGuests | null {
-  const text = String(prompt || "").toLowerCase();
-  const numberPattern = "(\\d+|one|two|three|four|five|six|seven|eight|nine|ten)";
-
-  if (/\b(just me|solo|only me|by myself|myself)\b/i.test(text)) {
-    const guestLabel = tourBarGuestLabel(1, 0);
-    return { adults: 1, children: 0, guests: 1, guestLabel };
-  }
-
-  const adultMatch = text.match(new RegExp(`\\b${numberPattern}\\s+adults?\\b`, "i"));
-  const childMatch = text.match(new RegExp(`\\b${numberPattern}\\s+(?:children|child|kids?|kid)\\b`, "i"));
-  const totalMatch = text.match(
-    new RegExp(`\\b(?:for\\s+)?${numberPattern}\\s+(?:guests?|people|travelers?|travellers?)\\b`, "i"),
-  );
-  const familyMatch = text.match(new RegExp(`\\bfamily\\s+of\\s+${numberPattern}\\b`, "i"));
-
-  const explicitAdults = tourBarNumberFromText(adultMatch?.[1]);
-  const explicitChildren = tourBarNumberFromText(childMatch?.[1]);
-  const explicitTotal = tourBarNumberFromText(totalMatch?.[1] || familyMatch?.[1]);
-
-  if (explicitAdults != null || explicitChildren != null) {
-    const adults = Math.max(1, explicitAdults ?? Math.max(1, (explicitTotal || 1) - (explicitChildren || 0)));
-    const children = Math.max(0, explicitChildren ?? 0);
-    const guestLabel = tourBarGuestLabel(adults, children);
-    return { adults, children, guests: adults + children, guestLabel };
-  }
-
-  if (explicitTotal != null && explicitTotal > 0) {
-    const adults = Math.max(1, explicitTotal);
-    const children = 0;
-    const guestLabel = tourBarGuestLabel(adults, children);
-    return { adults, children, guests: adults + children, guestLabel };
-  }
-
-  return null;
-}
-
-function buildTourBarCollectionResult(
-  field: TourBarRequiredBookingField,
-  pendingQuery: string,
-): TourBarShellResult {
-  const isDates = field === "dates";
-
-  return {
-    title: isDates ? "Select your stay dates" : "Add guests for this stay",
-    body: isDates
-      ? "I need the travel dates before I can price and rank rooms. Choose check-in and check-out dates to continue."
-      : "I need the guest count before I can filter rooms correctly. Add adults and children to continue.",
-    canFollowUp: false,
-    answerMode: `tourbar_collect_${field}`,
-    mode: `tourbar_collect_${field}`,
-    action: `tourbar_collect_${field}`,
-    label: isDates ? "Dates required" : "Guests required",
-    raw: {
-      mode: `tourbar_collect_${field}`,
-      action: `tourbar_collect_${field}`,
-      requiredField: field,
-      pendingQuery,
-    },
-  };
-}
-
-function tourBarCollectionWidgetFromResult(
-  result?: TourBarShellResult | null,
-): Exclude<TourBarBookingWidget, null> | null {
-  const raw = asRecord(result?.raw);
-  const field = String(raw.requiredField || result?.action || result?.mode || "");
-
-  if (field.includes("dates")) return "dates";
-  if (field.includes("guests")) return "guests";
-  return null;
-}
-
-function tourBarPendingQueryFromResult(result?: TourBarShellResult | null) {
-  const raw = asRecord(result?.raw);
-  return typeof raw.pendingQuery === "string" ? raw.pendingQuery : "";
-}
-
-
-void extractTourBarDatesFromPrompt;
-void extractTourBarGuestsFromPrompt;
-void buildTourBarCollectionResult;
-void tourBarCollectionWidgetFromResult;
-void tourBarPendingQueryFromResult;
-
-function addTourBarNavigationTarget(
-  targets: TourBarPageTarget[],
-  value: Record<string, any>,
-) {
-  const rawTargetId = String(value.targetId || value.focusAreaId || "").trim();
-  const targetId = sectionIdFromTourBarTarget(rawTargetId);
-  if (!targetId || targetId === "booking-panel" || targetId.startsWith("booking-")) {
-    return;
-  }
-
-  const pageId = String(value.pageId || pageIdFromTourBarTarget(targetId)) as PageId;
-  const targetSelector =
-    typeof value.targetSelector === "string" && value.targetSelector.trim()
-      ? value.targetSelector.trim()
-      : `[data-tour-id="${targetId}"], #${targetId}`;
-  const key = `${pageId}:${targetId}`;
-  if (targets.some((item) => `${item.pageId}:${item.targetId}` === key)) {
-    return;
-  }
-
-  targets.push({
-    pageId,
-    targetId,
-    targetSelector,
-    targetText: typeof value.targetText === "string" ? value.targetText : undefined,
-    reason: typeof value.reason === "string" ? value.reason : undefined,
-  });
-}
-
-function roomIdFromTourBarTarget(targetId?: string | null) {
-  const sectionId = sectionIdFromTourBarTarget(targetId);
-  return roomBookingMeta[sectionId] ? sectionId : "";
-}
-
-function packageIdFromTourBarTarget(targetId?: string | null) {
-  const sectionId = sectionIdFromTourBarTarget(targetId);
-  return packageBookingMeta[sectionId] ? sectionId : "";
-}
-
-function buildTourBarActiveStayPlan(
-  workingStay: TourBarWorkingStayContext,
-  fallbackRoomId: string | null,
-  fallbackPackageIds: string[],
-) {
-  const roomId = workingStay.roomId || fallbackRoomId || "";
-  const roomMeta = getRoomMeta(roomId);
-  const packageIds = normalizeBookingPackageIds([
-    ...fallbackPackageIds,
-    ...workingStay.packageIds,
-  ]);
-
-  return {
-    roomId: roomId || null,
-    roomTargetId: roomId || null,
-    room: roomId
-      ? {
-          roomId,
-          targetId: roomId,
-          title: roomMeta?.title || roomId,
-          price: roomMeta?.price || "",
-          signal: roomMeta?.signal || "",
-        }
-      : null,
-    packageIds,
-    packages: packageIds.map((packageId) => {
-      const meta = getPackageMeta(packageId);
-      return {
-        packageId,
-        targetId: packageId,
-        title: meta?.title || packageId,
-        price: meta?.price || "",
-        signal: meta?.signal || "",
-      };
-    }),
-    activeTargetId: workingStay.activeTargetId || roomId || null,
-    activeRoomId: workingStay.activeRoomId || roomId || null,
-    activePackageId: workingStay.activePackageId || packageIds[0] || null,
-    bookingContext: {
-      checkInDate: workingStay.checkInDate || null,
-      checkOutDate: workingStay.checkOutDate || null,
-      datesLabel: workingStay.datesLabel || null,
-      adults: workingStay.adults ?? null,
-      children: workingStay.children ?? null,
-      guests: workingStay.guests ?? null,
-      guestLabel: workingStay.guestLabel || null,
-      budgetBand: workingStay.budgetBand || null,
-    },
-    lastPlannerIntent: workingStay.lastPlannerIntent || null,
-    lastResultTitle: workingStay.lastResultTitle || null,
-    lastResultAction: workingStay.lastResultAction || null,
-  };
-}
-
-
-function tourBarWait(ms: number) {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-}
-
-function tourBarNextFrame(frames = 1) {
-  return new Promise<void>((resolve) => {
-    let remaining = Math.max(1, frames);
-    const step = () => {
-      remaining -= 1;
-      if (remaining <= 0) {
-        resolve();
-        return;
-      }
-      window.requestAnimationFrame(step);
-    };
-    window.requestAnimationFrame(step);
-  });
-}
-
-function tourBarTargetElement(sectionId: string, selector?: string) {
-  return (
-    (selector ? document.querySelector<HTMLElement>(selector) : null) ||
-    document.querySelector<HTMLElement>(`[data-tour-id="${sectionId}"]`) ||
-    document.getElementById(sectionId)
-  );
-}
-
-function tourBarStickyHeaderBottom() {
-  const header = document.querySelector<HTMLElement>("header");
-  if (!header) return 0;
-
-  const rect = header.getBoundingClientRect();
-  return Math.max(0, Math.min(window.innerHeight * 0.35, rect.bottom));
-}
-
-function tourBarSafeViewport() {
-  const top = Math.min(window.innerHeight - 180, tourBarStickyHeaderBottom() + 22);
-  const bottom = Math.max(top + 160, window.innerHeight - 34);
-
-  return {
-    top,
-    bottom,
-    height: bottom - top,
-    center: top + (bottom - top) / 2,
-  };
-}
-
-function tourBarTargetScrollTop(el: HTMLElement) {
-  const rect = el.getBoundingClientRect();
-  const safe = tourBarSafeViewport();
-  const documentHeight = Math.max(
-    document.body.scrollHeight,
-    document.documentElement.scrollHeight,
-  );
-  const maxScroll = Math.max(0, documentHeight - window.innerHeight);
-
-  const desiredTop =
-    rect.height > safe.height
-      ? window.scrollY + rect.top - safe.top
-      : window.scrollY + rect.top - (safe.top + (safe.height - rect.height) / 2);
-
-  return Math.max(0, Math.min(maxScroll, Math.round(desiredTop)));
-}
-
-function tourBarTargetIsSafelyPlaced(el: HTMLElement) {
-  const rect = el.getBoundingClientRect();
-  const safe = tourBarSafeViewport();
-
-  if (rect.width <= 0 || rect.height <= 0) return false;
-
-  if (rect.height > safe.height) {
-    return rect.top >= safe.top - 8 && rect.top <= safe.top + 56;
-  }
-
-  const center = rect.top + rect.height / 2;
-  const centerTolerance = Math.max(24, Math.min(82, safe.height * 0.14));
-
-  return (
-    rect.top >= safe.top - 8 &&
-    rect.bottom <= safe.bottom + 8 &&
-    Math.abs(center - safe.center) <= centerTolerance
-  );
-}
-
-async function tourBarFindTargetWhenReady(
-  sectionId: string,
-  selector: string,
-  isCurrentRun: () => boolean,
-) {
-  for (let attempt = 0; attempt < 24; attempt += 1) {
-    if (!isCurrentRun()) return null;
-
-    const el = tourBarTargetElement(sectionId, selector);
-    if (el) return el;
-
-    await tourBarNextFrame(1);
-    await tourBarWait(35);
-  }
-
-  return null;
-}
-
-async function tourBarCenterTargetWithVerification(
-  el: HTMLElement,
-  isCurrentRun: () => boolean,
-) {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    if (!isCurrentRun()) return false;
-
-    const top = tourBarTargetScrollTop(el);
-    window.scrollTo({
-      top,
-      behavior: attempt === 3 ? "auto" : "smooth",
-    });
-
-    await tourBarWait(attempt === 0 ? 440 : 260);
-    await tourBarNextFrame(2);
-
-    if (tourBarTargetIsSafelyPlaced(el)) return true;
-  }
-
-  if (!isCurrentRun()) return false;
-
-  window.scrollTo({
-    top: tourBarTargetScrollTop(el),
-    behavior: "auto",
-  });
-  await tourBarNextFrame(3);
-
-  return tourBarTargetIsSafelyPlaced(el);
-}
-
-// These older Domi-specific centering helpers stay parked for now while
-// booking focus moves to the shared SmartBar controller. Keeping references
-// avoids turning this visual wiring patch into a helper-deletion refactor.
-void tourBarFindTargetWhenReady;
-void tourBarCenterTargetWithVerification;
-
-function packageNavigationTargetsFromCombo(combo: Record<string, any>) {
-  const packageTargets = asRecordArray(combo.packageTargets);
-  const packageIds = packageIdsFromTourBarCombination(combo);
-
-  return packageIds.map((packageId, index) => {
-    const target = asRecord(packageTargets[index]);
-    const targetId = String(target.targetId || packageId);
-    return {
-      pageId: String(target.pageId || pageIdFromTourBarTarget(targetId)) as PageId,
-      targetId,
-      targetSelector:
-        typeof target.targetSelector === "string" && target.targetSelector.trim()
-          ? target.targetSelector.trim()
-          : `[data-tour-id="${targetId}"], #${targetId}`,
-      targetText:
-        asStringArray(combo.packageTitles)[index] ||
-        getPackageMeta(packageId)?.title ||
-        "Package",
-      reason: "Recommended add-on for this stay.",
-    };
-  });
-}
-
-function comboNavigationTargets(
-  combo: Record<string, any>,
-  { packageFirst = false }: { packageFirst?: boolean } = {},
-) {
-  const targets: TourBarPageTarget[] = [];
-  const roomTarget = asRecord(combo.roomTarget);
-  const roomId = String(combo.roomId || roomTarget.targetId || "").trim();
-  const roomStep = roomId
-    ? {
-        pageId: String(roomTarget.pageId || pageIdFromTourBarTarget(roomId)) as PageId,
-        targetId: roomId,
-        targetSelector:
-          typeof roomTarget.targetSelector === "string" && roomTarget.targetSelector.trim()
-            ? roomTarget.targetSelector.trim()
-            : `[data-tour-id="${roomId}"], #${roomId}`,
-        targetText: String(combo.roomShortTitle || combo.roomTitle || getRoomMeta(roomId)?.title || "Room"),
-        reason: "Recommended room option.",
-      }
-    : null;
-  const packageSteps = packageNavigationTargetsFromCombo(combo);
-
-  [...(packageFirst ? packageSteps : []), ...(roomStep ? [roomStep] : []), ...(packageFirst ? [] : packageSteps)]
-    .forEach((target) => addTourBarNavigationTarget(targets, target));
-
-  return targets;
-}
-
-function tourBarNavigationTargets(raw: TourBarHotelBookingBackendResponse) {
-  const targets: TourBarPageTarget[] = [];
-  const action = asRecord(raw.action || raw.suggestedAction);
-  const ranked = asRecordArray(raw.rankedDestinations);
-  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
-  const packageIds = packageIdsFromTourBarCombination(selected);
-  const plannerText = [
-    asRecord(raw.bookingArtifacts).normalizedPrompt,
-    asRecord(raw.bookingArtifacts).rawPrompt,
-    raw.answer,
-    raw.body,
-    raw.message,
-    raw.reply,
-  ].join(" ").toLowerCase();
-  const packageFocused =
-    packageIds.length > 0 &&
-    /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
-
-  addTourBarNavigationTarget(targets, action);
-  ranked.forEach((item) => addTourBarNavigationTarget(targets, item));
-
-  const combos = [
-    tourBarCombinationFromRaw(raw, { preferNextStep: true }),
-    asRecord(raw.selectedCombination),
-    ...asRecordArray(raw.matrixResults),
-    ...asRecordArray(raw.alternatives),
-  ];
-
-  combos.forEach((combo) => {
-    if (!combo.comboId && !combo.roomId) return;
-    comboNavigationTargets(combo, { packageFirst: packageFocused })
-      .forEach((target) => addTourBarNavigationTarget(targets, target));
-  });
-
-  return targets.slice(0, 4);
-}
-
-function packageIdsFromTourBarCombination(combo: Record<string, any>) {
-  return normalizeBookingPackageIds(asStringArray(combo.packageIds));
-}
-
-function packageIdsFromStayPlan(stayPlan: Record<string, any>) {
-  return normalizeBookingPackageIds([
-    ...asStringArray(stayPlan.packageIds),
-    ...asRecordArray(stayPlan.packages).map((item) => String(item.targetId || item.packageId || "")),
-  ]);
-}
-
-function buildTourBarBookingHandoff(
-  raw: TourBarHotelBookingBackendResponse,
-  bookingContextOverride: Record<string, any> = {},
-): TourBarBookingHandoff {
-  const visibleContext = asRecord(raw.visibleContext);
-  const bookingContext = {
-    ...asRecord(visibleContext.bookingContext),
-    ...bookingContextOverride,
-  };
-  const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
-  const activeRoom = asRecord(activeStayPlan.room);
-  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
-  const roomId = String(
-    activeStayPlan.roomId ||
-      activeStayPlan.roomTargetId ||
-      activeRoom.targetId ||
-      activeRoom.roomId ||
-      selected.roomId ||
-      visibleContext.selectedRoomId ||
-      "",
-  );
-  const roomMeta = getRoomMeta(roomId);
-  const packageIds = normalizeBookingPackageIds([
-    ...packageIdsFromStayPlan(activeStayPlan),
-    ...packageIdsFromTourBarCombination(selected),
-    ...asStringArray(visibleContext.selectedPackageIds),
-  ]);
-  const packageTitles = asStringArray(selected.packageTitles);
-  const derivedPackageTitles = packageIds
-    .map((packageId) => getPackageMeta(packageId)?.title)
-    .filter((title): title is string => Boolean(title));
-
-  const datesLabel =
-    bookingContext.checkInDate && bookingContext.checkOutDate
-      ? formatBookingDateRange(String(bookingContext.checkInDate), String(bookingContext.checkOutDate))
-      : "Dates can be added in the next step";
-  const guestsLabel =
-    typeof bookingContext.guestLabel === "string" && bookingContext.guestLabel.trim()
-      ? bookingContext.guestLabel.trim()
-      : bookingContext.guests
-        ? `${bookingContext.guests} guest${Number(bookingContext.guests) === 1 ? "" : "s"}`
-        : "Guests can be added in the next step";
-  const budgetLabel =
-    bookingContext.maxNightlyBudgetUsd
-      ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
-      : bookingContext.maxTotalBudgetUsd
-        ? `Under $${bookingContext.maxTotalBudgetUsd} total`
-        : bookingContext.budgetBand
-          ? String(bookingContext.budgetBand)
-          : "No budget limit set";
-
-  return {
-    roomTitle: String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room"),
-    packageTitle: (packageTitles[0] || derivedPackageTitles[0] || "No package selected").replace(/\s+/g, " "),
-    datesLabel,
-    guestsLabel,
-    budgetLabel,
-    priceLabel: priceLabelFromTourBarCombination(selected),
-  };
-
-}
-
-function tourBarBookingFocusTarget(raw: TourBarHotelBookingBackendResponse): TourBarPageTarget | null {
-  const visibleContext = asRecord(raw.visibleContext);
-  const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
-  const activeRoom = asRecord(activeStayPlan.room);
-  const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
-  const roomId = String(
-    activeStayPlan.roomId ||
-      activeStayPlan.roomTargetId ||
-      activeRoom.targetId ||
-      activeRoom.roomId ||
-      selected.roomId ||
-      visibleContext.selectedRoomId ||
-      "",
-  );
-  const targetId = sectionIdFromTourBarTarget(roomId);
-  if (!targetId || !roomStepOrder.includes(targetId)) return null;
-
-  return {
-    pageId: pageIdFromTourBarTarget(targetId),
-    targetId,
-    targetSelector: `[data-tour-id="${targetId}"], #${targetId}`,
-    targetText: String(selected.roomShortTitle || selected.roomTitle || getRoomMeta(targetId)?.title || "Selected room"),
-    reason: "Room staged for booking handoff.",
-  };
-}
-
-function TourBarBookingContextPanel({
-  datesSelected,
-  guestsSelected,
-  checkInDate,
-  checkOutDate,
-  guestAdults,
-  guestChildren,
-  activeWidget,
-  activeDatePicker,
-  calendarMonth,
-  onOpenWidget,
-  onCloseWidget,
-  onOpenDatePicker,
-  onSelectCalendarDate,
-  onShiftCalendarMonth,
-  onApplyDates,
-  onClearDates,
-  onGuestAdultsChange,
-  onGuestChildrenChange,
-  onApplyGuests,
-  onClearGuests,
-  lockedWidget = null,
-}: {
-  datesSelected: boolean;
-  guestsSelected: boolean;
-  checkInDate: string;
-  checkOutDate: string;
-  guestAdults: number;
-  guestChildren: number;
-  activeWidget: TourBarBookingWidget;
-  activeDatePicker: TourBarDatePickerKind;
-  calendarMonth: TourBarCalendarMonth;
-  onOpenWidget: (widget: Exclude<TourBarBookingWidget, null>) => void;
-  onCloseWidget: () => void;
-  onOpenDatePicker: (kind: Exclude<TourBarDatePickerKind, null>) => void;
-  onSelectCalendarDate: (kind: Exclude<TourBarDatePickerKind, null>, value: string) => void;
-  onShiftCalendarMonth: (delta: number) => void;
-  onApplyDates: () => void;
-  onClearDates: () => void;
-  onGuestAdultsChange: (value: number) => void;
-  onGuestChildrenChange: (value: number) => void;
-  onApplyGuests: () => void;
-  onClearGuests: () => void;
-  lockedWidget?: Exclude<TourBarBookingWidget, null> | null;
-}) {
-  const datesReady = Boolean(checkInDate && checkOutDate && checkOutDate > checkInDate);
-  const guestLabel = tourBarGuestLabel(guestAdults, guestChildren);
-  const dateLabel = datesSelected
-    ? formatBookingDateRange(checkInDate, checkOutDate)
-    : "Add dates";
-  const monthName = new Date(
-    calendarMonth.year,
-    calendarMonth.monthIndex,
-    1,
-  ).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const firstDay = new Date(calendarMonth.year, calendarMonth.monthIndex, 1).getDay();
-  const daysInMonth = new Date(calendarMonth.year, calendarMonth.monthIndex + 1, 0).getDate();
-  const blanks = Array.from({ length: firstDay });
-  const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
-  const selectedDate = activeDatePicker === "check-in" ? checkInDate : checkOutDate;
-  const effectiveWidget = lockedWidget || activeWidget;
-  const lockedTitle = lockedWidget === "dates" ? "Dates required" : "Guests required";
-  const lockedBody =
-    lockedWidget === "dates"
-      ? "Choose check-in and check-out dates to continue."
-      : lockedWidget === "guests"
-        ? "Confirm the adults and children for this stay."
-        : "Dates and guests are carried into every follow-up and booking handoff.";
-
-  return (
-    <div
-      data-tour-id="tourbar-booking-context-controls"
-      className="rounded-2xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-white/80"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-            {lockedWidget ? lockedTitle : "Stay details"}
-          </div>
-          <div className="mt-1 text-xs leading-4 text-slate-500">
-            {lockedBody}
-          </div>
-        </div>
-        {activeWidget && !lockedWidget && (
-          <button
-            type="button"
-            onClick={onCloseWidget}
-            className="rounded-full px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-white hover:text-slate-900"
-          >
-            Close
-          </button>
-        )}
-      </div>
-
-      {!lockedWidget && (
-        <div className="mt-2 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => onOpenWidget("dates")}
-          className={`rounded-xl border px-3 py-2 text-left transition ${
-            effectiveWidget === "dates"
-              ? "border-slate-900 bg-white shadow-sm"
-              : datesSelected
-                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
-                : "border-dashed border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
-        >
-          <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            <CalendarDays className="h-3 w-3" /> Dates
-          </span>
-          <strong className="mt-1 block truncate text-xs text-slate-950">{dateLabel}</strong>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onOpenWidget("guests")}
-          className={`rounded-xl border px-3 py-2 text-left transition ${
-            effectiveWidget === "guests"
-              ? "border-slate-900 bg-white shadow-sm"
-              : guestsSelected
-                ? "border-emerald-100 bg-emerald-50 text-emerald-900"
-                : "border-dashed border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
-        >
-          <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-            <Users className="h-3 w-3" /> Guests
-          </span>
-          <strong className="mt-1 block truncate text-xs text-slate-950">
-            {guestsSelected ? guestLabel : "Add guests"}
-          </strong>
-        </button>
-        </div>
-      )}
-
-      <AnimatePresence mode="wait">
-        {effectiveWidget === "dates" && (
-          <motion.div
-            key="tourbar-dates-widget"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
-          >
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { kind: "check-in" as const, label: "Check-in", value: checkInDate },
-                { kind: "check-out" as const, label: "Check-out", value: checkOutDate },
-              ].map((item) => (
-                <button
-                  key={item.kind}
-                  type="button"
-                  onClick={() => onOpenDatePicker(item.kind)}
-                  className={`rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100 ${
-                    activeDatePicker === item.kind ? "ring-2 ring-slate-900/10" : ""
-                  }`}
-                >
-                  <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    {item.label}
-                  </span>
-                  <strong className="mt-1 block text-xs text-slate-950">
-                    {formatBookingDate(item.value)}
-                  </strong>
-                </button>
-              ))}
-            </div>
-
-            {activeDatePicker && (
-              <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      {activeDatePicker === "check-in" ? "Check-in calendar" : "Check-out calendar"}
-                    </div>
-                    <div className="mt-0.5 text-xs font-semibold text-slate-950">{monthName}</div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onShiftCalendarMonth(-1)}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onShiftCalendarMonth(1)}
-                      className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-                    >
-                      →
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-400">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div key={day} className="py-0.5">{day}</div>
-                  ))}
-                </div>
-                <div className="mt-1 grid grid-cols-7 gap-1">
-                  {blanks.map((_, index) => (
-                    <div key={`blank-${index}`} />
-                  ))}
-                  {days.map((day) => {
-                    const value = `${calendarMonth.year}-${String(calendarMonth.monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                    const disabled = Boolean(
-                      activeDatePicker === "check-out" && checkInDate && value <= checkInDate,
-                    );
-                    const isSelected = selectedDate === value;
-
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => onSelectCalendarDate(activeDatePicker, value)}
-                        className={`min-h-8 rounded-lg px-0 py-1 text-xs font-semibold transition ${
-                          isSelected
-                            ? "bg-slate-950 text-white shadow-sm"
-                            : disabled
-                              ? "cursor-not-allowed bg-slate-50 text-slate-300"
-                              : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs leading-4 text-slate-500">
-                {datesSelected
-                  ? `Saved: ${formatBookingDateRange(checkInDate, checkOutDate)}`
-                  : datesReady
-                    ? "Ready to save dates."
-                    : "Choose a check-out date after check-in."}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {datesSelected && (
-                  <button
-                    type="button"
-                    onClick={onClearDates}
-                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700"
-                  >
-                    Clear
-                  </button>
-                )}
-                <button
-                  type="button"
-                  disabled={!datesReady}
-                  onClick={onApplyDates}
-                  className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  Apply dates
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {effectiveWidget === "guests" && (
-          <motion.div
-            key="tourbar-guests-widget"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-            className="mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
-          >
-            {[
-              {
-                label: "Adults",
-                value: guestAdults,
-                min: 1,
-                onChange: onGuestAdultsChange,
-              },
-              {
-                label: "Children",
-                value: guestChildren,
-                min: 0,
-                onChange: onGuestChildrenChange,
-              },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2"
-              >
-                <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    {item.label}
-                  </div>
-                  <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.value}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => item.onChange(Math.max(item.min, item.value - 1))}
-                    className="h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    −
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => item.onChange(item.value + 1)}
-                    className="h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-xs leading-4 text-slate-500">
-                {guestsSelected ? `Saved: ${guestLabel}` : `Ready to save ${guestLabel}.`}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {guestsSelected && (
-                  <button
-                    type="button"
-                    onClick={onClearGuests}
-                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700"
-                  >
-                    Clear
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={onApplyGuests}
-                  className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
-                >
-                  Apply guests
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-
-
-
 export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = {}) {
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
-  const [tourBarSpotlightTarget, setTourBarSpotlightTarget] = useState<string | null>(null);
-  const [tourBarSpotlightNonce, setTourBarSpotlightNonce] = useState(0);
   const [demoStatus, setDemoStatus] = useState<DemoStatus>("idle");
   const [guideDemoCommand, setGuideDemoCommand] =
     useState<GuideShellDemoCommand | null>(null);
@@ -3033,42 +1845,12 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const [guestChildren, setGuestChildren] = useState(0);
   const [guestLabel, setGuestLabel] = useState(tourBarGuestLabel(1, 0));
   const [budgetBand, setBudgetBand] = useState("");
-  const [activeTourBarBookingWidget, setActiveTourBarBookingWidget] =
-    useState<TourBarBookingWidget>(null);
-  const [tourBarDatePicker, setTourBarDatePicker] =
-    useState<TourBarDatePickerKind>(null);
-  const [tourBarCalendarMonth, setTourBarCalendarMonth] =
-    useState<TourBarCalendarMonth>({ year: 2026, monthIndex: 5 });
   const [activeFormSpotlight, setActiveFormSpotlight] = useState<
     "guests" | null
   >(null);
   const [bookingRailSpotlight, setBookingRailSpotlight] = useState(false);
   const [checkInDate, setCheckInDate] = useState("2026-06-12");
   const [checkOutDate, setCheckOutDate] = useState("2026-06-15");
-  const [tourBarBookingHandoff, setTourBarBookingHandoff] =
-    useState<TourBarBookingHandoff | null>(null);
-  const [tourBarBookingHandoffOpen, setTourBarBookingHandoffOpen] =
-    useState(false);
-  const [tourBarNavigationState, setTourBarNavigationState] =
-    useState<TourBarNavigationState | null>(null);
-  const [tourBarWorkingStay, setTourBarWorkingStay] =
-    useState<TourBarWorkingStayContext>({
-      roomId: "room-business-king",
-      packageIds: [],
-      activeTargetId: "room-business-king",
-      activeRoomId: "room-business-king",
-      activePackageId: null,
-      checkInDate: null,
-      checkOutDate: null,
-      datesLabel: null,
-      adults: null,
-      children: null,
-      guests: null,
-      guestLabel: null,
-    });
-  const tourBarNavigationRunRef = React.useRef(0);
-  const tourBarBookingResumeOverrideRef =
-    React.useRef<TourBarBookingContextOverride | null>(null);
 
   const isSelfDriveEntry = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -3079,8 +1861,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const pageIndex = pageOrder.indexOf(currentPage);
 
   const onNavigate = (nextPage: PageId) => {
-    tourBarNavigationRunRef.current += 1;
-    setTourBarNavigationState(null);
     setCurrentPage(nextPage);
     setActiveAnchor(null);
     setBookingRailSpotlight(false);
@@ -3160,781 +1940,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     }, 220);
   };
 
-  const currentTourBarBookingContext = (
-    overrides: TourBarBookingContextOverride = {},
-  ) => {
-    const nextDatesSelected = overrides.datesSelected ?? datesSelected;
-    const nextGuestsSelected = overrides.guestsSelected ?? guestsSelected;
-    const nextCheckInDate = overrides.checkInDate ?? checkInDate;
-    const nextCheckOutDate = overrides.checkOutDate ?? checkOutDate;
-    const nextGuestAdults = overrides.guestAdults ?? guestAdults;
-    const nextGuestChildren = overrides.guestChildren ?? guestChildren;
-    const nextGuestLabel =
-      overrides.guestLabel ?? tourBarGuestLabel(nextGuestAdults, nextGuestChildren);
-    const nextBudgetBand = overrides.budgetBand ?? budgetBand;
-
-    return {
-      checkInDate: nextDatesSelected ? nextCheckInDate : null,
-      checkOutDate: nextDatesSelected ? nextCheckOutDate : null,
-      datesLabel: nextDatesSelected
-        ? formatBookingDateRange(nextCheckInDate, nextCheckOutDate)
-        : null,
-      nights: nextDatesSelected ? bookingNights(nextCheckInDate, nextCheckOutDate) : null,
-      adults: nextGuestsSelected ? nextGuestAdults : null,
-      children: nextGuestsSelected ? nextGuestChildren : null,
-      guests: nextGuestsSelected ? nextGuestAdults + nextGuestChildren : null,
-      guestLabel: nextGuestsSelected ? nextGuestLabel : null,
-      budgetBand: nextBudgetBand,
-    };
-  };
-
-  const commitTourBarBookingContextToWorkingStay = (next: {
-    checkInDate?: string | null;
-    checkOutDate?: string | null;
-    datesLabel?: string | null;
-    adults?: number | null;
-    children?: number | null;
-    guests?: number | null;
-    guestLabel?: string | null;
-    budgetBand?: string | null;
-  }) => {
-    setTourBarWorkingStay((current) => ({
-      ...current,
-      ...next,
-    }));
-  };
-
-  const queueTourBarBookingResumeOverride = (
-    next: TourBarBookingContextOverride,
-  ) => {
-    tourBarBookingResumeOverrideRef.current = {
-      ...(tourBarBookingResumeOverrideRef.current || {}),
-      ...next,
-    };
-  };
-
-  const syncTourBarCalendarMonthToDate = (value: string) => {
-    if (!value) return;
-    const [year, month] = value.split("-").map(Number);
-    if (!year || !month) return;
-    setTourBarCalendarMonth({ year, monthIndex: month - 1 });
-  };
-
-  const openTourBarBookingWidget = (widget: Exclude<TourBarBookingWidget, null>) => {
-    setActiveTourBarBookingWidget(widget);
-    if (widget === "dates") {
-      syncTourBarCalendarMonthToDate(checkInDate || "2026-06-12");
-      setTourBarDatePicker("check-in");
-      return;
-    }
-
-    setTourBarDatePicker(null);
-  };
-
-  const closeTourBarBookingWidget = () => {
-    setActiveTourBarBookingWidget(null);
-    setTourBarDatePicker(null);
-  };
-
-  const openTourBarDatePicker = (kind: Exclude<TourBarDatePickerKind, null>) => {
-    syncTourBarCalendarMonthToDate(kind === "check-in" ? checkInDate : checkOutDate || checkInDate);
-    setTourBarDatePicker(kind);
-  };
-
-  const selectTourBarCalendarDate = (
-    kind: Exclude<TourBarDatePickerKind, null>,
-    value: string,
-  ) => {
-    if (kind === "check-in") {
-      setCheckInDate(value);
-      if (checkOutDate && checkOutDate <= value) {
-        setCheckOutDate("");
-      }
-      setDatesSelected(false);
-      syncTourBarCalendarMonthToDate(checkOutDate && checkOutDate > value ? checkOutDate : value);
-      setTourBarDatePicker("check-out");
-      commitTourBarBookingContextToWorkingStay({
-        checkInDate: null,
-        checkOutDate: null,
-        datesLabel: null,
-      });
-      return;
-    }
-
-    setCheckOutDate(value);
-    setDatesSelected(false);
-    setTourBarDatePicker(null);
-    commitTourBarBookingContextToWorkingStay({
-      checkInDate: null,
-      checkOutDate: null,
-      datesLabel: null,
-    });
-  };
-
-  const shiftTourBarCalendarMonth = (delta: number) => {
-    setTourBarCalendarMonth((current) => {
-      const next = new Date(current.year, current.monthIndex + delta, 1);
-      return { year: next.getFullYear(), monthIndex: next.getMonth() };
-    });
-  };
-
-  const resumeTourBarPendingQuery = (
-    actions?: TourBarShellActions,
-    pendingQuery?: string | null,
-  ) => {
-    const cleanQuery = String(pendingQuery || "").trim();
-    if (!actions || !cleanQuery) return;
-
-    window.setTimeout(() => {
-      actions.submitPrimary(cleanQuery);
-    }, 80);
-  };
-
-  const applyTourBarDates = (
-    actions?: TourBarShellActions,
-    pendingQuery?: string | null,
-  ) => {
-    if (!checkInDate || !checkOutDate || checkOutDate <= checkInDate) return;
-    const datesLabel = formatBookingDateRange(checkInDate, checkOutDate);
-    queueTourBarBookingResumeOverride({
-      datesSelected: true,
-      guestsSelected,
-      checkInDate,
-      checkOutDate,
-      guestAdults,
-      guestChildren,
-      guestLabel,
-      budgetBand,
-    });
-    setDatesSelected(true);
-    setTourBarDatePicker(null);
-    setTourBarBookingHandoff((current) =>
-      current ? { ...current, datesLabel } : current,
-    );
-    commitTourBarBookingContextToWorkingStay({
-      checkInDate,
-      checkOutDate,
-      datesLabel,
-    });
-
-    if (!guestsSelected) {
-      setActiveTourBarBookingWidget("guests");
-      resumeTourBarPendingQuery(actions, pendingQuery);
-      return;
-    }
-
-    setActiveTourBarBookingWidget(null);
-    resumeTourBarPendingQuery(actions, pendingQuery);
-  };
-
-  const clearTourBarDates = () => {
-    setDatesSelected(false);
-    setCheckInDate("2026-06-12");
-    setCheckOutDate("2026-06-15");
-    setTourBarBookingHandoff((current) =>
-      current ? { ...current, datesLabel: "Dates can be added in the next step" } : current,
-    );
-    setTourBarDatePicker("check-in");
-    syncTourBarCalendarMonthToDate("2026-06-12");
-    commitTourBarBookingContextToWorkingStay({
-      checkInDate: null,
-      checkOutDate: null,
-      datesLabel: null,
-    });
-  };
-
-  const applyTourBarGuests = (
-    actions?: TourBarShellActions,
-    pendingQuery?: string | null,
-  ) => {
-    const safeAdults = Math.max(1, Math.floor(guestAdults || 1));
-    const safeChildren = Math.max(0, Math.floor(guestChildren || 0));
-    const nextGuestLabel = tourBarGuestLabel(safeAdults, safeChildren);
-    queueTourBarBookingResumeOverride({
-      datesSelected: Boolean(checkInDate && checkOutDate && checkOutDate > checkInDate),
-      guestsSelected: true,
-      checkInDate,
-      checkOutDate,
-      guestAdults: safeAdults,
-      guestChildren: safeChildren,
-      guestLabel: nextGuestLabel,
-      budgetBand,
-    });
-    setGuestAdults(safeAdults);
-    setGuestChildren(safeChildren);
-    setGuestLabel(nextGuestLabel);
-    setGuestsSelected(true);
-    setTourBarBookingHandoff((current) =>
-      current ? { ...current, guestsLabel: nextGuestLabel } : current,
-    );
-    commitTourBarBookingContextToWorkingStay({
-      adults: safeAdults,
-      children: safeChildren,
-      guests: safeAdults + safeChildren,
-      guestLabel: nextGuestLabel,
-    });
-    setActiveTourBarBookingWidget(null);
-    setActiveFormSpotlight(null);
-    resumeTourBarPendingQuery(actions, pendingQuery);
-  };
-
-  const clearTourBarGuests = () => {
-    setGuestsSelected(false);
-    setGuestAdults(1);
-    setGuestChildren(0);
-    setGuestLabel(tourBarGuestLabel(1, 0));
-    setTourBarBookingHandoff((current) =>
-      current ? { ...current, guestsLabel: "Guests can be added in the next step" } : current,
-    );
-    commitTourBarBookingContextToWorkingStay({
-      adults: null,
-      children: null,
-      guests: null,
-      guestLabel: null,
-    });
-  };
-
-  const renderTourBarBookingContextPanel = (
-    actions?: TourBarShellActions,
-    lockedWidget: Exclude<TourBarBookingWidget, null> | null = null,
-    pendingQuery = "",
-  ) => (
-    <TourBarBookingContextPanel
-      datesSelected={datesSelected}
-      guestsSelected={guestsSelected}
-      checkInDate={checkInDate}
-      checkOutDate={checkOutDate}
-      guestAdults={guestAdults}
-      guestChildren={guestChildren}
-      activeWidget={activeTourBarBookingWidget}
-      activeDatePicker={tourBarDatePicker}
-      calendarMonth={tourBarCalendarMonth}
-      onOpenWidget={openTourBarBookingWidget}
-      onCloseWidget={closeTourBarBookingWidget}
-      onOpenDatePicker={openTourBarDatePicker}
-      onSelectCalendarDate={selectTourBarCalendarDate}
-      onShiftCalendarMonth={shiftTourBarCalendarMonth}
-      onApplyDates={() => applyTourBarDates(actions, pendingQuery)}
-      onClearDates={clearTourBarDates}
-      onGuestAdultsChange={(value) => {
-        setGuestAdults(Math.max(1, value));
-        setGuestsSelected(false);
-        commitTourBarBookingContextToWorkingStay({
-          adults: null,
-          children: null,
-          guests: null,
-          guestLabel: null,
-        });
-      }}
-      onGuestChildrenChange={(value) => {
-        setGuestChildren(Math.max(0, value));
-        setGuestsSelected(false);
-        commitTourBarBookingContextToWorkingStay({
-          adults: null,
-          children: null,
-          guests: null,
-          guestLabel: null,
-        });
-      }}
-      onApplyGuests={() => applyTourBarGuests(actions, pendingQuery)}
-      onClearGuests={clearTourBarGuests}
-      lockedWidget={lockedWidget}
-    />
-  );
-  void renderTourBarBookingContextPanel;
-
-  const updateTourBarWorkingStayFromTarget = (target?: TourBarPageTarget | null) => {
-    if (!target) return;
-
-    const targetId = sectionIdFromTourBarTarget(target.targetId);
-    const roomId = roomIdFromTourBarTarget(targetId);
-    const packageId = packageIdFromTourBarTarget(targetId);
-
-    if (roomId) {
-      setSelectedRoom(roomId);
-    }
-
-    if (packageId) {
-      setSelectedPackages((current) => normalizeBookingPackageIds([...current, packageId]));
-    }
-
-    setTourBarWorkingStay((current) => {
-      const currentPackages = normalizeBookingPackageIds(current.packageIds);
-      const nextPackageIds = packageId
-        ? normalizeBookingPackageIds([...currentPackages, packageId])
-        : currentPackages;
-      const nextRoomId = roomId || current.roomId || selectedRoom || null;
-
-      return {
-        ...current,
-        roomId: nextRoomId,
-        packageIds: nextPackageIds,
-        activeTargetId: targetId || current.activeTargetId || nextRoomId,
-        activeRoomId: roomId || current.activeRoomId || nextRoomId,
-        activePackageId: packageId || current.activePackageId || nextPackageIds[0] || null,
-      };
-    });
-  };
-
-  const applyTourBarBookingContext = (raw: TourBarHotelBookingBackendResponse, { preferNextStep = false }: { preferNextStep?: boolean } = {}) => {
-    const visibleContext = asRecord(raw.visibleContext);
-    const bookingContext = asRecord(visibleContext.bookingContext);
-    const activeStayPlan = asRecord(
-      preferNextStep
-        ? raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan
-        : raw.activeStayPlan || visibleContext.activeStayPlan,
-    );
-    const activeRoom = asRecord(activeStayPlan.room);
-    const selected = tourBarCombinationFromRaw(raw, { preferNextStep });
-    const roomId = String(
-      activeStayPlan.roomId ||
-      activeStayPlan.roomTargetId ||
-      activeRoom.targetId ||
-      activeRoom.roomId ||
-      selected.roomId ||
-      visibleContext.selectedRoomId ||
-      "",
-    );
-    const packageIds = normalizeBookingPackageIds([
-      ...packageIdsFromStayPlan(activeStayPlan),
-      ...packageIdsFromTourBarCombination(selected),
-      ...(visibleContext.suggestedPackageId ? [String(visibleContext.suggestedPackageId)] : []),
-    ]);
-    const validRoomId = roomId && roomStepOrder.includes(roomId) ? roomId : "";
-    const activeTargetId =
-      validRoomId ||
-      packageIds[0] ||
-      sectionIdFromTourBarTarget(visibleContext.activeTargetId || visibleContext.activeAnchor || "") ||
-      null;
-
-    if (validRoomId) {
-      setSelectedRoom(validRoomId);
-    }
-
-    setSelectedPackages(packageIds);
-    setTourBarWorkingStay((current) => ({
-      ...current,
-      roomId: validRoomId || current.roomId || selectedRoom || null,
-      packageIds,
-      activeTargetId: activeTargetId || current.activeTargetId || validRoomId || selectedRoom || null,
-      activeRoomId: validRoomId || current.activeRoomId || selectedRoom || null,
-      activePackageId: packageIds[0] || current.activePackageId || null,
-      lastPlannerIntent: String(raw.intent || raw.displayMode || raw.commerceAction || current.lastPlannerIntent || ""),
-      lastResultTitle: String(raw.title || selected.roomShortTitle || selected.roomTitle || current.lastResultTitle || ""),
-      lastResultAction: String(raw.commerceAction || raw.intent || current.lastResultAction || ""),
-    }));
-
-    const nextCheckInDate = bookingContext.checkInDate ? String(bookingContext.checkInDate) : "";
-    const nextCheckOutDate = bookingContext.checkOutDate ? String(bookingContext.checkOutDate) : "";
-    const nextGuests = Number(bookingContext.guests || 0);
-    const nextAdults = Number(bookingContext.adults || 0);
-    const nextChildren = Number(bookingContext.children || 0);
-
-    if (nextCheckInDate && nextCheckOutDate) {
-      setCheckInDate(nextCheckInDate);
-      setCheckOutDate(nextCheckOutDate);
-      setDatesSelected(true);
-      setActiveFormSpotlight(null);
-      commitTourBarBookingContextToWorkingStay({
-        checkInDate: nextCheckInDate,
-        checkOutDate: nextCheckOutDate,
-        datesLabel: formatBookingDateRange(nextCheckInDate, nextCheckOutDate),
-      });
-    }
-
-    if (bookingContext.guests || bookingContext.guestLabel || bookingContext.adults) {
-      const fromLabel = tourBarGuestCountsFromLabel(String(bookingContext.guestLabel || ""));
-      const adults = Math.max(1, nextAdults || fromLabel?.adults || nextGuests || 1);
-      const children = Math.max(0, nextChildren || fromLabel?.children || 0);
-      const nextGuestLabel = String(
-        bookingContext.guestLabel || tourBarGuestLabel(adults, children),
-      );
-      setGuestAdults(adults);
-      setGuestChildren(children);
-      setGuestLabel(nextGuestLabel);
-      setGuestsSelected(true);
-      setActiveFormSpotlight(null);
-      commitTourBarBookingContextToWorkingStay({
-        adults,
-        children,
-        guests: adults + children,
-        guestLabel: nextGuestLabel,
-      });
-    }
-
-    if (bookingContext.maxNightlyBudgetUsd || bookingContext.maxTotalBudgetUsd) {
-      setBudgetBand(
-        bookingContext.maxNightlyBudgetUsd
-          ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
-          : `Under $${bookingContext.maxTotalBudgetUsd} total`,
-      );
-    }
-  };
-
-  const stageTourBarBooking = (raw: TourBarHotelBookingBackendResponse) => {
-    applyTourBarBookingContext(raw, { preferNextStep: true });
-    setTourBarBookingHandoff(buildTourBarBookingHandoff(raw, currentTourBarBookingContext()));
-    setTourBarBookingHandoffOpen(true);
-    setBookingRailSpotlight(false);
-    setActiveFormSpotlight(null);
-    setTourBarNavigationState(null);
-    setTourBarSpotlightTarget(null);
-
-    const bookingTarget = tourBarBookingFocusTarget(raw);
-    if (bookingTarget) {
-      tourBarNavigationRunRef.current += 1;
-      if (bookingTarget.pageId) {
-        setCurrentPage(bookingTarget.pageId);
-      }
-      spotlightTourBarAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 560);
-    }
-  };
-
-  const spotlightTourBarAnchor = (targetId: string, targetSelector?: string, delay = 420) => {
-    const sectionId = sectionIdFromTourBarTarget(targetId);
-    if (!sectionId) return;
-
-    const runToken = tourBarNavigationRunRef.current;
-    const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
-    const pageId = pageIdFromTourBarTarget(sectionId);
-
-    // Booking now uses the SmartBar-owned focus controller for scroll,
-    // placement verification, and the frost/glow overlay. Keep App-Commerce
-    // responsible only for page state and active anchor bookkeeping.
-    setTourBarSpotlightTarget(null);
-    setTourBarSpotlightNonce((current) => current + 1);
-    clearSmartBarFocusOverlay();
-
-    window.setTimeout(() => {
-      const isCurrentRun = () => tourBarNavigationRunRef.current === runToken;
-      if (!isCurrentRun()) return;
-
-      setActiveAnchor(sectionId);
-      void smartbarFocusTarget(
-        {
-          pageId,
-          targetId: sectionId,
-          targetSelector: selector,
-        },
-        { initialDelayMs: 0 },
-      ).then(() => {
-        if (!isCurrentRun()) clearSmartBarFocusOverlay();
-      });
-    }, delay);
-  };
-
-
-  const runTourBarNavigationSequence = (
-    targets: TourBarPageTarget[],
-    { initialDelay = 520 }: { initialDelay?: number } = {},
-  ) => {
-    const steps: TourBarPageTarget[] = [];
-    targets.forEach((target) => addTourBarNavigationTarget(steps, target));
-    const cappedSteps = steps.slice(0, 4);
-    if (!cappedSteps.length) return;
-
-    tourBarNavigationRunRef.current += 1;
-    const first = cappedSteps[0];
-    const pageId = first.pageId || pageIdFromTourBarTarget(first.targetId);
-
-    setTourBarNavigationState(
-      cappedSteps.length > 1
-        ? { steps: cappedSteps, activeIndex: 0 }
-        : null,
-    );
-    updateTourBarWorkingStayFromTarget(first);
-    setCurrentPage(pageId);
-    spotlightTourBarAnchor(first.targetId, first.targetSelector, initialDelay);
-  };
-
-  const backTourBarNavigationStep = () => {
-    const current = tourBarNavigationState;
-    if (!current || current.steps.length < 2) return;
-
-    const previousIndex = Math.max(current.activeIndex - 1, 0);
-    if (previousIndex === current.activeIndex) return;
-
-    const target = current.steps[previousIndex];
-    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
-
-    tourBarNavigationRunRef.current += 1;
-    setTourBarNavigationState({ ...current, activeIndex: previousIndex });
-    updateTourBarWorkingStayFromTarget(target);
-    setCurrentPage(pageId);
-    spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
-  };
-
-  const advanceTourBarNavigationStep = () => {
-    const current = tourBarNavigationState;
-    if (!current || current.steps.length < 2) return;
-
-    const nextIndex = Math.min(current.activeIndex + 1, current.steps.length - 1);
-    if (nextIndex === current.activeIndex) return;
-
-    const target = current.steps[nextIndex];
-    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
-
-    tourBarNavigationRunRef.current += 1;
-    setTourBarNavigationState({ ...current, activeIndex: nextIndex });
-    updateTourBarWorkingStayFromTarget(target);
-    setCurrentPage(pageId);
-    spotlightTourBarAnchor(target.targetId, target.targetSelector, 180);
-  };
-
-  const bookCurrentTourBarNavigationStep = (
-    actions: TourBarShellActions,
-    result: TourBarShellResult,
-  ) => {
-    const current = tourBarNavigationState;
-    if (!current || current.steps.length < 2) return;
-
-    const activeIndex = Math.min(Math.max(current.activeIndex, 0), current.steps.length - 1);
-    const active = current.steps[activeIndex];
-    const activeTargetId = sectionIdFromTourBarTarget(active.targetId);
-    const activePackageId = packageBookingMeta[activeTargetId] ? activeTargetId : "";
-    const roomId = roomStepOrder.includes(activeTargetId)
-      ? activeTargetId
-      : tourBarWorkingStay.roomId || selectedRoom || "room-business-king";
-    const roomMeta = getRoomMeta(roomId);
-    const nextPackageIds = normalizeBookingPackageIds(
-      activePackageId
-        ? [...selectedPackages, ...tourBarWorkingStay.packageIds, activePackageId]
-        : [...selectedPackages, ...tourBarWorkingStay.packageIds],
-    );
-    const packageTitles = nextPackageIds
-      .map((packageId) => getPackageMeta(packageId)?.title)
-      .filter((title): title is string => Boolean(title));
-
-    tourBarNavigationRunRef.current += 1;
-    setTourBarNavigationState(null);
-    setTourBarSpotlightTarget(null);
-    setSelectedRoom(roomId);
-    setSelectedPackages(nextPackageIds);
-    setTourBarWorkingStay({
-      roomId,
-      packageIds: nextPackageIds,
-      activeTargetId: activeTargetId || roomId,
-      activeRoomId: roomId,
-      activePackageId: activePackageId || nextPackageIds[0] || null,
-      ...currentTourBarBookingContext(),
-      lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
-      lastResultTitle: roomMeta?.title || active.targetText || null,
-      lastResultAction: "tourbar_guided_stop_booking",
-    });
-    setTourBarBookingHandoff({
-      roomTitle: roomMeta?.title || active.targetText || "Selected room",
-      packageTitle: packageTitles[0] || "No package selected",
-      datesLabel: datesSelected
-        ? formatBookingDateRange(checkInDate, checkOutDate)
-        : "Dates can be added in the next step",
-      guestsLabel: guestsSelected ? guestLabel : "Guests can be added in the next step",
-      budgetLabel: budgetBand || "No budget limit set",
-      priceLabel: roomMeta?.price || "Rate ready",
-    });
-    setTourBarBookingHandoffOpen(true);
-    setBookingRailSpotlight(false);
-    setActiveFormSpotlight(null);
-
-    setCurrentPage(pageIdFromTourBarTarget(roomId));
-    spotlightTourBarAnchor(roomId, `[data-tour-id="${roomId}"], #${roomId}`, 180);
-
-    actions.openStandaloneSheet({
-      ...result,
-      title: roomMeta?.title || active.targetText || result.title || "Booking handoff",
-      focusAreaId: roomId,
-      targetId: roomId,
-      targetSelector: `[data-tour-id="${roomId}"], #${roomId}`,
-      pageId: pageIdFromTourBarTarget(roomId),
-      mode: "tourbar_booking_handoff",
-      action: "tourbar_guided_stop_booking",
-    });
-  };
-
-
-  const focusTourBarTarget = (result: TourBarShellResult) => {
-    const raw = asRecord(result.raw);
-    const target = primaryTourBarTarget(raw);
-
-    applyTourBarBookingContext(raw);
-
-    if (target.isBookingAction && isExplicitTourBarBookingRequest(raw)) {
-      stageTourBarBooking(raw);
-      return;
-    }
-
-    const navigationTargets = tourBarNavigationTargets(raw);
-    if (navigationTargets.length) {
-      runTourBarNavigationSequence(navigationTargets, { initialDelay: 520 });
-      return;
-    }
-
-    const pageId = target.pageId || pageIdFromTourBarTarget(target.targetId);
-    setCurrentPage(pageId);
-    spotlightTourBarAnchor(target.targetId, target.targetSelector, 520);
-  };
-
-  const handleTourBarNextMove = (result: TourBarShellResult) => {
-    const raw = asRecord(result.raw);
-    const nextStep = asRecord(raw.nextStep);
-    const label = String(
-      result.nextMove?.label ||
-        result.invitation?.text ||
-        nextStep.label ||
-        "",
-    );
-    const query = String(result.nextMove?.query || nextStep.query || "");
-
-    if (!isBookingNextStepLabel(`${label} ${query}`)) {
-      return false;
-    }
-
-    stageTourBarBooking(raw);
-    return true;
-  };
-
-  const getTourBarHotelBookingRequestContext = (
-    _query: string,
-    _context: TourBarBookingTurnContext,
-  ): TourBarBookingRequestContext => {
-    tourBarNavigationRunRef.current += 1;
-    setTourBarNavigationState(null);
-    setTourBarSpotlightTarget(null);
-    setTourBarBookingHandoff(null);
-    setTourBarBookingHandoffOpen(false);
-
-    const shellBookingContext = _context.bookingContext || null;
-    const effectiveDatesSelected = Boolean(shellBookingContext?.datesSelected || datesSelected);
-    const effectiveGuestsSelected = Boolean(shellBookingContext?.guestsSelected || guestsSelected);
-    const effectiveCheckInDate = String(shellBookingContext?.checkInDate || checkInDate || "");
-    const effectiveCheckOutDate = String(shellBookingContext?.checkOutDate || checkOutDate || "");
-    const effectiveGuestAdults = Math.max(
-      1,
-      Number(shellBookingContext?.guestAdults ?? shellBookingContext?.adults ?? guestAdults ?? 1),
-    );
-    const effectiveGuestChildren = Math.max(
-      0,
-      Number(shellBookingContext?.guestChildren ?? shellBookingContext?.children ?? guestChildren ?? 0),
-    );
-    const effectiveGuestLabel =
-      shellBookingContext?.guestLabel ||
-      guestLabel ||
-      tourBarGuestLabel(effectiveGuestAdults, effectiveGuestChildren);
-
-    if (shellBookingContext?.datesSelected && effectiveCheckInDate && effectiveCheckOutDate) {
-      setCheckInDate(effectiveCheckInDate);
-      setCheckOutDate(effectiveCheckOutDate);
-      setDatesSelected(true);
-      setTourBarDatePicker(null);
-      commitTourBarBookingContextToWorkingStay({
-        checkInDate: effectiveCheckInDate,
-        checkOutDate: effectiveCheckOutDate,
-        datesLabel: formatBookingDateRange(effectiveCheckInDate, effectiveCheckOutDate),
-      });
-    }
-
-    if (shellBookingContext?.guestsSelected) {
-      setGuestAdults(effectiveGuestAdults);
-      setGuestChildren(effectiveGuestChildren);
-      setGuestLabel(effectiveGuestLabel);
-      setGuestsSelected(true);
-      commitTourBarBookingContextToWorkingStay({
-        adults: effectiveGuestAdults,
-        children: effectiveGuestChildren,
-        guests: effectiveGuestAdults + effectiveGuestChildren,
-        guestLabel: effectiveGuestLabel,
-      });
-    }
-
-    setActiveTourBarBookingWidget(null);
-    setTourBarDatePicker(null);
-
-    const bookingContext = currentTourBarBookingContext({
-      datesSelected: effectiveDatesSelected,
-      guestsSelected: effectiveGuestsSelected,
-      checkInDate: effectiveCheckInDate,
-      checkOutDate: effectiveCheckOutDate,
-      guestAdults: effectiveGuestAdults,
-      guestChildren: effectiveGuestChildren,
-      guestLabel: effectiveGuestLabel,
-    });
-    const workingStayContext = {
-      ...tourBarWorkingStay,
-      checkInDate: bookingContext.checkInDate,
-      checkOutDate: bookingContext.checkOutDate,
-      datesLabel: bookingContext.datesLabel,
-      adults: bookingContext.adults,
-      children: bookingContext.children,
-      guests: bookingContext.guests,
-      guestLabel: bookingContext.guestLabel,
-    };
-    const activeStayPlan = {
-      ...buildTourBarActiveStayPlan(
-        workingStayContext,
-        selectedRoom,
-        selectedPackages,
-      ),
-      bookingContext,
-    };
-
-    return {
-      currentPage,
-      activeAnchor,
-      activeTargetId: tourBarWorkingStay.activeTargetId || activeAnchor,
-      activeRoomId: activeStayPlan.activeRoomId,
-      activePackageId: activeStayPlan.activePackageId,
-      selectedRoomId: activeStayPlan.roomId || selectedRoom,
-      selectedPackageIds: activeStayPlan.packageIds,
-      activeStayPlan,
-      tourBarWorkingStay: workingStayContext,
-      bookingContext,
-      commerceContext: {
-        activeStayPlan,
-        tourBarWorkingStay: workingStayContext,
-        dates: effectiveDatesSelected
-          ? {
-              checkIn: effectiveCheckInDate,
-              checkOut: effectiveCheckOutDate,
-              label: formatBookingDateRange(effectiveCheckInDate, effectiveCheckOutDate),
-            }
-          : null,
-        guests: effectiveGuestsSelected
-          ? {
-              adults: effectiveGuestAdults,
-              children: effectiveGuestChildren,
-              label: effectiveGuestLabel,
-            }
-          : null,
-        budget: budgetBand ? { band: budgetBand } : null,
-      },
-    };
-  };
-
   const onBookRoom = (section: Section) => {
     setSelectedRoom(section.id);
     setSelectedPackages([]);
-    setTourBarWorkingStay({
-      roomId: section.id,
-      packageIds: [],
-      activeTargetId: section.id,
-      activeRoomId: section.id,
-      activePackageId: null,
-      ...currentTourBarBookingContext(),
-      lastPlannerIntent: tourBarWorkingStay.lastPlannerIntent || null,
-      lastResultTitle: section.title,
-      lastResultAction: "manual_room_book",
-    });
 
     if (tourBarMode) {
       setCurrentPage("rooms");
       setActiveAnchor(section.id);
-      setTourBarBookingHandoff({
-        roomTitle: section.title,
-        packageTitle: "No package selected",
-        datesLabel: datesSelected ? formatBookingDateRange(checkInDate, checkOutDate) : "Dates can be added in the next step",
-        guestsLabel: guestsSelected ? guestLabel : "Guests can be added in the next step",
-        budgetLabel: budgetBand || "No budget limit set",
-        priceLabel: section.price || "Rate ready",
-      });
       return;
     }
 
@@ -3997,36 +2009,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
       setSelectedRoom(normalizedRoomId);
       setSelectedPackages(normalizedPackageIds);
-      setTourBarWorkingStay((current) => ({
-        ...current,
-        roomId: normalizedRoomId,
-        packageIds: normalizedPackageIds,
-        activeTargetId: normalizedRoomId,
-        activeRoomId: normalizedRoomId,
-        activePackageId: normalizedPackageIds[0] || null,
-        ...(context.dates?.checkIn && context.dates?.checkOut
-          ? {
-              checkInDate: context.dates.checkIn,
-              checkOutDate: context.dates.checkOut,
-              datesLabel: context.dates.label || formatBookingDateRange(context.dates.checkIn, context.dates.checkOut),
-            }
-          : {}),
-        ...(context.guests
-          ? {
-              adults: Math.max(1, Number(context.guests.adults || 1)),
-              children: Math.max(0, Number(context.guests.children || 0)),
-              guests:
-                Math.max(1, Number(context.guests.adults || 1)) +
-                Math.max(0, Number(context.guests.children || 0)),
-              guestLabel:
-                context.guests.label ||
-                tourBarGuestLabel(
-                  Math.max(1, Number(context.guests.adults || 1)),
-                  Math.max(0, Number(context.guests.children || 0)),
-                ),
-            }
-          : {}),
-      }));
       setActiveFormSpotlight(null);
 
       if (tourBarMode) {
@@ -4058,7 +2040,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
       if (tourBarMode) {
         setBookingRailSpotlight(false);
-        openTourBarBookingWidget("dates");
         return;
       }
 
@@ -4084,7 +2065,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     const handleAddGuests = () => {
       if (tourBarMode) {
         setBookingRailSpotlight(false);
-        openTourBarBookingWidget("guests");
         return;
       }
 
@@ -4130,12 +2110,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     setCurrentPage("rooms");
     setActiveAnchor(nextRoomId);
     setSelectedRoom(nextRoomId);
-    setTourBarWorkingStay((current) => ({
-      ...current,
-      roomId: nextRoomId,
-      activeTargetId: nextRoomId,
-      activeRoomId: nextRoomId,
-    }));
     window.setTimeout(() => {
       const el = document.getElementById(nextRoomId);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -4202,8 +2176,6 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
                   key={section.id}
                   section={section}
                   emphasized={activeAnchor === section.id}
-                  spotlighted={tourBarSpotlightTarget === section.id}
-                  spotlightNonce={tourBarSpotlightNonce}
                   pageId={currentPage}
                   index={index}
                   selectedRoom={selectedRoom}
@@ -4306,16 +2278,45 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       {tourBarMode ? (
         <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
           <TourBarBooking
-            getRequestContext={getTourBarHotelBookingRequestContext}
-            resolveResultTarget={primaryTourBarTarget}
-            onResult={focusTourBarTarget}
-            onNextMove={handleTourBarNextMove}
-            navigationState={tourBarNavigationState}
-            onBack={backTourBarNavigationStep}
-            onNext={advanceTourBarNavigationStep}
-            onBook={bookCurrentTourBarNavigationStep}
-            bookingHandoffOpen={tourBarBookingHandoffOpen}
-            bookingHandoff={tourBarBookingHandoff}
+            site={{
+              currentPage,
+              activeAnchor,
+              targetIds: Object.values(PAGES).flatMap((page) =>
+                page.sections.map((section) => section.id),
+              ),
+              roomStepOrder,
+              selectedRoom,
+              selectedPackages,
+              datesSelected,
+              guestsSelected,
+              guestAdults,
+              guestChildren,
+              guestLabel,
+              budgetBand,
+              checkInDate,
+              checkOutDate,
+              setCurrentPage,
+              setActiveAnchor,
+              setSelectedRoom,
+              setSelectedPackages,
+              setDatesSelected,
+              setGuestsSelected,
+              setGuestAdults,
+              setGuestChildren,
+              setGuestLabel,
+              setBudgetBand,
+              setCheckInDate,
+              setCheckOutDate,
+              setActiveFormSpotlight,
+              setBookingRailSpotlight,
+              getRoomMeta,
+              getPackageMeta,
+              normalizePackageIds: normalizeBookingPackageIds,
+              formatDateRange: formatBookingDateRange,
+              bookingNights,
+              guestLabelFromCounts: tourBarGuestLabel,
+              guestCountsFromLabel: tourBarGuestCountsFromLabel,
+            }}
           />
         </div>
       ) : (

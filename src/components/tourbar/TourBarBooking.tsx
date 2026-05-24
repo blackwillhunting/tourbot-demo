@@ -1,11 +1,12 @@
+import { useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { commerceGuideConfig } from "../../commerce/commerceGuideConfig";
 import TourBarShell, {
   type TourBarShellActions,
-  type TourBarShellProps,
   type TourBarShellResult,
   type TourBarShellTurnContext,
 } from "./TourBarShell";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./smartbarFocusController";
 
 export type TourBarBookingRawResponse = Record<string, any>;
 
@@ -113,12 +114,6 @@ export type TourBarBookingRequestContext = {
   visibleContext?: Record<string, any>;
   conversationContext?: Record<string, any>;
   resultTarget?: TourBarBookingResultTarget;
-};
-
-type TourBarBookingRawResultContext = {
-  query: string;
-  shellContext: TourBarBookingTurnContext;
-  requestContext: TourBarBookingRequestContext;
 };
 
 function buildTourBarBookingRequestBody(
@@ -297,26 +292,86 @@ export type TourBarBookingHandoff = {
   priceLabel: string;
 };
 
-type TourBarBookingProps = Pick<
-  TourBarShellProps,
-  "onResult" | "onNextMove"
-> & {
-  getRequestContext: (
-    query: string,
-    context: TourBarBookingTurnContext,
-  ) => TourBarBookingRequestContext;
-  resolveResultTarget?: (raw: TourBarBookingRawResponse) => TourBarBookingResultTarget;
-  onRawBookingResult?: (
-    raw: TourBarBookingRawResponse,
-    context: TourBarBookingRawResultContext,
-  ) => void;
-  navigationState?: TourBarBookingNavigationState | null;
-  onBack?: () => void;
-  onNext?: () => void;
-  onBook?: (actions: TourBarShellActions, result: TourBarShellResult) => void;
-  bookingHandoffOpen?: boolean;
-  bookingHandoff?: TourBarBookingHandoff | null;
+
+const TOURBAR_BOOKING_MAX_GUIDED_STOPS = 9;
+
+type TourBarBookingMeta = {
+  title: string;
+  price: string;
+  signal?: string;
 };
+
+type TourBarWorkingStayContext = {
+  roomId: string | null;
+  packageIds: string[];
+  activeTargetId: string | null;
+  activeRoomId: string | null;
+  activePackageId: string | null;
+  checkInDate?: string | null;
+  checkOutDate?: string | null;
+  datesLabel?: string | null;
+  adults?: number | null;
+  children?: number | null;
+  guests?: number | null;
+  guestLabel?: string | null;
+  budgetBand?: string | null;
+  lastPlannerIntent?: string | null;
+  lastResultTitle?: string | null;
+  lastResultAction?: string | null;
+};
+
+export type TourBarBookingSiteAdapter = {
+  currentPage: TourBarBookingPageId;
+  activeAnchor: string | null;
+  targetIds: string[];
+  roomStepOrder: string[];
+  selectedRoom: string | null;
+  selectedPackages: string[];
+  datesSelected: boolean;
+  guestsSelected: boolean;
+  guestAdults: number;
+  guestChildren: number;
+  guestLabel: string;
+  budgetBand: string;
+  checkInDate: string;
+  checkOutDate: string;
+  setCurrentPage: (value: TourBarBookingPageId) => void;
+  setActiveAnchor: (value: string | null) => void;
+  setSelectedRoom: (value: string | null) => void;
+  setSelectedPackages: (value: string[] | ((current: string[]) => string[])) => void;
+  setDatesSelected: (value: boolean) => void;
+  setGuestsSelected: (value: boolean) => void;
+  setGuestAdults: (value: number) => void;
+  setGuestChildren: (value: number) => void;
+  setGuestLabel: (value: string) => void;
+  setBudgetBand: (value: string) => void;
+  setCheckInDate: (value: string) => void;
+  setCheckOutDate: (value: string) => void;
+  setActiveFormSpotlight?: (value: "guests" | null) => void;
+  setBookingRailSpotlight?: (value: boolean) => void;
+  getRoomMeta: (roomId?: string | null) => TourBarBookingMeta | null;
+  getPackageMeta: (packageId?: string | null) => TourBarBookingMeta | null;
+  normalizePackageIds: (values?: Array<string | null | undefined> | null) => string[];
+  formatDateRange: (checkIn: string, checkOut: string) => string;
+  bookingNights: (checkIn: string, checkOut: string) => number | null;
+  guestLabelFromCounts: (adults: number, children: number) => string;
+  guestCountsFromLabel: (label: string) => { adults: number; children: number } | null;
+};
+
+type TourBarBookingProps = {
+  site: TourBarBookingSiteAdapter;
+};
+
+function fallbackPageIdFromTarget(targetId?: string | null): TourBarBookingPageId {
+  const target = String(targetId || "");
+
+  if (target.startsWith("package-")) return "packages";
+  if (target.startsWith("amenity-")) return "amenities";
+  if (target.startsWith("booking-") || target === "payment-module") return "booking";
+  if (target.startsWith("room-")) return "rooms";
+
+  return "home";
+}
 
 function TourBarBookingHandoffSheet({
   bookingHandoff,
@@ -480,19 +535,906 @@ function TourBarNavigationControls({
   );
 }
 
-export default function TourBarBooking({
-  getRequestContext,
-  resolveResultTarget,
-  onRawBookingResult,
-  onResult,
-  onNextMove,
-  navigationState = null,
-  onBack,
-  onNext,
-  onBook,
-  bookingHandoffOpen = false,
-  bookingHandoff = null,
-}: TourBarBookingProps) {
+
+
+export default function TourBarBooking({ site }: TourBarBookingProps) {
+  const [navigationState, setNavigationState] =
+    useState<TourBarBookingNavigationState | null>(null);
+  const [bookingHandoff, setBookingHandoff] =
+    useState<TourBarBookingHandoff | null>(null);
+  const [bookingHandoffOpen, setBookingHandoffOpen] = useState(false);
+  const [workingStay, setWorkingStay] = useState<TourBarWorkingStayContext>({
+    roomId: site.selectedRoom || site.roomStepOrder[0] || null,
+    packageIds: site.selectedPackages,
+    activeTargetId: site.selectedRoom || site.roomStepOrder[0] || null,
+    activeRoomId: site.selectedRoom || site.roomStepOrder[0] || null,
+    activePackageId: site.selectedPackages[0] || null,
+    checkInDate: null,
+    checkOutDate: null,
+    datesLabel: null,
+    adults: null,
+    children: null,
+    guests: null,
+    guestLabel: null,
+  });
+  const navigationRunRef = useRef(0);
+
+  const pageIdFromTarget = (targetId?: string | null): TourBarBookingPageId =>
+    fallbackPageIdFromTarget(targetId);
+
+  const sectionIdFromTarget = (targetId?: string | null) => {
+    const target = String(targetId || "").trim();
+    if (!target) return "";
+
+    const exact = site.targetIds.find((id) => id === target);
+    if (exact) return exact;
+
+    const prefix = site.targetIds
+      .slice()
+      .sort((a, b) => b.length - a.length)
+      .find((id) => target.startsWith(`${id}-`) || target.startsWith(`${id}_`));
+
+    return prefix || target;
+  };
+
+  const packageIdsFromCombination = (combo: Record<string, any>) =>
+    site.normalizePackageIds(asStringArray(combo.packageIds));
+
+  const packageIdsFromStayPlan = (stayPlan: Record<string, any>) =>
+    site.normalizePackageIds([
+      ...asStringArray(stayPlan.packageIds),
+      ...asRecordArray(stayPlan.packages).map((item) =>
+        String(item.targetId || item.packageId || ""),
+      ),
+    ]);
+
+  const roomIdFromTarget = (targetId?: string | null) => {
+    const sectionId = sectionIdFromTarget(targetId);
+    return site.getRoomMeta(sectionId) ? sectionId : "";
+  };
+
+  const packageIdFromTarget = (targetId?: string | null) => {
+    const sectionId = sectionIdFromTarget(targetId);
+    return site.getPackageMeta(sectionId) ? sectionId : "";
+  };
+
+  const addNavigationTarget = (
+    targets: TourBarBookingPageTarget[],
+    value: Record<string, any>,
+  ) => {
+    const rawTargetId = String(value.targetId || value.focusAreaId || "").trim();
+    const targetId = sectionIdFromTarget(rawTargetId);
+
+    if (!targetId || targetId === "booking-panel" || targetId.startsWith("booking-")) {
+      return;
+    }
+
+    const pageId = String(value.pageId || pageIdFromTarget(targetId)) as TourBarBookingPageId;
+    const targetSelector =
+      typeof value.targetSelector === "string" && value.targetSelector.trim()
+        ? value.targetSelector.trim()
+        : `[data-tour-id="${targetId}"], #${targetId}`;
+    const key = `${pageId}:${targetId}`;
+
+    if (targets.some((item) => `${item.pageId}:${item.targetId}` === key)) {
+      return;
+    }
+
+    targets.push({
+      pageId,
+      targetId,
+      targetSelector,
+      targetText: typeof value.targetText === "string" ? value.targetText : undefined,
+      reason: typeof value.reason === "string" ? value.reason : undefined,
+    });
+  };
+
+  const packageNavigationTargetsFromCombo = (combo: Record<string, any>) => {
+    const packageTargets = asRecordArray(combo.packageTargets);
+    const packageIds = packageIdsFromCombination(combo);
+
+    return packageIds.map((packageId, index) => {
+      const target = asRecord(packageTargets[index]);
+      const targetId = String(target.targetId || packageId);
+      return {
+        pageId: String(target.pageId || pageIdFromTarget(targetId)) as TourBarBookingPageId,
+        targetId,
+        targetSelector:
+          typeof target.targetSelector === "string" && target.targetSelector.trim()
+            ? target.targetSelector.trim()
+            : `[data-tour-id="${targetId}"], #${targetId}`,
+        targetText:
+          asStringArray(combo.packageTitles)[index] ||
+          site.getPackageMeta(packageId)?.title ||
+          "Package",
+        reason: "Recommended add-on for this stay.",
+      };
+    });
+  };
+
+  const comboNavigationTargets = (
+    combo: Record<string, any>,
+    { packageFirst = false }: { packageFirst?: boolean } = {},
+  ) => {
+    const targets: TourBarBookingPageTarget[] = [];
+    const roomTarget = asRecord(combo.roomTarget);
+    const roomId = String(combo.roomId || roomTarget.targetId || "").trim();
+    const roomStep = roomId
+      ? {
+          pageId: String(roomTarget.pageId || pageIdFromTarget(roomId)) as TourBarBookingPageId,
+          targetId: roomId,
+          targetSelector:
+            typeof roomTarget.targetSelector === "string" && roomTarget.targetSelector.trim()
+              ? roomTarget.targetSelector.trim()
+              : `[data-tour-id="${roomId}"], #${roomId}`,
+          targetText: String(
+            combo.roomShortTitle ||
+              combo.roomTitle ||
+              site.getRoomMeta(roomId)?.title ||
+              "Room",
+          ),
+          reason: "Recommended room option.",
+        }
+      : null;
+    const packageSteps = packageNavigationTargetsFromCombo(combo);
+
+    [
+      ...(packageFirst ? packageSteps : []),
+      ...(roomStep ? [roomStep] : []),
+      ...(packageFirst ? [] : packageSteps),
+    ].forEach((target) => addNavigationTarget(targets, target));
+
+    return targets;
+  };
+
+  const navigationTargetsFromRaw = (raw: TourBarBookingRawResponse) => {
+    const targets: TourBarBookingPageTarget[] = [];
+    const action = asRecord(raw.action || raw.suggestedAction);
+    const ranked = asRecordArray(raw.rankedDestinations);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const packageIds = packageIdsFromCombination(selected);
+    const plannerText = [
+      asRecord(raw.bookingArtifacts).normalizedPrompt,
+      asRecord(raw.bookingArtifacts).rawPrompt,
+      raw.answer,
+      raw.body,
+      raw.message,
+      raw.reply,
+    ]
+      .join(" ")
+      .toLowerCase();
+    const packageFocused =
+      packageIds.length > 0 &&
+      /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
+
+    addNavigationTarget(targets, action);
+    ranked.forEach((item) => addNavigationTarget(targets, item));
+
+    const combos = [
+      tourBarCombinationFromRaw(raw, { preferNextStep: true }),
+      asRecord(raw.selectedCombination),
+      ...asRecordArray(raw.matrixResults),
+      ...asRecordArray(raw.alternatives),
+    ];
+
+    combos.forEach((combo) => {
+      if (!combo.comboId && !combo.roomId) return;
+      comboNavigationTargets(combo, { packageFirst: packageFocused }).forEach((target) =>
+        addNavigationTarget(targets, target),
+      );
+    });
+
+    return targets.slice(0, TOURBAR_BOOKING_MAX_GUIDED_STOPS);
+  };
+
+  const primaryTargetFromRaw = (raw: TourBarBookingRawResponse) => {
+    const action = asRecord(raw.action || raw.suggestedAction);
+    const ranked = Array.isArray(raw.rankedDestinations) ? raw.rankedDestinations : [];
+    const firstRanked = asRecord(ranked[0]);
+    const selected = tourBarCombinationFromRaw(raw);
+    const packageIds = packageIdsFromCombination(selected);
+    const bookingAction = String(raw.commerceAction || raw.intent || raw.displayMode || "");
+    const plannerText = [
+      asRecord(raw.bookingArtifacts).normalizedPrompt,
+      asRecord(raw.bookingArtifacts).rawPrompt,
+      raw.answer,
+      raw.body,
+    ]
+      .join(" ")
+      .toLowerCase();
+    const packageFocused =
+      packageIds.length > 0 &&
+      /\b(parking|breakfast|package|bundle|add-?on|transfer|shuttle|spa|conference|wifi|late checkout|lounge)\b/.test(plannerText);
+
+    const targetId =
+      action.targetId ||
+      firstRanked.targetId ||
+      (packageFocused ? packageIds[0] : selected.roomId) ||
+      raw.targetId ||
+      raw.focusAreaId ||
+      "";
+    const pageId =
+      action.pageId ||
+      firstRanked.pageId ||
+      raw.pageId ||
+      pageIdFromTarget(targetId);
+    const targetSelector =
+      action.targetSelector ||
+      firstRanked.targetSelector ||
+      (targetId ? `[data-tour-id="${targetId}"], #${targetId}` : undefined);
+    const explicitBookingActionText = [
+      bookingAction,
+      action.type,
+      action.kind,
+      action.intent,
+      action.action,
+      action.commerceAction,
+      action.displayMode,
+      raw.commerceAction,
+      raw.intent,
+      raw.displayMode,
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+
+    return {
+      pageId: pageId as TourBarBookingPageId,
+      targetId: String(targetId || ""),
+      targetSelector: typeof targetSelector === "string" ? targetSelector : undefined,
+      isBookingAction:
+        explicitBookingActionText.includes("prepare_booking") ||
+        explicitBookingActionText.includes("booking_handoff") ||
+        explicitBookingActionText.includes("checkout_handoff") ||
+        targetId === "booking-panel" ||
+        action.targetId === "booking-panel",
+    };
+  };
+
+  const buildActiveStayPlan = (
+    currentWorkingStay: TourBarWorkingStayContext,
+    fallbackRoomId: string | null,
+    fallbackPackageIds: string[],
+  ) => {
+    const roomId = currentWorkingStay.roomId || fallbackRoomId || "";
+    const roomMeta = site.getRoomMeta(roomId);
+    const packageIds = site.normalizePackageIds([
+      ...fallbackPackageIds,
+      ...currentWorkingStay.packageIds,
+    ]);
+
+    return {
+      roomId: roomId || null,
+      roomTargetId: roomId || null,
+      room: roomId
+        ? {
+            roomId,
+            targetId: roomId,
+            title: roomMeta?.title || roomId,
+            price: roomMeta?.price || "",
+            signal: roomMeta?.signal || "",
+          }
+        : null,
+      packageIds,
+      packages: packageIds.map((packageId) => {
+        const meta = site.getPackageMeta(packageId);
+        return {
+          packageId,
+          targetId: packageId,
+          title: meta?.title || packageId,
+          price: meta?.price || "",
+          signal: meta?.signal || "",
+        };
+      }),
+      activeTargetId: currentWorkingStay.activeTargetId || roomId || null,
+      activeRoomId: currentWorkingStay.activeRoomId || roomId || null,
+      activePackageId: currentWorkingStay.activePackageId || packageIds[0] || null,
+      bookingContext: {
+        checkInDate: currentWorkingStay.checkInDate || null,
+        checkOutDate: currentWorkingStay.checkOutDate || null,
+        datesLabel: currentWorkingStay.datesLabel || null,
+        adults: currentWorkingStay.adults ?? null,
+        children: currentWorkingStay.children ?? null,
+        guests: currentWorkingStay.guests ?? null,
+        guestLabel: currentWorkingStay.guestLabel || null,
+        budgetBand: currentWorkingStay.budgetBand || null,
+      },
+      lastPlannerIntent: currentWorkingStay.lastPlannerIntent || null,
+      lastResultTitle: currentWorkingStay.lastResultTitle || null,
+      lastResultAction: currentWorkingStay.lastResultAction || null,
+    };
+  };
+
+  const currentBookingContext = (
+    overrides: {
+      datesSelected?: boolean;
+      guestsSelected?: boolean;
+      checkInDate?: string;
+      checkOutDate?: string;
+      guestAdults?: number;
+      guestChildren?: number;
+      guestLabel?: string;
+      budgetBand?: string;
+    } = {},
+  ) => {
+    const nextDatesSelected = overrides.datesSelected ?? site.datesSelected;
+    const nextGuestsSelected = overrides.guestsSelected ?? site.guestsSelected;
+    const nextCheckInDate = overrides.checkInDate ?? site.checkInDate;
+    const nextCheckOutDate = overrides.checkOutDate ?? site.checkOutDate;
+    const nextGuestAdults = overrides.guestAdults ?? site.guestAdults;
+    const nextGuestChildren = overrides.guestChildren ?? site.guestChildren;
+    const nextGuestLabel =
+      overrides.guestLabel ?? site.guestLabelFromCounts(nextGuestAdults, nextGuestChildren);
+    const nextBudgetBand = overrides.budgetBand ?? site.budgetBand;
+
+    return {
+      checkInDate: nextDatesSelected ? nextCheckInDate : null,
+      checkOutDate: nextDatesSelected ? nextCheckOutDate : null,
+      datesLabel: nextDatesSelected
+        ? site.formatDateRange(nextCheckInDate, nextCheckOutDate)
+        : null,
+      nights: nextDatesSelected ? site.bookingNights(nextCheckInDate, nextCheckOutDate) : null,
+      adults: nextGuestsSelected ? nextGuestAdults : null,
+      children: nextGuestsSelected ? nextGuestChildren : null,
+      guests: nextGuestsSelected ? nextGuestAdults + nextGuestChildren : null,
+      guestLabel: nextGuestsSelected ? nextGuestLabel : null,
+      budgetBand: nextBudgetBand,
+    };
+  };
+
+  const commitBookingContextToWorkingStay = (next: Partial<TourBarWorkingStayContext>) => {
+    setWorkingStay((current) => ({
+      ...current,
+      ...next,
+    }));
+  };
+
+  const buildBookingHandoff = (
+    raw: TourBarBookingRawResponse,
+    bookingContextOverride: Record<string, any> = {},
+  ): TourBarBookingHandoff => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const bookingContext = {
+      ...asRecord(visibleContext.bookingContext),
+      ...bookingContextOverride,
+    };
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const roomId = String(
+      activeStayPlan.roomId ||
+        activeStayPlan.roomTargetId ||
+        activeRoom.targetId ||
+        activeRoom.roomId ||
+        selected.roomId ||
+        visibleContext.selectedRoomId ||
+        "",
+    );
+    const roomMeta = site.getRoomMeta(roomId);
+    const packageIds = site.normalizePackageIds([
+      ...packageIdsFromStayPlan(activeStayPlan),
+      ...packageIdsFromCombination(selected),
+      ...asStringArray(visibleContext.selectedPackageIds),
+    ]);
+    const packageTitles = asStringArray(selected.packageTitles);
+    const derivedPackageTitles = packageIds
+      .map((packageId) => site.getPackageMeta(packageId)?.title)
+      .filter((title): title is string => Boolean(title));
+    const datesLabel =
+      bookingContext.checkInDate && bookingContext.checkOutDate
+        ? site.formatDateRange(String(bookingContext.checkInDate), String(bookingContext.checkOutDate))
+        : "Dates can be added in the next step";
+    const guestsLabel =
+      typeof bookingContext.guestLabel === "string" && bookingContext.guestLabel.trim()
+        ? bookingContext.guestLabel.trim()
+        : bookingContext.guests
+          ? `${bookingContext.guests} guest${Number(bookingContext.guests) === 1 ? "" : "s"}`
+          : "Guests can be added in the next step";
+    const budgetLabel =
+      bookingContext.maxNightlyBudgetUsd
+        ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
+        : bookingContext.maxTotalBudgetUsd
+          ? `Under $${bookingContext.maxTotalBudgetUsd} total`
+          : bookingContext.budgetBand
+            ? String(bookingContext.budgetBand)
+            : "No budget limit set";
+
+    return {
+      roomTitle: String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room"),
+      packageTitle: (packageTitles[0] || derivedPackageTitles[0] || "No package selected").replace(/\s+/g, " "),
+      datesLabel,
+      guestsLabel,
+      budgetLabel,
+      priceLabel: priceLabelFromTourBarCombination(selected),
+    };
+  };
+
+  const bookingFocusTarget = (raw: TourBarBookingRawResponse): TourBarBookingPageTarget | null => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const roomId = String(
+      activeStayPlan.roomId ||
+        activeStayPlan.roomTargetId ||
+        activeRoom.targetId ||
+        activeRoom.roomId ||
+        selected.roomId ||
+        visibleContext.selectedRoomId ||
+        "",
+    );
+    const targetId = sectionIdFromTarget(roomId);
+    if (!targetId || !site.roomStepOrder.includes(targetId)) return null;
+
+    return {
+      pageId: pageIdFromTarget(targetId),
+      targetId,
+      targetSelector: `[data-tour-id="${targetId}"], #${targetId}`,
+      targetText: String(selected.roomShortTitle || selected.roomTitle || site.getRoomMeta(targetId)?.title || "Selected room"),
+      reason: "Room staged for booking handoff.",
+    };
+  };
+
+  const updateWorkingStayFromTarget = (target?: TourBarBookingPageTarget | null) => {
+    if (!target) return;
+
+    const targetId = sectionIdFromTarget(target.targetId);
+    const roomId = roomIdFromTarget(targetId);
+    const packageId = packageIdFromTarget(targetId);
+
+    if (roomId) {
+      site.setSelectedRoom(roomId);
+    }
+
+    if (packageId) {
+      site.setSelectedPackages((current) => site.normalizePackageIds([...current, packageId]));
+    }
+
+    setWorkingStay((current) => {
+      const currentPackages = site.normalizePackageIds(current.packageIds);
+      const nextPackageIds = packageId
+        ? site.normalizePackageIds([...currentPackages, packageId])
+        : currentPackages;
+      const nextRoomId = roomId || current.roomId || site.selectedRoom || null;
+
+      return {
+        ...current,
+        roomId: nextRoomId,
+        packageIds: nextPackageIds,
+        activeTargetId: targetId || current.activeTargetId || nextRoomId,
+        activeRoomId: roomId || current.activeRoomId || nextRoomId,
+        activePackageId: packageId || current.activePackageId || nextPackageIds[0] || null,
+      };
+    });
+  };
+
+  const applyBookingContext = (
+    raw: TourBarBookingRawResponse,
+    { preferNextStep = false }: { preferNextStep?: boolean } = {},
+  ) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const bookingContext = asRecord(visibleContext.bookingContext);
+    const activeStayPlan = asRecord(
+      preferNextStep
+        ? raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan
+        : raw.activeStayPlan || visibleContext.activeStayPlan,
+    );
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep });
+    const roomId = String(
+      activeStayPlan.roomId ||
+        activeStayPlan.roomTargetId ||
+        activeRoom.targetId ||
+        activeRoom.roomId ||
+        selected.roomId ||
+        visibleContext.selectedRoomId ||
+        "",
+    );
+    const packageIds = site.normalizePackageIds([
+      ...packageIdsFromStayPlan(activeStayPlan),
+      ...packageIdsFromCombination(selected),
+      ...(visibleContext.suggestedPackageId ? [String(visibleContext.suggestedPackageId)] : []),
+    ]);
+    const validRoomId = roomId && site.roomStepOrder.includes(roomId) ? roomId : "";
+    const activeTargetId =
+      validRoomId ||
+      packageIds[0] ||
+      sectionIdFromTarget(visibleContext.activeTargetId || visibleContext.activeAnchor || "") ||
+      null;
+
+    if (validRoomId) {
+      site.setSelectedRoom(validRoomId);
+    }
+
+    site.setSelectedPackages(packageIds);
+    setWorkingStay((current) => ({
+      ...current,
+      roomId: validRoomId || current.roomId || site.selectedRoom || null,
+      packageIds,
+      activeTargetId: activeTargetId || current.activeTargetId || validRoomId || site.selectedRoom || null,
+      activeRoomId: validRoomId || current.activeRoomId || site.selectedRoom || null,
+      activePackageId: packageIds[0] || current.activePackageId || null,
+      lastPlannerIntent: String(raw.intent || raw.displayMode || raw.commerceAction || current.lastPlannerIntent || ""),
+      lastResultTitle: String(raw.title || selected.roomShortTitle || selected.roomTitle || current.lastResultTitle || ""),
+      lastResultAction: String(raw.commerceAction || raw.intent || current.lastResultAction || ""),
+    }));
+
+    const nextCheckInDate = bookingContext.checkInDate ? String(bookingContext.checkInDate) : "";
+    const nextCheckOutDate = bookingContext.checkOutDate ? String(bookingContext.checkOutDate) : "";
+    const nextGuests = Number(bookingContext.guests || 0);
+    const nextAdults = Number(bookingContext.adults || 0);
+    const nextChildren = Number(bookingContext.children || 0);
+
+    if (nextCheckInDate && nextCheckOutDate) {
+      site.setCheckInDate(nextCheckInDate);
+      site.setCheckOutDate(nextCheckOutDate);
+      site.setDatesSelected(true);
+      site.setActiveFormSpotlight?.(null);
+      commitBookingContextToWorkingStay({
+        checkInDate: nextCheckInDate,
+        checkOutDate: nextCheckOutDate,
+        datesLabel: site.formatDateRange(nextCheckInDate, nextCheckOutDate),
+      });
+    }
+
+    if (bookingContext.guests || bookingContext.guestLabel || bookingContext.adults) {
+      const fromLabel = site.guestCountsFromLabel(String(bookingContext.guestLabel || ""));
+      const adults = Math.max(1, nextAdults || fromLabel?.adults || nextGuests || 1);
+      const children = Math.max(0, nextChildren || fromLabel?.children || 0);
+      const nextGuestLabel = String(
+        bookingContext.guestLabel || site.guestLabelFromCounts(adults, children),
+      );
+      site.setGuestAdults(adults);
+      site.setGuestChildren(children);
+      site.setGuestLabel(nextGuestLabel);
+      site.setGuestsSelected(true);
+      site.setActiveFormSpotlight?.(null);
+      commitBookingContextToWorkingStay({
+        adults,
+        children,
+        guests: adults + children,
+        guestLabel: nextGuestLabel,
+      });
+    }
+
+    if (bookingContext.maxNightlyBudgetUsd || bookingContext.maxTotalBudgetUsd) {
+      site.setBudgetBand(
+        bookingContext.maxNightlyBudgetUsd
+          ? `Under $${bookingContext.maxNightlyBudgetUsd}/night`
+          : `Under $${bookingContext.maxTotalBudgetUsd} total`,
+      );
+    }
+  };
+
+  const spotlightAnchor = (targetId: string, targetSelector?: string, delay = 420) => {
+    const sectionId = sectionIdFromTarget(targetId);
+    if (!sectionId) return;
+
+    const runToken = navigationRunRef.current;
+    const selector = targetSelector || `[data-tour-id="${sectionId}"], #${sectionId}`;
+    const pageId = pageIdFromTarget(sectionId);
+
+    clearSmartBarFocusOverlay();
+
+    window.setTimeout(() => {
+      const isCurrentRun = () => navigationRunRef.current === runToken;
+      if (!isCurrentRun()) return;
+
+      site.setActiveAnchor(sectionId);
+      void smartbarFocusTarget(
+        {
+          pageId,
+          targetId: sectionId,
+          targetSelector: selector,
+        },
+        { initialDelayMs: 0 },
+      ).then(() => {
+        if (!isCurrentRun()) clearSmartBarFocusOverlay();
+      });
+    }, delay);
+  };
+
+  const stageBooking = (raw: TourBarBookingRawResponse) => {
+    applyBookingContext(raw, { preferNextStep: true });
+    setBookingHandoff(buildBookingHandoff(raw, currentBookingContext()));
+    setBookingHandoffOpen(true);
+    site.setBookingRailSpotlight?.(false);
+    site.setActiveFormSpotlight?.(null);
+    setNavigationState(null);
+
+    const bookingTarget = bookingFocusTarget(raw);
+    if (bookingTarget) {
+      navigationRunRef.current += 1;
+      if (bookingTarget.pageId) {
+        site.setCurrentPage(bookingTarget.pageId);
+      }
+      spotlightAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 560);
+    }
+  };
+
+  const runNavigationSequence = (
+    targets: TourBarBookingPageTarget[],
+    { initialDelay = 520 }: { initialDelay?: number } = {},
+  ) => {
+    const steps: TourBarBookingPageTarget[] = [];
+    targets.forEach((target) => addNavigationTarget(steps, target));
+    const cappedSteps = steps.slice(0, TOURBAR_BOOKING_MAX_GUIDED_STOPS);
+    if (!cappedSteps.length) return;
+
+    navigationRunRef.current += 1;
+    const first = cappedSteps[0];
+    const pageId = first.pageId || pageIdFromTarget(first.targetId);
+
+    setNavigationState(
+      cappedSteps.length > 1
+        ? { steps: cappedSteps, activeIndex: 0 }
+        : null,
+    );
+    updateWorkingStayFromTarget(first);
+    site.setCurrentPage(pageId);
+    spotlightAnchor(first.targetId, first.targetSelector, initialDelay);
+  };
+
+  const backNavigationStep = () => {
+    const current = navigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const previousIndex = Math.max(current.activeIndex - 1, 0);
+    if (previousIndex === current.activeIndex) return;
+
+    const target = current.steps[previousIndex];
+    const pageId = target.pageId || pageIdFromTarget(target.targetId);
+
+    navigationRunRef.current += 1;
+    setNavigationState({ ...current, activeIndex: previousIndex });
+    updateWorkingStayFromTarget(target);
+    site.setCurrentPage(pageId);
+    spotlightAnchor(target.targetId, target.targetSelector, 180);
+  };
+
+  const advanceNavigationStep = () => {
+    const current = navigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const nextIndex = Math.min(current.activeIndex + 1, current.steps.length - 1);
+    if (nextIndex === current.activeIndex) return;
+
+    const target = current.steps[nextIndex];
+    const pageId = target.pageId || pageIdFromTarget(target.targetId);
+
+    navigationRunRef.current += 1;
+    setNavigationState({ ...current, activeIndex: nextIndex });
+    updateWorkingStayFromTarget(target);
+    site.setCurrentPage(pageId);
+    spotlightAnchor(target.targetId, target.targetSelector, 180);
+  };
+
+  const bookCurrentNavigationStep = (
+    actions: TourBarShellActions,
+    result: TourBarShellResult,
+  ) => {
+    const current = navigationState;
+    if (!current || current.steps.length < 2) return;
+
+    const activeIndex = Math.min(Math.max(current.activeIndex, 0), current.steps.length - 1);
+    const active = current.steps[activeIndex];
+    const activeTargetId = sectionIdFromTarget(active.targetId);
+    const activePackageId = site.getPackageMeta(activeTargetId) ? activeTargetId : "";
+    const roomId = site.roomStepOrder.includes(activeTargetId)
+      ? activeTargetId
+      : workingStay.roomId || site.selectedRoom || site.roomStepOrder[0] || "room-business-king";
+    const roomMeta = site.getRoomMeta(roomId);
+    const nextPackageIds = site.normalizePackageIds(
+      activePackageId
+        ? [...site.selectedPackages, ...workingStay.packageIds, activePackageId]
+        : [...site.selectedPackages, ...workingStay.packageIds],
+    );
+    const packageTitles = nextPackageIds
+      .map((packageId) => site.getPackageMeta(packageId)?.title)
+      .filter((title): title is string => Boolean(title));
+
+    navigationRunRef.current += 1;
+    setNavigationState(null);
+    site.setSelectedRoom(roomId);
+    site.setSelectedPackages(nextPackageIds);
+    setWorkingStay({
+      roomId,
+      packageIds: nextPackageIds,
+      activeTargetId: activeTargetId || roomId,
+      activeRoomId: roomId,
+      activePackageId: activePackageId || nextPackageIds[0] || null,
+      ...currentBookingContext(),
+      lastPlannerIntent: workingStay.lastPlannerIntent || null,
+      lastResultTitle: roomMeta?.title || active.targetText || null,
+      lastResultAction: "tourbar_guided_stop_booking",
+    });
+    setBookingHandoff({
+      roomTitle: roomMeta?.title || active.targetText || "Selected room",
+      packageTitle: packageTitles[0] || "No package selected",
+      datesLabel: site.datesSelected
+        ? site.formatDateRange(site.checkInDate, site.checkOutDate)
+        : "Dates can be added in the next step",
+      guestsLabel: site.guestsSelected ? site.guestLabel : "Guests can be added in the next step",
+      budgetLabel: site.budgetBand || "No budget limit set",
+      priceLabel: roomMeta?.price || "Rate ready",
+    });
+    setBookingHandoffOpen(true);
+    site.setBookingRailSpotlight?.(false);
+    site.setActiveFormSpotlight?.(null);
+
+    site.setCurrentPage(pageIdFromTarget(roomId));
+    spotlightAnchor(roomId, `[data-tour-id="${roomId}"], #${roomId}`, 180);
+
+    actions.openStandaloneSheet({
+      ...result,
+      title: roomMeta?.title || active.targetText || result.title || "Booking handoff",
+      focusAreaId: roomId,
+      targetId: roomId,
+      targetSelector: `[data-tour-id="${roomId}"], #${roomId}`,
+      pageId: pageIdFromTarget(roomId),
+      mode: "tourbar_booking_handoff",
+      action: "tourbar_guided_stop_booking",
+    });
+  };
+
+  const focusTourBarTarget = (result: TourBarShellResult) => {
+    const raw = asRecord(result.raw);
+    const target = primaryTargetFromRaw(raw);
+
+    applyBookingContext(raw);
+
+    if (target.isBookingAction && isExplicitTourBarBookingRequest(raw)) {
+      stageBooking(raw);
+      return;
+    }
+
+    const navigationTargets = navigationTargetsFromRaw(raw);
+    if (navigationTargets.length) {
+      runNavigationSequence(navigationTargets, { initialDelay: 520 });
+      return;
+    }
+
+    const pageId = target.pageId || pageIdFromTarget(target.targetId);
+    site.setCurrentPage(pageId);
+    spotlightAnchor(target.targetId, target.targetSelector, 520);
+  };
+
+  const handleTourBarNextMove = (result: TourBarShellResult) => {
+    const raw = asRecord(result.raw);
+    const nextStep = asRecord(raw.nextStep);
+    const label = String(
+      result.nextMove?.label ||
+        result.invitation?.text ||
+        nextStep.label ||
+        "",
+    );
+    const query = String(result.nextMove?.query || nextStep.query || "");
+
+    if (!isBookingNextStepLabel(`${label} ${query}`)) {
+      return false;
+    }
+
+    stageBooking(raw);
+    return true;
+  };
+
+  const getRequestContext = (
+    _query: string,
+    context: TourBarBookingTurnContext,
+  ): TourBarBookingRequestContext => {
+    navigationRunRef.current += 1;
+    setNavigationState(null);
+    setBookingHandoff(null);
+    setBookingHandoffOpen(false);
+
+    const shellBookingContext = context.bookingContext || null;
+    const effectiveDatesSelected = Boolean(shellBookingContext?.datesSelected || site.datesSelected);
+    const effectiveGuestsSelected = Boolean(shellBookingContext?.guestsSelected || site.guestsSelected);
+    const effectiveCheckInDate = String(shellBookingContext?.checkInDate || site.checkInDate || "");
+    const effectiveCheckOutDate = String(shellBookingContext?.checkOutDate || site.checkOutDate || "");
+    const effectiveGuestAdults = Math.max(
+      1,
+      Number(shellBookingContext?.guestAdults ?? shellBookingContext?.adults ?? site.guestAdults ?? 1),
+    );
+    const effectiveGuestChildren = Math.max(
+      0,
+      Number(shellBookingContext?.guestChildren ?? shellBookingContext?.children ?? site.guestChildren ?? 0),
+    );
+    const effectiveGuestLabel =
+      shellBookingContext?.guestLabel ||
+      site.guestLabel ||
+      site.guestLabelFromCounts(effectiveGuestAdults, effectiveGuestChildren);
+
+    if (shellBookingContext?.datesSelected && effectiveCheckInDate && effectiveCheckOutDate) {
+      site.setCheckInDate(effectiveCheckInDate);
+      site.setCheckOutDate(effectiveCheckOutDate);
+      site.setDatesSelected(true);
+      commitBookingContextToWorkingStay({
+        checkInDate: effectiveCheckInDate,
+        checkOutDate: effectiveCheckOutDate,
+        datesLabel: site.formatDateRange(effectiveCheckInDate, effectiveCheckOutDate),
+      });
+    }
+
+    if (shellBookingContext?.guestsSelected) {
+      site.setGuestAdults(effectiveGuestAdults);
+      site.setGuestChildren(effectiveGuestChildren);
+      site.setGuestLabel(effectiveGuestLabel);
+      site.setGuestsSelected(true);
+      commitBookingContextToWorkingStay({
+        adults: effectiveGuestAdults,
+        children: effectiveGuestChildren,
+        guests: effectiveGuestAdults + effectiveGuestChildren,
+        guestLabel: effectiveGuestLabel,
+      });
+    }
+
+    const bookingContext = currentBookingContext({
+      datesSelected: effectiveDatesSelected,
+      guestsSelected: effectiveGuestsSelected,
+      checkInDate: effectiveCheckInDate,
+      checkOutDate: effectiveCheckOutDate,
+      guestAdults: effectiveGuestAdults,
+      guestChildren: effectiveGuestChildren,
+      guestLabel: effectiveGuestLabel,
+    });
+    const workingStayContext = {
+      ...workingStay,
+      checkInDate: bookingContext.checkInDate,
+      checkOutDate: bookingContext.checkOutDate,
+      datesLabel: bookingContext.datesLabel,
+      adults: bookingContext.adults,
+      children: bookingContext.children,
+      guests: bookingContext.guests,
+      guestLabel: bookingContext.guestLabel,
+      budgetBand: bookingContext.budgetBand,
+    };
+    const activeStayPlan = buildActiveStayPlan(
+      workingStayContext,
+      site.selectedRoom,
+      site.selectedPackages,
+    );
+
+    return {
+      currentPage: site.currentPage,
+      activeAnchor: site.activeAnchor,
+      activeTargetId: workingStay.activeTargetId || site.activeAnchor,
+      activeRoomId: workingStay.activeRoomId || site.selectedRoom,
+      activePackageId: workingStay.activePackageId || site.selectedPackages[0] || null,
+      selectedRoomId: site.selectedRoom,
+      selectedPackageIds: site.selectedPackages,
+      activeStayPlan,
+      tourBarWorkingStay: workingStayContext,
+      bookingContext,
+      commerceContext: {
+        activeStayPlan,
+        tourBarWorkingStay: workingStayContext,
+        bookingContext,
+      },
+      visibleContext: {
+        bookingContext,
+        activeStayPlan,
+        selectedRoomId: site.selectedRoom,
+        selectedPackageIds: site.selectedPackages,
+        dates: bookingContext.checkInDate && bookingContext.checkOutDate
+          ? {
+              checkIn: bookingContext.checkInDate,
+              checkOut: bookingContext.checkOutDate,
+              label: bookingContext.datesLabel,
+            }
+          : null,
+        guests: bookingContext.guests
+          ? {
+              adults: bookingContext.adults,
+              children: bookingContext.children,
+              total: bookingContext.guests,
+              label: bookingContext.guestLabel,
+            }
+          : null,
+        budget: site.budgetBand ? { band: site.budgetBand } : null,
+      },
+    };
+  };
+
   const submitTourBarHotelBooking = async (
     query: string,
     context: TourBarBookingTurnContext,
@@ -500,15 +1442,9 @@ export default function TourBarBooking({
     const requestContext = getRequestContext(query, context);
     const raw = await postTourBarHotelBooking(query, context, requestContext);
 
-    onRawBookingResult?.(raw, {
-      query,
-      shellContext: context,
-      requestContext,
-    });
-
     return buildTourBarBookingShellResult(
       raw,
-      requestContext.resultTarget || resolveResultTarget?.(raw) || {},
+      requestContext.resultTarget || primaryTargetFromRaw(raw) || {},
       { mode: TOURBAR_HOTEL_BOOKING_MODE },
     );
   };
@@ -524,15 +1460,15 @@ export default function TourBarBooking({
       followUpLoadingMessage="Rechecking the matrix…"
       onPrimarySubmit={submitTourBarHotelBooking}
       onFollowUpSubmit={submitTourBarHotelBooking}
-      onResult={onResult}
-      onNextMove={onNextMove}
+      onResult={focusTourBarTarget}
+      onNextMove={handleTourBarNextMove}
       requireBookingContext
       renderResultExtras={(result, actions) => (
         <TourBarNavigationControls
           state={navigationState}
-          onBack={onBack}
-          onNext={onNext}
-          onBook={() => onBook?.(actions, result)}
+          onBack={backNavigationStep}
+          onNext={advanceNavigationStep}
+          onBook={() => bookCurrentNavigationStep(actions, result)}
         />
       )}
       renderStandaloneSheet={(_result, actions) =>
