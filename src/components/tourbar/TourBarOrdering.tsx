@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
@@ -6,9 +6,11 @@ import TourBarShell, {
   type TourBarShellResult,
   type TourBarThreadMessage,
 } from "./TourBarShell";
+import { smartbarFocusTarget } from "./smartbarFocusController";
 
 const GUIDE_AI_URL = "/api/guide_ai";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
+const TOURBAR_ORDERING_FOCUS_DELAY_MS = 180;
 
 export type TourBarOrderingFocusTarget = {
   targetId?: string;
@@ -1391,6 +1393,30 @@ export default function TourBarOrdering({
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("review");
 
+  const focusOrderingTarget = useCallback(
+    (target: TourBarOrderingFocusTarget) => {
+      const targetId = pageTarget(target.targetId);
+      const focusTarget = {
+        targetId,
+        targetSelector: target.targetSelector,
+        label: target.label,
+      };
+
+      if (!focusTarget.targetId && !focusTarget.targetSelector) return;
+
+      // Let the host site perform any page/menu-specific navigation first,
+      // then use the shared SmartBar focus controller for verified centering
+      // and the frost-cover spotlight overlay.
+      onNavigateToFocus?.(focusTarget);
+      void smartbarFocusTarget(focusTarget, {
+        initialDelayMs: TOURBAR_ORDERING_FOCUS_DELAY_MS,
+        attempts: 22,
+        overlayDurationMs: 3600,
+      });
+    },
+    [onNavigateToFocus],
+  );
+
   const updateLocalOption = (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
     const nextOrder = applyLocalQualifierSelection(carryoutOrder, item, group, option);
     setCarryoutOrder(nextOrder);
@@ -1472,7 +1498,7 @@ export default function TourBarOrdering({
           onLocalOptionSelect={updateLocalOption}
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
-          onNavigateToFocus={onNavigateToFocus}
+          onNavigateToFocus={focusOrderingTarget}
         />
       )}
       renderStandaloneSheet={(result, actions) => (
@@ -1487,7 +1513,7 @@ export default function TourBarOrdering({
           onLocalOptionSelect={updateLocalOption}
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
-          onNavigateToFocus={onNavigateToFocus}
+          onNavigateToFocus={focusOrderingTarget}
         />
       )}
       onResult={(result) => {
@@ -1496,13 +1522,13 @@ export default function TourBarOrdering({
         const items = reviewItemsFrom(response, order);
         const pendingItem = items.find((item) => item.pending);
         if (pendingItem) {
-          navigateToItem(pendingItem, onNavigateToFocus);
+          navigateToItem(pendingItem, focusOrderingTarget);
           return;
         }
 
         const targetId = pageTarget(result.targetId);
         if (targetId || result.targetSelector) {
-          onNavigateToFocus?.({
+          focusOrderingTarget({
             targetId,
             targetSelector: result.targetSelector,
             label: result.label,
