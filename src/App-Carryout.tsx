@@ -270,14 +270,6 @@ function isSelfDriveEntry() {
 
 const CARRYOUT_CLOSE_URL = "https://tourbot.getn2ai.com/?close=carryout";
 
-function cssEscape(value: string) {
-  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") {
-    return CSS.escape(value);
-  }
-
-  return value.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
-}
-
 function menuTabForTargetId(targetId?: string) {
   const target = targetId || "";
   if (target.includes("combo")) return "combos" as const;
@@ -289,63 +281,6 @@ function menuTabForTargetId(targetId?: string) {
   if (target.includes("dessert") || target.includes("cookie") || target.includes("pie") || target.includes("sundae")) return "desserts" as const;
 
   return menuTabs.find((tab) => tab.targetId === target)?.id;
-}
-
-function findCarryoutTarget(target: TourBarOrderingFocusTarget) {
-  if (target.targetSelector) {
-    const selected = document.querySelector<HTMLElement>(target.targetSelector);
-    if (selected) return selected;
-  }
-
-  if (!target.targetId) return null;
-
-  const escaped = cssEscape(target.targetId);
-  return (
-    document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"]`) ||
-    document.getElementById(target.targetId) ||
-    document.querySelector<HTMLElement>(`#${escaped}`)
-  );
-}
-
-let activeCarryoutSpotlightAnimation: Animation | null = null;
-let activeCarryoutSpotlightTimer: number | null = null;
-
-function runCarryoutBorderSpotlight(element: HTMLElement) {
-  if (activeCarryoutSpotlightTimer !== null) {
-    window.clearTimeout(activeCarryoutSpotlightTimer);
-    activeCarryoutSpotlightTimer = null;
-  }
-
-  activeCarryoutSpotlightAnimation?.cancel();
-  activeCarryoutSpotlightAnimation = null;
-
-  activeCarryoutSpotlightTimer = window.setTimeout(() => {
-    const visible = {
-      boxShadow: "0 0 0 4px rgba(249, 115, 22, 0.95), 0 0 0 10px rgba(249, 115, 22, 0.18)",
-      transform: "scale(1.006)",
-    };
-    const hidden = {
-      boxShadow: "0 0 0 0 rgba(249, 115, 22, 0)",
-      transform: "scale(1)",
-    };
-
-    activeCarryoutSpotlightAnimation = element.animate(
-      [
-        { offset: 0, ...visible },
-        { offset: 0.52, ...visible },
-        { offset: 0.58, ...hidden },
-        { offset: 0.63, ...visible },
-        { offset: 0.69, ...hidden },
-        { offset: 0.74, ...visible },
-        { offset: 1, ...visible },
-      ],
-      { duration: 1900, easing: "linear" },
-    );
-
-    activeCarryoutSpotlightAnimation.onfinish = () => {
-      activeCarryoutSpotlightAnimation = null;
-    };
-  }, 700);
 }
 
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
@@ -929,18 +864,8 @@ export default function AppCarryout() {
   };
 
   const goToTourBarOrderingFocus = (target: TourBarOrderingFocusTarget) => {
-    if (typeof document === "undefined") return;
-
     const tab = menuTabForTargetId(target.targetId);
     if (tab) setActiveTab(tab);
-
-    window.setTimeout(() => {
-      const element = findCarryoutTarget(target);
-      if (!element) return;
-
-      element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-      runCarryoutBorderSpotlight(element);
-    }, 120);
   };
 
   return (
