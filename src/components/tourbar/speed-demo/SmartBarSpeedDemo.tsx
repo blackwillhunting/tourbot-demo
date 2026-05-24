@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarDays, CheckCircle2, Coffee, CreditCard, Hotel, ListChecks, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { CalendarDays, Users } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellDemoCommand,
@@ -35,20 +35,18 @@ function readyCarryoutOrder(kind: "messy" | "qualified" | "finale" = "messy"): C
       ? ["Double patty", "Large fries", "Diet Coke"]
       : ["Large fries", "Large Diet Coke", "No onions"];
 
+  const items = [
+    line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
+    line("apple-pie", "Apple pie", "$2.49"),
+    ...(kind === "finale" ? [] : [line("large-diet-coke", "Large Diet Coke", "$2.19")]),
+  ];
+
   return {
     type: "carryout_order",
     status: "ready_cart",
     nextAction: "show_cart",
-    items: [
-      line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
-      line("apple-pie", "Apple pie", "$2.49"),
-      ...(kind === "finale" ? [] : [line("large-diet-coke", "Large Diet Coke", "$2.19")]),
-    ],
-    completeItems: [
-      line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
-      line("apple-pie", "Apple pie", "$2.49"),
-      ...(kind === "finale" ? [] : [line("large-diet-coke", "Large Diet Coke", "$2.19")]),
-    ],
+    items,
+    completeItems: items,
     pendingItems: [],
     totals: {
       status: "ready",
@@ -167,7 +165,7 @@ function pendingCarryoutOrder(stage: 0 | 1 | 2): CarryoutOrder {
 function carryoutRaw(order: CarryoutOrder, commerceAction = "carryout_show_cart"): GuideAiCarryoutResponse {
   return {
     title: order.status === "ready_cart" ? "Review order" : "Needs choices",
-    body: order.status === "ready_cart" ? "Review the cart before checkout." : "Pick the missing choices, or open the cart to review everything.",
+    body: order.status === "ready_cart" ? "Review the cart before checkout." : "Pick the missing choices.",
     commerceAction,
     displayMode: order.status === "ready_cart" ? "carryout_cart_panel" : "carryout_review",
     carryoutOrder: order,
@@ -175,11 +173,30 @@ function carryoutRaw(order: CarryoutOrder, commerceAction = "carryout_show_cart"
   };
 }
 
-function orderResult(order: CarryoutOrder, options: { title?: string; body?: string; activeIndex?: number; reviewMode?: ReviewMode; nextQuery?: string } = {}): TourBarShellResult {
+type SpeedResultOptions = {
+  title?: string;
+  body?: string;
+  activeIndex?: number;
+  reviewMode?: ReviewMode;
+  nextQuery?: string;
+  keepSheetOpenNextMove?: boolean;
+  stableSheetKey?: string;
+};
+
+function speedMeta(options: { keepSheetOpenNextMove?: boolean; stableSheetKey?: string } = {}) {
+  return {
+    __speedDemo: {
+      keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
+      stableSheetKey: options.stableSheetKey,
+    },
+  };
+}
+
+function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
   const raw = carryoutRaw(order);
   return {
-    title: options.title || (order.status === "ready_cart" ? "Review order" : "Needs choices"),
-    body: options.body || (order.status === "ready_cart" ? "The cart is structured and ready for checkout." : "SmartBar turned a vague order into the next missing choice."),
+    title: options.title || (order.status === "ready_cart" ? "Review order" : "Choose required options"),
+    body: options.body || (order.status === "ready_cart" ? "Review the order before checkout." : "Select the missing choice."),
     invitation: options.nextQuery ? { kind: "next", text: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option" } : undefined,
     nextMove: options.nextQuery ? { type: "handoff", label: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option", query: options.nextQuery } : undefined,
     canFollowUp: true,
@@ -190,6 +207,8 @@ function orderResult(order: CarryoutOrder, options: { title?: string; body?: str
       __speedDemo: {
         activeIndex: options.activeIndex || 0,
         reviewMode: options.reviewMode || (order.status === "ready_cart" ? "cart" : "review"),
+        keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
+        stableSheetKey: options.stableSheetKey || "ordering",
       },
     },
   };
@@ -200,29 +219,32 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text.includes("dora")) {
     return {
-      title: "DORA readiness sits in the compliance lane",
+      title: "DORA readiness",
       body:
-        "Yes. SmartBar can explain where DORA fits, show the relevant advisory path, and move the visitor toward useful proof instead of leaving them with a generic search result.",
-      invitation: { kind: "case_studies", text: "Invite case studies" },
-      nextMove: { type: "ask_deeper", label: "Show case studies", query: "__case_studies" },
+        "Yes. DORA support belongs in the Cybersecurity & Compliance lane.\n\nRelevant work:\n- ICT third-party risk mapping\n- incident response and escalation readiness\n- resilience testing evidence\n- governance, policy, and reporting alignment",
+      invitation: { kind: "case_studies", text: "Show relevant case studies" },
+      nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
       mode: "speed_info",
+      raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "discovery" }),
     };
   }
 
   if (text === "__case_studies") {
     return {
-      title: "Relevant proof points",
-      body: "SmartBar pivots from a service question into evidence the visitor can actually use.",
+      title: "Relevant case studies",
+      body:
+        "- Third-party ICT register review for a regulated financial firm\n- Incident-response tabletop mapped to executive escalation paths\n- Resilience evidence pack prepared for governance and audit review",
       canFollowUp: true,
       mode: "speed_case_studies",
+      raw: speedMeta({ stableSheetKey: "discovery" }),
     };
   }
 
   if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez")) {
     return orderResult(readyCarryoutOrder("messy"), {
-      title: "Ready cart from messy English",
-      body: "SmartBar corrected the intent, matched menu items, and built a ready checkout cart.",
+      title: "Review order",
+      body: "Matched order from: “dbl chzbrger combo lg friez diet coke apple pie”.",
       nextQuery: "__checkout",
     });
   }
@@ -230,37 +252,39 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text === "__checkout") {
     return {
       title: "Checkout handoff ready",
-      body:
-        "The order is ready to hand off to a checkout or POS flow with the matched items, quantities, and selections preserved.",
+      body: "Order captured. Items, quantities, and selections are ready to pass into checkout.",
       canFollowUp: false,
       mode: "speed_checkout",
+      raw: speedMeta({ stableSheetKey: "checkout" }),
     };
   }
 
   if (text.includes("burger combo")) {
     return orderResult(pendingCarryoutOrder(0), {
-      title: "One choice needed",
-      body: "SmartBar does not ask a vague follow-up. It opens the exact selector needed next.",
+      title: "Choose required options",
+      body: "Burger combo meal needs required selections before checkout.",
       activeIndex: 0,
       reviewMode: "review",
       nextQuery: "__qualifier_1",
+      keepSheetOpenNextMove: true,
     });
   }
 
   if (text === "__qualifier_1") {
     return orderResult(pendingCarryoutOrder(1), {
-      title: "Next missing choice",
-      body: "The burger choice is captured. SmartBar advances to the fries selector.",
+      title: "Choose required options",
+      body: "Burger size captured. Fries size is next.",
       activeIndex: 1,
       reviewMode: "review",
       nextQuery: "__qualifier_2",
+      keepSheetOpenNextMove: true,
     });
   }
 
   if (text === "__qualifier_2") {
     return orderResult(pendingCarryoutOrder(2), {
-      title: "Last missing choice",
-      body: "Now SmartBar needs the drink choice before the cart can be finalized.",
+      title: "Choose required options",
+      body: "Fries size captured. Drink choice is next.",
       activeIndex: 2,
       reviewMode: "review",
       nextQuery: "__qualifier_3",
@@ -269,8 +293,8 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__qualifier_3") {
     return orderResult(readyCarryoutOrder("qualified"), {
-      title: "Ready cart",
-      body: "The missing choices are resolved and the order is ready for checkout.",
+      title: "Review order",
+      body: "Required choices are captured. Review the cart before checkout.",
       nextQuery: "__checkout",
     });
   }
@@ -279,11 +303,12 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Recommendation 1 of 3: Garden Terrace King",
       body:
-        "A value resort-feel option with a quieter garden view. It is less expensive, but breakfast is better handled as an add-on.",
+        "$239/night. A quieter garden-facing option with a resort feel and lower price. It is a value fit, but the view is softer than the Ocean View Suite.",
       invitation: { kind: "next", text: "Show next recommendation" },
       nextMove: { type: "compare_options", label: "Show next recommendation", query: "__booking_step_2" },
       canFollowUp: true,
-      mode: "speed_booking_reco_1",
+      mode: "speed_booking_reco",
+      raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "booking-recommendations" }),
     };
   }
 
@@ -291,11 +316,12 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Recommendation 2 of 3: Ocean View Suite",
       body:
-        "Best fit: a strong view without jumping to the most expensive villa tier. Breakfast can be attached as a package.",
+        "$379/night. Best fit for a strong view without jumping to the villa tier. Breakfast can be attached with the Breakfast Flex Plan.",
       invitation: { kind: "next", text: "Show premium comparison" },
       nextMove: { type: "compare_options", label: "Show premium comparison", query: "__booking_step_3" },
       canFollowUp: true,
-      mode: "speed_booking_reco_2",
+      mode: "speed_booking_reco",
+      raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "booking-recommendations" }),
     };
   }
 
@@ -303,239 +329,105 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Recommendation 3 of 3: Coastal Villa Suite",
       body:
-        "The premium option has the strongest view and space, but it is more than the request needs. SmartBar keeps the Ocean View Suite as the practical recommendation.",
+        "$549/night. The premium view-and-space option. It is stronger than needed for this request, so the Ocean View Suite remains the practical recommendation.",
       canFollowUp: true,
-      mode: "speed_booking_reco_3",
+      mode: "speed_booking_reco",
+      raw: speedMeta({ stableSheetKey: "booking-recommendations" }),
     };
   }
 
   if (text.includes("breakfast")) {
     return {
-      title: "Breakfast package added",
-      body:
-        "SmartBar pairs the Ocean View Suite with the Breakfast Flex Plan instead of forcing the visitor to browse package cards.",
+      title: "Breakfast Flex Plan",
+      body: "Daily breakfast credit across the lobby café, buffet, and grab-and-go market. +$32/night.",
       invitation: { kind: "book", text: "Book this" },
       nextMove: { type: "handoff", label: "Book this", query: "__booking_confirm" },
       canFollowUp: true,
       mode: "speed_package",
+      raw: speedMeta({ stableSheetKey: "booking-package" }),
     };
   }
 
   if (text === "__booking_confirm") {
     return {
       title: "Booking summary ready",
-      body:
-        "Room: Ocean View Suite. Package: Breakfast Flex Plan. Known preferences are preserved for the booking handoff.",
+      body: "Room: Ocean View Suite.\nPackage: Breakfast Flex Plan.\nKnown preferences are ready for booking prefill.",
       canFollowUp: false,
       mode: "speed_booking_confirm",
+      raw: speedMeta({ stableSheetKey: "booking-confirm" }),
     };
   }
 
   if (text.includes("family room")) {
     return {
       title: "Stay details needed",
-      body:
-        "SmartBar knows the likely room family, but booking requires dates and guests before it can recommend confidently.",
+      body: "Family-room recommendations require stay dates and guests before the booking path can be prepared.",
       canFollowUp: true,
       mode: "speed_needs_context",
+      raw: speedMeta({ stableSheetKey: "booking-context" }),
     };
   }
 
   if (text === "__booking_after_context" || text.includes("family recommendation")) {
     return {
       title: "Family Double Room recommended",
-      body:
-        "With dates and 2 adults / 2 children selected, SmartBar recommends the Family Double Room with the Family Comfort Bundle.",
+      body: "Family Double Room · $249/night.\nFamily Comfort Bundle · +$55/stay.\nStay context: Jun 12–15, 2026 · 2 adults / 2 children.",
       invitation: { kind: "book", text: "Book this family stay" },
-      nextMove: { type: "handoff", label: "Book this family stay", query: "__booking_confirm" },
+      nextMove: { type: "handoff", label: "Book this family stay", query: "__family_booking_confirm" },
       canFollowUp: true,
       mode: "speed_family_reco",
+      raw: speedMeta({ stableSheetKey: "family-recommendation" }),
+    };
+  }
+
+  if (text === "__family_booking_confirm") {
+    return {
+      title: "Family booking summary ready",
+      body: "Room: Family Double Room.\nPackage: Family Comfort Bundle.\nGuests: 2 adults / 2 children.\nDates: Jun 12–15, 2026.",
+      canFollowUp: false,
+      mode: "speed_booking_confirm",
+      raw: speedMeta({ stableSheetKey: "family-confirm" }),
     };
   }
 
   if (text.includes("action choices") || text.includes("tiles")) {
     return {
-      title: "Action tiles",
-      body: "When a decision is needed, SmartBar returns choices instead of paragraphs.",
+      title: "Action choices",
+      body: "Select dates. Add guests. Open cart. Start chat.",
       canFollowUp: false,
       mode: "speed_tiles",
+      raw: speedMeta({ stableSheetKey: "toolbelt" }),
     };
   }
 
   if (text.includes("cart")) {
     return orderResult(readyCarryoutOrder("finale"), {
-      title: "Cart tool",
-      body: "A search bar can become a cart when the job is ordering.",
+      title: "Cart",
+      body: "Order review is ready.",
     });
   }
 
   if (text.includes("summary")) {
     return {
-      title: "Summary tool",
-      body: "When the user is ready to act, SmartBar packages the decision into a clean summary.",
+      title: "Summary",
+      body: "Selected option, add-ons, and next action are packaged for handoff.",
       canFollowUp: false,
       mode: "speed_booking_confirm",
+      raw: speedMeta({ stableSheetKey: "toolbelt" }),
     };
   }
 
   return {
-    title: "Info sheet",
-    body: "SmartBar is a search bar that does. It chooses the right UX tool for the next step.",
+    title: "SmartBar",
+    body: "SmartBar returns the right next tool for the visitor’s intent.",
     canFollowUp: true,
     mode: "speed_info",
+    raw: speedMeta({ stableSheetKey: "toolbelt" }),
   };
-}
-
-function CaseStudyBullets() {
-  return (
-    <div className="grid gap-2">
-      {[
-        [ShieldCheck, "Regulatory mapping", "Map DORA obligations to current risk and operational controls."],
-        [ListChecks, "Third-party risk", "Identify vendor dependencies, evidence gaps, and ownership."],
-        [Sparkles, "Consult-ready brief", "Package the known context before a human conversation starts."],
-      ].map(([Icon, title, body]) => {
-        const ItemIcon = Icon as typeof ShieldCheck;
-        return (
-          <div key={String(title)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
-                <ItemIcon className="h-4 w-4" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold text-slate-950">{String(title)}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-slate-600">{String(body)}</span>
-              </span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function ActionTiles({ actions }: { actions: Array<{ label: string; helper: string; icon: typeof Sparkles }> }) {
-  return (
-    <div className="grid gap-2">
-      {actions.map(({ label, helper, icon: Icon }, index) => (
-        <button
-          key={label}
-          type="button"
-          className={`rounded-2xl px-3 py-2.5 text-left shadow-sm ring-1 transition ${
-            index === 0
-              ? "bg-slate-950 text-white ring-slate-950"
-              : "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${index === 0 ? "text-white" : "text-slate-500"}`} />
-            <span>
-              <span className="block text-sm font-semibold">{label}</span>
-              <span className={`mt-0.5 block text-xs leading-5 ${index === 0 ? "text-slate-200" : "text-slate-500"}`}>{helper}</span>
-            </span>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function BookingCards({ mode }: { mode?: string }) {
-  const selected = mode?.endsWith("2") || mode === "speed_package" || mode === "speed_booking_confirm";
-  const cards = [
-    { title: "Garden Terrace King", price: "$239/night", helper: "Good value, softer view", icon: Hotel },
-    { title: "Ocean View Suite", price: "$379/night", helper: "Best fit with breakfast", icon: WavesIcon },
-    { title: "Coastal Villa Suite", price: "$549/night", helper: "Premium, not needed", icon: Sparkles },
-  ];
-
-  return (
-    <div className="grid gap-2">
-      {cards.map(({ title, price, helper, icon: Icon }, index) => {
-        const active = selected ? index === 1 : index === 0;
-        return (
-          <div key={title} className={`rounded-2xl border px-3 py-2.5 shadow-sm ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950"}`}>
-            <div className="flex items-start gap-3">
-              <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${active ? "text-white" : "text-slate-500"}`} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-sm font-semibold">{title}</div>
-                  <div className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"}`}>{price}</div>
-                </div>
-                <div className={`mt-0.5 text-xs leading-5 ${active ? "text-slate-200" : "text-slate-500"}`}>{helper}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function WavesIcon({ className }: { className?: string }) {
-  return <Sparkles className={className} />;
-}
-
-function PackageCard() {
-  return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950 shadow-sm">
-      <div className="flex items-start gap-3">
-        <Coffee className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
-        <div>
-          <div className="text-sm font-bold">Breakfast Flex Plan</div>
-          <div className="mt-0.5 text-xs leading-5 text-amber-800">Daily breakfast credit across cafe, buffet, and grab-and-go. +$32/night.</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SummaryCard({ family = false }: { family?: boolean }) {
-  return (
-    <div className="space-y-2">
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950 shadow-sm">
-        <div className="flex items-start gap-3">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
-          <div>
-            <div className="text-sm font-bold">{family ? "Family stay ready" : "Booking handoff ready"}</div>
-            <div className="mt-0.5 text-xs leading-5 text-emerald-800">
-              {family
-                ? "Family Double Room · Family Comfort Bundle · 2 adults / 2 children."
-                : "Ocean View Suite · Breakfast Flex Plan · ready for prefill."}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActions) {
   const mode = result.mode || "";
-
-  if (mode === "speed_case_studies") return <CaseStudyBullets />;
-
-  if (mode === "speed_info") {
-    return (
-      <ActionTiles
-        actions={[
-          { label: "Explain DORA coverage", helper: "Answer the service question directly.", icon: ShieldCheck },
-          { label: "Show relevant proof", helper: "Move from search to evidence.", icon: ListChecks },
-          { label: "Prepare consult", helper: "Package the context for a person.", icon: Users },
-        ]}
-      />
-    );
-  }
-
-  if (mode === "speed_tiles") {
-    return (
-      <ActionTiles
-        actions={[
-          { label: "Open selector", helper: "Use a choice tile when one answer is needed.", icon: ListChecks },
-          { label: "Open cart", helper: "Use a cart when the user is ordering.", icon: CreditCard },
-          { label: "Open chat", helper: "Use a thread when a person is needed.", icon: Users },
-        ]}
-      />
-    );
-  }
 
   if (mode === "speed_order") {
     const raw = (result.raw || {}) as GuideAiCarryoutResponse & { __speedDemo?: { activeIndex?: number; reviewMode?: ReviewMode } };
@@ -556,12 +448,6 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
       />
     );
   }
-
-  if (mode.startsWith("speed_booking_reco")) return <BookingCards mode={mode} />;
-  if (mode === "speed_package") return <PackageCard />;
-  if (mode === "speed_booking_confirm") return <SummaryCard />;
-  if (mode === "speed_family_reco") return <SummaryCard family />;
-  if (mode === "speed_checkout") return <SummaryCard />;
 
   if (mode === "speed_needs_context") {
     return (
@@ -634,6 +520,10 @@ export default function SmartBarSpeedDemo() {
         sendCommand({ type: "openBookingContext", field: command.field });
         return;
       }
+      if (command.kind === "setBookingContext") {
+        sendCommand({ type: "setBookingContext", bookingContext: command.bookingContext });
+        return;
+      }
       if (command.kind === "shell") {
         sendCommand({ type: command.type });
       }
@@ -678,7 +568,7 @@ export default function SmartBarSpeedDemo() {
 
   return (
     <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
       <div className="fixed right-6 top-6 z-[10070] h-9 w-9">
         <TourBarShell
@@ -695,6 +585,8 @@ export default function SmartBarSpeedDemo() {
             placeholder: "Send a quick note...",
             waitingMessage: "Hold for next consultant...",
             confirmationMessage: "Thanks — someone will be with you shortly.",
+            consultantResponseMessage:
+              "Hi — I can help with pricing. The useful starting point is scope: entities, key vendors, and whether you need readiness assessment, remediation support, or ongoing governance.",
           }}
           demoCommand={demoCommand}
           onPrimarySubmit={onPrimarySubmit}

@@ -115,9 +115,11 @@ export type TourBarShellDemoCommand = {
     | "openChat"
     | "setChatDraft"
     | "submitChat"
-    | "openBookingContext";
+    | "openBookingContext"
+    | "setBookingContext";
   value?: string;
   field?: TourBarRequiredBookingField;
+  bookingContext?: TourBarBookingContext;
 };
 
 export type TourBarShellProps = {
@@ -206,6 +208,21 @@ function resultLooksLikeConsultantOffer(result?: TourBarShellResult | null, next
 
 function consultantChatIsEnabled(config?: TourBarConsultantChatConfig) {
   return Boolean(config?.enabled);
+}
+
+type TourBarSpeedDemoMeta = {
+  keepSheetOpenNextMove?: boolean;
+  stableSheetKey?: string;
+};
+
+function speedDemoMeta(result?: TourBarShellResult | null): TourBarSpeedDemoMeta {
+  const raw = result?.raw;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+  const meta = (raw as { __speedDemo?: unknown }).__speedDemo;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return {};
+
+  return meta as TourBarSpeedDemoMeta;
 }
 
 function ThinkingText({ body }: { body: string }) {
@@ -484,6 +501,7 @@ export default function TourBarShell({
     const waitingMessage = consultantChat?.waitingMessage || "Hold for next consultant...";
     const confirmationMessage =
       consultantChat?.confirmationMessage || "Thanks — someone will be with you shortly.";
+    const consultantResponseMessage = consultantChat?.consultantResponseMessage || "";
     const waitingId = makeConsultantChatId();
 
     setConsultantChatThread((items) => [
@@ -511,8 +529,25 @@ export default function TourBarShell({
             : item,
         ),
       );
+
+      if (consultantResponseMessage) {
+        window.setTimeout(() => {
+          setConsultantChatThread((items) => [
+            ...items,
+            {
+              id: makeConsultantChatId(),
+              role: "consultant",
+              body: consultantResponseMessage,
+              status: "done",
+            },
+          ]);
+          setConsultantChatWaiting(false);
+        }, 900);
+        return;
+      }
+
       setConsultantChatWaiting(false);
-    }, 2600);
+    }, 1800);
   };
 
   const submitQuery = async (
@@ -760,6 +795,35 @@ export default function TourBarShell({
       return;
     }
 
+    if (speedDemoMeta(activeResult).keepSheetOpenNextMove && onFollowUpSubmit) {
+      const priorThread = thread.slice(-8);
+
+      setBookingContextReturnResult(null);
+      setIsOpen(true);
+      setError("");
+      setFollowUp("");
+      setIsAnswering(true);
+
+      try {
+        const response = await onFollowUpSubmit(nextQuery, {
+          currentResult: activeResult,
+          thread: priorThread,
+          bookingContext: bookingContextController.context,
+        });
+
+        setStandaloneResult(null);
+        setResult(response);
+        appendThread(priorThread, nextQuery, response);
+        noteConsultantOffer(response);
+        onResult?.(response, "followup");
+      } catch (exc) {
+        setError(exc instanceof Error ? exc.message : "TourBar could not answer that follow-up.");
+      } finally {
+        setIsAnswering(false);
+      }
+      return;
+    }
+
     void submitFollowUp(nextQuery);
   };
 
@@ -827,6 +891,14 @@ export default function TourBarShell({
           openBookingContextSheet(demoCommand.field);
         }
         return;
+      case "setBookingContext":
+        if (demoCommand.bookingContext) {
+          bookingContextController.setDraftContext({
+            ...bookingContextController.context,
+            ...demoCommand.bookingContext,
+          });
+        }
+        return;
       default:
         return;
     }
@@ -853,6 +925,11 @@ export default function TourBarShell({
     bookingContext: bookingContextController.context,
   };
 
+  const activeRegularSheetResult = standaloneResult || result;
+  const activeRegularSheetMeta = speedDemoMeta(activeRegularSheetResult);
+  const regularSheetKey = activeRegularSheetMeta.stableSheetKey
+    ? `speed-demo-${activeRegularSheetMeta.stableSheetKey}`
+    : `${standaloneResult ? "standalone" : result?.focusAreaId || result?.action || "sheet"}-${standaloneResult?.mode || result?.mode || (isLoading ? "loading" : "state")}`;
   const standaloneSheet =
     standaloneResult && !isLoading && !error ? renderStandaloneSheet?.(standaloneResult, shellActions) : null;
   const isStandaloneSheet = Boolean(standaloneResult);
@@ -982,7 +1059,7 @@ export default function TourBarShell({
               <AnimatePresence>
                 {regularSheetVisible && (
                   <motion.div
-                    key={`${standaloneResult ? "standalone" : result?.focusAreaId || result?.action || "sheet"}-${standaloneResult?.mode || result?.mode || (isLoading ? "loading" : "state")}`}
+                    key={regularSheetKey}
                     data-tourbar-sheet-panel="true"
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}

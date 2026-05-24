@@ -18,6 +18,7 @@ export type TourBarConsultantChatCopy = {
   placeholder?: string;
   waitingMessage?: string;
   confirmationMessage?: string;
+  consultantResponseMessage?: string;
 };
 
 export type TourBarConsultantChatProps = {
