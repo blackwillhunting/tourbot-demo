@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -130,8 +130,8 @@ const burgers: Offer[] = [
     id: "item-spicy-deluxe-burger",
     title: "Spicy Deluxe Burger",
     price: "$7.79",
-    description: "Pepper jack, jalapeños, shredded lettuce, tomato, and spicy rush sauce.",
-    chips: ["Spicy", "Pepper jack", "Jalapeños"],
+    description: "Pepper jack, jalapeÃ±os, shredded lettuce, tomato, and spicy rush sauce.",
+    chips: ["Spicy", "Pepper jack", "JalapeÃ±os"],
   },
   {
     id: "item-veggie-burger",
@@ -566,7 +566,7 @@ function Header({
                   href={`#${tab.targetId}`}
                   data-tour-id={`tab-${tab.id}`}
                   onClick={() => onTabClick(tab.id)}
-                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold transition sm:px-4 ${
+                  className={`shrink-0 rounded-full px-3 py-2 text-xs font-bold transition outline-none focus:outline-none focus-visible:outline-none sm:px-4 ${
                     activeTab === tab.id ? "bg-orange-400 text-slate-950 shadow-sm" : "text-orange-100 hover:bg-white/10"
                   }`}
                 >
@@ -962,7 +962,7 @@ export default function AppCarryout() {
                 </div>
                 <h2 className="mt-2 text-3xl font-black tracking-tight">Order completion ends at checkout handoff.</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                  The future carryout router should build the validated cart, ask qualifier chips only when needed, then hand the completed order to checkout as one full order — not the currently active spotlight item.
+                  The future carryout router should build the validated cart, ask qualifier chips only when needed, then hand the completed order to checkout as one full order â€” not the currently active spotlight item.
                 </p>
               </div>
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-white/10">
@@ -1015,3 +1015,4 @@ export default function AppCarryout() {
     </div>
   );
 }
+
