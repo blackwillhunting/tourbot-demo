@@ -106,6 +106,7 @@ export type TourBarShellDemoCommand = {
     | "closeBar"
     | "closeSheet"
     | "closeChat"
+    | "clearChat"
     | "closeAll"
     | "setPrimary"
     | "submitPrimary"
@@ -116,10 +117,12 @@ export type TourBarShellDemoCommand = {
     | "setChatDraft"
     | "submitChat"
     | "openBookingContext"
-    | "setBookingContext";
+    | "setBookingContext"
+    | "showResult";
   value?: string;
   field?: TourBarRequiredBookingField;
   bookingContext?: TourBarBookingContext;
+  result?: TourBarShellResult;
 };
 
 export type TourBarShellProps = {
@@ -212,6 +215,7 @@ function consultantChatIsEnabled(config?: TourBarConsultantChatConfig) {
 
 type TourBarSpeedDemoMeta = {
   keepSheetOpenNextMove?: boolean;
+  separateSheetNextMove?: boolean;
   stableSheetKey?: string;
 };
 
@@ -795,7 +799,38 @@ export default function TourBarShell({
       return;
     }
 
-    if (speedDemoMeta(activeResult).keepSheetOpenNextMove && onFollowUpSubmit) {
+    const activeSpeedMeta = speedDemoMeta(activeResult);
+
+    if (activeSpeedMeta.separateSheetNextMove && onFollowUpSubmit) {
+      const priorThread = thread.slice(-8);
+
+      setBookingContextReturnResult(null);
+      setIsOpen(true);
+      setError("");
+      setFollowUp("");
+      setIsAnswering(true);
+
+      try {
+        const response = await onFollowUpSubmit(nextQuery, {
+          currentResult: activeResult,
+          thread: priorThread,
+          bookingContext: bookingContextController.context,
+        });
+
+        setStandaloneResult(null);
+        setResult(response);
+        appendThread(priorThread, nextQuery, response);
+        noteConsultantOffer(response);
+        onResult?.(response, "followup");
+      } catch (exc) {
+        setError(exc instanceof Error ? exc.message : "TourBar could not answer that follow-up.");
+      } finally {
+        setIsAnswering(false);
+      }
+      return;
+    }
+
+    if (activeSpeedMeta.keepSheetOpenNextMove && onFollowUpSubmit) {
       const priorThread = thread.slice(-8);
 
       setBookingContextReturnResult(null);
@@ -842,6 +877,11 @@ export default function TourBarShell({
         return;
       case "closeChat":
         closeChat();
+        return;
+      case "clearChat":
+        setConsultantChatThread([]);
+        setConsultantChatDraft("");
+        setConsultantChatWaiting(false);
         return;
       case "closeAll":
         closeAll();
@@ -897,6 +937,21 @@ export default function TourBarShell({
             ...bookingContextController.context,
             ...demoCommand.bookingContext,
           });
+        }
+        return;
+      case "showResult":
+        if (demoCommand.result) {
+          setIsOpen(true);
+          setConsultantChatOpen(false);
+          setConsultantChatDraft("");
+          setConsultantChatWaiting(false);
+          setError("");
+          setFollowUp("");
+          setIsLoading(false);
+          setIsAnswering(false);
+          setStandaloneResult(null);
+          setBookingContextReturnResult(null);
+          setResult(demoCommand.result);
         }
         return;
       default:

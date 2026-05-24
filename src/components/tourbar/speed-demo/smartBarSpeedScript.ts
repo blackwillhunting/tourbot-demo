@@ -1,13 +1,14 @@
 import type { TourBarBookingContext, TourBarRequiredBookingField } from "../tourbarBookingContext";
 
 export type SmartBarSpeedCommand =
-  | { kind: "shell"; type: "open" | "closeBar" | "closeSheet" | "closeChat" | "closeAll" | "runNextMove" | "openChat"; delayMs?: number }
+  | { kind: "shell"; type: "open" | "closeBar" | "closeSheet" | "closeChat" | "clearChat" | "closeAll" | "runNextMove" | "openChat"; delayMs?: number }
   | { kind: "typePrimary"; value: string; delayMs?: number }
   | { kind: "submitPrimary"; value?: string; delayMs?: number }
   | { kind: "typeFollowUp"; value: string; delayMs?: number }
   | { kind: "submitFollowUp"; value?: string; delayMs?: number }
   | { kind: "openBookingContext"; field: TourBarRequiredBookingField; delayMs?: number }
   | { kind: "setBookingContext"; bookingContext: TourBarBookingContext; delayMs?: number }
+  | { kind: "showFixture"; value: string; delayMs?: number }
   | { kind: "typeChat"; value: string; delayMs?: number }
   | { kind: "submitChat"; value?: string; delayMs?: number }
   | { kind: "pause"; delayMs: number };
@@ -187,23 +188,29 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     id: "finale",
     chapter: "Finale",
     label: "Search bar with a toolbelt",
-    helper: "Tool sweep.",
+    helper: "Clean tool sweep.",
     commands: [
-      { kind: "submitPrimary", value: "show me the short version", delayMs: 300 },
-      { kind: "pause", delayMs: 850 },
-      { kind: "submitPrimary", value: "show action choices", delayMs: 250 },
-      { kind: "pause", delayMs: 850 },
-      { kind: "openBookingContext", field: "dates", delayMs: 250 },
-      { kind: "pause", delayMs: 850 },
-      { kind: "submitPrimary", value: "show my cart", delayMs: 250 },
-      { kind: "pause", delayMs: 850 },
-      { kind: "submitPrimary", value: "summarize this", delayMs: 250 },
-      { kind: "pause", delayMs: 850 },
-      { kind: "shell", type: "openChat", delayMs: 250 },
-      { kind: "typeChat", value: "Send this to a specialist", delayMs: 600 },
-      { kind: "submitChat", delayMs: 500 },
+      { kind: "shell", type: "open", delayMs: 200 },
+      { kind: "showFixture", value: "show me the short version", delayMs: 250 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "showFixture", value: "show action choices", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "showFixture", value: "show pending cart", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "showFixture", value: "show final cart", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "openBookingContext", field: "dates", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "openBookingContext", field: "guests", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "showFixture", value: "summarize this", delayMs: 80 },
+      { kind: "pause", delayMs: 760 },
+      { kind: "shell", type: "clearChat", delayMs: 80 },
+      { kind: "shell", type: "openChat", delayMs: 80 },
+      { kind: "typeChat", value: "Send this to a specialist", delayMs: 520 },
+      { kind: "submitChat", delayMs: 420 },
       { kind: "pause", delayMs: 2600 },
-      { kind: "shell", type: "closeAll", delayMs: 600 },
+      { kind: "shell", type: "closeAll", delayMs: 500 },
     ],
   },
 ];

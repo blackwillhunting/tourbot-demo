@@ -77,6 +77,16 @@ function readyCarryoutOrder(kind: "messy" | "qualified" | "finale" = "messy"): C
   };
 }
 
+function lockedCarryoutOrder(kind: "messy" | "qualified" | "finale" = "messy"): CarryoutOrder {
+  const order = readyCarryoutOrder(kind);
+  return {
+    ...order,
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+  };
+}
+
 function pendingCarryoutOrder(stage: 0 | 1 | 2): CarryoutOrder {
   const burgerReady = stage >= 1;
   const friesReady = stage >= 2;
@@ -199,13 +209,23 @@ type SpeedResultOptions = {
   reviewMode?: ReviewMode;
   nextQuery?: string;
   keepSheetOpenNextMove?: boolean;
+  separateSheetNextMove?: boolean;
   stableSheetKey?: string;
+  commerceAction?: string;
 };
 
-function speedMeta(options: { keepSheetOpenNextMove?: boolean; stableSheetKey?: string; readyPillLabel?: string } = {}) {
+function speedMeta(
+  options: {
+    keepSheetOpenNextMove?: boolean;
+    separateSheetNextMove?: boolean;
+    stableSheetKey?: string;
+    readyPillLabel?: string;
+  } = {},
+) {
   return {
     __speedDemo: {
       keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
+      separateSheetNextMove: Boolean(options.separateSheetNextMove),
       stableSheetKey: options.stableSheetKey,
       readyPillLabel: options.readyPillLabel,
     },
@@ -213,13 +233,13 @@ function speedMeta(options: { keepSheetOpenNextMove?: boolean; stableSheetKey?: 
 }
 
 function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
-  const raw = carryoutRaw(order);
+  const raw = carryoutRaw(order, options.commerceAction || "carryout_show_cart");
   return {
     title: options.title || (order.status === "ready_cart" ? "Review order" : "Choose required options"),
     body: options.body ?? (order.status === "ready_cart" ? undefined : "Select the missing choice."),
     invitation: options.nextQuery ? { kind: "next", text: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option" } : undefined,
     nextMove: options.nextQuery ? { type: "handoff", label: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option", query: options.nextQuery } : undefined,
-    canFollowUp: true,
+    canFollowUp: !order.lockedForHandoff,
     mode: "speed_order",
     action: raw.commerceAction,
     raw: {
@@ -228,6 +248,7 @@ function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): To
         activeIndex: options.activeIndex || 0,
         reviewMode: options.reviewMode || (order.status === "ready_cart" ? "cart" : "review"),
         keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
+        separateSheetNextMove: Boolean(options.separateSheetNextMove),
         stableSheetKey: options.stableSheetKey || "ordering",
         readyPillLabel: order.status === "ready_cart" ? "All items are ready for checkout" : undefined,
       },
@@ -270,7 +291,7 @@ function fixtureResult(query: string): TourBarShellResult {
       nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
       mode: "speed_info",
-      raw: speedMeta({ stableSheetKey: "discovery" }),
+      raw: speedMeta({ stableSheetKey: "discovery", separateSheetNextMove: true }),
     };
   }
 
@@ -288,18 +309,27 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez")) {
     return orderResult(readyCarryoutOrder("messy"), {
       title: "Review order",
-      nextQuery: "__checkout",
+      nextQuery: "__checkout_messy",
+      separateSheetNextMove: true,
     });
   }
 
-  if (text === "__checkout") {
-    return {
-      title: "Checkout handoff ready",
-      body: "Order captured. Items, quantities, and selections are ready to pass into checkout.",
-      canFollowUp: false,
-      mode: "speed_checkout",
-      raw: speedMeta({ stableSheetKey: "checkout" }),
-    };
+  if (text === "__checkout_messy") {
+    return orderResult(lockedCarryoutOrder("messy"), {
+      title: "Order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "checkout-messy",
+      commerceAction: "carryout_checkout_handoff",
+    });
+  }
+
+  if (text === "__checkout_qualified") {
+    return orderResult(lockedCarryoutOrder("qualified"), {
+      title: "Order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "checkout-qualified",
+      commerceAction: "carryout_checkout_handoff",
+    });
   }
 
   if (text.includes("burger combo")) {
@@ -337,7 +367,8 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text === "__qualifier_3") {
     return orderResult(readyCarryoutOrder("qualified"), {
       title: "Review order",
-      nextQuery: "__checkout",
+      nextQuery: "__checkout_qualified",
+      separateSheetNextMove: true,
     });
   }
 
@@ -438,18 +469,26 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text.includes("action choices") || text.includes("tiles")) {
     return {
-      title: "Action choices",
-      body: "Select dates. Add guests. Open cart. Start chat.",
+      title: "Choose next action",
       canFollowUp: false,
       mode: "speed_tiles",
-      raw: speedMeta({ stableSheetKey: "toolbelt" }),
+      raw: speedMeta({ stableSheetKey: "finale-tiles" }),
     };
   }
 
-  if (text.includes("cart")) {
+  if (text.includes("pending cart")) {
+    return orderResult(pendingCarryoutOrder(0), {
+      title: "Review order",
+      reviewMode: "cart",
+      stableSheetKey: "finale-pending-cart",
+    });
+  }
+
+  if (text.includes("final cart") || text.includes("cart")) {
     return orderResult(readyCarryoutOrder("finale"), {
-      title: "Cart",
-      body: "Order review is ready.",
+      title: "Review order",
+      reviewMode: "cart",
+      stableSheetKey: "finale-final-cart",
     });
   }
 
@@ -459,18 +498,18 @@ function fixtureResult(query: string): TourBarShellResult {
       canFollowUp: false,
       mode: "speed_booking_confirm",
       raw: {
-        ...speedMeta({ stableSheetKey: "toolbelt" }),
+        ...speedMeta({ stableSheetKey: "finale-booking-summary" }),
         bookingHandoff: bookingHandoff("ocean"),
       },
     };
   }
 
   return {
-    title: "SmartBar",
-    body: "SmartBar returns the right next tool for the visitor’s intent.",
+    title: "SmartBar response",
+    body: "I can answer the question, collect the right details, and open the next step.",
     canFollowUp: true,
     mode: "speed_info",
-    raw: speedMeta({ stableSheetKey: "toolbelt" }),
+    raw: speedMeta({ stableSheetKey: "finale-natural-language" }),
   };
 }
 
@@ -521,6 +560,22 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
         bookingHandoff={raw.bookingHandoff || null}
         actions={actions}
       />
+    );
+  }
+
+  if (mode === "speed_tiles") {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {["Answer", "Choose options", "Review cart", "Handoff"].map((label) => (
+          <button
+            key={label}
+            type="button"
+            className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-semibold text-slate-900 shadow-sm"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     );
   }
 
@@ -580,6 +635,10 @@ export default function SmartBarSpeedDemo() {
       }
       if (command.kind === "setBookingContext") {
         sendCommand({ type: "setBookingContext", bookingContext: command.bookingContext });
+        return;
+      }
+      if (command.kind === "showFixture") {
+        sendCommand({ type: "showResult", result: fixtureResult(command.value) });
         return;
       }
       if (command.kind === "shell") {
