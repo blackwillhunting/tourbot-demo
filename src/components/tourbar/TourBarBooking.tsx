@@ -1,11 +1,17 @@
 import { Pencil } from "lucide-react";
+import { commerceGuideConfig } from "../../commerce/commerceGuideConfig";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellProps,
   type TourBarShellResult,
+  type TourBarShellTurnContext,
 } from "./TourBarShell";
 
-type TourBarBookingRawResponse = Record<string, any>;
+export type TourBarBookingRawResponse = Record<string, any>;
+
+const TOURBAR_HOTEL_BOOKING_ENDPOINT = "/api/guide_ai";
+const TOURBAR_HOTEL_BOOKING_MODE = "tourbar_hotel_booking";
+const TOURBAR_HOTEL_BOOKING_CATALOG_ID = "tourbar_hotel_booking_matrix";
 
 function asRecord(value: unknown): Record<string, any> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -89,6 +95,120 @@ export type TourBarBookingResultTarget = {
   targetId?: string;
   targetSelector?: string;
 };
+
+export type TourBarBookingTurnContext = TourBarShellTurnContext;
+
+export type TourBarBookingRequestContext = {
+  currentPage?: string;
+  activeAnchor?: string | null;
+  activeTargetId?: string | null;
+  activeRoomId?: string | null;
+  activePackageId?: string | null;
+  selectedRoomId?: string | null;
+  selectedPackageIds?: string[];
+  activeStayPlan?: Record<string, any> | null;
+  tourBarWorkingStay?: Record<string, any> | null;
+  bookingContext?: Record<string, any> | null;
+  commerceContext?: Record<string, any> | null;
+  visibleContext?: Record<string, any>;
+  conversationContext?: Record<string, any>;
+  resultTarget?: TourBarBookingResultTarget;
+};
+
+type TourBarBookingRawResultContext = {
+  query: string;
+  shellContext: TourBarBookingTurnContext;
+  requestContext: TourBarBookingRequestContext;
+};
+
+function buildTourBarBookingRequestBody(
+  query: string,
+  shellContext: TourBarBookingTurnContext,
+  requestContext: TourBarBookingRequestContext,
+) {
+  const activeStayPlan = asRecord(requestContext.activeStayPlan);
+  const tourBarWorkingStay = asRecord(requestContext.tourBarWorkingStay);
+  const bookingContext = asRecord(requestContext.bookingContext);
+  const currentResult = shellContext.currentResult as any;
+  const selectedPackageIds =
+    requestContext.selectedPackageIds ||
+    asStringArray(activeStayPlan.packageIds) ||
+    [];
+
+  const visibleContext = {
+    currentPage: requestContext.currentPage,
+    activeAnchor: requestContext.activeAnchor,
+    activeTargetId:
+      requestContext.activeTargetId ||
+      tourBarWorkingStay.activeTargetId ||
+      requestContext.activeAnchor,
+    activeRoomId: requestContext.activeRoomId || activeStayPlan.activeRoomId,
+    activePackageId: requestContext.activePackageId || activeStayPlan.activePackageId,
+    selectedRoomId: requestContext.selectedRoomId || activeStayPlan.roomId,
+    selectedPackageIds,
+    activeStayPlan,
+    tourBarWorkingStay,
+    bookingContext,
+    ...(requestContext.visibleContext || {}),
+  };
+
+  const conversationContext = {
+    currentResult: currentResult?.raw || shellContext.currentResult || null,
+    thread: shellContext.thread,
+    activeStayPlan,
+    commerceContext:
+      requestContext.commerceContext || {
+        activeStayPlan,
+        tourBarWorkingStay,
+        bookingContext,
+      },
+    ...(requestContext.conversationContext || {}),
+  };
+
+  return {
+    mode: TOURBAR_HOTEL_BOOKING_MODE,
+    catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
+    message: query,
+    guideConfig: {
+      ...commerceGuideConfig,
+      mode: TOURBAR_HOTEL_BOOKING_MODE,
+      catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
+      packIds: {
+        ...commerceGuideConfig.packIds,
+        catalog: TOURBAR_HOTEL_BOOKING_CATALOG_ID,
+      },
+    },
+    visibleContext,
+    conversationContext,
+  };
+}
+
+async function postTourBarHotelBooking(
+  query: string,
+  shellContext: TourBarBookingTurnContext,
+  requestContext: TourBarBookingRequestContext,
+) {
+  const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(
+      buildTourBarBookingRequestBody(query, shellContext, requestContext),
+    ),
+  });
+
+  const raw = (await response.json().catch(() => ({}))) as TourBarBookingRawResponse;
+
+  if (!response.ok) {
+    throw new Error(
+      String(raw.message || raw.error || "TourBar hotel booking request failed."),
+    );
+  }
+
+  return raw;
+}
 
 function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
   if (!nextStepLabel) return body;
@@ -181,7 +301,15 @@ type TourBarBookingProps = Pick<
   TourBarShellProps,
   "onResult" | "onNextMove"
 > & {
-  onSubmit: TourBarShellProps["onPrimarySubmit"];
+  getRequestContext: (
+    query: string,
+    context: TourBarBookingTurnContext,
+  ) => TourBarBookingRequestContext;
+  resolveResultTarget?: (raw: TourBarBookingRawResponse) => TourBarBookingResultTarget;
+  onRawBookingResult?: (
+    raw: TourBarBookingRawResponse,
+    context: TourBarBookingRawResultContext,
+  ) => void;
   navigationState?: TourBarBookingNavigationState | null;
   onBack?: () => void;
   onNext?: () => void;
@@ -353,7 +481,9 @@ function TourBarNavigationControls({
 }
 
 export default function TourBarBooking({
-  onSubmit,
+  getRequestContext,
+  resolveResultTarget,
+  onRawBookingResult,
   onResult,
   onNextMove,
   navigationState = null,
@@ -363,6 +493,26 @@ export default function TourBarBooking({
   bookingHandoffOpen = false,
   bookingHandoff = null,
 }: TourBarBookingProps) {
+  const submitTourBarHotelBooking = async (
+    query: string,
+    context: TourBarBookingTurnContext,
+  ): Promise<TourBarShellResult> => {
+    const requestContext = getRequestContext(query, context);
+    const raw = await postTourBarHotelBooking(query, context, requestContext);
+
+    onRawBookingResult?.(raw, {
+      query,
+      shellContext: context,
+      requestContext,
+    });
+
+    return buildTourBarBookingShellResult(
+      raw,
+      requestContext.resultTarget || resolveResultTarget?.(raw) || {},
+      { mode: TOURBAR_HOTEL_BOOKING_MODE },
+    );
+  };
+
   return (
     <TourBarShell
       primaryPlaceholder="Ask TourBar to find the right stay..."
@@ -372,8 +522,8 @@ export default function TourBarBooking({
       resultEyebrow="TourBar booking"
       initialLoadingMessage="Resolving the lowest valid room setup…"
       followUpLoadingMessage="Rechecking the matrix…"
-      onPrimarySubmit={onSubmit}
-      onFollowUpSubmit={onSubmit}
+      onPrimarySubmit={submitTourBarHotelBooking}
+      onFollowUpSubmit={submitTourBarHotelBooking}
       onResult={onResult}
       onNextMove={onNextMove}
       requireBookingContext

@@ -21,7 +21,6 @@ import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
 import TourBarBooking, {
-  buildTourBarBookingShellResult,
   isBookingNextStepLabel,
   isExplicitTourBarBookingRequest,
   priceLabelFromTourBarCombination,
@@ -29,12 +28,14 @@ import TourBarBooking, {
   type TourBarBookingHandoff,
   type TourBarBookingNavigationState as TourBarNavigationState,
   type TourBarBookingPageTarget as TourBarPageTarget,
+  type TourBarBookingRawResponse,
+  type TourBarBookingRequestContext,
+  type TourBarBookingTurnContext,
 } from "./components/tourbar/TourBarBooking";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./components/tourbar/smartbarFocusController";
 import type {
   TourBarShellActions,
   TourBarShellResult,
-  TourBarShellTurnContext,
 } from "./components/tourbar/TourBarShell";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
@@ -44,10 +45,7 @@ import {
 } from "./demo/demoScripts";
 import { commerceGuideConfig } from "./commerce/commerceGuideConfig";
 
-const TOURBAR_HOTEL_BOOKING_ENDPOINT = "/api/guide_ai";
-const TOURBAR_HOTEL_BOOKING_MODE = "tourbar_hotel_booking";
-
-type TourBarHotelBookingBackendResponse = Record<string, any>;
+type TourBarHotelBookingBackendResponse = TourBarBookingRawResponse;
 
 type AppCommerceProps = {
   tourBarMode?: boolean;
@@ -3794,17 +3792,17 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     return true;
   };
 
-  const submitTourBarHotelBooking = async (
-    query: string,
-    context: TourBarShellTurnContext,
-  ): Promise<TourBarShellResult> => {
+  const getTourBarHotelBookingRequestContext = (
+    _query: string,
+    _context: TourBarBookingTurnContext,
+  ): TourBarBookingRequestContext => {
     tourBarNavigationRunRef.current += 1;
     setTourBarNavigationState(null);
     setTourBarSpotlightTarget(null);
     setTourBarBookingHandoff(null);
     setTourBarBookingHandoffOpen(false);
 
-    const shellBookingContext = context.bookingContext || null;
+    const shellBookingContext = _context.bookingContext || null;
     const effectiveDatesSelected = Boolean(shellBookingContext?.datesSelected || datesSelected);
     const effectiveGuestsSelected = Boolean(shellBookingContext?.guestsSelected || guestsSelected);
     const effectiveCheckInDate = String(shellBookingContext?.checkInDate || checkInDate || "");
@@ -3859,111 +3857,56 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       guestChildren: effectiveGuestChildren,
       guestLabel: effectiveGuestLabel,
     });
+    const workingStayContext = {
+      ...tourBarWorkingStay,
+      checkInDate: bookingContext.checkInDate,
+      checkOutDate: bookingContext.checkOutDate,
+      datesLabel: bookingContext.datesLabel,
+      adults: bookingContext.adults,
+      children: bookingContext.children,
+      guests: bookingContext.guests,
+      guestLabel: bookingContext.guestLabel,
+    };
     const activeStayPlan = {
       ...buildTourBarActiveStayPlan(
-        {
-          ...tourBarWorkingStay,
-          checkInDate: bookingContext.checkInDate,
-          checkOutDate: bookingContext.checkOutDate,
-          datesLabel: bookingContext.datesLabel,
-          adults: bookingContext.adults,
-          children: bookingContext.children,
-          guests: bookingContext.guests,
-          guestLabel: bookingContext.guestLabel,
-        },
+        workingStayContext,
         selectedRoom,
         selectedPackages,
       ),
       bookingContext,
     };
 
-    const response = await fetch(TOURBAR_HOTEL_BOOKING_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
+    return {
+      currentPage,
+      activeAnchor,
+      activeTargetId: tourBarWorkingStay.activeTargetId || activeAnchor,
+      activeRoomId: activeStayPlan.activeRoomId,
+      activePackageId: activeStayPlan.activePackageId,
+      selectedRoomId: activeStayPlan.roomId || selectedRoom,
+      selectedPackageIds: activeStayPlan.packageIds,
+      activeStayPlan,
+      tourBarWorkingStay: workingStayContext,
+      bookingContext,
+      commerceContext: {
+        activeStayPlan,
+        tourBarWorkingStay: workingStayContext,
+        dates: effectiveDatesSelected
+          ? {
+              checkIn: effectiveCheckInDate,
+              checkOut: effectiveCheckOutDate,
+              label: formatBookingDateRange(effectiveCheckInDate, effectiveCheckOutDate),
+            }
+          : null,
+        guests: effectiveGuestsSelected
+          ? {
+              adults: effectiveGuestAdults,
+              children: effectiveGuestChildren,
+              label: effectiveGuestLabel,
+            }
+          : null,
+        budget: budgetBand ? { band: budgetBand } : null,
       },
-      body: JSON.stringify({
-        mode: TOURBAR_HOTEL_BOOKING_MODE,
-        catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
-        message: query,
-        guideConfig: {
-          ...commerceGuideConfig,
-          mode: TOURBAR_HOTEL_BOOKING_MODE,
-          catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
-          packIds: {
-            ...commerceGuideConfig.packIds,
-            catalog: "tourbar_hotel_booking_matrix",
-          },
-        },
-        visibleContext: {
-          currentPage,
-          activeAnchor,
-          activeTargetId: tourBarWorkingStay.activeTargetId || activeAnchor,
-          activeRoomId: activeStayPlan.activeRoomId,
-          activePackageId: activeStayPlan.activePackageId,
-          selectedRoomId: activeStayPlan.roomId || selectedRoom,
-          selectedPackageIds: activeStayPlan.packageIds,
-          activeStayPlan,
-          tourBarWorkingStay: {
-            ...tourBarWorkingStay,
-            checkInDate: bookingContext.checkInDate,
-            checkOutDate: bookingContext.checkOutDate,
-            datesLabel: bookingContext.datesLabel,
-            adults: bookingContext.adults,
-            children: bookingContext.children,
-            guests: bookingContext.guests,
-            guestLabel: bookingContext.guestLabel,
-          },
-          bookingContext,
-        },
-        conversationContext: {
-          currentResult: context.currentResult?.raw || context.currentResult || null,
-          thread: context.thread,
-          activeStayPlan,
-          commerceContext: {
-            activeStayPlan,
-            tourBarWorkingStay: {
-              ...tourBarWorkingStay,
-              checkInDate: bookingContext.checkInDate,
-              checkOutDate: bookingContext.checkOutDate,
-              datesLabel: bookingContext.datesLabel,
-              adults: bookingContext.adults,
-              children: bookingContext.children,
-              guests: bookingContext.guests,
-              guestLabel: bookingContext.guestLabel,
-            },
-            dates: effectiveDatesSelected
-              ? {
-                  checkIn: effectiveCheckInDate,
-                  checkOut: effectiveCheckOutDate,
-                  label: formatBookingDateRange(effectiveCheckInDate, effectiveCheckOutDate),
-                }
-              : null,
-            guests: effectiveGuestsSelected
-              ? {
-                  adults: effectiveGuestAdults,
-                  children: effectiveGuestChildren,
-                  label: effectiveGuestLabel,
-                }
-              : null,
-            budget: budgetBand ? { band: budgetBand } : null,
-          },
-        },
-      }),
-    });
-
-    const raw = (await response.json().catch(() => ({}))) as TourBarHotelBookingBackendResponse;
-
-    if (!response.ok) {
-      throw new Error(
-        String(raw.message || raw.error || "TourBar hotel booking request failed."),
-      );
-    }
-
-    return buildTourBarBookingShellResult(raw, primaryTourBarTarget(raw), {
-      mode: TOURBAR_HOTEL_BOOKING_MODE,
-    });
+    };
   };
 
   const onBookRoom = (section: Section) => {
@@ -4363,7 +4306,8 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       {tourBarMode ? (
         <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
           <TourBarBooking
-            onSubmit={submitTourBarHotelBooking}
+            getRequestContext={getTourBarHotelBookingRequestContext}
+            resolveResultTarget={primaryTourBarTarget}
             onResult={focusTourBarTarget}
             onNextMove={handleTourBarNextMove}
             navigationState={tourBarNavigationState}
