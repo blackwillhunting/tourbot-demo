@@ -1,6 +1,6 @@
 import { useEffect, useRef, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, MessageSquare, SendHorizonal } from "lucide-react";
+import { MessageSquare, SendHorizonal } from "lucide-react";
 
 const THINKING_WIGGLE_DURATION = 1.15;
 const THINKING_WIGGLE_STAGGER = 0.025;
@@ -164,10 +164,7 @@ export default function TourBarConsultantChat({
                   {consultant ? "Consultant desk" : "Visitor"}
                 </div>
                 {message.status === "thinking" ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-600" />
-                    <ThinkingText body={message.body} />
-                  </span>
+                  <ThinkingText body={message.body} />
                 ) : (
                   <span className="whitespace-pre-wrap">{message.body}</span>
                 )}
@@ -198,7 +195,7 @@ export default function TourBarConsultantChat({
             className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
             aria-label="Send consultant message"
           >
-            {isWaiting ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+            <SendHorizonal className="h-4 w-4" />
           </button>
         </div>
       </form>

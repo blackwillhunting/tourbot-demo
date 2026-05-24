@@ -7,6 +7,7 @@ import TourBarShell, {
   type TourBarShellTurnContext,
 } from "../TourBarShell";
 import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
+import { TourBarBookingHandoffSheet, type TourBarBookingHandoff } from "../TourBarBooking";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
@@ -30,11 +31,29 @@ function line(id: string, title: string, priceLabel: string, knownSelections: st
 }
 
 function readyCarryoutOrder(kind: "messy" | "qualified" | "finale" = "messy"): CarryoutOrder {
-  const comboSelections =
-    kind === "qualified"
-      ? ["Double patty", "Large fries", "Diet Coke"]
-      : ["Large fries", "Large Diet Coke", "No onions"];
+  if (kind === "qualified") {
+    const items = [
+      line("burger-combo", "Burger combo meal", "$10.99", ["Double patty", "Large fries", "Diet Coke"]),
+    ];
 
+    return {
+      type: "carryout_order",
+      status: "ready_cart",
+      nextAction: "show_cart",
+      items,
+      completeItems: items,
+      pendingItems: [],
+      totals: {
+        status: "ready",
+        subtotal: 10.99,
+        estimatedTax: 0.88,
+        estimatedTotal: 11.87,
+        currency: "USD",
+      },
+    };
+  }
+
+  const comboSelections = ["Large fries", "Large Diet Coke", "No onions"];
   const items = [
     line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
     line("apple-pie", "Apple pie", "$2.49"),
@@ -183,11 +202,12 @@ type SpeedResultOptions = {
   stableSheetKey?: string;
 };
 
-function speedMeta(options: { keepSheetOpenNextMove?: boolean; stableSheetKey?: string } = {}) {
+function speedMeta(options: { keepSheetOpenNextMove?: boolean; stableSheetKey?: string; readyPillLabel?: string } = {}) {
   return {
     __speedDemo: {
       keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
       stableSheetKey: options.stableSheetKey,
+      readyPillLabel: options.readyPillLabel,
     },
   };
 }
@@ -196,7 +216,7 @@ function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): To
   const raw = carryoutRaw(order);
   return {
     title: options.title || (order.status === "ready_cart" ? "Review order" : "Choose required options"),
-    body: options.body || (order.status === "ready_cart" ? "Review the order before checkout." : "Select the missing choice."),
+    body: options.body ?? (order.status === "ready_cart" ? undefined : "Select the missing choice."),
     invitation: options.nextQuery ? { kind: "next", text: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option" } : undefined,
     nextMove: options.nextQuery ? { type: "handoff", label: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option", query: options.nextQuery } : undefined,
     canFollowUp: true,
@@ -209,8 +229,32 @@ function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): To
         reviewMode: options.reviewMode || (order.status === "ready_cart" ? "cart" : "review"),
         keepSheetOpenNextMove: Boolean(options.keepSheetOpenNextMove),
         stableSheetKey: options.stableSheetKey || "ordering",
+        readyPillLabel: order.status === "ready_cart" ? "All items are ready for checkout" : undefined,
       },
     },
+  };
+}
+
+
+function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
+  if (kind === "family") {
+    return {
+      roomTitle: "Family Double Room",
+      packageTitle: "Family Comfort Bundle",
+      datesLabel: "Jun 12–15, 2026",
+      guestsLabel: "2 adults, 2 children",
+      budgetLabel: "Family value",
+      priceLabel: "$249/night + $55/stay",
+    };
+  }
+
+  return {
+    roomTitle: "Ocean View Suite",
+    packageTitle: "Breakfast Flex Plan",
+    datesLabel: "Dates required",
+    guestsLabel: "Guests required",
+    budgetLabel: "Good view, not villa tier",
+    priceLabel: "$379/night + $32/night",
   };
 }
 
@@ -226,7 +270,7 @@ function fixtureResult(query: string): TourBarShellResult {
       nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
       mode: "speed_info",
-      raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "discovery" }),
+      raw: speedMeta({ stableSheetKey: "discovery" }),
     };
   }
 
@@ -237,14 +281,13 @@ function fixtureResult(query: string): TourBarShellResult {
         "- Third-party ICT register review for a regulated financial firm\n- Incident-response tabletop mapped to executive escalation paths\n- Resilience evidence pack prepared for governance and audit review",
       canFollowUp: true,
       mode: "speed_case_studies",
-      raw: speedMeta({ stableSheetKey: "discovery" }),
+      raw: speedMeta({ stableSheetKey: "case-studies" }),
     };
   }
 
   if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez")) {
     return orderResult(readyCarryoutOrder("messy"), {
       title: "Review order",
-      body: "Matched order from: “dbl chzbrger combo lg friez diet coke apple pie”.",
       nextQuery: "__checkout",
     });
   }
@@ -294,7 +337,6 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text === "__qualifier_3") {
     return orderResult(readyCarryoutOrder("qualified"), {
       title: "Review order",
-      body: "Required choices are captured. Review the cart before checkout.",
       nextQuery: "__checkout",
     });
   }
@@ -351,10 +393,12 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text === "__booking_confirm") {
     return {
       title: "Booking summary ready",
-      body: "Room: Ocean View Suite.\nPackage: Breakfast Flex Plan.\nKnown preferences are ready for booking prefill.",
       canFollowUp: false,
       mode: "speed_booking_confirm",
-      raw: speedMeta({ stableSheetKey: "booking-confirm" }),
+      raw: {
+        ...speedMeta({ stableSheetKey: "booking-confirm" }),
+        bookingHandoff: bookingHandoff("ocean"),
+      },
     };
   }
 
@@ -383,10 +427,12 @@ function fixtureResult(query: string): TourBarShellResult {
   if (text === "__family_booking_confirm") {
     return {
       title: "Family booking summary ready",
-      body: "Room: Family Double Room.\nPackage: Family Comfort Bundle.\nGuests: 2 adults / 2 children.\nDates: Jun 12–15, 2026.",
       canFollowUp: false,
       mode: "speed_booking_confirm",
-      raw: speedMeta({ stableSheetKey: "family-confirm" }),
+      raw: {
+        ...speedMeta({ stableSheetKey: "family-confirm" }),
+        bookingHandoff: bookingHandoff("family"),
+      },
     };
   }
 
@@ -409,11 +455,13 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text.includes("summary")) {
     return {
-      title: "Summary",
-      body: "Selected option, add-ons, and next action are packaged for handoff.",
+      title: "Booking summary ready",
       canFollowUp: false,
       mode: "speed_booking_confirm",
-      raw: speedMeta({ stableSheetKey: "toolbelt" }),
+      raw: {
+        ...speedMeta({ stableSheetKey: "toolbelt" }),
+        bookingHandoff: bookingHandoff("ocean"),
+      },
     };
   }
 
@@ -463,6 +511,16 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
           <div className="text-sm font-semibold text-slate-950">Add guests</div>
         </button>
       </div>
+    );
+  }
+
+  if (mode === "speed_booking_confirm") {
+    const raw = (result.raw || {}) as { bookingHandoff?: TourBarBookingHandoff };
+    return (
+      <TourBarBookingHandoffSheet
+        bookingHandoff={raw.bookingHandoff || null}
+        actions={actions}
+      />
     );
   }
 
@@ -585,8 +643,7 @@ export default function SmartBarSpeedDemo() {
             placeholder: "Send a quick note...",
             waitingMessage: "Hold for next consultant...",
             confirmationMessage: "Thanks — someone will be with you shortly.",
-            consultantResponseMessage:
-              "Hi — I can help with pricing. The useful starting point is scope: entities, key vendors, and whether you need readiness assessment, remediation support, or ongoing governance.",
+            consultantResponseMessage: "Hello — I can help with pricing.",
           }}
           demoCommand={demoCommand}
           onPrimarySubmit={onPrimarySubmit}

@@ -373,7 +373,7 @@ function fallbackPageIdFromTarget(targetId?: string | null): TourBarBookingPageI
   return "home";
 }
 
-function TourBarBookingHandoffSheet({
+export function TourBarBookingHandoffSheet({
   bookingHandoff,
   actions,
 }: {

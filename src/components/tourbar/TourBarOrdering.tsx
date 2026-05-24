@@ -972,6 +972,10 @@ export function OrderReview({
   const subtotal = money(order.totals?.subtotal);
   const price = item ? linePrice(item.line) : "";
   const isLocked = checkoutIsLocked(response, order);
+  const speedDemoReadyPillLabel =
+    !isLocked && !hasPendingItems && !hasCannotMatchItems
+      ? String((response as { __speedDemo?: { readyPillLabel?: string } }).__speedDemo?.readyPillLabel || "")
+      : "";
 
   const goTo = (nextIndex: number) => {
     const clamped = Math.min(Math.max(nextIndex, 0), items.length - 1);
@@ -1140,19 +1144,27 @@ export function OrderReview({
 
   const renderCartView = () => (
     <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
-      <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-slate-200 bg-slate-50 text-slate-800" : hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
-        {isLocked
-          ? hasCannotMatchItems
-            ? `Checkout handoff is locked for matched items. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} stayed out.`
-            : "Checkout handoff is locked and ready."
-          : hasPendingItems
+      {speedDemoReadyPillLabel ? (
+        <div className="shrink-0">
+          <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+            {speedDemoReadyPillLabel}
+          </span>
+        </div>
+      ) : (
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-slate-200 bg-slate-50 text-slate-800" : hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
+          {isLocked
             ? hasCannotMatchItems
-              ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
-              : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
-            : hasCannotMatchItems
-              ? `Matched items are ready. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
-              : "All items are ready for checkout."}
-      </div>
+              ? `Checkout handoff is locked for matched items. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} stayed out.`
+              : "Checkout handoff is locked and ready."
+            : hasPendingItems
+              ? hasCannotMatchItems
+                ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+                : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need choices before checkout.`
+              : hasCannotMatchItems
+                ? `Matched items are ready. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} could not be added.`
+                : "All items are ready for checkout."}
+        </div>
+      )}
 
       <div className="max-h-[clamp(180px,34dvh,340px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
         {items.length || cannotMatchItems.length ? (

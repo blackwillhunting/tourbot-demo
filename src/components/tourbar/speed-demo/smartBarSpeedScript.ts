@@ -46,7 +46,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     id: "case-studies",
     chapter: "Discovery",
     label: "Show case studies",
-    helper: "Same sheet resizes.",
+    helper: "Separate case-study sheet.",
     commands: [
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1900 },
@@ -62,7 +62,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "submitFollowUp", delayMs: 820 },
       { kind: "typeChat", value: "interested in pricing", delayMs: 1300 },
       { kind: "submitChat", delayMs: 700 },
-      { kind: "pause", delayMs: 5200 },
+      { kind: "pause", delayMs: 3400 },
       { kind: "shell", type: "closeChat", delayMs: 350 },
     ],
   },
