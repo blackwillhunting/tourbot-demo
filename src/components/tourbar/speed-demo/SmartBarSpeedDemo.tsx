@@ -1,292 +1,718 @@
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, CheckCircle2, SendHorizonal, Sparkles, X } from "lucide-react";
-import { smartbarFocusTarget } from "../smartbarFocusController";
-import SmartBarDemoPointer from "./SmartBarDemoPointer";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarDays, CheckCircle2, Coffee, CreditCard, Hotel, ListChecks, ShieldCheck, Sparkles, Users } from "lucide-react";
+import TourBarShell, {
+  type TourBarShellActions,
+  type TourBarShellDemoCommand,
+  type TourBarShellResult,
+  type TourBarShellTurnContext,
+} from "../TourBarShell";
+import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
-import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
-import { SMARTBAR_SPEED_BEATS, SMARTBAR_SPEED_TOOL_FLASHES, type SmartBarSpeedTool } from "./smartBarSpeedScript";
+import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
-const BEAT_MS = 5200;
-const TYPE_MS = 24;
+const TYPE_DELAY_MS = 18;
+const FIXTURE_THINKING_MS = 280;
 
-function useTypedPrompt(prompt = "", beatId: string) {
-  const [typed, setTyped] = useState("");
-
-  useEffect(() => {
-    setTyped("");
-    if (!prompt) return;
-
-    let index = 0;
-    const timer = window.setInterval(() => {
-      index += 1;
-      setTyped(prompt.slice(0, index));
-      if (index >= prompt.length) window.clearInterval(timer);
-    }, TYPE_MS);
-
-    return () => window.clearInterval(timer);
-  }, [prompt, beatId]);
-
-  return typed;
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
-function ToolBadge({ tool }: { tool?: SmartBarSpeedTool }) {
-  const copy: Record<SmartBarSpeedTool, string> = {
-    info: "Info sheet",
-    tiles: "Action tiles",
-    selector: "Selector",
-    cart: "Cart",
-    summary: "Summary",
-    chat: "Chat thread",
+function line(id: string, title: string, priceLabel: string, knownSelections: string[] = []) {
+  return {
+    lineItemId: id,
+    id,
+    title,
+    quantity: 1,
+    priceLabel,
+    status: "ready",
+    knownSelections,
+  };
+}
+
+function readyCarryoutOrder(kind: "messy" | "qualified" | "finale" = "messy"): CarryoutOrder {
+  const comboSelections =
+    kind === "qualified"
+      ? ["Double patty", "Large fries", "Diet Coke"]
+      : ["Large fries", "Large Diet Coke", "No onions"];
+
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items: [
+      line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
+      line("apple-pie", "Apple pie", "$2.49"),
+      ...(kind === "finale" ? [] : [line("large-diet-coke", "Large Diet Coke", "$2.19")]),
+    ],
+    completeItems: [
+      line("double-cheeseburger-combo", "Double cheeseburger combo", "$11.99", comboSelections),
+      line("apple-pie", "Apple pie", "$2.49"),
+      ...(kind === "finale" ? [] : [line("large-diet-coke", "Large Diet Coke", "$2.19")]),
+    ],
+    pendingItems: [],
+    totals: {
+      status: "ready",
+      subtotal: kind === "finale" ? 14.48 : 16.67,
+      estimatedTax: kind === "finale" ? 1.16 : 1.33,
+      estimatedTotal: kind === "finale" ? 15.64 : 18.0,
+      currency: "USD",
+    },
+  };
+}
+
+function pendingCarryoutOrder(stage: 0 | 1 | 2): CarryoutOrder {
+  const burgerReady = stage >= 1;
+  const friesReady = stage >= 2;
+
+  const burger = {
+    lineItemId: "burger-combo",
+    id: "burger-combo",
+    title: "Burger combo meal",
+    quantity: 1,
+    priceLabel: burgerReady ? "$10.99" : undefined,
+    status: burgerReady ? "ready" : "needs_qualifier",
+    knownSelections: burgerReady ? ["Double patty"] : [],
+    missingQualifiers: burgerReady ? [] : [{ qualifierId: "patty", label: "Patty" }],
+    qualifierGroups: burgerReady
+      ? []
+      : [
+          {
+            qualifierId: "patty",
+            label: "Choose burger size",
+            required: true,
+            missing: true,
+            options: [
+              { label: "Single patty", value: "single" },
+              { label: "Double patty", value: "double" },
+              { label: "Triple patty", value: "triple" },
+            ],
+          },
+        ],
   };
 
-  return tool ? (
-    <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white">
-      {copy[tool]}
-    </span>
-  ) : null;
+  const fries = {
+    lineItemId: "fries-size",
+    id: "fries-size",
+    title: "Fries",
+    quantity: 1,
+    priceLabel: friesReady ? "$3.49" : undefined,
+    status: friesReady ? "ready" : "needs_qualifier",
+    knownSelections: friesReady ? ["Large fries"] : [],
+    missingQualifiers: friesReady ? [] : [{ qualifierId: "fries", label: "Fries size" }],
+    qualifierGroups: friesReady
+      ? []
+      : [
+          {
+            qualifierId: "fries",
+            label: "Choose fries",
+            required: true,
+            missing: true,
+            options: [
+              { label: "Small fries", value: "small" },
+              { label: "Medium fries", value: "medium" },
+              { label: "Large fries", value: "large" },
+            ],
+          },
+        ],
+  };
+
+  const drink = {
+    lineItemId: "drink-choice",
+    id: "drink-choice",
+    title: "Drink",
+    quantity: 1,
+    priceLabel: undefined,
+    status: "needs_qualifier",
+    knownSelections: [],
+    missingQualifiers: [{ qualifierId: "drink", label: "Drink" }],
+    qualifierGroups: [
+      {
+        qualifierId: "drink",
+        label: "Choose drink",
+        required: true,
+        missing: true,
+        options: [
+          { label: "Coke", value: "coke" },
+          { label: "Diet Coke", value: "diet-coke" },
+          { label: "Sprite", value: "sprite" },
+        ],
+      },
+    ],
+  };
+
+  const items = [burger, fries, drink];
+  return {
+    type: "carryout_order",
+    status: "needs_qualifier",
+    nextAction: "choose_qualifier",
+    items,
+    completeItems: items.filter((item) => item.status === "ready"),
+    pendingItems: items.filter((item) => item.status !== "ready"),
+    currentStep: {
+      type: "qualifier",
+      itemId: stage === 0 ? "burger-combo" : stage === 1 ? "fries-size" : "drink-choice",
+      qualifierId: stage === 0 ? "patty" : stage === 1 ? "fries" : "drink",
+      question: stage === 0 ? "Choose burger size" : stage === 1 ? "Choose fries" : "Choose drink",
+    },
+    totals: {
+      status: "partial",
+      subtotal: stage === 0 ? null : stage === 1 ? 10.99 : 14.48,
+      estimatedTax: null,
+      estimatedTotal: null,
+      currency: "USD",
+    },
+  };
 }
 
-function Callout({ text }: { text: string }) {
-  return (
-    <motion.div
-      key={text}
-      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -6, scale: 0.98 }}
-      transition={{ duration: 0.24, ease: "easeOut" }}
-      className="fixed left-4 top-4 z-[10080] max-w-[calc(100vw-2rem)] rounded-[24px] border border-white/70 bg-white/88 px-4 py-3 text-sm font-semibold leading-5 text-slate-950 shadow-[0_18px_50px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:left-8 sm:top-8 sm:max-w-sm sm:px-5 sm:py-4 sm:text-base"
-    >
-      {text}
-    </motion.div>
-  );
+function carryoutRaw(order: CarryoutOrder, commerceAction = "carryout_show_cart"): GuideAiCarryoutResponse {
+  return {
+    title: order.status === "ready_cart" ? "Review order" : "Needs choices",
+    body: order.status === "ready_cart" ? "Review the cart before checkout." : "Pick the missing choices, or open the cart to review everything.",
+    commerceAction,
+    displayMode: order.status === "ready_cart" ? "carryout_cart_panel" : "carryout_review",
+    carryoutOrder: order,
+    visibleContext: { carryoutOrder: order },
+  };
 }
 
-function SheetContent({ tool, body, chips = [] }: { tool?: SmartBarSpeedTool; body: string; chips?: string[] }) {
-  if (tool === "selector") {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm leading-6 text-slate-600">{body}</p>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            [CalendarDays, "Dates", "May 31–Jun 2"],
-            [CheckCircle2, "Guests", "2 adults"],
-          ].map(([Icon, label, value]) => {
-            const ToolIcon = Icon as typeof CalendarDays;
-            return (
-              <button key={String(label)} type="button" className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-                <ToolIcon className="h-4 w-4 text-slate-500" />
-                <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-400">{String(label)}</div>
-                <div className="text-sm font-semibold text-slate-950">{String(value)}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  if (tool === "cart") {
-    return (
-      <div className="space-y-2.5">
-        {["Double cheeseburger combo", "Large fries", "Large Diet Coke", "Apple pie"].map((item, index) => (
-          <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-sm">
-            <span className="text-sm font-semibold text-slate-800">{item}</span>
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-emerald-700">{index === 0 ? "Combo" : "Ready"}</span>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (tool === "chat") {
-    return (
-      <div className="space-y-2.5">
-        <div className="rounded-2xl bg-sky-50 px-3 py-2 text-sm font-medium text-slate-800">I need help scoping this.</div>
-        <div className="rounded-2xl bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm ring-1 ring-slate-100">Hold for next consultant...</div>
-      </div>
-    );
-  }
-
-  if (tool === "tiles") {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm leading-6 text-slate-600">{body}</p>
-        <div className="grid gap-2">
-          {(chips.length ? chips : ["Option A", "Option B", "Option C"]).map((chip, index) => (
-            <button key={chip} type="button" className={`rounded-2xl px-3 py-2 text-left text-sm font-semibold shadow-sm ring-1 transition ${index === 0 ? "bg-slate-950 text-white ring-slate-950" : "bg-white text-slate-800 ring-slate-200 hover:bg-slate-50"}`}>
-              {chip}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (tool === "summary") {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm leading-6 text-slate-600">{body}</p>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-          <div className="font-bold">Recommended path</div>
-          <div className="mt-1 leading-5">Ocean View Suite + breakfast package. Ready for booking handoff.</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm leading-6 text-slate-600">{body}</p>
-      {chips.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {chips.map((chip) => (
-            <span key={chip} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{chip}</span>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function orderResult(order: CarryoutOrder, options: { title?: string; body?: string; activeIndex?: number; reviewMode?: ReviewMode; nextQuery?: string } = {}): TourBarShellResult {
+  const raw = carryoutRaw(order);
+  return {
+    title: options.title || (order.status === "ready_cart" ? "Review order" : "Needs choices"),
+    body: options.body || (order.status === "ready_cart" ? "The cart is structured and ready for checkout." : "SmartBar turned a vague order into the next missing choice."),
+    invitation: options.nextQuery ? { kind: "next", text: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option" } : undefined,
+    nextMove: options.nextQuery ? { type: "handoff", label: options.nextQuery.startsWith("__checkout") ? "Checkout" : "Choose this option", query: options.nextQuery } : undefined,
+    canFollowUp: true,
+    mode: "speed_order",
+    action: raw.commerceAction,
+    raw: {
+      ...raw,
+      __speedDemo: {
+        activeIndex: options.activeIndex || 0,
+        reviewMode: options.reviewMode || (order.status === "ready_cart" ? "cart" : "review"),
+      },
+    },
+  };
 }
 
-function SmartBarStage({
-  typedPrompt,
-  title,
-  body,
-  chips,
-  tool,
-  finaleTool,
-}: {
-  typedPrompt: string;
-  title: string;
-  body: string;
-  chips?: string[];
-  tool?: SmartBarSpeedTool;
-  finaleTool?: SmartBarSpeedTool;
-}) {
-  const visibleTool = finaleTool || tool;
+function fixtureResult(query: string): TourBarShellResult {
+  const text = query.trim().toLowerCase();
 
+  if (text.includes("dora")) {
+    return {
+      title: "DORA readiness sits in the compliance lane",
+      body:
+        "Yes. SmartBar can explain where DORA fits, show the relevant advisory path, and move the visitor toward useful proof instead of leaving them with a generic search result.",
+      invitation: { kind: "case_studies", text: "Invite case studies" },
+      nextMove: { type: "ask_deeper", label: "Show case studies", query: "__case_studies" },
+      canFollowUp: true,
+      mode: "speed_info",
+    };
+  }
+
+  if (text === "__case_studies") {
+    return {
+      title: "Relevant proof points",
+      body: "SmartBar pivots from a service question into evidence the visitor can actually use.",
+      canFollowUp: true,
+      mode: "speed_case_studies",
+    };
+  }
+
+  if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez")) {
+    return orderResult(readyCarryoutOrder("messy"), {
+      title: "Ready cart from messy English",
+      body: "SmartBar corrected the intent, matched menu items, and built a ready checkout cart.",
+      nextQuery: "__checkout",
+    });
+  }
+
+  if (text === "__checkout") {
+    return {
+      title: "Checkout handoff ready",
+      body:
+        "The order is ready to hand off to a checkout or POS flow with the matched items, quantities, and selections preserved.",
+      canFollowUp: false,
+      mode: "speed_checkout",
+    };
+  }
+
+  if (text.includes("burger combo")) {
+    return orderResult(pendingCarryoutOrder(0), {
+      title: "One choice needed",
+      body: "SmartBar does not ask a vague follow-up. It opens the exact selector needed next.",
+      activeIndex: 0,
+      reviewMode: "review",
+      nextQuery: "__qualifier_1",
+    });
+  }
+
+  if (text === "__qualifier_1") {
+    return orderResult(pendingCarryoutOrder(1), {
+      title: "Next missing choice",
+      body: "The burger choice is captured. SmartBar advances to the fries selector.",
+      activeIndex: 1,
+      reviewMode: "review",
+      nextQuery: "__qualifier_2",
+    });
+  }
+
+  if (text === "__qualifier_2") {
+    return orderResult(pendingCarryoutOrder(2), {
+      title: "Last missing choice",
+      body: "Now SmartBar needs the drink choice before the cart can be finalized.",
+      activeIndex: 2,
+      reviewMode: "review",
+      nextQuery: "__qualifier_3",
+    });
+  }
+
+  if (text === "__qualifier_3") {
+    return orderResult(readyCarryoutOrder("qualified"), {
+      title: "Ready cart",
+      body: "The missing choices are resolved and the order is ready for checkout.",
+      nextQuery: "__checkout",
+    });
+  }
+
+  if (text.includes("nice room") || text.includes("view and breakfast")) {
+    return {
+      title: "Recommendation 1 of 3: Garden Terrace King",
+      body:
+        "A value resort-feel option with a quieter garden view. It is less expensive, but breakfast is better handled as an add-on.",
+      invitation: { kind: "next", text: "Show next recommendation" },
+      nextMove: { type: "compare_options", label: "Show next recommendation", query: "__booking_step_2" },
+      canFollowUp: true,
+      mode: "speed_booking_reco_1",
+    };
+  }
+
+  if (text === "__booking_step_2") {
+    return {
+      title: "Recommendation 2 of 3: Ocean View Suite",
+      body:
+        "Best fit: a strong view without jumping to the most expensive villa tier. Breakfast can be attached as a package.",
+      invitation: { kind: "next", text: "Show premium comparison" },
+      nextMove: { type: "compare_options", label: "Show premium comparison", query: "__booking_step_3" },
+      canFollowUp: true,
+      mode: "speed_booking_reco_2",
+    };
+  }
+
+  if (text === "__booking_step_3") {
+    return {
+      title: "Recommendation 3 of 3: Coastal Villa Suite",
+      body:
+        "The premium option has the strongest view and space, but it is more than the request needs. SmartBar keeps the Ocean View Suite as the practical recommendation.",
+      canFollowUp: true,
+      mode: "speed_booking_reco_3",
+    };
+  }
+
+  if (text.includes("breakfast")) {
+    return {
+      title: "Breakfast package added",
+      body:
+        "SmartBar pairs the Ocean View Suite with the Breakfast Flex Plan instead of forcing the visitor to browse package cards.",
+      invitation: { kind: "book", text: "Book this" },
+      nextMove: { type: "handoff", label: "Book this", query: "__booking_confirm" },
+      canFollowUp: true,
+      mode: "speed_package",
+    };
+  }
+
+  if (text === "__booking_confirm") {
+    return {
+      title: "Booking summary ready",
+      body:
+        "Room: Ocean View Suite. Package: Breakfast Flex Plan. Known preferences are preserved for the booking handoff.",
+      canFollowUp: false,
+      mode: "speed_booking_confirm",
+    };
+  }
+
+  if (text.includes("family room")) {
+    return {
+      title: "Stay details needed",
+      body:
+        "SmartBar knows the likely room family, but booking requires dates and guests before it can recommend confidently.",
+      canFollowUp: true,
+      mode: "speed_needs_context",
+    };
+  }
+
+  if (text === "__booking_after_context" || text.includes("family recommendation")) {
+    return {
+      title: "Family Double Room recommended",
+      body:
+        "With dates and 2 adults / 2 children selected, SmartBar recommends the Family Double Room with the Family Comfort Bundle.",
+      invitation: { kind: "book", text: "Book this family stay" },
+      nextMove: { type: "handoff", label: "Book this family stay", query: "__booking_confirm" },
+      canFollowUp: true,
+      mode: "speed_family_reco",
+    };
+  }
+
+  if (text.includes("action choices") || text.includes("tiles")) {
+    return {
+      title: "Action tiles",
+      body: "When a decision is needed, SmartBar returns choices instead of paragraphs.",
+      canFollowUp: false,
+      mode: "speed_tiles",
+    };
+  }
+
+  if (text.includes("cart")) {
+    return orderResult(readyCarryoutOrder("finale"), {
+      title: "Cart tool",
+      body: "A search bar can become a cart when the job is ordering.",
+    });
+  }
+
+  if (text.includes("summary")) {
+    return {
+      title: "Summary tool",
+      body: "When the user is ready to act, SmartBar packages the decision into a clean summary.",
+      canFollowUp: false,
+      mode: "speed_booking_confirm",
+    };
+  }
+
+  return {
+    title: "Info sheet",
+    body: "SmartBar is a search bar that does. It chooses the right UX tool for the next step.",
+    canFollowUp: true,
+    mode: "speed_info",
+  };
+}
+
+function CaseStudyBullets() {
   return (
-    <div className="fixed bottom-24 left-4 right-4 z-[10070] sm:bottom-auto sm:left-auto sm:right-6 sm:top-6 sm:w-[470px]">
-      <div data-tourbar-open-panel="true" className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/96 shadow-[0_22px_72px_rgba(15,23,42,0.18)] ring-1 ring-white/80 backdrop-blur-xl">
-        <div className="flex items-center gap-2 px-3 py-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
-            <Sparkles className="h-4 w-4" />
-          </div>
-          <div className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-950">
-            <span className={typedPrompt ? "" : "text-slate-400"}>{typedPrompt || "Ask SmartBar in plain English..."}</span>
-            <motion.span animate={{ opacity: [0, 1, 0] }} transition={{ repeat: Infinity, duration: 0.9 }} className="ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 bg-slate-950" />
-          </div>
-          <button type="button" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
-            <SendHorizonal className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {visibleTool && (
-          <motion.div
-            key={`${title}-${visibleTool}`}
-            data-tourbar-sheet-panel="true"
-            initial={{ opacity: 0, y: 14, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.985 }}
-            transition={{ duration: 0.34, ease: "easeOut" }}
-            className="mt-2 rounded-[28px] border border-slate-200 bg-white/96 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.16)] ring-1 ring-white/80 backdrop-blur-xl sm:mt-3"
-          >
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <ToolBadge tool={visibleTool} />
-                </div>
-                <h3 className="mt-2 text-lg font-semibold leading-6 tracking-tight text-slate-950">{title}</h3>
-              </div>
-              <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-                <X className="h-4 w-4" />
-              </button>
+    <div className="grid gap-2">
+      {[
+        [ShieldCheck, "Regulatory mapping", "Map DORA obligations to current risk and operational controls."],
+        [ListChecks, "Third-party risk", "Identify vendor dependencies, evidence gaps, and ownership."],
+        [Sparkles, "Consult-ready brief", "Package the known context before a human conversation starts."],
+      ].map(([Icon, title, body]) => {
+        const ItemIcon = Icon as typeof ShieldCheck;
+        return (
+          <div key={String(title)} className="rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
+                <ItemIcon className="h-4 w-4" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-slate-950">{String(title)}</span>
+                <span className="mt-0.5 block text-xs leading-5 text-slate-600">{String(body)}</span>
+              </span>
             </div>
-            <SheetContent tool={visibleTool} body={body} chips={chips} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function ActionTiles({ actions }: { actions: Array<{ label: string; helper: string; icon: typeof Sparkles }> }) {
+  return (
+    <div className="grid gap-2">
+      {actions.map(({ label, helper, icon: Icon }, index) => (
+        <button
+          key={label}
+          type="button"
+          className={`rounded-2xl px-3 py-2.5 text-left shadow-sm ring-1 transition ${
+            index === 0
+              ? "bg-slate-950 text-white ring-slate-950"
+              : "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50"
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${index === 0 ? "text-white" : "text-slate-500"}`} />
+            <span>
+              <span className="block text-sm font-semibold">{label}</span>
+              <span className={`mt-0.5 block text-xs leading-5 ${index === 0 ? "text-slate-200" : "text-slate-500"}`}>{helper}</span>
+            </span>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function BookingCards({ mode }: { mode?: string }) {
+  const selected = mode?.endsWith("2") || mode === "speed_package" || mode === "speed_booking_confirm";
+  const cards = [
+    { title: "Garden Terrace King", price: "$239/night", helper: "Good value, softer view", icon: Hotel },
+    { title: "Ocean View Suite", price: "$379/night", helper: "Best fit with breakfast", icon: WavesIcon },
+    { title: "Coastal Villa Suite", price: "$549/night", helper: "Premium, not needed", icon: Sparkles },
+  ];
+
+  return (
+    <div className="grid gap-2">
+      {cards.map(({ title, price, helper, icon: Icon }, index) => {
+        const active = selected ? index === 1 : index === 0;
+        return (
+          <div key={title} className={`rounded-2xl border px-3 py-2.5 shadow-sm ${active ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-950"}`}>
+            <div className="flex items-start gap-3">
+              <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${active ? "text-white" : "text-slate-500"}`} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate text-sm font-semibold">{title}</div>
+                  <div className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-700"}`}>{price}</div>
+                </div>
+                <div className={`mt-0.5 text-xs leading-5 ${active ? "text-slate-200" : "text-slate-500"}`}>{helper}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WavesIcon({ className }: { className?: string }) {
+  return <Sparkles className={className} />;
+}
+
+function PackageCard() {
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-amber-950 shadow-sm">
+      <div className="flex items-start gap-3">
+        <Coffee className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+        <div>
+          <div className="text-sm font-bold">Breakfast Flex Plan</div>
+          <div className="mt-0.5 text-xs leading-5 text-amber-800">Daily breakfast credit across cafe, buffet, and grab-and-go. +$32/night.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ family = false }: { family?: boolean }) {
+  return (
+    <div className="space-y-2">
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950 shadow-sm">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+          <div>
+            <div className="text-sm font-bold">{family ? "Family stay ready" : "Booking handoff ready"}</div>
+            <div className="mt-0.5 text-xs leading-5 text-emerald-800">
+              {family
+                ? "Family Double Room · Family Comfort Bundle · 2 adults / 2 children."
+                : "Ocean View Suite · Breakfast Flex Plan · ready for prefill."}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActions) {
+  const mode = result.mode || "";
+
+  if (mode === "speed_case_studies") return <CaseStudyBullets />;
+
+  if (mode === "speed_info") {
+    return (
+      <ActionTiles
+        actions={[
+          { label: "Explain DORA coverage", helper: "Answer the service question directly.", icon: ShieldCheck },
+          { label: "Show relevant proof", helper: "Move from search to evidence.", icon: ListChecks },
+          { label: "Prepare consult", helper: "Package the context for a person.", icon: Users },
+        ]}
+      />
+    );
+  }
+
+  if (mode === "speed_tiles") {
+    return (
+      <ActionTiles
+        actions={[
+          { label: "Open selector", helper: "Use a choice tile when one answer is needed.", icon: ListChecks },
+          { label: "Open cart", helper: "Use a cart when the user is ordering.", icon: CreditCard },
+          { label: "Open chat", helper: "Use a thread when a person is needed.", icon: Users },
+        ]}
+      />
+    );
+  }
+
+  if (mode === "speed_order") {
+    const raw = (result.raw || {}) as GuideAiCarryoutResponse & { __speedDemo?: { activeIndex?: number; reviewMode?: ReviewMode } };
+    const order = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
+    return (
+      <OrderReview
+        result={result}
+        actions={actions}
+        carryoutOrder={order}
+        activeIndex={raw.__speedDemo?.activeIndex || 0}
+        reviewMode={raw.__speedDemo?.reviewMode || "cart"}
+        onActiveIndexChange={() => undefined}
+        onReviewModeChange={() => undefined}
+        onLocalOptionSelect={() => order}
+        onSilentReprice={() => undefined}
+        onRemoveItem={() => undefined}
+        notOnMenuLabel="Not on the demo menu"
+      />
+    );
+  }
+
+  if (mode.startsWith("speed_booking_reco")) return <BookingCards mode={mode} />;
+  if (mode === "speed_package") return <PackageCard />;
+  if (mode === "speed_booking_confirm") return <SummaryCard />;
+  if (mode === "speed_family_reco") return <SummaryCard family />;
+  if (mode === "speed_checkout") return <SummaryCard />;
+
+  if (mode === "speed_needs_context") {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={() => actions.openBookingContextSheet("dates")} className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:bg-slate-50">
+          <CalendarDays className="h-4 w-4 text-slate-500" />
+          <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Dates</div>
+          <div className="text-sm font-semibold text-slate-950">Select dates</div>
+        </button>
+        <button type="button" onClick={() => actions.openBookingContextSheet("guests")} className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:bg-slate-50">
+          <Users className="h-4 w-4 text-slate-500" />
+          <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">Guests</div>
+          <div className="text-sm font-semibold text-slate-950">Add guests</div>
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export default function SmartBarSpeedDemo() {
-  const [beatIndex, setBeatIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [finaleFlashIndex, setFinaleFlashIndex] = useState(0);
-  const beat = SMARTBAR_SPEED_BEATS[beatIndex] || SMARTBAR_SPEED_BEATS[0];
-  const typedPrompt = useTypedPrompt(beat.prompt || "", beat.id);
-  const isFinale = beat.id === "finale";
-  const finaleTool = isFinale ? SMARTBAR_SPEED_TOOL_FLASHES[finaleFlashIndex % SMARTBAR_SPEED_TOOL_FLASHES.length]?.tool : undefined;
+  const [stepIndex, setStepIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
+  const commandIdRef = useRef(0);
 
-  const pointerTarget = useMemo(() => {
-    if (isFinale) return "sheet" as const;
-    if (!beat.prompt) return "bar" as const;
-    if (typedPrompt.length < (beat.prompt || "").length) return "input" as const;
-    return beat.targetId ? "target" as const : "sheet" as const;
-  }, [beat.prompt, beat.targetId, isFinale, typedPrompt.length]);
+  const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
+    commandIdRef.current += 1;
+    setDemoCommand({ id: commandIdRef.current, ...command });
+  }, []);
+
+  const typeIntoShell = useCallback(
+    async (field: "primary" | "followup" | "chat", value: string, cancelled: () => boolean) => {
+      const type = field === "primary" ? "setPrimary" : field === "followup" ? "setFollowUp" : "setChatDraft";
+      sendCommand({ type, value: "" });
+      await wait(80);
+
+      for (let index = 1; index <= value.length; index += 1) {
+        if (cancelled()) return;
+        sendCommand({ type, value: value.slice(0, index) });
+        await wait(TYPE_DELAY_MS);
+      }
+    },
+    [sendCommand],
+  );
+
+  const runCommand = useCallback(
+    async (command: SmartBarSpeedCommand, cancelled: () => boolean) => {
+      if (command.delayMs) await wait(command.delayMs);
+      if (cancelled()) return;
+
+      if (command.kind === "pause") return;
+      if (command.kind === "typePrimary") return typeIntoShell("primary", command.value, cancelled);
+      if (command.kind === "typeFollowUp") return typeIntoShell("followup", command.value, cancelled);
+      if (command.kind === "typeChat") return typeIntoShell("chat", command.value, cancelled);
+      if (command.kind === "submitPrimary") {
+        sendCommand({ type: "submitPrimary", value: command.value });
+        return;
+      }
+      if (command.kind === "submitFollowUp") {
+        sendCommand({ type: "submitFollowUp", value: command.value });
+        return;
+      }
+      if (command.kind === "submitChat") {
+        sendCommand({ type: "submitChat", value: command.value });
+        return;
+      }
+      if (command.kind === "openBookingContext") {
+        sendCommand({ type: "openBookingContext", field: command.field });
+        return;
+      }
+      if (command.kind === "shell") {
+        sendCommand({ type: command.type });
+      }
+    },
+    [sendCommand, typeIntoShell],
+  );
 
   useEffect(() => {
-    if (!isPlaying) return;
-    const timer = window.setTimeout(() => {
-      setBeatIndex((current) => (current + 1) % SMARTBAR_SPEED_BEATS.length);
-    }, BEAT_MS);
-    return () => window.clearTimeout(timer);
-  }, [beatIndex, isPlaying]);
+    let cancelled = false;
+    const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
 
-  useEffect(() => {
-    if (!isFinale) {
-      setFinaleFlashIndex(0);
-      return;
-    }
-    const timer = window.setInterval(() => {
-      setFinaleFlashIndex((index) => index + 1);
-    }, 720);
-    return () => window.clearInterval(timer);
-  }, [isFinale]);
+    const run = async () => {
+      for (const command of currentStep.commands) {
+        if (cancelled) return;
+        await runCommand(command, () => cancelled);
+      }
 
-  useEffect(() => {
-    if (!beat.targetId) return;
-    const delay = beat.prompt ? Math.min(1400, 420 + beat.prompt.length * TYPE_MS) : 520;
-    const timer = window.setTimeout(() => {
-      void smartbarFocusTarget(
-        { targetId: beat.targetId, label: beat.label },
-        { initialDelayMs: 0, overlayDurationMs: 1500, dispatchLegacyEvent: false, scrollBehavior: "smooth" },
-      );
-    }, delay);
-    return () => window.clearTimeout(timer);
-  }, [beat.id, beat.targetId, beat.prompt, beat.label]);
+      if (!cancelled && isPlaying) {
+        await wait(650);
+        if (cancelled) return;
+        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) setStepIndex((index) => index + 1);
+        else setIsPlaying(false);
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPlaying, runCommand, stepIndex]);
+
+  const onPrimarySubmit = async (query: string, _context: TourBarShellTurnContext) => {
+    await wait(FIXTURE_THINKING_MS);
+    return fixtureResult(query);
+  };
+
+  const onFollowUpSubmit = async (query: string, _context: TourBarShellTurnContext) => {
+    await wait(FIXTURE_THINKING_MS);
+    return fixtureResult(query);
+  };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-slate-950">
-      <SmartBarSpeedTargetWall />
-      <AnimatePresence mode="wait">
-        <Callout key={beat.callout} text={beat.callout} />
-      </AnimatePresence>
-      <SmartBarStage
-        typedPrompt={typedPrompt}
-        title={isFinale ? SMARTBAR_SPEED_TOOL_FLASHES[finaleFlashIndex % SMARTBAR_SPEED_TOOL_FLASHES.length]?.label || beat.title : beat.title}
-        body={beat.body}
-        chips={beat.chips}
-        tool={beat.tool}
-        finaleTool={finaleTool}
-      />
-      <SmartBarDemoPointer target={pointerTarget} />
+    <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.28] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+
+      <div className="fixed right-6 top-6 z-[10070] h-9 w-9">
+        <TourBarShell
+          primaryPlaceholder="Ask SmartBar in plain English..."
+          followUpPlaceholder="Ask a follow-up..."
+          launcherTitle="SmartBar speed demo"
+          launcherAriaLabel="Open SmartBar speed demo"
+          resultEyebrow="SmartBar response"
+          initialLoadingMessage="Choosing the right tool..."
+          followUpLoadingMessage="Switching tools..."
+          consultantChat={{
+            enabled: true,
+            title: "Talk to a consultant",
+            placeholder: "Send a quick note...",
+            waitingMessage: "Hold for next consultant...",
+            confirmationMessage: "Thanks — someone will be with you shortly.",
+          }}
+          demoCommand={demoCommand}
+          onPrimarySubmit={onPrimarySubmit}
+          onFollowUpSubmit={onFollowUpSubmit}
+          renderResultExtras={renderSpeedExtras}
+          buildThreadMessage={(result) => [result.title, result.body].filter(Boolean).join("\n")}
+        />
+      </div>
+
       <SmartBarDemoScrubber
-        index={beatIndex}
+        index={stepIndex}
         isPlaying={isPlaying}
         onSelect={(index) => {
-          setBeatIndex(index);
           setIsPlaying(false);
+          setStepIndex(index);
         }}
-        onTogglePlay={() => setIsPlaying((value) => !value)}
+        onTogglePlay={() => setIsPlaying((playing) => !playing)}
       />
-      <div className="fixed bottom-[5.75rem] right-4 z-[10089] hidden rounded-full border border-white/70 bg-white/84 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 shadow-sm backdrop-blur md:block">
-        {beat.chapter} · {beat.label}
-      </div>
-    </div>
+    </main>
   );
 }

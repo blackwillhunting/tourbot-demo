@@ -99,6 +99,27 @@ export type TourBarConsultantChatConfig = TourBarConsultantChatCopy & {
   enabled?: boolean;
 };
 
+export type TourBarShellDemoCommand = {
+  id: number;
+  type:
+    | "open"
+    | "closeBar"
+    | "closeSheet"
+    | "closeChat"
+    | "closeAll"
+    | "setPrimary"
+    | "submitPrimary"
+    | "setFollowUp"
+    | "submitFollowUp"
+    | "runNextMove"
+    | "openChat"
+    | "setChatDraft"
+    | "submitChat"
+    | "openBookingContext";
+  value?: string;
+  field?: TourBarRequiredBookingField;
+};
+
 export type TourBarShellProps = {
   primaryPlaceholder?: string;
   followUpPlaceholder?: string;
@@ -109,6 +130,7 @@ export type TourBarShellProps = {
   followUpLoadingMessage?: string;
   requireBookingContext?: boolean;
   consultantChat?: TourBarConsultantChatConfig;
+  demoCommand?: TourBarShellDemoCommand | null;
   onPrimarySubmit: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   onFollowUpSubmit?: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
   getNextMoveTurnKind?: (nextMove: TourBarNextMove | undefined, currentResult: TourBarShellResult | null) => TourBarShellTurnKind;
@@ -361,6 +383,7 @@ export default function TourBarShell({
   followUpLoadingMessage = "Thinking through that follow-up…",
   requireBookingContext = false,
   consultantChat,
+  demoCommand,
   onPrimarySubmit,
   onFollowUpSubmit,
   getNextMoveTurnKind,
@@ -698,6 +721,19 @@ export default function TourBarShell({
     setBookingContextReturnResult(null);
   };
 
+  const closeChat = () => {
+    setConsultantChatOpen(false);
+    setConsultantChatDraft("");
+    setConsultantChatWaiting(false);
+  };
+
+  const closeAll = () => {
+    closeSheet();
+    closeChat();
+    setIsOpen(false);
+    setQuery("");
+  };
+
   const runNextMove = async () => {
     const activeResult = result;
     const nextMove = activeResult?.nextMove;
@@ -726,6 +762,75 @@ export default function TourBarShell({
 
     void submitFollowUp(nextQuery);
   };
+
+  useEffect(() => {
+    if (!demoCommand) return;
+
+    switch (demoCommand.type) {
+      case "open":
+        setIsOpen(true);
+        return;
+      case "closeBar":
+        setIsOpen(false);
+        return;
+      case "closeSheet":
+        closeSheet();
+        return;
+      case "closeChat":
+        closeChat();
+        return;
+      case "closeAll":
+        closeAll();
+        return;
+      case "setPrimary":
+        setIsOpen(true);
+        setQuery(demoCommand.value || "");
+        return;
+      case "submitPrimary":
+        setIsOpen(true);
+        void submitQuery(demoCommand.value || query);
+        return;
+      case "setFollowUp":
+        setIsOpen(true);
+        setFollowUp(demoCommand.value || "");
+        return;
+      case "submitFollowUp":
+        setIsOpen(true);
+        void submitFollowUp(demoCommand.value || followUp);
+        return;
+      case "runNextMove":
+        setIsOpen(true);
+        void runNextMove();
+        return;
+      case "openChat":
+        activateConsultantChat();
+        return;
+      case "setChatDraft":
+        if (consultantChatIsEnabled(consultantChat)) {
+          setConsultantChatAvailable(true);
+          setConsultantChatOpen(true);
+          setIsOpen(true);
+          setConsultantChatDraft(demoCommand.value || "");
+        }
+        return;
+      case "submitChat":
+        if (consultantChatIsEnabled(consultantChat)) {
+          setConsultantChatAvailable(true);
+          setConsultantChatOpen(true);
+          setIsOpen(true);
+          submitConsultantChatMessage(demoCommand.value || consultantChatDraft);
+        }
+        return;
+      case "openBookingContext":
+        if (demoCommand.field) {
+          setIsOpen(true);
+          openBookingContextSheet(demoCommand.field);
+        }
+        return;
+      default:
+        return;
+    }
+  }, [demoCommand?.id]);
 
   const sheetVisible = isLoading || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
   const consultantChatVisible = consultantChatIsEnabled(consultantChat) && consultantChatOpen;

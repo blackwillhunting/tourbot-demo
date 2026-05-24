@@ -1,145 +1,182 @@
-import {
-  CalendarCheck,
-  CheckCircle2,
-  ClipboardList,
-  MessageSquare,
-  Search,
-  ShoppingCart,
-  Sparkles,
-  type LucideIcon,
-} from "lucide-react";
+import type { TourBarRequiredBookingField } from "../tourbarBookingContext";
 
-export type SmartBarSpeedTool = "info" | "tiles" | "selector" | "cart" | "summary" | "chat";
+export type SmartBarSpeedCommand =
+  | { kind: "shell"; type: "open" | "closeBar" | "closeSheet" | "closeChat" | "closeAll" | "runNextMove" | "openChat"; delayMs?: number }
+  | { kind: "typePrimary"; value: string; delayMs?: number }
+  | { kind: "submitPrimary"; value?: string; delayMs?: number }
+  | { kind: "typeFollowUp"; value: string; delayMs?: number }
+  | { kind: "submitFollowUp"; value?: string; delayMs?: number }
+  | { kind: "openBookingContext"; field: TourBarRequiredBookingField; delayMs?: number }
+  | { kind: "typeChat"; value: string; delayMs?: number }
+  | { kind: "submitChat"; value?: string; delayMs?: number }
+  | { kind: "pause"; delayMs: number };
 
-export type SmartBarSpeedBeat = {
+export type SmartBarSpeedStep = {
   id: string;
-  chapter: "Open" | "Discovery" | "Ordering" | "Booking" | "Finale";
+  chapter: string;
   label: string;
-  prompt?: string;
-  targetId?: string;
-  tool?: SmartBarSpeedTool;
-  title: string;
-  body: string;
-  callout: string;
-  calloutTone?: "before" | "during" | "after";
-  chips?: string[];
-  icon: LucideIcon;
+  helper: string;
+  commands: SmartBarSpeedCommand[];
 };
 
-export const SMARTBAR_SPEED_BEATS: SmartBarSpeedBeat[] = [
+export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
   {
     id: "open",
-    chapter: "Open",
-    label: "A search bar that does",
-    title: "SmartBar reads intent and picks a tool.",
-    body: "One compact input can navigate, explain, collect choices, build carts, summarize, and hand off.",
-    callout: "A search bar that does.",
-    calloutTone: "before",
-    icon: Sparkles,
-    tool: "info",
+    chapter: "Launch",
+    label: "Open SmartBar",
+    helper: "Start with the actual launcher and real shell mechanics.",
+    commands: [
+      { kind: "shell", type: "closeAll", delayMs: 100 },
+      { kind: "shell", type: "open", delayMs: 450 },
+    ],
   },
   {
-    id: "discovery-dora",
+    id: "dora",
     chapter: "Discovery",
-    label: "Understand the target",
-    prompt: "Do you help with DORA and third-party risk?",
-    targetId: "speed-nexa-dora",
-    tool: "info",
-    title: "DORA readiness is the strongest match.",
-    body: "SmartBar does more than route to a service card. It explains why this lane fits, surfaces related risk work, and offers a clean consult path.",
-    callout: "Search finds the target. SmartBar handles what comes next.",
-    calloutTone: "after",
-    chips: ["Compare related services", "Show intake questions", "Talk to a consultant"],
-    icon: Search,
+    label: "Ask about DORA",
+    helper: "Plain English turns into an info sheet with a next action.",
+    commands: [
+      { kind: "typePrimary", value: "Do you help with DORA regulations?", delayMs: 250 },
+      { kind: "submitPrimary", delayMs: 900 },
+      { kind: "pause", delayMs: 1700 },
+    ],
   },
   {
-    id: "discovery-chat",
+    id: "case-studies",
     chapter: "Discovery",
-    label: "Human handoff",
-    prompt: "Can I talk to someone?",
-    targetId: "speed-nexa-handoff",
-    tool: "chat",
-    title: "Hold for next consultant...",
-    body: "A chat thread opens only when the visitor asks for help or accepts a handoff.",
-    callout: "When it is time for a person, SmartBar changes tools.",
-    calloutTone: "during",
-    chips: ["Send intake note", "Attach context", "Keep exploring"],
-    icon: MessageSquare,
+    label: "Click case studies",
+    helper: "The sheet retracts and pivots to a deeper content sheet.",
+    commands: [
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1800 },
+    ],
   },
   {
-    id: "ordering-typo",
+    id: "consultant-chat",
+    chapter: "Handoff",
+    label: "Open chat thread",
+    helper: "A human handoff becomes a chat sheet, not a text-only answer.",
+    commands: [
+      { kind: "typeFollowUp", value: "can i speak with someone", delayMs: 250 },
+      { kind: "submitFollowUp", delayMs: 820 },
+      { kind: "typeChat", value: "interested in pricing", delayMs: 1300 },
+      { kind: "submitChat", delayMs: 700 },
+      { kind: "pause", delayMs: 2500 },
+      { kind: "shell", type: "closeChat", delayMs: 350 },
+    ],
+  },
+  {
+    id: "complete-order",
     chapter: "Ordering",
-    label: "Messy input to cart",
-    prompt: "dbl chzbrger combo lg friez diet coke apple pie",
-    targetId: "speed-burger-combo",
-    tool: "cart",
-    title: "Messy input became a structured cart.",
-    body: "SmartBar understood the order, normalized the items, and built the fastest path to review instead of forcing menu browsing.",
-    callout: "Messy input. Structured output.",
-    calloutTone: "after",
-    chips: ["Large fries", "Large Diet Coke", "Add apple pie"],
-    icon: ShoppingCart,
+    label: "Messy order to cart",
+    helper: "Typo-filled intent becomes a structured ready cart.",
+    commands: [
+      { kind: "typePrimary", value: "dbl chzbrger combo lg friez diet coke apple pie", delayMs: 250 },
+      { kind: "submitPrimary", delayMs: 1000 },
+      { kind: "pause", delayMs: 1900 },
+    ],
   },
   {
-    id: "ordering-selector",
+    id: "checkout",
     chapter: "Ordering",
-    label: "Missing choice",
-    prompt: "make the drink a large diet coke",
-    targetId: "speed-burger-selector",
-    tool: "tiles",
-    title: "SmartBar asks only for the missing choice.",
-    body: "Instead of another paragraph, the right response is a set of fast action tiles.",
-    callout: "The response is not always text.",
-    calloutTone: "during",
-    chips: ["Diet Coke", "Lemonade", "Iced tea"],
-    icon: ClipboardList,
+    label: "Checkout handoff",
+    helper: "A cart action becomes a final handoff sheet.",
+    commands: [
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1700 },
+    ],
   },
   {
-    id: "booking-optimize",
+    id: "incomplete-order",
+    chapter: "Ordering",
+    label: "Incomplete order",
+    helper: "Missing choices become action tiles instead of a dead end.",
+    commands: [
+      { kind: "typePrimary", value: "burger combo meal", delayMs: 250 },
+      { kind: "submitPrimary", delayMs: 900 },
+      { kind: "pause", delayMs: 1400 },
+    ],
+  },
+  {
+    id: "qualifiers",
+    chapter: "Ordering",
+    label: "Resolve choices",
+    helper: "The same sheet flow walks through qualifiers and returns to a cart.",
+    commands: [
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1100 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1100 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1800 },
+    ],
+  },
+  {
+    id: "booking-complete",
     chapter: "Booking",
     label: "Optimized booking",
-    prompt: "nice room with a view and breakfast, not most expensive",
-    targetId: "speed-domi-room",
-    tool: "summary",
-    title: "Ocean View + breakfast is the best fit.",
-    body: "SmartBar weighs view, price, and package fit, then produces the shortest booking path instead of a long list of rooms.",
-    callout: "One request. Multiple constraints. One next move.",
-    calloutTone: "before",
-    chips: ["Ocean View Suite", "Breakfast package", "Prepare summary"],
-    icon: CalendarCheck,
+    helper: "One request produces ranked room/package recommendations.",
+    commands: [
+      { kind: "typePrimary", value: "nice room with a view and breakfast, not the most expensive option", delayMs: 250 },
+      { kind: "submitPrimary", delayMs: 1000 },
+      { kind: "pause", delayMs: 1500 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 900 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1400 },
+    ],
   },
   {
-    id: "booking-selector",
+    id: "booking-breakfast",
     chapter: "Booking",
-    label: "Collect details",
-    prompt: "book it for next weekend for 2 adults",
-    targetId: "speed-domi-selector",
-    tool: "selector",
-    title: "Dates and guests become selectors.",
-    body: "When the next best tool is a selector, SmartBar becomes a selector instead of pretending text is enough.",
-    callout: "SmartBar pulls the right tool from the bag.",
-    calloutTone: "during",
-    chips: ["Set dates", "2 adults", "Prepare booking"],
-    icon: CheckCircle2,
+    label: "Add breakfast + book",
+    helper: "A follow-up pivots to a package, then a booking confirmation.",
+    commands: [
+      { kind: "typeFollowUp", value: "add breakfast", delayMs: 250 },
+      { kind: "submitFollowUp", delayMs: 900 },
+      { kind: "pause", delayMs: 1400 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+      { kind: "pause", delayMs: 1700 },
+    ],
+  },
+  {
+    id: "booking-incomplete",
+    chapter: "Booking",
+    label: "Missing dates + guests",
+    helper: "Incomplete booking intent opens actual selector sheets.",
+    commands: [
+      { kind: "typePrimary", value: "need a family room", delayMs: 250 },
+      { kind: "submitPrimary", delayMs: 850 },
+      { kind: "openBookingContext", field: "dates", delayMs: 1100 },
+      { kind: "pause", delayMs: 1500 },
+      { kind: "openBookingContext", field: "guests", delayMs: 400 },
+      { kind: "pause", delayMs: 1500 },
+      { kind: "submitPrimary", value: "show family recommendation", delayMs: 500 },
+      { kind: "pause", delayMs: 1500 },
+      { kind: "shell", type: "runNextMove", delayMs: 350 },
+    ],
   },
   {
     id: "finale",
     chapter: "Finale",
-    label: "Toolbelt finale",
-    title: "A search bar with a toolbelt.",
-    body: "Info sheets, action tiles, selectors, carts, summaries, and chat threads — all from one compact SmartBar.",
-    callout: "A search bar with a toolbelt.",
-    calloutTone: "after",
-    icon: Sparkles,
-    tool: "info",
+    label: "Search bar with a toolbelt",
+    helper: "One compact shell produces the right UX tool for the job.",
+    commands: [
+      { kind: "submitPrimary", value: "show me the short version", delayMs: 300 },
+      { kind: "pause", delayMs: 850 },
+      { kind: "submitPrimary", value: "show action choices", delayMs: 250 },
+      { kind: "pause", delayMs: 850 },
+      { kind: "openBookingContext", field: "dates", delayMs: 250 },
+      { kind: "pause", delayMs: 850 },
+      { kind: "submitPrimary", value: "show my cart", delayMs: 250 },
+      { kind: "pause", delayMs: 850 },
+      { kind: "submitPrimary", value: "summarize this", delayMs: 250 },
+      { kind: "pause", delayMs: 850 },
+      { kind: "shell", type: "openChat", delayMs: 250 },
+      { kind: "typeChat", value: "Send this to a specialist", delayMs: 600 },
+      { kind: "submitChat", delayMs: 500 },
+      { kind: "pause", delayMs: 1300 },
+      { kind: "shell", type: "closeAll", delayMs: 600 },
+    ],
   },
-];
-
-export const SMARTBAR_SPEED_TOOL_FLASHES: Array<{ tool: SmartBarSpeedTool; label: string }> = [
-  { tool: "info", label: "Info sheet" },
-  { tool: "tiles", label: "Action tiles" },
-  { tool: "selector", label: "Selectors" },
-  { tool: "cart", label: "Cart" },
-  { tool: "summary", label: "Summary" },
-  { tool: "chat", label: "Chat thread" },
 ];

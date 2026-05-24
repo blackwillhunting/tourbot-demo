@@ -18,7 +18,7 @@ export type TourBarOrderingFocusTarget = {
   label?: string;
 };
 
-type CarryoutQualifierOption = {
+export type CarryoutQualifierOption = {
   label?: string;
   value?: string;
   qualifierId?: string;
@@ -29,7 +29,7 @@ type CarryoutQualifierOption = {
   state?: string;
 };
 
-type CarryoutQualifierGroup = {
+export type CarryoutQualifierGroup = {
   kind?: string;
   qualifierId?: string;
   label?: string;
@@ -43,7 +43,7 @@ type CarryoutQualifierGroup = {
   options?: CarryoutQualifierOption[];
 };
 
-type CarryoutLine = {
+export type CarryoutLine = {
   lineItemId?: string;
   id?: string;
   title?: string;
@@ -60,7 +60,7 @@ type CarryoutLine = {
   qualifierGroups?: CarryoutQualifierGroup[];
 };
 
-type CannotMatchItem = {
+export type CannotMatchItem = {
   text?: string;
   label?: string;
   title?: string;
@@ -69,7 +69,7 @@ type CannotMatchItem = {
   suggestion?: string;
 };
 
-type CarryoutOrder = {
+export type CarryoutOrder = {
   type?: string;
   status?: "ready_cart" | "needs_qualifier" | "cannot_match" | string;
   nextAction?: string;
@@ -98,7 +98,7 @@ type CarryoutOrder = {
   };
 };
 
-type SuggestedAction = {
+export type SuggestedAction = {
   type?: string;
   targetId?: string;
   targetSelector?: string;
@@ -110,7 +110,7 @@ type SuggestedAction = {
   reviewCount?: number | null;
 };
 
-type StepNarrative = {
+export type StepNarrative = {
   targetId?: string;
   targetText?: string;
   body?: string;
@@ -121,7 +121,7 @@ type StepNarrative = {
   reviewCount?: number | null;
 };
 
-type GuideAiCarryoutResponse = {
+export type GuideAiCarryoutResponse = {
   title?: string;
   answer?: string;
   body?: string;
@@ -144,7 +144,7 @@ type PageSection = {
   summary: string;
 };
 
-type ReviewItem = {
+export type ReviewItem = {
   key: string;
   index: number;
   line: CarryoutLine;
@@ -834,7 +834,7 @@ function orderNeedsBackendReprice(order: CarryoutOrder | null) {
   return lines.some((line) => !linePrice(line));
 }
 
-type ReviewMode = "review" | "cart";
+export type ReviewMode = "review" | "cart";
 
 function formatPriceDelta(value?: number | null) {
   if (typeof value !== "number" || !Number.isFinite(value) || value === 0) return "";
@@ -924,7 +924,7 @@ function navigateToItem(
   });
 }
 
-function OrderReview({
+export function OrderReview({
   result,
   actions,
   carryoutOrder,
