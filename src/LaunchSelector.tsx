@@ -16,11 +16,12 @@ import {
   Search,
   ShoppingCart,
   Sparkles,
+  Utensils,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
 
-type CloseMode = "transactional" | "carryout";
+type CloseMode = "transactional" | "carryout" | "restaurant";
 
 type WalkthroughMessage = {
   label: string;
@@ -137,6 +138,30 @@ carryout: [
     iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
   },
 ],
+restaurant: [
+  {
+    label: "Customer site adapted",
+    message:
+      "**TourBot** adapts to large customer restaurant sites, turning broad menu pages into a focused order path.",
+    icon: MessageSquare,
+    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
+  },
+  {
+    label: "Navigation learned",
+    message:
+      "**TourBot** maps a public site in minutes and uses existing elements as its guide anchors — no code changes or plug-ins required.",
+    icon: Route,
+    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+  },
+  {
+    label: "Checkout handoff",
+    message:
+      "When the restaurant’s cart or POS supports it, **TourBot** prefills the order for checkout — creating a faster path from “I want…” to paid order.",
+    icon: ShoppingCart,
+    iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
+  },
+],
+
 };
 
 const THINKING_WIGGLE_DURATION = 1.35;
@@ -236,7 +261,7 @@ function getSafeReturnTo() {
     if (target.origin !== window.location.origin) return "";
 
     const targetPath = target.pathname.replace(/\/$/, "") || "/";
-    const allowedPaths = new Set(["/transactional", "/carryout", "/informational"]);
+    const allowedPaths = new Set(["/transactional", "/carryout", "/restaurant", "/informational"]);
     if (!allowedPaths.has(targetPath)) return "";
 
     return `${target.pathname}${target.search}${target.hash}`;
@@ -340,6 +365,7 @@ function initialCloseMode(): CloseMode | null {
   const close = new URLSearchParams(window.location.search).get("close");
   if (close === "transactional") return "transactional";
   if (close === "carryout" || close === "informational") return "carryout";
+  if (close === "restaurant") return "restaurant";
   return null;
 }
 
@@ -548,13 +574,20 @@ function LaunchMessage({
         </div>
 
         {message.demoButtons && (
-          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
             <DemoLaunchButton
               href="/carryout?mode=self_drive"
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="BurgerRush"
               description="Food ordering demo"
+            />
+            <DemoLaunchButton
+              href="/restaurant"
+              icon={Utensils}
+              eyebrow="Customer site"
+              title="Grand Cheesecake"
+              description="Large-menu restaurant stand-in"
             />
             <DemoLaunchButton
               href="/transactional?mode=self_drive"

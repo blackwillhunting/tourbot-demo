@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import AppCommerce from "./App-Commerce";
 import AppCarryout from "./App-Carryout";
+import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
 import "./index.css";
 
@@ -158,6 +159,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <AppCarryout />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/restaurant") {
+    return (
+      <ProtectedDemoRoute>
+        <AppCustomerCarryout />
       </ProtectedDemoRoute>
     );
   }

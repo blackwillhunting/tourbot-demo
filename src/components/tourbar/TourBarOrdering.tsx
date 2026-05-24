@@ -157,19 +157,25 @@ type ReviewItem = {
   narrative?: StepNarrative;
 };
 
-const guideConfig = {
-  mode: "commerce",
-  label: "BurgerRush Carryout",
-  catalogMode: "carryout_ordering",
-  features: {
-    refinementChips: true,
-    bookingActions: true,
-    navigation: true,
-  },
-  packIds: {
-    catalog: "carryout_cart_catalog",
-  },
-};
+const DEFAULT_SITE_LABEL = "BurgerRush Carryout";
+const DEFAULT_ORDER_TITLE = "BurgerRush order";
+const DEFAULT_NOT_ON_MENU_LABEL = "Not on the BurgerRush menu";
+
+function buildGuideConfig(siteLabel = DEFAULT_SITE_LABEL) {
+  return {
+    mode: "commerce",
+    label: siteLabel,
+    catalogMode: "carryout_ordering",
+    features: {
+      refinementChips: true,
+      bookingActions: true,
+      navigation: true,
+    },
+    packIds: {
+      catalog: "carryout_cart_catalog",
+    },
+  };
+}
 
 function getTourBotDemoToken() {
   if (typeof window === "undefined") return "";
@@ -218,6 +224,7 @@ async function postGuideAi(
   message: string,
   carryoutOrder: CarryoutOrder | null,
   thread: TourBarThreadMessage[],
+  siteLabel = DEFAULT_SITE_LABEL,
 ) {
   const recentUserMessages = thread
     .filter((item) => item.role === "visitor")
@@ -231,7 +238,7 @@ async function postGuideAi(
     headers: buildGuideAiHeaders(),
     body: JSON.stringify({
       mode: "commerce",
-      guideConfig,
+      guideConfig: buildGuideConfig(siteLabel),
       message,
       conversationContext: {
         singleTurn: thread.length === 0,
@@ -569,7 +576,7 @@ function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder |
   );
 }
 
-function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
+function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null, fallbackTitle = DEFAULT_ORDER_TITLE) {
   const action = response.commerceAction || "";
   const status = order?.status || "";
 
@@ -580,7 +587,7 @@ function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null
   if (status === "needs_qualifier" || action.includes("needs_qualifier")) return "Needs choices";
   if (status === "cannot_match" || action.includes("cannot_match")) return "Could not match that order";
   if (action.includes("show_cart")) return "Review order";
-  return response.title || "BurgerRush order";
+  return response.title || fallbackTitle;
 }
 
 function bodyFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
@@ -616,18 +623,18 @@ function invitationFor(order: CarryoutOrder | null, response: GuideAiCarryoutRes
   return undefined;
 }
 
-function toShellResult(response: GuideAiCarryoutResponse): TourBarShellResult {
+function toShellResult(response: GuideAiCarryoutResponse, fallbackTitle = DEFAULT_ORDER_TITLE): TourBarShellResult {
   const order = extractCarryoutOrder(response);
   const invitation = invitationFor(order, response);
 
   return {
-    title: titleFor(response, order),
+    title: titleFor(response, order, fallbackTitle),
     body: bodyFor(response, order),
     invitation: invitation?.invitation,
     nextMove: invitation?.nextMove,
     canFollowUp: true,
     targetId: primaryTarget(response, order),
-    label: response.suggestedAction?.targetText || titleFor(response, order),
+    label: response.suggestedAction?.targetText || titleFor(response, order, fallbackTitle),
     mode: response.displayMode,
     action: response.commerceAction,
     raw: response,
@@ -877,10 +884,10 @@ function cannotMatchLabel(item: CannotMatchItem) {
   return String(item.text || item.label || item.title || item.item || "Requested item").replace(/\s+/g, " ").trim();
 }
 
-function cannotMatchReason(item: CannotMatchItem) {
+function cannotMatchReason(item: CannotMatchItem, notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL) {
   const reason = String(item.reason || "not_on_menu").replace(/[_-]+/g, " ").trim().toLowerCase();
-  if (!reason || reason === "not on menu") return "Not on the BurgerRush menu";
-  if (reason === "no matching catalog offer or bundle") return "Not on the BurgerRush menu";
+  if (!reason || reason === "not on menu") return notOnMenuLabel;
+  if (reason === "no matching catalog offer or bundle") return notOnMenuLabel;
   return reason.charAt(0).toUpperCase() + reason.slice(1);
 }
 
@@ -924,6 +931,7 @@ function OrderReview({
   onSilentReprice,
   onRemoveItem,
   onNavigateToFocus,
+  notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
 }: {
   result: TourBarShellResult;
   actions: TourBarShellActions;
@@ -936,6 +944,7 @@ function OrderReview({
   onSilentReprice: (order: CarryoutOrder | null) => void;
   onRemoveItem: (item: ReviewItem) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
+  notOnMenuLabel?: string;
 }) {
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
   const order = carryoutOrder || extractCarryoutOrder(response);
@@ -1107,7 +1116,7 @@ function OrderReview({
                     {cannotMatchLabel(entry)}
                   </div>
                   <div className="mt-0.5 text-[11px] leading-4 text-amber-800">
-                    {cannotMatchReason(entry)}. Left out of the matched cart.
+                    {cannotMatchReason(entry, notOnMenuLabel)}. Left out of the matched cart.
                   </div>
                   {entry.suggestion && (
                     <div className="mt-1 text-[11px] font-semibold text-amber-900">
@@ -1384,11 +1393,33 @@ function messageFromResult(result: TourBarShellResult) {
   return [result.title, result.body, cartLine].filter(Boolean).join("\n");
 }
 
+export type TourBarOrderingProps = {
+  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
+  siteLabel?: string;
+  orderTitle?: string;
+  notOnMenuLabel?: string;
+  primaryPlaceholder?: string;
+  followUpPlaceholder?: string;
+  launcherTitle?: string;
+  launcherAriaLabel?: string;
+  resultEyebrow?: string;
+  initialLoadingMessage?: string;
+  followUpLoadingMessage?: string;
+};
+
 export default function TourBarOrdering({
   onNavigateToFocus,
-}: {
-  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
-}) {
+  siteLabel = DEFAULT_SITE_LABEL,
+  orderTitle = DEFAULT_ORDER_TITLE,
+  notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
+  primaryPlaceholder = "Tell TourBar your BurgerRush order...",
+  followUpPlaceholder = "Add items, pick choices, or say checkout...",
+  launcherTitle = "TourBar carryout ordering",
+  launcherAriaLabel = "Open TourBar carryout ordering",
+  resultEyebrow = "BurgerRush order",
+  initialLoadingMessage = "Building your BurgerRush draft cart…",
+  followUpLoadingMessage = "Updating your order…",
+}: TourBarOrderingProps) {
   const [carryoutOrder, setCarryoutOrder] = useState<CarryoutOrder | null>(null);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("review");
@@ -1438,7 +1469,7 @@ export default function TourBarOrdering({
     if (!nextOrder) return;
 
     try {
-      const response = await postGuideAi("show cart", nextOrder, []);
+      const response = await postGuideAi("show cart", nextOrder, [], siteLabel);
       const repricedOrder = extractCarryoutOrder(response);
       if (!repricedOrder) return;
 
@@ -1456,7 +1487,7 @@ export default function TourBarOrdering({
   };
 
   const submit = async (query: string, thread: TourBarThreadMessage[]) => {
-    const response = await postGuideAi(query, carryoutOrder, thread);
+    const response = await postGuideAi(query, carryoutOrder, thread, siteLabel);
     const nextOrder = extractCarryoutOrder(response);
     if (response.visibleContext && "carryoutOrder" in response.visibleContext) {
       setCarryoutOrder(nextOrder);
@@ -1471,18 +1502,18 @@ export default function TourBarOrdering({
     const cannotCount = nextOrder?.cannotMatchItems?.length || 0;
     setReviewMode(pendingIndex >= 0 ? "review" : nextItems.length > 0 || cannotCount > 0 ? "cart" : "review");
 
-    return toShellResult(response);
+    return toShellResult(response, orderTitle);
   };
 
   return (
     <TourBarShell
-      primaryPlaceholder="Tell TourBar your BurgerRush order..."
-      followUpPlaceholder="Add items, pick choices, or say checkout..."
-      launcherTitle="TourBar carryout ordering"
-      launcherAriaLabel="Open TourBar carryout ordering"
-      resultEyebrow="BurgerRush order"
-      initialLoadingMessage="Building your BurgerRush draft cart…"
-      followUpLoadingMessage="Updating your order…"
+      primaryPlaceholder={primaryPlaceholder}
+      followUpPlaceholder={followUpPlaceholder}
+      launcherTitle={launcherTitle}
+      launcherAriaLabel={launcherAriaLabel}
+      resultEyebrow={resultEyebrow}
+      initialLoadingMessage={initialLoadingMessage}
+      followUpLoadingMessage={followUpLoadingMessage}
       buildThreadMessage={messageFromResult}
       onPrimarySubmit={async (query) => submit(query, [])}
       onFollowUpSubmit={async (query, context) => submit(query, context.thread.slice(-8))}
@@ -1500,6 +1531,7 @@ export default function TourBarOrdering({
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
           onNavigateToFocus={focusOrderingTarget}
+          notOnMenuLabel={notOnMenuLabel}
         />
       )}
       renderStandaloneSheet={(result, actions) => (
@@ -1515,6 +1547,7 @@ export default function TourBarOrdering({
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
           onNavigateToFocus={focusOrderingTarget}
+          notOnMenuLabel={notOnMenuLabel}
         />
       )}
       onResult={(result) => {
