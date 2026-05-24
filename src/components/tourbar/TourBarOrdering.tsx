@@ -1404,15 +1404,28 @@ export default function TourBarOrdering({
 
       if (!focusTarget.targetId && !focusTarget.targetSelector) return;
 
-      // Let the host site perform any page/menu-specific navigation first,
-      // then use the shared SmartBar focus controller for verified centering
-      // and the frost-cover spotlight overlay.
-      onNavigateToFocus?.(focusTarget);
-      void smartbarFocusTarget(focusTarget, {
-        initialDelayMs: TOURBAR_ORDERING_FOCUS_DELAY_MS,
-        attempts: 22,
-        overlayDurationMs: 3600,
-      });
+      void (async () => {
+        // Prefer the shared SmartBar controller directly. The legacy host
+        // focus hook drives the older orange blink, so use it only as a
+        // fallback when the target is not already present in the page DOM.
+        const focused = await smartbarFocusTarget(focusTarget, {
+          initialDelayMs: TOURBAR_ORDERING_FOCUS_DELAY_MS,
+          attempts: 10,
+          overlayDurationMs: 3600,
+          dispatchLegacyEvent: false,
+        });
+
+        if (focused) return;
+
+        onNavigateToFocus?.(focusTarget);
+
+        void smartbarFocusTarget(focusTarget, {
+          initialDelayMs: 360,
+          attempts: 22,
+          overlayDurationMs: 3600,
+          dispatchLegacyEvent: false,
+        });
+      })();
     },
     [onNavigateToFocus],
   );
