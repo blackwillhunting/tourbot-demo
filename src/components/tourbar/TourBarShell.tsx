@@ -323,11 +323,12 @@ export default function TourBarShell({
   const [bookingContextReturnResult, setBookingContextReturnResult] = useState<TourBarShellResult | null>(null);
 
   const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
+  const activeFollowUpResult = standaloneResult || result;
   const canAskFollowUp =
     followUp.trim().length > 1 &&
     !isLoading &&
     !isAnswering &&
-    Boolean(onFollowUpSubmit && result?.canFollowUp !== false);
+    Boolean(onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -343,7 +344,7 @@ export default function TourBarShell({
 
   useEffect(() => {
     resizeTextarea(followUpRef.current);
-  }, [followUp, result?.canFollowUp]);
+  }, [followUp, activeFollowUpResult?.canFollowUp]);
 
   const appendThread = (priorThread: TourBarThreadMessage[], visitorMessage: string, tourBarResult: TourBarShellResult) => {
     setThread([
@@ -429,7 +430,7 @@ export default function TourBarShell({
     bookingContextOverride?: TourBarBookingContext | null,
   ) => {
     const cleanFollowUp = nextFollowUp.trim();
-    const activeResult = result;
+    const activeResult = standaloneResult || result;
 
     if (!cleanFollowUp || isLoading || isAnswering || !activeResult || !onFollowUpSubmit) return;
 
@@ -590,7 +591,7 @@ export default function TourBarShell({
   const answerOnlyResult = isTourBarAnswerOnlyResult(result);
 
   const followUpComposer =
-    onFollowUpSubmit && result?.canFollowUp !== false ? (
+    onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false ? (
       <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
         <textarea
           ref={followUpRef}
@@ -735,6 +736,7 @@ export default function TourBarShell({
 
                               <div className="space-y-3 px-4 py-3">
                                 {standaloneSheet}
+                                {followUpComposer}
                               </div>
                             </>
                           ) : (

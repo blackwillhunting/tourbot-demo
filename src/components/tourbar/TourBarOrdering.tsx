@@ -626,13 +626,14 @@ function invitationFor(order: CarryoutOrder | null, response: GuideAiCarryoutRes
 function toShellResult(response: GuideAiCarryoutResponse, fallbackTitle = DEFAULT_ORDER_TITLE): TourBarShellResult {
   const order = extractCarryoutOrder(response);
   const invitation = invitationFor(order, response);
+  const lockedForCheckout = checkoutIsLocked(response, order);
 
   return {
     title: titleFor(response, order, fallbackTitle),
     body: bodyFor(response, order),
     invitation: invitation?.invitation,
     nextMove: invitation?.nextMove,
-    canFollowUp: true,
+    canFollowUp: !lockedForCheckout,
     targetId: primaryTarget(response, order),
     label: response.suggestedAction?.targetText || titleFor(response, order, fallbackTitle),
     mode: response.displayMode,
@@ -1305,10 +1306,27 @@ function OrderReview({
                             data-demo-active-option-index={optionIndex}
                             onClick={() => {
                               const nextOrder = onLocalOptionSelect(item, group, option);
+                              const completedOrder = Boolean(
+                                nextOrder &&
+                                  allLines(nextOrder).length > 0 &&
+                                  !allLines(nextOrder).some(lineIsPending),
+                              );
+
+                              if (!completedOrder) return;
+
+                              onReviewModeChange("cart");
+
                               if (orderNeedsBackendReprice(nextOrder)) {
-                                onReviewModeChange("cart");
                                 onSilentReprice(nextOrder);
                               }
+
+                              // Summary is a separate TourBar sheet. When the
+                              // last missing qualifier completes the order,
+                              // do not just swap the content inside the current
+                              // qualifier sheet; retract it and reopen the
+                              // standalone Summary sheet just like the Order
+                              // Review button does.
+                              actions.openStandaloneSheet(result);
                             }}
                             aria-pressed={selected}
                             className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
