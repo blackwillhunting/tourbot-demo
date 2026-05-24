@@ -943,7 +943,7 @@ function OrderReview({
   onReviewModeChange: (mode: ReviewMode) => void;
   onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => CarryoutOrder | null;
   onSilentReprice: (order: CarryoutOrder | null) => void;
-  onRemoveItem: (item: ReviewItem) => void;
+  onRemoveItem: (item: ReviewItem, actions?: TourBarShellActions) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
   notOnMenuLabel?: string;
 }) {
@@ -1059,7 +1059,7 @@ function OrderReview({
             {!isLocked && (
               <button
                 type="button"
-                onClick={() => onRemoveItem(entry)}
+                onClick={() => onRemoveItem(entry, actions)}
                 aria-label={`Remove ${entry.label}`}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               >
@@ -1267,7 +1267,7 @@ function OrderReview({
               )}
               <button
                 type="button"
-                onClick={() => onRemoveItem(item)}
+                onClick={() => onRemoveItem(item, actions)}
                 aria-label={`Remove ${item.label}`}
                 className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               >
@@ -1471,14 +1471,22 @@ export default function TourBarOrdering({
     return nextOrder;
   };
 
-  const removeLocalItem = (item: ReviewItem) => {
-    setCarryoutOrder((current) => {
-      const next = applyLocalLineRemoval(current, item);
-      const nextLength = allLines(next).length;
-      setActiveReviewIndex((index) => Math.min(index, Math.max(nextLength - 1, 0)));
-      setReviewMode("cart");
-      return next;
-    });
+  const removeLocalItem = (item: ReviewItem, actions?: TourBarShellActions) => {
+    const next = applyLocalLineRemoval(carryoutOrder, item);
+    const nextLength = allLines(next).length;
+    const cannotMatchCount = next?.cannotMatchItems?.length || 0;
+    const shouldCloseSheet = nextLength === 0 && cannotMatchCount === 0;
+
+    setCarryoutOrder(shouldCloseSheet ? null : next);
+    setActiveReviewIndex((index) => (nextLength ? Math.min(index, nextLength - 1) : 0));
+
+    if (shouldCloseSheet) {
+      setReviewMode("review");
+      actions?.closeSheet();
+      return;
+    }
+
+    setReviewMode("cart");
   };
 
   const silentReprice = async (nextOrder: CarryoutOrder | null) => {

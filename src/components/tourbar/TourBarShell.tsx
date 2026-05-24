@@ -90,6 +90,7 @@ export type TourBarShellActions = {
   submitFollowUp: (query: string) => void;
   submitPrimary: (query: string, bookingContextOverride?: TourBarBookingContext | null) => void;
   openStandaloneSheet: (result?: TourBarShellResult | null) => void;
+  closeSheet: () => void;
   openBookingContextSheet: (field: TourBarRequiredBookingField) => void;
   bookingContext: TourBarBookingContext;
 };
@@ -687,6 +688,16 @@ export default function TourBarShell({
     void submitQuery(pendingQuery, bookingContext);
   };
 
+  const closeSheet = () => {
+    setError("");
+    setResult(null);
+    setStandaloneResult(null);
+    setFollowUp("");
+    setIsLoading(false);
+    setIsAnswering(false);
+    setBookingContextReturnResult(null);
+  };
+
   const runNextMove = async () => {
     const activeResult = result;
     const nextMove = activeResult?.nextMove;
@@ -730,6 +741,7 @@ export default function TourBarShell({
     openStandaloneSheet: (nextResult) => {
       void openStandaloneSheet(nextResult);
     },
+    closeSheet,
     openBookingContextSheet: (field) => {
       openBookingContextSheet(field);
     },
