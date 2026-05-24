@@ -205,9 +205,9 @@ function targetBorderRadius(element: HTMLElement) {
 
 function overlayInsetFor(element: HTMLElement) {
   const mode = element.getAttribute("data-spotlight-mode");
-  if (mode === "navigation") return { frost: -2, border: -6 };
-  if (mode === "region") return { frost: -4, border: -8 };
-  return { frost: -4, border: -8 };
+  if (mode === "navigation") return { frost: -2 };
+  if (mode === "region") return { frost: -4 };
+  return { frost: -4 };
 }
 
 function expandedCssRect(rect: DOMRect, inset: number) {
@@ -247,17 +247,10 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     "isolation:isolate",
   ].join(";");
 
-  const border = document.createElement("div");
-  border.style.cssText = [
-    "position:fixed",
-    "z-index:1",
-    "box-shadow:0 0 0 2px rgba(103,232,249,0.65), 0 0 0 10px rgba(34,211,238,0.12), 0 24px 80px rgba(34,211,238,0.34)",
-  ].join(";");
-
   const frost = document.createElement("div");
   frost.style.cssText = [
     "position:fixed",
-    "z-index:2",
+    "z-index:1",
     "background:rgba(241,245,249,0.76)",
     "box-shadow:inset 0 0 46px rgba(255,255,255,0.96)",
     "outline:1px solid rgba(255,255,255,0.82)",
@@ -275,18 +268,14 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     const radius = targetBorderRadius(element);
     const inset = overlayInsetFor(element);
     const frostRect = expandedCssRect(nextRect, inset.frost);
-    const borderRect = expandedCssRect(nextRect, inset.border);
 
-    border.style.borderRadius = radius;
     frost.style.borderRadius = radius;
-    applyFixedRect(border, borderRect);
     applyFixedRect(frost, frostRect);
     return true;
   };
 
   if (!updateOverlayGeometry()) return false;
 
-  frame.appendChild(border);
   frame.appendChild(frost);
   document.body.appendChild(frame);
   updateOverlayGeometry();
@@ -325,16 +314,6 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
       { opacity: 0, transform: "scale(1)", backdropFilter: "blur(0px)" },
     ],
     { duration: 1120, easing: "ease-out", fill: "forwards" },
-  );
-
-  border.animate(
-    [
-      { opacity: 0.86, transform: "scale(0.992)" },
-      { opacity: 0.62, transform: "scale(1)", offset: 0.35 },
-      { opacity: 0.18, transform: "scale(1.006)", offset: 0.82 },
-      { opacity: 0, transform: "scale(1)" },
-    ],
-    { duration: Math.min(Math.max(duration - 200, 1600), 4800), easing: "ease-out", fill: "forwards" },
   );
 
   window.setTimeout(cleanup, duration);
