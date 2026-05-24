@@ -20,7 +20,15 @@ import {
 import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
-import TourBarBooking from "./components/tourbar/TourBarBooking";
+import TourBarBooking, {
+  isBookingNextStepLabel,
+  isExplicitTourBarBookingRequest,
+  priceLabelFromTourBarCombination,
+  tourBarCombinationFromRaw,
+  type TourBarBookingHandoff,
+  type TourBarBookingNavigationState as TourBarNavigationState,
+  type TourBarBookingPageTarget as TourBarPageTarget,
+} from "./components/tourbar/TourBarBooking";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./components/tourbar/smartbarFocusController";
 import type {
   TourBarShellActions,
@@ -1963,19 +1971,6 @@ function primaryTourBarTarget(raw: TourBarHotelBookingBackendResponse) {
 }
 
 
-type TourBarPageTarget = {
-  pageId: PageId;
-  targetId: string;
-  targetSelector?: string;
-  targetText?: string;
-  reason?: string;
-};
-
-type TourBarNavigationState = {
-  steps: TourBarPageTarget[];
-  activeIndex: number;
-};
-
 type TourBarWorkingStayContext = {
   roomId: string | null;
   packageIds: string[];
@@ -2582,20 +2577,6 @@ function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
   return cleaned || body;
 }
 
-function isBookingNextStepLabel(value?: string | null) {
-  const text = String(value || "").toLowerCase();
-  return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
-}
-
-function isExplicitTourBarBookingRequest(raw: TourBarHotelBookingBackendResponse) {
-  const artifacts = asRecord(raw.bookingArtifacts);
-  const promptText = [artifacts.normalizedPrompt, artifacts.rawPrompt, raw.message, raw.prompt]
-    .map((value) => String(value || "").toLowerCase())
-    .join(" ");
-
-  return /\b(book|booking|reserve|reservation|checkout|prepare|stage|line\s+up|move\s+this)\b/.test(promptText);
-}
-
 function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourBarShellResult {
   const target = primaryTourBarTarget(raw);
   const legacyChips = asStringArray(raw.chips || raw.refinementChips);
@@ -2643,56 +2624,6 @@ function buildTourBarShellResult(raw: TourBarHotelBookingBackendResponse): TourB
     raw,
 
   };
-}
-
-type TourBarBookingHandoff = {
-  roomTitle: string;
-  packageTitle: string;
-  datesLabel: string;
-  guestsLabel: string;
-  budgetLabel: string;
-  priceLabel: string;
-};
-
-function priceLabelFromTourBarCombination(selected: Record<string, any>) {
-  const pricing = asRecord(selected.pricing);
-  const effectiveNightly =
-    typeof pricing.effectiveNightlyUsd === "number"
-      ? pricing.effectiveNightlyUsd
-      : Number(pricing.effectiveNightlyUsd || selected.oneNightTotalUsd || selected.effectiveNightlyUsd || 0);
-
-  if (Number.isFinite(effectiveNightly) && effectiveNightly > 0) {
-    return `$${Math.round(effectiveNightly).toLocaleString("en-US")}/night`;
-  }
-
-  return "Rate ready";
-}
-
-function tourBarCombinationFromRaw(
-  raw: TourBarHotelBookingBackendResponse,
-  { preferNextStep = false }: { preferNextStep?: boolean } = {},
-) {
-  const nextStep = asRecord(raw.nextStep);
-  const nextStepComboId = String(nextStep.comboId || "").trim();
-  const candidates = [
-    asRecord(raw.nextStepCombination),
-    asRecord(raw.selectedCombination),
-    ...asRecordArray(raw.matrixResults),
-    ...asRecordArray(raw.alternatives),
-  ];
-
-  if (preferNextStep && nextStepComboId) {
-    const match = candidates.find((combo) => String(combo.comboId || "") === nextStepComboId);
-    if (match) return match;
-  }
-
-  const nextStepCombination = asRecord(raw.nextStepCombination);
-  if (preferNextStep && nextStepCombination.comboId) return nextStepCombination;
-
-  const selected = asRecord(raw.selectedCombination);
-  if (selected.comboId || selected.roomId) return selected;
-
-  return nextStepCombination.comboId || nextStepCombination.roomId ? nextStepCombination : {};
 }
 
 function packageIdsFromTourBarCombination(combo: Record<string, any>) {
@@ -3715,7 +3646,9 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     const bookingTarget = tourBarBookingFocusTarget(raw);
     if (bookingTarget) {
       tourBarNavigationRunRef.current += 1;
-      setCurrentPage(bookingTarget.pageId);
+      if (bookingTarget.pageId) {
+        setCurrentPage(bookingTarget.pageId);
+      }
       spotlightTourBarAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 560);
     }
   };

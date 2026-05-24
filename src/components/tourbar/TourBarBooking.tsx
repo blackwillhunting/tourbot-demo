@@ -5,8 +5,81 @@ import TourBarShell, {
   type TourBarShellResult,
 } from "./TourBarShell";
 
+type TourBarBookingRawResponse = Record<string, any>;
+
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, any>)
+    : {};
+}
+
+function asRecordArray(value: unknown): Record<string, any>[] {
+  return Array.isArray(value)
+    ? value
+        .map((item) => asRecord(item))
+        .filter((item) => Object.keys(item).length > 0)
+    : [];
+}
+
+export function isBookingNextStepLabel(value?: string | null) {
+  const text = String(value || "").toLowerCase();
+  return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
+}
+
+export function isExplicitTourBarBookingRequest(raw: TourBarBookingRawResponse) {
+  const artifacts = asRecord(raw.bookingArtifacts);
+  const promptText = [artifacts.normalizedPrompt, artifacts.rawPrompt, raw.message, raw.prompt]
+    .map((value) => String(value || "").toLowerCase())
+    .join(" ");
+
+  return /\b(book|booking|reserve|reservation|checkout|prepare|stage|line\s+up|move\s+this)\b/.test(promptText);
+}
+
+export function priceLabelFromTourBarCombination(selected: Record<string, any>) {
+  const pricing = asRecord(selected.pricing);
+  const effectiveNightly =
+    typeof pricing.effectiveNightlyUsd === "number"
+      ? pricing.effectiveNightlyUsd
+      : Number(pricing.effectiveNightlyUsd || selected.oneNightTotalUsd || selected.effectiveNightlyUsd || 0);
+
+  if (Number.isFinite(effectiveNightly) && effectiveNightly > 0) {
+    return `$${Math.round(effectiveNightly).toLocaleString("en-US")}/night`;
+  }
+
+  return "Rate ready";
+}
+
+export function tourBarCombinationFromRaw(
+  raw: TourBarBookingRawResponse,
+  { preferNextStep = false }: { preferNextStep?: boolean } = {},
+) {
+  const nextStep = asRecord(raw.nextStep);
+  const nextStepComboId = String(nextStep.comboId || "").trim();
+  const candidates = [
+    asRecord(raw.nextStepCombination),
+    asRecord(raw.selectedCombination),
+    ...asRecordArray(raw.matrixResults),
+    ...asRecordArray(raw.alternatives),
+  ];
+
+  if (preferNextStep && nextStepComboId) {
+    const match = candidates.find((combo) => String(combo.comboId || "") === nextStepComboId);
+    if (match) return match;
+  }
+
+  const nextStepCombination = asRecord(raw.nextStepCombination);
+  if (preferNextStep && nextStepCombination.comboId) return nextStepCombination;
+
+  const selected = asRecord(raw.selectedCombination);
+  if (selected.comboId || selected.roomId) return selected;
+
+  return nextStepCombination.comboId || nextStepCombination.roomId ? nextStepCombination : {};
+}
+
+export type TourBarBookingPageId = "home" | "rooms" | "packages" | "amenities" | "booking";
+
 export type TourBarBookingPageTarget = {
-  pageId?: string;
+  pageId?: TourBarBookingPageId;
   targetId: string;
   targetSelector?: string;
   targetText?: string;
