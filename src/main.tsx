@@ -5,6 +5,7 @@ import AppCommerce from "./App-Commerce";
 import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
+import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -175,6 +176,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <App />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/smartbar-speed") {
+    return (
+      <ProtectedDemoRoute>
+        <LaunchSelectorTourBar />
       </ProtectedDemoRoute>
     );
   }

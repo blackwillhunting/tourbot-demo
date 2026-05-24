@@ -261,7 +261,7 @@ function getSafeReturnTo() {
     if (target.origin !== window.location.origin) return "";
 
     const targetPath = target.pathname.replace(/\/$/, "") || "/";
-    const allowedPaths = new Set(["/transactional", "/carryout", "/restaurant", "/informational"]);
+    const allowedPaths = new Set(["/transactional", "/carryout", "/restaurant", "/informational", "/smartbar-speed"]);
     if (!allowedPaths.has(targetPath)) return "";
 
     return `${target.pathname}${target.search}${target.hash}`;
