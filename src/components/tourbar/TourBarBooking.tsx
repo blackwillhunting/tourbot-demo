@@ -21,6 +21,12 @@ function asRecordArray(value: unknown): Record<string, any>[] {
     : [];
 }
 
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+}
+
 export function isBookingNextStepLabel(value?: string | null) {
   const text = String(value || "").toLowerCase();
   return /\b(prepare|book|booking|reserve|reservation|checkout|stage|line\s+up|move\s+this)\b/.test(text);
@@ -77,6 +83,77 @@ export function tourBarCombinationFromRaw(
 }
 
 export type TourBarBookingPageId = "home" | "rooms" | "packages" | "amenities" | "booking";
+
+export type TourBarBookingResultTarget = {
+  pageId?: TourBarBookingPageId;
+  targetId?: string;
+  targetSelector?: string;
+};
+
+function stripInlineNextStepPrompt(body: string, nextStepLabel: string) {
+  if (!nextStepLabel) return body;
+
+  const cleaned = body
+    .replace(
+      /\s*(?:Would you like me to|Would you like to|Do you want me to|Want me to|Should I|Ready to)\s+[^.?!\n]*(?:\?|$)\s*$/i,
+      "",
+    )
+    .trim();
+
+  return cleaned || body;
+}
+
+export function buildTourBarBookingShellResult(
+  raw: TourBarBookingRawResponse,
+  target: TourBarBookingResultTarget = {},
+  { mode = "tourbar_hotel_booking" }: { mode?: string } = {},
+): TourBarShellResult {
+  const legacyChips = asStringArray(raw.chips || raw.refinementChips);
+  const nextStep = asRecord(raw.nextStep);
+  const nextStepLabel =
+    typeof nextStep.label === "string" && nextStep.label.trim()
+      ? nextStep.label.trim()
+      : legacyChips[0] || "";
+  const nextStepQuery =
+    typeof nextStep.query === "string" && nextStep.query.trim()
+      ? nextStep.query.trim()
+      : nextStepLabel;
+  const nextStepType =
+    typeof nextStep.type === "string" && nextStep.type.trim()
+      ? nextStep.type.trim()
+      : "tourbar_next_step";
+  const selected = asRecord(raw.selectedCombination);
+  const title =
+    selected.roomShortTitle ||
+    selected.roomTitle ||
+    raw.title ||
+    "TourBar booking match";
+  const rawBody =
+    raw.body ||
+    raw.answer ||
+    raw.message ||
+    raw.reply ||
+    "TourBar found a booking option.";
+  const body = stripInlineNextStepPrompt(String(rawBody), nextStepLabel);
+
+  return {
+    title: String(title),
+    body,
+    invitation: nextStepLabel ? { kind: "next_step", text: nextStepLabel } : undefined,
+    nextMove: nextStepLabel ? { type: nextStepType, label: nextStepLabel, query: nextStepQuery } : undefined,
+    canFollowUp: true,
+    focusAreaId: target.targetId || undefined,
+    answerMode: String(raw.displayMode || raw.intent || mode),
+    pageId: target.pageId,
+    targetId: target.targetId || undefined,
+    targetSelector: target.targetSelector,
+    label: String(raw.label || title),
+    mode: String(raw.mode || mode),
+    action: String(raw.commerceAction || raw.intent || "tourbar_booking_recommendation"),
+    raw,
+  };
+}
+
 
 export type TourBarBookingPageTarget = {
   pageId?: TourBarBookingPageId;
