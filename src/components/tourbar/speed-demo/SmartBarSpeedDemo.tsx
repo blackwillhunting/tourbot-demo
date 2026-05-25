@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarDays, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BedDouble, Building2, CalendarDays, Coffee, CreditCard, Menu, Search, ShieldCheck, ShoppingCart, Sparkles, Utensils, Users } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellDemoCommand,
@@ -9,7 +10,7 @@ import TourBarShell, {
 import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
 import { TourBarBookingHandoffSheet, type TourBarBookingHandoff } from "../TourBarBooking";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
-import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand, type SmartBarSpeedSurface } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const FIXTURE_THINKING_MS = 280;
@@ -582,6 +583,301 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
   return null;
 }
 
+
+
+function toolbarTone(surface: SmartBarSpeedSurface) {
+  if (surface === "ordering") {
+    return {
+      shell: "border-orange-200/70 bg-slate-950/94 text-white shadow-slate-950/18",
+      brandBadge: "bg-orange-400 text-slate-950",
+      muted: "text-orange-100/75",
+      pill: "border-white/10 bg-white/10 text-orange-50",
+      activePill: "bg-orange-400 text-slate-950 ring-orange-300/40",
+    };
+  }
+
+  if (surface === "booking") {
+    return {
+      shell: "border-sky-200/80 bg-white/94 text-slate-950 shadow-sky-950/10",
+      brandBadge: "bg-sky-950 text-white",
+      muted: "text-slate-500",
+      pill: "border-slate-200 bg-slate-50 text-slate-700",
+      activePill: "bg-sky-950 text-white ring-sky-200/70",
+    };
+  }
+
+  return {
+    shell: "border-slate-200/80 bg-white/94 text-slate-950 shadow-slate-950/10",
+    brandBadge: "bg-slate-950 text-white",
+    muted: "text-slate-500",
+    pill: "border-slate-200 bg-slate-50 text-slate-700",
+    activePill: "bg-slate-950 text-white ring-slate-300/70",
+  };
+}
+
+function ToolbarPill({
+  children,
+  active = false,
+  className = "",
+  surface,
+}: {
+  children: ReactNode;
+  active?: boolean;
+  className?: string;
+  surface: SmartBarSpeedSurface;
+}) {
+  const tone = toolbarTone(surface);
+  return (
+    <span
+      className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold ring-1 ring-transparent ${
+        active ? tone.activePill : tone.pill
+      } ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
+  const tone = toolbarTone(surface);
+
+  if (surface === "ordering") {
+    return (
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
+          <Utensils className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black tracking-tight sm:text-base">BurgerRush</div>
+          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Menu · cart · checkout</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (surface === "booking") {
+    return (
+      <div className="flex min-w-0 items-center gap-3">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
+          <BedDouble className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-black tracking-tight sm:text-base">Domi Stay</div>
+          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Rooms · packages · booking</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
+        <Building2 className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-black tracking-tight sm:text-base">NexaPath Advisory</div>
+        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Services · compliance · handoff</div>
+      </div>
+    </div>
+  );
+}
+
+function ToolbarOptions({ surface }: { surface: SmartBarSpeedSurface }) {
+  if (surface === "ordering") {
+    return (
+      <>
+        {["Combos", "Burgers", "Sides", "Drinks"].map((label, index) => (
+          <ToolbarPill key={label} surface={surface} active={index === 0}>
+            {label}
+          </ToolbarPill>
+        ))}
+      </>
+    );
+  }
+
+  if (surface === "booking") {
+    return (
+      <>
+        <ToolbarPill surface={surface} active>
+          <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+          Jun 12–15
+        </ToolbarPill>
+        <ToolbarPill surface={surface}>
+          <Users className="mr-1.5 h-3.5 w-3.5" />
+          4 guests
+        </ToolbarPill>
+        <ToolbarPill surface={surface}>
+          <Coffee className="mr-1.5 h-3.5 w-3.5" />
+          Packages
+        </ToolbarPill>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ToolbarPill surface={surface} active>
+        Services
+      </ToolbarPill>
+      <ToolbarPill surface={surface}>
+        Compliance
+      </ToolbarPill>
+      <ToolbarPill surface={surface}>
+        Industries
+      </ToolbarPill>
+    </>
+  );
+}
+
+function ToolbarActions({ surface }: { surface: SmartBarSpeedSurface }) {
+  if (surface === "ordering") {
+    return (
+      <>
+        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+          <Search className="mr-1.5 h-3.5 w-3.5" />
+          Search menu
+        </ToolbarPill>
+        <ToolbarPill surface={surface} active>
+          <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
+          Cart
+        </ToolbarPill>
+      </>
+    );
+  }
+
+  if (surface === "booking") {
+    return (
+      <>
+        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+          <CreditCard className="mr-1.5 h-3.5 w-3.5" />
+          Book
+        </ToolbarPill>
+        <ToolbarPill surface={surface}>
+          Help
+        </ToolbarPill>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+        <Search className="mr-1.5 h-3.5 w-3.5" />
+        Search
+      </ToolbarPill>
+      <ToolbarPill surface={surface}>
+        Contact
+      </ToolbarPill>
+    </>
+  );
+}
+
+function SpeedDemoSitePreview({ surface }: { surface: SmartBarSpeedSurface }) {
+  if (surface === "ordering") {
+    return (
+      <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
+        {[
+          ["Double Stack Combo", "Burger, fries, drink", "$11.99"],
+          ["Large Fries", "Crispy salted side", "$3.49"],
+          ["Diet Coke", "Large fountain drink", "$2.19"],
+        ].map(([title, body, price]) => (
+          <div key={title} className="rounded-[28px] border border-orange-200/40 bg-slate-950/86 p-5 text-white shadow-xl shadow-slate-950/10">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-orange-400 px-3 py-1 text-xs font-black text-slate-950">{price}</span>
+              <Menu className="h-4 w-4 text-orange-200" />
+            </div>
+            <div className="mt-8 text-lg font-black">{title}</div>
+            <div className="mt-1 text-sm text-orange-100/75">{body}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (surface === "booking") {
+    return (
+      <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
+        {[
+          ["Garden Terrace", "$239/night", "Quiet value option"],
+          ["Ocean View Suite", "$379/night", "Best practical view"],
+          ["Breakfast Flex", "+$32/night", "Package add-on"],
+        ].map(([title, price, body]) => (
+          <div key={title} className="rounded-[28px] border border-sky-100 bg-white/88 p-5 shadow-xl shadow-sky-950/8 ring-1 ring-white/80">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-sky-950 px-3 py-1 text-xs font-black text-white">{price}</span>
+              <BedDouble className="h-4 w-4 text-sky-600" />
+            </div>
+            <div className="mt-8 text-lg font-black text-slate-950">{title}</div>
+            <div className="mt-1 text-sm text-slate-500">{body}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
+      {[
+        ["DORA readiness", "ICT risk, resilience testing, third-party oversight"],
+        ["Cybersecurity", "Governance, policy, incident response"],
+        ["Consultant handoff", "Move from question to next action"],
+      ].map(([title, body], index) => (
+        <div key={title} className="rounded-[28px] border border-slate-200 bg-white/88 p-5 shadow-xl shadow-slate-950/8 ring-1 ring-white/80">
+          <div className="flex items-center justify-between gap-3">
+            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">0{index + 1}</span>
+            {index === 0 ? <ShieldCheck className="h-4 w-4 text-slate-500" /> : <Sparkles className="h-4 w-4 text-slate-500" />}
+          </div>
+          <div className="mt-8 text-lg font-black text-slate-950">{title}</div>
+          <div className="mt-1 text-sm text-slate-500">{body}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdaptiveToolbarFrame({
+  surface,
+  smartBarNode,
+}: {
+  surface: SmartBarSpeedSurface;
+  smartBarNode: ReactNode;
+}) {
+  const tone = toolbarTone(surface);
+
+  return (
+    <div className={`mx-auto mt-4 max-w-7xl rounded-[28px] border px-3 py-3 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:px-4 ${tone.shell}`}>
+      <div className="flex items-center gap-3">
+        <ToolbarBrand surface={surface} />
+
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 md:flex">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={surface}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="flex min-w-0 items-center justify-center gap-2"
+            >
+              <ToolbarOptions surface={surface} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="hidden items-center gap-2 lg:flex">
+            <ToolbarActions surface={surface} />
+          </div>
+          <div className="relative z-[10080] flex h-9 w-9 shrink-0 items-center justify-center">
+            {smartBarNode}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function SmartBarSpeedDemo() {
   const [stepIndex, setStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -683,34 +979,52 @@ export default function SmartBarSpeedDemo() {
     return fixtureResult(query);
   };
 
+  const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
+  const toolbarSurface = currentStep.surface;
+  const smartBarNode = (
+    <TourBarShell
+              primaryPlaceholder="Ask SmartBar in plain English..."
+              followUpPlaceholder="Ask a follow-up..."
+              launcherTitle="SmartBar speed demo"
+              launcherAriaLabel="Open SmartBar speed demo"
+              resultEyebrow="SmartBar response"
+              initialLoadingMessage="Choosing the right tool..."
+              followUpLoadingMessage="Switching tools..."
+              consultantChat={{
+                enabled: true,
+                title: "Talk to a consultant",
+                placeholder: "Send a quick note...",
+                waitingMessage: "Hold for next consultant...",
+                confirmationMessage: "Thanks — someone will be with you shortly.",
+                consultantResponseMessage: "Hello — I can help with pricing.",
+              }}
+              demoCommand={demoCommand}
+              onPrimarySubmit={onPrimarySubmit}
+              onFollowUpSubmit={onFollowUpSubmit}
+              renderResultExtras={renderSpeedExtras}
+              buildThreadMessage={(result) => [result.title, result.body].filter(Boolean).join("\n")}
+            />
+  );
+
   return (
     <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <div className="fixed right-6 top-6 z-[10070] h-9 w-9">
-        <TourBarShell
-          primaryPlaceholder="Ask SmartBar in plain English..."
-          followUpPlaceholder="Ask a follow-up..."
-          launcherTitle="SmartBar speed demo"
-          launcherAriaLabel="Open SmartBar speed demo"
-          resultEyebrow="SmartBar response"
-          initialLoadingMessage="Choosing the right tool..."
-          followUpLoadingMessage="Switching tools..."
-          consultantChat={{
-            enabled: true,
-            title: "Talk to a consultant",
-            placeholder: "Send a quick note...",
-            waitingMessage: "Hold for next consultant...",
-            confirmationMessage: "Thanks — someone will be with you shortly.",
-            consultantResponseMessage: "Hello — I can help with pricing.",
-          }}
-          demoCommand={demoCommand}
-          onPrimarySubmit={onPrimarySubmit}
-          onFollowUpSubmit={onFollowUpSubmit}
-          renderResultExtras={renderSpeedExtras}
-          buildThreadMessage={(result) => [result.title, result.body].filter(Boolean).join("\n")}
-        />
+      <div className="relative z-[10070] px-4 pt-4 sm:px-6">
+        <AdaptiveToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
       </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={toolbarSurface}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
+          <SpeedDemoSitePreview surface={toolbarSurface} />
+        </motion.div>
+      </AnimatePresence>
 
       <SmartBarDemoScrubber
         index={stepIndex}

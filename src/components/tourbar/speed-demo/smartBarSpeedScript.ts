@@ -1,5 +1,7 @@
 import type { TourBarBookingContext, TourBarRequiredBookingField } from "../tourbarBookingContext";
 
+export type SmartBarSpeedSurface = "info" | "ordering" | "booking";
+
 export type SmartBarSpeedCommand =
   | { kind: "shell"; type: "open" | "closeBar" | "closeSheet" | "closeChat" | "clearChat" | "closeAll" | "runNextMove" | "openChat"; delayMs?: number }
   | { kind: "typePrimary"; value: string; delayMs?: number }
@@ -18,6 +20,7 @@ export type SmartBarSpeedStep = {
   chapter: string;
   label: string;
   helper: string;
+  surface: SmartBarSpeedSurface;
   commands: SmartBarSpeedCommand[];
 };
 
@@ -27,6 +30,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Launch",
     label: "Open SmartBar",
     helper: "Launcher only.",
+    surface: "info",
     commands: [
       { kind: "shell", type: "closeAll", delayMs: 100 },
       { kind: "shell", type: "open", delayMs: 450 },
@@ -37,6 +41,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Discovery",
     label: "Ask about DORA",
     helper: "Info sheet.",
+    surface: "info",
     commands: [
       { kind: "typePrimary", value: "Do you help with DORA regulations?", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 900 },
@@ -48,6 +53,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Discovery",
     label: "Show case studies",
     helper: "Separate case-study sheet.",
+    surface: "info",
     commands: [
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1900 },
@@ -58,6 +64,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Handoff",
     label: "Consultant chat",
     helper: "Chat sheet.",
+    surface: "info",
     commands: [
       { kind: "typeFollowUp", value: "can i speak with someone", delayMs: 250 },
       { kind: "submitFollowUp", delayMs: 820 },
@@ -72,6 +79,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Ordering",
     label: "Messy order to cart",
     helper: "Cart sheet.",
+    surface: "ordering",
     commands: [
       { kind: "typePrimary", value: "dbl chzbrger combo lg friez diet coke apple pie", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 1000 },
@@ -83,6 +91,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Ordering",
     label: "Checkout handoff",
     helper: "Final sheet.",
+    surface: "ordering",
     commands: [
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1700 },
@@ -93,6 +102,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Ordering",
     label: "Incomplete order",
     helper: "Qualifier sheet.",
+    surface: "ordering",
     commands: [
       { kind: "typePrimary", value: "burger combo meal", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 900 },
@@ -104,6 +114,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Ordering",
     label: "Resolve choices",
     helper: "Same sheet, then cart.",
+    surface: "ordering",
     commands: [
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1150 },
@@ -118,6 +129,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Booking",
     label: "Room recommendations",
     helper: "Same sheet through step 3.",
+    surface: "booking",
     commands: [
       { kind: "typePrimary", value: "nice room with a view and breakfast, not the most expensive option", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 1000 },
@@ -133,6 +145,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Booking",
     label: "Add breakfast + book",
     helper: "Package, then summary.",
+    surface: "booking",
     commands: [
       { kind: "typeFollowUp", value: "add breakfast", delayMs: 250 },
       { kind: "submitFollowUp", delayMs: 900 },
@@ -146,6 +159,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Booking",
     label: "Dates + guests",
     helper: "Selector sheets.",
+    surface: "booking",
     commands: [
       { kind: "typePrimary", value: "need a family room", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 850 },
@@ -189,6 +203,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Finale",
     label: "Search bar with a toolbelt",
     helper: "Clean tool sweep.",
+    surface: "booking",
     commands: [
       { kind: "shell", type: "open", delayMs: 200 },
       { kind: "showFixture", value: "show me the short version", delayMs: 250 },
