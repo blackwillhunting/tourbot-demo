@@ -283,16 +283,39 @@ function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
 function fixtureResult(query: string): TourBarShellResult {
   const text = query.trim().toLowerCase();
 
-  if (text.includes("dora")) {
+  if (
+    text.includes("hedge fund") ||
+    text.includes("copilot agents") ||
+    text.includes("copilots") ||
+    text.includes("dora")
+  ) {
     return {
-      title: "DORA readiness",
+      title: "Showing: Hedge Fund industry path",
       body:
-        "Yes. DORA support belongs in the Cybersecurity & Compliance lane.\n\nRelevant work:\n- ICT third-party risk mapping\n- incident response and escalation readiness\n- resilience testing evidence\n- governance, policy, and reporting alignment",
+        "Yes — this hedge-fund path covers both core IT support needs and AI/copilot-related modernization. In this context, that typically means:\n\n- Secure trading and collaboration infrastructure\n- Cyber/compliance operating model support\n- AI/data visibility and workflow enhancement, including governed copilot-style capabilities\n\nFor a hedge fund, the site frames this as a combined approach: stable infrastructure first, then security/compliance, then AI/data and workflow opportunities in a regulated operating model.",
+      invitation: { kind: "next", text: "Want to look specifically at the AI & Data lane for Copilot and agent setup?" },
+      nextMove: { type: "ask_deeper", label: "Show Copilot use cases", query: "__copilot_use_cases" },
+      canFollowUp: true,
+      mode: "speed_info",
+      raw: speedMeta({ stableSheetKey: "hedge-fund-path", keepSheetOpenNextMove: true }),
+    };
+  }
+
+  if (
+    text === "__copilot_use_cases" ||
+    text.includes("that doesn't say") ||
+    text.includes("that doesnt say") ||
+    text.includes("what you actually do")
+  ) {
+    return {
+      title: "What we would actually do",
+      body:
+        "For a hedge fund, the practical Copilot/agent work would usually look like this:\n\n- **Readiness review:** confirm Microsoft 365 permissions, data exposure, identity controls, and security boundaries before anyone turns agents loose.\n- **Use-case selection:** pick a few high-value workflows — investment committee prep, policy lookup, vendor-risk intake, ticket triage, or research summarization.\n- **Agent design:** define what each agent can answer, what systems it can touch, and when it must hand off to a person.\n- **Pilot support:** build a small controlled rollout, train the first users, measure adoption, and tighten governance before expanding.",
       invitation: { kind: "case_studies", text: "Show relevant case studies" },
       nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
       mode: "speed_info",
-      raw: speedMeta({ stableSheetKey: "discovery", separateSheetNextMove: true }),
+      raw: speedMeta({ stableSheetKey: "copilot-use-cases", separateSheetNextMove: true }),
     };
   }
 
@@ -300,7 +323,7 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Relevant case studies",
       body:
-        "- Third-party ICT register review for a regulated financial firm\n- Incident-response tabletop mapped to executive escalation paths\n- Resilience evidence pack prepared for governance and audit review",
+        "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
       canFollowUp: true,
       mode: "speed_case_studies",
       raw: speedMeta({ stableSheetKey: "case-studies" }),
@@ -676,7 +699,7 @@ function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
       </span>
       <div className="min-w-0">
         <div className="truncate text-sm font-black tracking-tight sm:text-base">NexaPath Advisory</div>
-        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Services · compliance · handoff</div>
+        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>IT support · AI mentorship · handoff</div>
       </div>
     </div>
   );
@@ -818,9 +841,9 @@ function SpeedDemoSitePreview({ surface }: { surface: SmartBarSpeedSurface }) {
   return (
     <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
       {[
-        ["DORA readiness", "ICT risk, resilience testing, third-party oversight"],
-        ["Cybersecurity", "Governance, policy, incident response"],
-        ["Consultant handoff", "Move from question to next action"],
+        ["Hedge-fund IT support", "Secure operations, collaboration, and compliance-aware infrastructure"],
+        ["Copilot mentorship", "Use-case design, governance, adoption, and agent rollout"],
+        ["Contextual handoff", "The consultant receives the visitor’s goal before the conversation starts"],
       ].map(([title, body], index) => (
         <div key={title} className="rounded-[28px] border border-slate-200 bg-white/88 p-5 shadow-xl shadow-slate-950/8 ring-1 ring-white/80">
           <div className="flex items-center justify-between gap-3">
@@ -994,9 +1017,9 @@ export default function SmartBarSpeedDemo() {
                 enabled: true,
                 title: "Talk to a consultant",
                 placeholder: "Send a quick note...",
-                waitingMessage: "Hold for next consultant...",
-                confirmationMessage: "Thanks — someone will be with you shortly.",
-                consultantResponseMessage: "Hello — I can help with pricing.",
+                waitingMessage: "Connecting you with the right specialist...",
+                confirmationMessage: "Context received — handing this to a consultant.",
+                consultantResponseMessage: "Hi there — so you’re interested in Copilots?",
               }}
               demoCommand={demoCommand}
               onPrimarySubmit={onPrimarySubmit}
