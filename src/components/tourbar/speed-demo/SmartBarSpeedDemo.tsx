@@ -14,6 +14,8 @@ import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand, type SmartBarSpeedSurf
 
 const TYPE_DELAY_MS = 18;
 const FIXTURE_THINKING_MS = 280;
+const INTRO_GATE_DELAY_MS = 2000;
+const INTRO_FAKE_PROCESSING_MS = 2000;
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
@@ -136,14 +138,20 @@ function SmartBarLoginSlip({
 
 function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void }) {
   const [passcode, setPasscode] = useState("");
-  const [notice, setNotice] = useState<SmartBarIntroNotice>({ id: "login-initial", kind: "login" });
+  const [notice, setNotice] = useState<SmartBarIntroNotice | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const noticeIdRef = useRef(0);
   const mountedRef = useRef(true);
 
   useEffect(() => {
+    const entranceTimer = window.setTimeout(() => {
+      if (!mountedRef.current) return;
+      setNotice({ id: "login-initial", kind: "login" });
+    }, INTRO_GATE_DELAY_MS);
+
     return () => {
       mountedRef.current = false;
+      window.clearTimeout(entranceTimer);
     };
   }, []);
 
@@ -163,7 +171,7 @@ function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void })
     const cleanCode = passcode.trim();
     setIsBusy(true);
 
-    await wait(680);
+    await wait(INTRO_FAKE_PROCESSING_MS);
     if (!mountedRef.current) return;
 
     if (cleanCode.length === 6) {
@@ -199,18 +207,20 @@ function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void })
         <div className="absolute right-4 top-1/2 h-28 w-[min(92vw,540px)] -translate-y-1/2 sm:right-8">
           <div className="absolute right-0 top-1/2 -translate-y-1/2">
             <AnimatePresence>
-              <motion.div key={notice.id} {...INTRO_NOTICE_MOTION}>
-                {notice.kind === "login" ? (
-                  <SmartBarLoginSlip
-                    passcode={passcode}
-                    isBusy={isBusy}
-                    onPasscodeChange={setPasscode}
-                    onSubmit={handleSubmit}
-                  />
-                ) : (
-                  <SmartBarStatusSlip notice={notice} />
-                )}
-              </motion.div>
+              {notice ? (
+                <motion.div key={notice.id} {...INTRO_NOTICE_MOTION}>
+                  {notice.kind === "login" ? (
+                    <SmartBarLoginSlip
+                      passcode={passcode}
+                      isBusy={isBusy}
+                      onPasscodeChange={setPasscode}
+                      onSubmit={handleSubmit}
+                    />
+                  ) : (
+                    <SmartBarStatusSlip notice={notice} />
+                  )}
+                </motion.div>
+              ) : null}
             </AnimatePresence>
           </div>
         </div>
