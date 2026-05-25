@@ -94,6 +94,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Cart sheet.",
     surface: "ordering",
     commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "typePrimary", value: "dbl chzbrger combo lg friez diet coke apple pie", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 1000 },
       { kind: "pause", delayMs: 1900 },
@@ -117,6 +118,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Qualifier sheet.",
     surface: "ordering",
     commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "typePrimary", value: "burger combo meal", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 900 },
       { kind: "pause", delayMs: 1400 },
@@ -144,6 +146,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Same sheet through step 3.",
     surface: "booking",
     commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "typePrimary", value: "nice room with a view and breakfast, not the most expensive option", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 1000 },
       { kind: "pause", delayMs: 1500 },
@@ -174,6 +177,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Selector sheets.",
     surface: "booking",
     commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "typePrimary", value: "need a family room", delayMs: 250 },
       { kind: "submitPrimary", delayMs: 850 },
       { kind: "openBookingContext", field: "dates", delayMs: 1000 },
@@ -218,6 +222,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Clean tool sweep.",
     surface: "booking",
     commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "open", delayMs: 200 },
       { kind: "showFixture", value: "show me the short version", delayMs: 250 },
       { kind: "pause", delayMs: 760 },
