@@ -1,13 +1,35 @@
-import { useCallback, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, ShieldCheck, XCircle } from "lucide-react";
+import { Search, ShieldCheck, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 
+const INTRO_DELAY_MS = 2000;
 const CHECKING_MS = 1200;
 const RESULT_HOLD_MS = 760;
+const PRELUDE_HOLD_MS = 1250;
 const MIN_PASSCODE_LENGTH = 4;
 
-type LaunchState = "login" | "checking" | "success" | "failure" | "demo";
+type LaunchState = "waiting" | "login" | "checking" | "success" | "failure" | "prelude" | "demo";
+
+type PreludeSlip = {
+  title: string;
+  detail: string;
+};
+
+const PRELUDE_SLIPS: PreludeSlip[] = [
+  {
+    title: "SmartBar turns search into action.",
+    detail: "Answers, filters, and opens the next step.",
+  },
+  {
+    title: "Fits anywhere.",
+    detail: "A compact launcher for different site surfaces.",
+  },
+  {
+    title: "Now watch it work.",
+    detail: "One bar. Multiple outcomes.",
+  },
+];
 
 const SLIP_MOTION = {
   initial: { x: 440, opacity: 1, scale: 0.98 },
@@ -119,6 +141,20 @@ function ResultSlip({ kind }: { kind: "success" | "failure" }) {
   );
 }
 
+function PreludeSlipCard({ slip }: { slip: PreludeSlip }) {
+  return (
+    <div className="flex min-h-[68px] w-[min(92vw,460px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200">
+        <Sparkles className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-black tracking-tight text-slate-950">{slip.title}</div>
+        <div className="truncate text-xs font-semibold text-slate-500">{slip.detail}</div>
+      </div>
+    </div>
+  );
+}
+
 function LaunchBackground() {
   return (
     <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
@@ -130,14 +166,23 @@ function LaunchBackground() {
 }
 
 export default function LaunchSelectorTourBar() {
-  const [launchState, setLaunchState] = useState<LaunchState>("login");
+  const [launchState, setLaunchState] = useState<LaunchState>("waiting");
   const [passcode, setPasscode] = useState("");
+  const [preludeIndex, setPreludeIndex] = useState(0);
   const runIdRef = useRef(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLaunchState("login");
+    }, INTRO_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (launchState === "checking") return;
+      if (launchState !== "login") return;
 
       const runId = runIdRef.current + 1;
       runIdRef.current = runId;
@@ -153,6 +198,13 @@ export default function LaunchSelectorTourBar() {
       if (runIdRef.current !== runId) return;
 
       if (nextState === "success") {
+        for (let index = 0; index < PRELUDE_SLIPS.length; index += 1) {
+          setPreludeIndex(index);
+          setLaunchState("prelude");
+          await wait(PRELUDE_HOLD_MS);
+          if (runIdRef.current !== runId) return;
+        }
+
         setLaunchState("demo");
         return;
       }
@@ -167,29 +219,40 @@ export default function LaunchSelectorTourBar() {
     return <SmartBarSpeedDemo />;
   }
 
+  const slipKey =
+    launchState === "login" || launchState === "checking"
+      ? "launch-slip"
+      : launchState === "prelude"
+        ? `prelude-${preludeIndex}`
+        : launchState;
+
+  const activePreludeSlip = PRELUDE_SLIPS[preludeIndex] || PRELUDE_SLIPS[0];
+
   return (
     <div className="relative min-h-[100svh] overflow-hidden">
       <LaunchBackground />
 
       <div className="absolute right-4 top-1/2 z-10 h-28 w-[min(92vw,540px)] -translate-y-1/2 sm:right-8">
-        <div className="absolute right-0 top-1/2 -translate-y-1/2">
-          <AnimatePresence mode="wait">
-            {launchState === "login" || launchState === "checking" ? (
-              <motion.div key="launch-slip" {...SLIP_MOTION}>
-                <LaunchSlip
-                  passcode={passcode}
-                  isChecking={launchState === "checking"}
-                  onPasscodeChange={setPasscode}
-                  onSubmit={handleSubmit}
-                />
-              </motion.div>
-            ) : (
-              <motion.div key={launchState} {...SLIP_MOTION}>
-                <ResultSlip kind={launchState} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <AnimatePresence>
+          {launchState === "login" || launchState === "checking" ? (
+            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
+              <LaunchSlip
+                passcode={passcode}
+                isChecking={launchState === "checking"}
+                onPasscodeChange={setPasscode}
+                onSubmit={handleSubmit}
+              />
+            </motion.div>
+          ) : launchState === "success" || launchState === "failure" ? (
+            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
+              <ResultSlip kind={launchState} />
+            </motion.div>
+          ) : launchState === "prelude" ? (
+            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
+              <PreludeSlipCard slip={activePreludeSlip} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </div>
   );
