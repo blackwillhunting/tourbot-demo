@@ -21,15 +21,14 @@ function wait(ms: number) {
 
 type SmartBarIntroNotice =
   | { id: string; kind: "login" }
-  | { id: string; kind: "checking"; title: string; detail: string }
   | { id: string; kind: "success"; title: string; detail: string }
   | { id: string; kind: "failure"; title: string; detail: string };
 
 const INTRO_NOTICE_MOTION = {
-  initial: { x: 360, opacity: 1, scale: 0.98 },
+  initial: { x: 420, opacity: 1, scale: 0.98 },
   animate: { x: 0, opacity: 1, scale: 1 },
-  exit: { x: -360, opacity: 1, scale: 0.98 },
-  transition: { duration: 0.24, ease: "easeOut" },
+  exit: { x: 420, opacity: 1, scale: 0.98 },
+  transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
 } as const;
 
 function SmartBarIntroBackground({ children }: { children: ReactNode }) {
@@ -43,33 +42,44 @@ function SmartBarIntroBackground({ children }: { children: ReactNode }) {
   );
 }
 
-function SmartBarStatusSlip({ notice }: { notice: Extract<SmartBarIntroNotice, { kind: "checking" | "success" | "failure" }> }) {
+function SmartBarStatusSlip({ notice }: { notice: Extract<SmartBarIntroNotice, { kind: "success" | "failure" }> }) {
   const isSuccess = notice.kind === "success";
-  const isFailure = notice.kind === "failure";
 
   return (
     <div className="flex min-h-[68px] w-[min(92vw,430px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl">
       <span
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 ${
-          isSuccess
-            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-            : isFailure
-              ? "bg-rose-50 text-rose-700 ring-rose-200"
-              : "bg-sky-50 text-sky-700 ring-sky-200"
+          isSuccess ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200"
         }`}
       >
-        {isSuccess ? (
-          <ShieldCheck className="h-5 w-5" />
-        ) : isFailure ? (
-          <span className="text-lg font-black">!</span>
-        ) : (
-          <Sparkles className="h-5 w-5 animate-pulse" />
-        )}
+        {isSuccess ? <ShieldCheck className="h-5 w-5" /> : <span className="text-lg font-black">!</span>}
       </span>
       <div className="min-w-0">
         <div className="truncate text-sm font-black tracking-tight text-slate-950">{notice.title}</div>
         <div className="truncate text-xs font-semibold text-slate-500">{notice.detail}</div>
       </div>
+    </div>
+  );
+}
+
+function ThinkingPasscode({ value }: { value: string }) {
+  const chars = value.padEnd(6, "•").slice(0, 6).split("");
+
+  return (
+    <div
+      aria-label="Checking passcode"
+      className="flex h-11 w-24 items-center justify-center gap-1 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 ring-1 ring-sky-100 sm:w-28"
+    >
+      {chars.map((char, index) => (
+        <motion.span
+          key={`${char}-${index}`}
+          animate={{ y: [0, -4, 0], opacity: [0.62, 1, 0.62] }}
+          transition={{ duration: 0.72, repeat: Infinity, delay: index * 0.08, ease: [0.42, 0, 0.58, 1] }}
+          className="inline-block min-w-[0.72em]"
+        >
+          {char}
+        </motion.span>
+      ))}
     </div>
   );
 }
@@ -99,16 +109,19 @@ function SmartBarLoginSlip({
         <div className="truncate text-xs font-semibold text-slate-500">Any 6 characters works for now.</div>
       </div>
 
-      <input
-        value={passcode}
-        onChange={(event) => onPasscodeChange(event.target.value.slice(0, 6))}
-        disabled={isBusy}
-        autoFocus
-        maxLength={6}
-        aria-label="Demo passcode"
-        placeholder="6 chars"
-        className="h-11 w-24 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 outline-none ring-1 ring-transparent transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-sky-200 focus:ring-sky-200 disabled:opacity-70 sm:w-28"
-      />
+      {isBusy ? (
+        <ThinkingPasscode value={passcode} />
+      ) : (
+        <input
+          value={passcode}
+          onChange={(event) => onPasscodeChange(event.target.value.slice(0, 6))}
+          autoFocus
+          maxLength={6}
+          aria-label="Demo passcode"
+          placeholder="6 chars"
+          className="h-11 w-24 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 outline-none ring-1 ring-transparent transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-sky-200 focus:ring-sky-200 sm:w-28"
+        />
+      )}
 
       <button
         type="submit"
@@ -149,14 +162,8 @@ function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void })
 
     const cleanCode = passcode.trim();
     setIsBusy(true);
-    setNotice({
-      id: nextNoticeId("checking"),
-      kind: "checking",
-      title: "Checking access",
-      detail: "Opening the SmartBar demo…",
-    });
 
-    await wait(520);
+    await wait(680);
     if (!mountedRef.current) return;
 
     if (cleanCode.length === 6) {
@@ -188,9 +195,9 @@ function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void })
 
   return (
     <SmartBarIntroBackground>
-      <div className="relative z-10 flex min-h-[100svh] items-center justify-center px-4">
-        <div className="relative h-28 w-[min(92vw,540px)]">
-          <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+      <div className="relative z-10 min-h-[100svh]">
+        <div className="absolute right-4 top-1/2 h-28 w-[min(92vw,540px)] -translate-y-1/2 sm:right-8">
+          <div className="absolute right-0 top-1/2 -translate-y-1/2">
             <AnimatePresence>
               <motion.div key={notice.id} {...INTRO_NOTICE_MOTION}>
                 {notice.kind === "login" ? (
