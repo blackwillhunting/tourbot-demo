@@ -88,7 +88,91 @@ function targetSelectorFromFocus(target: SmartBarFocusTarget) {
   if (!cleanId) return "";
 
   const escaped = safeCssEscape(cleanId);
-  return `#${escaped}, [data-tour-id="${escaped}"]`;
+  // Prefer the explicit SmartBar/customer target contract over a plain id.
+  // Several demo apps keep the id on a layout wrapper and put data-tour-id on
+  // the actual visual card/control. Matching the contract first keeps all
+  // agents on the same spotlight geometry.
+  return `[data-tour-id="${escaped}"], #${escaped}`;
+}
+
+function smartbarElementHasExplicitFocusContract(element: HTMLElement) {
+  return Boolean(
+    element.getAttribute("data-spotlight-mode") ||
+      element.getAttribute("data-tour-id") ||
+      element.getAttribute("data-smartbar-focus-surface"),
+  );
+}
+
+function smartbarVisibleRect(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+
+  if (
+    style.display === "none" ||
+    style.visibility === "hidden" ||
+    rect.width < 80 ||
+    rect.height < 48
+  ) {
+    return null;
+  }
+
+  return rect;
+}
+
+function smartbarFocusableArea(rect: DOMRect): number {
+  const viewportClippedWidth = Math.max(
+    0,
+    Math.min(rect.right, viewportWidth()) - Math.max(rect.left, 0),
+  );
+  const viewportClippedHeight = Math.max(
+    0,
+    Math.min(rect.bottom, viewportHeight()) - Math.max(rect.top, 0),
+  );
+  return viewportClippedWidth * viewportClippedHeight;
+}
+
+function smartbarBestVisualChild(element: HTMLElement): HTMLElement {
+  if (smartbarElementHasExplicitFocusContract(element)) return element;
+
+  const parentRect = smartbarVisibleRect(element);
+  const children = Array.from(element.children).filter(
+    (child): child is HTMLElement => child instanceof HTMLElement,
+  );
+
+  if (!children.length) return element;
+
+  const candidates = children
+    .map((child) => {
+      const rect = smartbarVisibleRect(child);
+      return rect ? { child, rect, area: smartbarFocusableArea(rect) } : null;
+    })
+    .filter((item): item is { child: HTMLElement; rect: DOMRect; area: number } =>
+      Boolean(item && item.area > 0),
+    )
+    .sort((a, b) => b.area - a.area);
+
+  if (!candidates.length) return element;
+
+  const best = candidates[0];
+
+  // If the selected node is only a layout wrapper, descend one level to the
+  // visible card/control surface. This mirrors BurgerRush, where the id and
+  // data-tour-id live directly on the visible card instead of an outer section.
+  const nested: HTMLElement = smartbarBestVisualChild(best.child);
+  const nestedRect = nested === best.child ? best.rect : smartbarVisibleRect(nested);
+
+  if (!parentRect || !nestedRect) return nested;
+
+  const parentArea = Math.max(1, smartbarFocusableArea(parentRect));
+  const nestedArea = smartbarFocusableArea(nestedRect);
+
+  // Avoid jumping to tiny badges/buttons inside a section. We only replace the
+  // wrapper when the child is clearly the main visual surface.
+  return nestedArea / parentArea >= 0.35 ? nested : element;
+}
+
+function smartbarResolveFocusElement(element: HTMLElement): HTMLElement {
+  return smartbarBestVisualChild(element);
 }
 
 export function smartbarFindFocusElement(target: SmartBarFocusTarget) {
@@ -98,14 +182,15 @@ export function smartbarFindFocusElement(target: SmartBarFocusTarget) {
   if (selector) {
     try {
       const bySelector = document.querySelector<HTMLElement>(selector);
-      if (bySelector) return bySelector;
+      if (bySelector) return smartbarResolveFocusElement(bySelector);
     } catch {
       // Invalid customer selectors should not break SmartBar focus attempts.
     }
   }
 
   const cleanId = String(target.targetId || "").trim();
-  return cleanId ? document.getElementById(cleanId) : null;
+  const byId = cleanId ? document.getElementById(cleanId) : null;
+  return byId ? smartbarResolveFocusElement(byId) : null;
 }
 
 async function waitForFocusElement(target: SmartBarFocusTarget, attempts = 18) {
@@ -157,13 +242,11 @@ function rectsOverlapHorizontally(targetRect: DOMRect, panelRect: SmartBarPanelR
   const targetCenterX = targetLeft + targetWidth / 2;
   const targetCenterCovered = targetCenterX >= panelRect.left && targetCenterX <= panelRect.right;
   const overlapShareOfTarget = overlapWidth / targetWidth;
-  const meaningfulPanelOverlap = Math.min(220, Math.max(120, panelWidth * 0.35));
-
-  // Wide BurgerRush-style sections can barely graze the TourBar sheet on the
-  // right edge. Treating that shallow overlap as blocked reserves the full
-  // sheet height and pushes otherwise-centerable targets too low. Only reserve
-  // vertical space when the panel materially covers the target's lane.
-  return targetCenterCovered || overlapShareOfTarget >= 0.45 || overlapWidth >= meaningfulPanelOverlap;
+  // Wide target cards can share a small right-side lane with the SmartBar
+  // sheet. Reserving the full sheet height for that shallow overlap pushes the
+  // target down and causes bottom clipping. Only reserve vertical space when
+  // the sheet covers the target centerline or a large share of the target.
+  return targetCenterCovered || overlapShareOfTarget >= 0.45;
 }
 
 function smartBarSafeTop(targetRect?: DOMRect | null) {
