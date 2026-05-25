@@ -36,7 +36,7 @@ let smartBarFocusRunId = 0;
 let lastSmartBarFocusKey = "";
 let lastSmartBarFocusStartedAt = 0;
 let activeSmartBarFocusOverlayCleanup: (() => void) | null = null;
-let activeSmartBarFocusScrollSpacerCleanup: (() => void) | null = null;
+let activeSmartBarFocusBottomRoom: HTMLElement | null = null;
 
 declare global {
   interface Window {
@@ -64,44 +64,15 @@ function viewportWidth() {
   return window.innerWidth || document.documentElement.clientWidth || 360;
 }
 
-function maxScrollableTop() {
+function documentScrollHeight() {
   return Math.max(
-    0,
-    Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0) - viewportHeight(),
+    document.body?.scrollHeight || 0,
+    document.documentElement?.scrollHeight || 0,
   );
 }
 
-function ensureSmartBarBottomScrollRoom(desiredTop: number) {
-  if (typeof document === "undefined") return;
-
-  const missingScrollRoom = Math.ceil(desiredTop - maxScrollableTop() + 72);
-  if (missingScrollRoom <= 0) return;
-
-  let spacer = document.querySelector<HTMLElement>("[data-smartbar-focus-scroll-spacer='true']");
-
-  if (!spacer) {
-    spacer = document.createElement("div");
-    spacer.setAttribute("data-smartbar-focus-scroll-spacer", "true");
-    spacer.setAttribute("aria-hidden", "true");
-    spacer.style.cssText = [
-      "display:block",
-      "width:1px",
-      "min-width:1px",
-      "height:0px",
-      "pointer-events:none",
-      "visibility:hidden",
-      "overflow:hidden",
-    ].join(";");
-    document.body.appendChild(spacer);
-  }
-
-  const currentHeight = Number.parseFloat(spacer.style.height || "0") || 0;
-  spacer.style.height = `${Math.max(currentHeight, missingScrollRoom)}px`;
-
-  activeSmartBarFocusScrollSpacerCleanup = () => {
-    spacer?.remove();
-    activeSmartBarFocusScrollSpacerCleanup = null;
-  };
+function maxScrollTop() {
+  return Math.max(0, documentScrollHeight() - viewportHeight());
 }
 
 function safeCssEscape(value: string) {
@@ -245,19 +216,59 @@ function focusElementIsPlaced(element: HTMLElement) {
   return rect.top >= safeTop - 20 && rect.top <= safeTop + 28 && rect.bottom >= safeTop + 160;
 }
 
+function clearSmartBarFocusBottomRoom() {
+  activeSmartBarFocusBottomRoom?.remove();
+  activeSmartBarFocusBottomRoom = null;
+}
+
+function ensureSmartBarFocusBottomRoomFor(desiredTop: number) {
+  if (typeof document === "undefined") return;
+
+  const shortfall = desiredTop - maxScrollTop();
+  if (shortfall <= 0) return;
+
+  const neededHeight = Math.ceil(shortfall + 160);
+
+  if (!activeSmartBarFocusBottomRoom) {
+    activeSmartBarFocusBottomRoom = document.createElement("div");
+    activeSmartBarFocusBottomRoom.setAttribute("data-smartbar-focus-bottom-room", "true");
+    activeSmartBarFocusBottomRoom.setAttribute("aria-hidden", "true");
+    activeSmartBarFocusBottomRoom.style.cssText = [
+      "display:block",
+      "width:1px",
+      "height:0px",
+      "pointer-events:none",
+      "opacity:0",
+      "visibility:hidden",
+    ].join(";");
+    document.body.appendChild(activeSmartBarFocusBottomRoom);
+  }
+
+  activeSmartBarFocusBottomRoom.style.height = `${Math.max(neededHeight, activeSmartBarFocusBottomRoom.offsetHeight || 0)}px`;
+}
+
+function scrollSmartBarFocusElementIntoPlace(
+  element: HTMLElement,
+  behavior: ScrollBehavior,
+) {
+  const desiredTop = focusElementTop(element);
+  ensureSmartBarFocusBottomRoomFor(desiredTop);
+
+  window.scrollTo({
+    top: Math.min(Math.max(0, desiredTop), maxScrollTop()),
+    behavior,
+  });
+}
+
 export function clearSmartBarFocusOverlay() {
   if (typeof document === "undefined") return;
 
   activeSmartBarFocusOverlayCleanup?.();
   activeSmartBarFocusOverlayCleanup = null;
-  activeSmartBarFocusScrollSpacerCleanup?.();
-  activeSmartBarFocusScrollSpacerCleanup = null;
+  clearSmartBarFocusBottomRoom();
 
   document
     .querySelectorAll<HTMLElement>("[data-smartbar-focus-overlay='true']")
-    .forEach((node) => node.remove());
-  document
-    .querySelectorAll<HTMLElement>("[data-smartbar-focus-scroll-spacer='true']")
     .forEach((node) => node.remove());
 }
 
@@ -295,12 +306,7 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
   const rect = element.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return false;
 
-  // smartbarFocusTarget clears any prior overlay before it creates scroll room.
-  // Do not call clearSmartBarFocusOverlay() here, or bottom-of-page targets can
-  // lose their temporary scroll room and get spotlighted while cut off.
-  document
-    .querySelectorAll<HTMLElement>("[data-smartbar-focus-overlay='true']")
-    .forEach((node) => node.remove());
+  clearSmartBarFocusOverlay();
 
   const duration = options.overlayDurationMs ?? 3600;
 
@@ -370,8 +376,7 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     if (animationFrame) window.cancelAnimationFrame(animationFrame);
     animationFrame = 0;
     frame.remove();
-    activeSmartBarFocusScrollSpacerCleanup?.();
-    activeSmartBarFocusScrollSpacerCleanup = null;
+    clearSmartBarFocusBottomRoom();
     if (activeSmartBarFocusOverlayCleanup === cleanup) activeSmartBarFocusOverlayCleanup = null;
   };
 
@@ -423,8 +428,6 @@ export async function smartbarFocusTarget(
     return true;
   }
 
-  clearSmartBarFocusOverlay();
-
   lastSmartBarFocusKey = targetKey;
   lastSmartBarFocusStartedAt = now;
   const focusRunId = ++smartBarFocusRunId;
@@ -445,17 +448,20 @@ export async function smartbarFocusTarget(
   }
 
   let placed = false;
+  const placementAttempts = Math.max(5, Math.min(9, Math.ceil((options.attempts ?? 18) / 4)));
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const nextTop = focusElementTop(element);
-    ensureSmartBarBottomScrollRoom(nextTop);
+  for (let attempt = 0; attempt < placementAttempts; attempt += 1) {
+    const behavior = attempt === 0 ? options.scrollBehavior ?? "smooth" : "auto";
 
-    window.scrollTo({
-      top: nextTop,
-      behavior: attempt === 0 ? options.scrollBehavior ?? "smooth" : "auto",
-    });
+    if (attempt === 2) {
+      // Fallback for pages with layout animations: ask the browser to center the
+      // element once, then let our safe-area math make the final correction.
+      element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    } else {
+      scrollSmartBarFocusElementIntoPlace(element, behavior);
+    }
 
-    await wait(attempt === 0 ? 520 : 180);
+    await wait(attempt === 0 && behavior === "smooth" ? 560 : 170);
     if (!isCurrentFocusRun()) return false;
     await waitForFrame();
     if (!isCurrentFocusRun()) return false;
@@ -464,14 +470,31 @@ export async function smartbarFocusTarget(
     if (placed) break;
   }
 
+  if (!placed) {
+    // One final deterministic correction after all page/shell animations have
+    // settled. Do not frost a visibly cut-off target.
+    scrollSmartBarFocusElementIntoPlace(element, "auto");
+    await wait(120);
+    if (!isCurrentFocusRun()) return false;
+    await waitForFrame();
+    if (!isCurrentFocusRun()) return false;
+    placed = focusElementIsPlaced(element);
+  }
+
   // Let layout settle after the final scroll. The overlay is fixed-position and
   // measured from the target's final viewport rect, so the customer site DOM is
   // not modified and the target does not need to be raised above SmartBar.
   await wait(90);
   if (!isCurrentFocusRun()) return false;
 
-  const overlayShown = runSmartBarFocusOverlay(element, options);
   const rect = element.getBoundingClientRect();
+
+  if (!placed) {
+    if (options.debug) dispatchFocusDebug({ target, found: true, placed: false, rect, reason: "placement_failed" });
+    return false;
+  }
+
+  const overlayShown = runSmartBarFocusOverlay(element, options);
 
   if (options.dispatchLegacyEvent !== false) {
     window.dispatchEvent(new CustomEvent("guide-spotlight-target", { detail: target }));

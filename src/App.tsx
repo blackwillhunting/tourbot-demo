@@ -1117,6 +1117,8 @@ function SectionCard({
   return (
     <motion.section
       id={section.id}
+      data-tour-id={section.id}
+      data-spotlight-mode={wide ? "region" : "card"}
       layout
       initial={false}
       animate={{ scale: emphasized ? 1.012 : 1, opacity: 1 }}
@@ -1413,27 +1415,11 @@ export default function App() {
     setCurrentPage(nextPage);
     setActiveAnchor(targetId || null);
 
-    window.setTimeout(() => {
-      const selector = target.targetSelector || (targetId ? `#${targetId}` : "");
-      const el = selector
-        ? document.querySelector<HTMLElement>(selector)
-        : null;
-
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-      }
-
-      if (targetId) {
-        const byId = document.getElementById(targetId);
-        if (byId) {
-          byId.scrollIntoView({ behavior: "smooth", block: "center" });
-          return;
-        }
-      }
-
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }, nextPage === currentPage ? 80 : 260);
+    // Do not run a second App-level scroll here. TourBarInformational calls the
+    // shared SmartBar focus controller after the target page has rendered, and
+    // that controller now verifies placement before applying the frost overlay.
+    // A competing scrollIntoView call can leave the card half-visible when the
+    // page transition and shell animation are still settling.
   };
 
   const openDemoPreview = () => {

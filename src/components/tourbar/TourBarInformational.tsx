@@ -246,8 +246,16 @@ export default function TourBarInformational({
             targetSelector: result.targetSelector,
             label: result.label,
           };
+          const pageWillChange = Boolean(result.pageId && result.pageId !== currentPageId);
+
           onNavigateToFocus?.(target);
-          void smartbarFocusTarget(target, { initialDelayMs: 720 });
+          void smartbarFocusTarget(target, {
+            initialDelayMs: pageWillChange ? 980 : 420,
+            attempts: 28,
+            scrollBehavior: "auto",
+            overlayDurationMs: 3600,
+            dispatchLegacyEvent: false,
+          });
         }
       }}
     />
