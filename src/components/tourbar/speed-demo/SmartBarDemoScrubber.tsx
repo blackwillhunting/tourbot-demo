@@ -11,7 +11,7 @@ export default function SmartBarDemoScrubber({
   onSelect: (index: number) => void;
   onTogglePlay: () => void;
 }) {
-  const active = SMARTBAR_SPEED_STEPS[index] || SMARTBAR_SPEED_STEPS[0];
+  const active = index >= 0 ? SMARTBAR_SPEED_STEPS[index] : null;
 
   return (
     <div className="fixed bottom-4 left-1/2 z-[10090] w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 rounded-[24px] border border-white/70 bg-white/88 px-3 py-3 shadow-[0_20px_70px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:px-4">
@@ -27,14 +27,20 @@ export default function SmartBarDemoScrubber({
           <div className="mb-2 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                SmartBar sheet choreography · {active.chapter}
+                SmartBar sheet choreography{active ? ` · ${active.chapter}` : ""}
               </div>
               <div className="truncate text-xs font-semibold text-slate-800 sm:text-sm">
-                {active.label} — <span className="font-medium text-slate-500">{active.helper}</span>
+                {active ? (
+                  <>
+                    {active.label} — <span className="font-medium text-slate-500">{active.helper}</span>
+                  </>
+                ) : (
+                  <span className="font-medium text-slate-500">Choose a segment or press Play</span>
+                )}
               </div>
             </div>
             <div className="shrink-0 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-              {index + 1}/{SMARTBAR_SPEED_STEPS.length}
+              {index >= 0 ? index + 1 : 0}/{SMARTBAR_SPEED_STEPS.length}
             </div>
           </div>
           <div

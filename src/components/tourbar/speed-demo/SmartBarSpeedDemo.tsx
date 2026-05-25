@@ -399,12 +399,11 @@ function fixtureResult(query: string): TourBarShellResult {
     });
   }
 
-  if (text.includes("nice room") || text.includes("view and breakfast")) {
+  if (text === "__booking_step_1" || text.includes("nice room") || text.includes("view and breakfast")) {
     return {
       title: "Recommendation 1 of 3: Garden Terrace King",
       body:
         "$239/night. A quieter garden-facing option with a resort feel and lower price. It is a value fit, but the view is softer than the Ocean View Suite.",
-      invitation: { kind: "next", text: "Show next recommendation" },
       nextMove: { type: "compare_options", label: "Show next recommendation", query: "__booking_step_2" },
       canFollowUp: true,
       mode: "speed_booking_reco",
@@ -417,7 +416,6 @@ function fixtureResult(query: string): TourBarShellResult {
       title: "Recommendation 2 of 3: Ocean View Suite",
       body:
         "$379/night. Best fit for a strong view without jumping to the villa tier. Breakfast can be attached with the Breakfast Flex Plan.",
-      invitation: { kind: "next", text: "Show premium comparison" },
       nextMove: { type: "compare_options", label: "Show premium comparison", query: "__booking_step_3" },
       canFollowUp: true,
       mode: "speed_booking_reco",
@@ -580,6 +578,48 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
     );
   }
 
+  if (mode === "speed_booking_reco") {
+    const title = result.title || "";
+    const backQuery = title.includes("2 of 3")
+      ? "__booking_step_1"
+      : title.includes("3 of 3")
+        ? "__booking_step_2"
+        : "";
+    const nextQuery = title.includes("1 of 3")
+      ? "__booking_step_2"
+      : title.includes("2 of 3")
+        ? "__booking_step_3"
+        : "";
+    const buttonBase = "rounded-2xl px-3 py-2.5 text-sm font-bold ring-1 transition";
+    const enabledClass = "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50";
+    const disabledClass = "cursor-not-allowed bg-slate-50 text-slate-300 ring-slate-100";
+
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={!backQuery}
+          onClick={() => {
+            if (backQuery) actions.submitFollowUp(backQuery);
+          }}
+          className={`${buttonBase} ${backQuery ? enabledClass : disabledClass}`}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          disabled={!nextQuery}
+          onClick={() => {
+            if (nextQuery) actions.submitFollowUp(nextQuery);
+          }}
+          className={`${buttonBase} ${nextQuery ? enabledClass : disabledClass}`}
+        >
+          Next
+        </button>
+      </div>
+    );
+  }
+
   if (mode === "speed_booking_confirm") {
     const raw = (result.raw || {}) as { bookingHandoff?: TourBarBookingHandoff };
     return (
@@ -674,7 +714,7 @@ function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
           <Utensils className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">BurgerRush</div>
+          <div className="truncate text-sm font-black tracking-tight sm:text-base">Ordering</div>
           <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Menu · cart · checkout</div>
         </div>
       </div>
@@ -688,8 +728,8 @@ function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
           <BedDouble className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">Domi Stay</div>
-          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Rooms · packages · booking</div>
+          <div className="truncate text-sm font-black tracking-tight sm:text-base">Booking</div>
+          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Rooms · packages · confirmation</div>
         </div>
       </div>
     );
@@ -701,8 +741,8 @@ function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
         <Building2 className="h-5 w-5" />
       </span>
       <div className="min-w-0">
-        <div className="truncate text-sm font-black tracking-tight sm:text-base">NexaPath Advisory</div>
-        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>IT support · AI mentorship · handoff</div>
+        <div className="truncate text-sm font-black tracking-tight sm:text-base">Informational</div>
+        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Services · proof · handoff</div>
       </div>
     </div>
   );
@@ -803,9 +843,9 @@ function SpeedDemoSitePreview({ surface }: { surface: SmartBarSpeedSurface }) {
     return (
       <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
         {[
-          ["Double Stack Combo", "Burger, fries, drink", "$11.99"],
-          ["Large Fries", "Crispy salted side", "$3.49"],
-          ["Diet Coke", "Large fountain drink", "$2.19"],
+          ["Combo item", "Burger, fries, drink", "$11.99"],
+          ["Side item", "Crispy salted side", "$3.49"],
+          ["Drink item", "Large fountain drink", "$2.19"],
         ].map(([title, body, price]) => (
           <div key={title} className="rounded-[28px] border border-orange-200/40 bg-slate-950/86 p-5 text-white shadow-xl shadow-slate-950/10">
             <div className="flex items-center justify-between gap-3">
@@ -905,7 +945,7 @@ function AdaptiveToolbarFrame({
 
 
 export default function SmartBarSpeedDemo() {
-  const [stepIndex, setStepIndex] = useState(0);
+  const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
   const commandIdRef = useRef(0);
@@ -971,8 +1011,11 @@ export default function SmartBarSpeedDemo() {
   );
 
   useEffect(() => {
+    if (stepIndex < 0) return;
+
     let cancelled = false;
     const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
+    if (!currentStep) return;
 
     const run = async () => {
       for (const command of currentStep.commands) {
@@ -983,7 +1026,7 @@ export default function SmartBarSpeedDemo() {
       if (!cancelled && isPlaying) {
         await wait(650);
         if (cancelled) return;
-        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) setStepIndex((index) => index + 1);
+        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) setStepIndex((index) => Math.min(index + 1, SMARTBAR_SPEED_STEPS.length - 1));
         else setIsPlaying(false);
       }
     };
@@ -1005,8 +1048,8 @@ export default function SmartBarSpeedDemo() {
     return fixtureResult(query);
   };
 
-  const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
-  const toolbarSurface = currentStep.surface;
+  const currentStep = stepIndex >= 0 ? SMARTBAR_SPEED_STEPS[stepIndex] : null;
+  const toolbarSurface = currentStep?.surface || "info";
   const smartBarNode = (
     <TourBarShell
               primaryPlaceholder="Ask SmartBar in plain English..."
@@ -1059,7 +1102,14 @@ export default function SmartBarSpeedDemo() {
           setIsPlaying(false);
           setStepIndex(index);
         }}
-        onTogglePlay={() => setIsPlaying((playing) => !playing)}
+        onTogglePlay={() => {
+          if (isPlaying) {
+            setIsPlaying(false);
+            return;
+          }
+          if (stepIndex < 0) setStepIndex(0);
+          setIsPlaying(true);
+        }}
       />
     </main>
   );
