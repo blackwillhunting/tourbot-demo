@@ -5,9 +5,11 @@ import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo
 
 const INTRO_DELAY_MS = 2000;
 const CHECKING_MS = 1200;
-const RESULT_HOLD_MS = 760;
-const PRELUDE_HOLD_MS = 1250;
+const RESULT_HOLD_MS = 1100;
+const PRELUDE_HOLD_MS = 1450;
 const MIN_PASSCODE_LENGTH = 4;
+const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
+const SLIP_OFFSCREEN_X = 620;
 
 type LaunchState = "waiting" | "login" | "checking" | "success" | "failure" | "prelude" | "demo";
 
@@ -32,10 +34,10 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
 ];
 
 const SLIP_MOTION = {
-  initial: { x: 440, opacity: 1, scale: 0.98 },
-  animate: { x: 0, opacity: 1, scale: 1 },
-  exit: { x: 440, opacity: 1, scale: 0.98 },
-  transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+  initial: { x: SLIP_OFFSCREEN_X },
+  animate: { x: 0 },
+  exit: { x: SLIP_OFFSCREEN_X },
+  transition: { duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" },
 } as const;
 
 function wait(ms: number) {
@@ -233,26 +235,28 @@ export default function LaunchSelectorTourBar() {
       <LaunchBackground />
 
       <div className="absolute right-4 top-1/2 z-10 h-28 w-[min(92vw,540px)] -translate-y-1/2 sm:right-8">
-        <AnimatePresence>
-          {launchState === "login" || launchState === "checking" ? (
-            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
-              <LaunchSlip
-                passcode={passcode}
-                isChecking={launchState === "checking"}
-                onPasscodeChange={setPasscode}
-                onSubmit={handleSubmit}
-              />
-            </motion.div>
-          ) : launchState === "success" || launchState === "failure" ? (
-            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
-              <ResultSlip kind={launchState} />
-            </motion.div>
-          ) : launchState === "prelude" ? (
-            <motion.div key={slipKey} {...SLIP_MOTION} className="absolute right-0 top-1/2 -translate-y-1/2">
-              <PreludeSlipCard slip={activePreludeSlip} />
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        <div className="relative flex h-full w-full items-center justify-end overflow-visible">
+          <AnimatePresence initial={false}>
+            {launchState === "login" || launchState === "checking" ? (
+              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
+                <LaunchSlip
+                  passcode={passcode}
+                  isChecking={launchState === "checking"}
+                  onPasscodeChange={setPasscode}
+                  onSubmit={handleSubmit}
+                />
+              </motion.div>
+            ) : launchState === "success" || launchState === "failure" ? (
+              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
+                <ResultSlip kind={launchState} />
+              </motion.div>
+            ) : launchState === "prelude" ? (
+              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
+                <PreludeSlipCard slip={activePreludeSlip} />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
