@@ -2,48 +2,6 @@ import type { TourBarBookingContext, TourBarRequiredBookingField } from "../tour
 
 export type SmartBarSpeedSurface = "info" | "ordering" | "booking";
 
-
-export type SmartBarSpeedIntroNoticeId = "passcode" | "checking" | "success" | "failure";
-
-export type SmartBarSpeedIntroNotice = {
-  id: SmartBarSpeedIntroNoticeId;
-  chapter: "Access";
-  label: string;
-  helper: string;
-  tone: "login" | "checking" | "success" | "failure";
-};
-
-export const SMARTBAR_SPEED_INTRO_NOTICES: SmartBarSpeedIntroNotice[] = [
-  {
-    id: "passcode",
-    chapter: "Access",
-    label: "Enter demo passcode",
-    helper: "Any 6-character code works for this prototype.",
-    tone: "login",
-  },
-  {
-    id: "checking",
-    chapter: "Access",
-    label: "Checking access…",
-    helper: "Preparing the SmartBar demo rhythm.",
-    tone: "checking",
-  },
-  {
-    id: "success",
-    chapter: "Access",
-    label: "Access granted",
-    helper: "SmartBar is ready to launch.",
-    tone: "success",
-  },
-  {
-    id: "failure",
-    chapter: "Access",
-    label: "Access not recognized",
-    helper: "Use any 6-character code for now.",
-    tone: "failure",
-  },
-];
-
 export type SmartBarSpeedCommand =
   | { kind: "shell"; type: "open" | "closeBar" | "closeSheet" | "closeChat" | "clearChat" | "closeAll" | "runNextMove" | "openChat"; delayMs?: number }
   | { kind: "typePrimary"; value: string; delayMs?: number }

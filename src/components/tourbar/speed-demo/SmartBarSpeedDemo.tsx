@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BedDouble, Building2, CalendarDays, CheckCircle2, Coffee, CreditCard, KeyRound, Loader2, Menu, Search, ShieldCheck, ShoppingCart, Sparkles, Utensils, Users, XCircle } from "lucide-react";
+import { BedDouble, Building2, CalendarDays, Coffee, CreditCard, Menu, Search, ShieldCheck, ShoppingCart, Sparkles, Utensils, Users } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellDemoCommand,
@@ -10,161 +10,13 @@ import TourBarShell, {
 import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
 import { TourBarBookingHandoffSheet, type TourBarBookingHandoff } from "../TourBarBooking";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
-import { SMARTBAR_SPEED_INTRO_NOTICES, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand, type SmartBarSpeedIntroNotice, type SmartBarSpeedIntroNoticeId, type SmartBarSpeedSurface } from "./smartBarSpeedScript";
+import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand, type SmartBarSpeedSurface } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const FIXTURE_THINKING_MS = 280;
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-}
-
-
-const FALLBACK_INTRO_NOTICE: SmartBarSpeedIntroNotice = {
-  id: "passcode",
-  chapter: "Access",
-  label: "Enter demo passcode",
-  helper: "Any 6-character code works for this prototype.",
-  tone: "login",
-};
-
-function introNoticeCopy(id: SmartBarSpeedIntroNoticeId): SmartBarSpeedIntroNotice {
-  return SMARTBAR_SPEED_INTRO_NOTICES.find((notice) => notice.id === id) || FALLBACK_INTRO_NOTICE;
-}
-
-type ActiveSmartBarFlashNotice = {
-  slotId: number;
-  noticeId: SmartBarSpeedIntroNoticeId;
-};
-
-function FlashNoticeIcon({ notice }: { notice: SmartBarSpeedIntroNotice }) {
-  if (notice.tone === "checking") return <Loader2 className="h-5 w-5 animate-spin" />;
-  if (notice.tone === "success") return <CheckCircle2 className="h-5 w-5" />;
-  if (notice.tone === "failure") return <XCircle className="h-5 w-5" />;
-  return <KeyRound className="h-5 w-5" />;
-}
-
-function flashNoticeTone(notice: SmartBarSpeedIntroNotice) {
-  if (notice.tone === "success") {
-    return {
-      icon: "bg-emerald-500 text-white shadow-emerald-500/25",
-      eyebrow: "text-emerald-700",
-      ring: "ring-emerald-200/80",
-      button: "bg-emerald-600 text-white shadow-emerald-600/20 hover:bg-emerald-500",
-    };
-  }
-
-  if (notice.tone === "failure") {
-    return {
-      icon: "bg-rose-500 text-white shadow-rose-500/25",
-      eyebrow: "text-rose-700",
-      ring: "ring-rose-200/80",
-      button: "bg-slate-950 text-white shadow-slate-950/20 hover:bg-slate-800",
-    };
-  }
-
-  return {
-    icon: "bg-sky-600 text-white shadow-sky-600/25",
-    eyebrow: "text-sky-700",
-    ring: "ring-sky-200/80",
-    button: "bg-slate-950 text-white shadow-slate-950/20 hover:bg-slate-800",
-  };
-}
-
-function SmartBarFlashNoticeCard({
-  notice,
-  passcode,
-  isChecking,
-  onPasscodeChange,
-  onSubmit,
-}: {
-  notice: SmartBarSpeedIntroNotice;
-  passcode: string;
-  isChecking: boolean;
-  onPasscodeChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const tone = flashNoticeTone(notice);
-  const isLogin = notice.tone === "login";
-
-  return (
-    <div className={`pointer-events-auto w-[min(360px,calc(100vw-32px))] rounded-[30px] border border-white/70 bg-white/82 p-4 shadow-2xl shadow-sky-950/12 ring-1 ${tone.ring} backdrop-blur-2xl`}>
-      <div className="flex items-start gap-3">
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-lg ${tone.icon}`}>
-          <FlashNoticeIcon notice={notice} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className={`text-[10px] font-black uppercase tracking-[0.18em] ${tone.eyebrow}`}>{notice.chapter}</div>
-          <div className="mt-1 text-base font-black tracking-tight text-slate-950">{notice.label}</div>
-          <div className="mt-1 text-sm font-semibold leading-snug text-slate-500">{notice.helper}</div>
-        </div>
-      </div>
-
-      {isLogin ? (
-        <form onSubmit={onSubmit} className="mt-4 grid gap-3">
-          <label className="sr-only" htmlFor="smartbar-demo-passcode">Demo passcode</label>
-          <input
-            id="smartbar-demo-passcode"
-            value={passcode}
-            onChange={(event) => onPasscodeChange(event.target.value)}
-            maxLength={6}
-            autoFocus
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="ABC123"
-            className="h-12 rounded-2xl border border-sky-100 bg-white px-4 text-center text-lg font-black uppercase tracking-[0.34em] text-slate-950 outline-none ring-1 ring-white transition placeholder:text-slate-300 focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
-          />
-          <button
-            type="submit"
-            disabled={isChecking}
-            className={`h-11 rounded-2xl px-4 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-60 ${tone.button}`}
-          >
-            Enter demo
-          </button>
-        </form>
-      ) : null}
-    </div>
-  );
-}
-
-function SmartBarFlashNoticeStage({
-  activeNotice,
-  passcode,
-  isChecking,
-  onPasscodeChange,
-  onSubmit,
-}: {
-  activeNotice: ActiveSmartBarFlashNotice | null;
-  passcode: string;
-  isChecking: boolean;
-  onPasscodeChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  const notice = activeNotice ? introNoticeCopy(activeNotice.noticeId) : null;
-
-  return (
-    <div className="pointer-events-none fixed inset-x-0 top-[18svh] z-[10100] flex justify-end overflow-hidden px-4 sm:px-8">
-      <AnimatePresence initial={false}>
-        {notice ? (
-          <motion.div
-            key={`${notice.id}-${activeNotice?.slotId || 0}`}
-            initial={{ x: 420 }}
-            animate={{ x: 0 }}
-            exit={{ x: -420 }}
-            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <SmartBarFlashNoticeCard
-              notice={notice}
-              passcode={passcode}
-              isChecking={isChecking}
-              onPasscodeChange={onPasscodeChange}
-              onSubmit={onSubmit}
-            />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
 }
 
 function line(id: string, title: string, priceLabel: string, knownSelections: string[] = []) {
@@ -1096,68 +948,7 @@ export default function SmartBarSpeedDemo() {
   const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
-  const [passcode, setPasscode] = useState("");
-  const [isCheckingAccess, setIsCheckingAccess] = useState(false);
-  const [accessComplete, setAccessComplete] = useState(false);
-  const [activeIntroNotice, setActiveIntroNotice] = useState<ActiveSmartBarFlashNotice | null>({ slotId: 0, noticeId: "passcode" });
   const commandIdRef = useRef(0);
-  const noticeIdRef = useRef(0);
-  const accessTimersRef = useRef<number[]>([]);
-
-  const queueAccessTimer = useCallback((callback: () => void, delayMs: number) => {
-    const timerId = window.setTimeout(() => {
-      accessTimersRef.current = accessTimersRef.current.filter((id) => id !== timerId);
-      callback();
-    }, delayMs);
-    accessTimersRef.current.push(timerId);
-  }, []);
-
-  const showIntroNotice = useCallback((noticeId: SmartBarSpeedIntroNoticeId) => {
-    noticeIdRef.current += 1;
-    setActiveIntroNotice({ slotId: noticeIdRef.current, noticeId });
-  }, []);
-
-  const handlePasscodeChange = useCallback((value: string) => {
-    setPasscode(value.replace(/\s/g, "").slice(0, 6).toUpperCase());
-  }, []);
-
-  const handlePasscodeSubmit = useCallback(
-    (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (isCheckingAccess) return;
-
-      const normalized = passcode.trim();
-      const isValid = normalized.length === 6;
-      accessTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
-      accessTimersRef.current = [];
-      setIsCheckingAccess(true);
-      showIntroNotice("checking");
-
-      queueAccessTimer(() => {
-        showIntroNotice(isValid ? "success" : "failure");
-        setIsCheckingAccess(false);
-
-        if (isValid) {
-          queueAccessTimer(() => setActiveIntroNotice(null), 950);
-          queueAccessTimer(() => setAccessComplete(true), 1220);
-          return;
-        }
-
-        queueAccessTimer(() => {
-          setPasscode("");
-          showIntroNotice("passcode");
-        }, 1150);
-      }, 620);
-    },
-    [isCheckingAccess, passcode, queueAccessTimer, showIntroNotice],
-  );
-
-  useEffect(() => {
-    return () => {
-      accessTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
-      accessTimersRef.current = [];
-    };
-  }, []);
 
   const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
     commandIdRef.current += 1;
@@ -1288,56 +1079,38 @@ export default function SmartBarSpeedDemo() {
     <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      {!accessComplete ? (
-        <section className="absolute inset-0 z-[10095] overflow-hidden bg-[radial-gradient(circle_at_18%_14%,_rgba(125,211,252,0.36),_transparent_30%),radial-gradient(circle_at_82%_76%,_rgba(59,130,246,0.16),_transparent_34%),linear-gradient(135deg,_#eef8ff_0%,_#eaf4ff_48%,_#f8fbff_100%)]">
-          <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(14,116,144,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(14,116,144,0.12)_1px,transparent_1px)] [background-size:40px_40px]" />
-          <div className="pointer-events-none absolute left-5 top-5 rounded-full border border-white/70 bg-white/55 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-sky-900 shadow-lg shadow-sky-950/5 backdrop-blur-xl sm:left-8 sm:top-8">
-            SmartBar speed demo
-          </div>
-          <SmartBarFlashNoticeStage
-            activeNotice={activeIntroNotice}
-            passcode={passcode}
-            isChecking={isCheckingAccess}
-            onPasscodeChange={handlePasscodeChange}
-            onSubmit={handlePasscodeSubmit}
-          />
-        </section>
-      ) : (
-        <>
-          <div className="relative z-[10070] px-4 pt-4 sm:px-6">
-            <AdaptiveToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
-          </div>
+      <div className="relative z-[10070] px-4 pt-4 sm:px-6">
+        <AdaptiveToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
+      </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={toolbarSurface}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-            >
-              <SpeedDemoSitePreview surface={toolbarSurface} />
-            </motion.div>
-          </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={toolbarSurface}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
+          <SpeedDemoSitePreview surface={toolbarSurface} />
+        </motion.div>
+      </AnimatePresence>
 
-          <SmartBarDemoScrubber
-            index={stepIndex}
-            isPlaying={isPlaying}
-            onSelect={(index) => {
-              setIsPlaying(false);
-              setStepIndex(index);
-            }}
-            onTogglePlay={() => {
-              if (isPlaying) {
-                setIsPlaying(false);
-                return;
-              }
-              if (stepIndex < 0) setStepIndex(0);
-              setIsPlaying(true);
-            }}
-          />
-        </>
-      )}
+      <SmartBarDemoScrubber
+        index={stepIndex}
+        isPlaying={isPlaying}
+        onSelect={(index) => {
+          setIsPlaying(false);
+          setStepIndex(index);
+        }}
+        onTogglePlay={() => {
+          if (isPlaying) {
+            setIsPlaying(false);
+            return;
+          }
+          if (stepIndex < 0) setStepIndex(0);
+          setIsPlaying(true);
+        }}
+      />
     </main>
   );
 }
