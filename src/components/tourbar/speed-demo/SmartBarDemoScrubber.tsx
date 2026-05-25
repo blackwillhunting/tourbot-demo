@@ -37,7 +37,10 @@ export default function SmartBarDemoScrubber({
               {index + 1}/{SMARTBAR_SPEED_STEPS.length}
             </div>
           </div>
-          <div className="grid grid-cols-12 gap-1.5">
+          <div
+            className="grid gap-1.5"
+            style={{ gridTemplateColumns: `repeat(${SMARTBAR_SPEED_STEPS.length}, minmax(0, 1fr))` }}
+          >
             {SMARTBAR_SPEED_STEPS.map((step, stepIndex) => (
               <button
                 key={step.id}

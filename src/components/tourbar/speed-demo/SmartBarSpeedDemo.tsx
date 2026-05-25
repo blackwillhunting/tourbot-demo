@@ -324,6 +324,8 @@ function fixtureResult(query: string): TourBarShellResult {
       title: "Relevant case studies",
       body:
         "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
+      invitation: { kind: "handoff", text: "Talk to someone about Copilot support" },
+      nextMove: { type: "handoff", label: "Talk to someone about Copilot support", query: "nice, can I talk to someone?" },
       canFollowUp: true,
       mode: "speed_case_studies",
       raw: speedMeta({ stableSheetKey: "case-studies" }),
@@ -385,6 +387,7 @@ function fixtureResult(query: string): TourBarShellResult {
       activeIndex: 2,
       reviewMode: "review",
       nextQuery: "__qualifier_3",
+      keepSheetOpenNextMove: true,
     });
   }
 
