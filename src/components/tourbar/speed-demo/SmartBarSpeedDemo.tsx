@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { BedDouble, Building2, CalendarDays, Coffee, CreditCard, Menu, Search, ShieldCheck, ShoppingCart, Sparkles, Utensils, Users } from "lucide-react";
 import TourBarShell, {
@@ -17,6 +17,199 @@ const FIXTURE_THINKING_MS = 280;
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+type SmartBarIntroNotice =
+  | { id: string; kind: "login" }
+  | { id: string; kind: "checking"; title: string; detail: string }
+  | { id: string; kind: "success"; title: string; detail: string }
+  | { id: string; kind: "failure"; title: string; detail: string };
+
+const INTRO_NOTICE_MOTION = {
+  initial: { x: 360, opacity: 1, scale: 0.98 },
+  animate: { x: 0, opacity: 1, scale: 1 },
+  exit: { x: -360, opacity: 1, scale: 0.98 },
+  transition: { duration: 0.24, ease: "easeOut" },
+} as const;
+
+function SmartBarIntroBackground({ children }: { children: ReactNode }) {
+  return (
+    <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
+      {children}
+    </main>
+  );
+}
+
+function SmartBarStatusSlip({ notice }: { notice: Extract<SmartBarIntroNotice, { kind: "checking" | "success" | "failure" }> }) {
+  const isSuccess = notice.kind === "success";
+  const isFailure = notice.kind === "failure";
+
+  return (
+    <div className="flex min-h-[68px] w-[min(92vw,430px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl">
+      <span
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 ${
+          isSuccess
+            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+            : isFailure
+              ? "bg-rose-50 text-rose-700 ring-rose-200"
+              : "bg-sky-50 text-sky-700 ring-sky-200"
+        }`}
+      >
+        {isSuccess ? (
+          <ShieldCheck className="h-5 w-5" />
+        ) : isFailure ? (
+          <span className="text-lg font-black">!</span>
+        ) : (
+          <Sparkles className="h-5 w-5 animate-pulse" />
+        )}
+      </span>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-black tracking-tight text-slate-950">{notice.title}</div>
+        <div className="truncate text-xs font-semibold text-slate-500">{notice.detail}</div>
+      </div>
+    </div>
+  );
+}
+
+function SmartBarLoginSlip({
+  passcode,
+  isBusy,
+  onPasscodeChange,
+  onSubmit,
+}: {
+  passcode: string;
+  isBusy: boolean;
+  onPasscodeChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form
+      onSubmit={onSubmit}
+      className="flex w-[min(92vw,520px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200">
+        <Search className="h-5 w-5" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-black tracking-tight text-slate-950">Enter demo passcode</div>
+        <div className="truncate text-xs font-semibold text-slate-500">Any 6 characters works for now.</div>
+      </div>
+
+      <input
+        value={passcode}
+        onChange={(event) => onPasscodeChange(event.target.value.slice(0, 6))}
+        disabled={isBusy}
+        autoFocus
+        maxLength={6}
+        aria-label="Demo passcode"
+        placeholder="6 chars"
+        className="h-11 w-24 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 outline-none ring-1 ring-transparent transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-sky-200 focus:ring-sky-200 disabled:opacity-70 sm:w-28"
+      />
+
+      <button
+        type="submit"
+        disabled={isBusy}
+        className="h-11 rounded-full bg-slate-950 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70"
+      >
+        Go
+      </button>
+    </form>
+  );
+}
+
+function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void }) {
+  const [passcode, setPasscode] = useState("");
+  const [notice, setNotice] = useState<SmartBarIntroNotice>({ id: "login-initial", kind: "login" });
+  const [isBusy, setIsBusy] = useState(false);
+  const noticeIdRef = useRef(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const nextNoticeId = useCallback((kind: SmartBarIntroNotice["kind"]) => {
+    noticeIdRef.current += 1;
+    return `${kind}-${noticeIdRef.current}`;
+  }, []);
+
+  const showLogin = useCallback(() => {
+    setNotice({ id: nextNoticeId("login"), kind: "login" });
+  }, [nextNoticeId]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isBusy) return;
+
+    const cleanCode = passcode.trim();
+    setIsBusy(true);
+    setNotice({
+      id: nextNoticeId("checking"),
+      kind: "checking",
+      title: "Checking access",
+      detail: "Opening the SmartBar demo…",
+    });
+
+    await wait(520);
+    if (!mountedRef.current) return;
+
+    if (cleanCode.length === 6) {
+      setNotice({
+        id: nextNoticeId("success"),
+        kind: "success",
+        title: "Access granted",
+        detail: "Starting SmartBar.",
+      });
+      await wait(760);
+      if (!mountedRef.current) return;
+      onAccessGranted();
+      return;
+    }
+
+    setNotice({
+      id: nextNoticeId("failure"),
+      kind: "failure",
+      title: "Access not recognized",
+      detail: "Use any 6-character code.",
+    });
+
+    await wait(900);
+    if (!mountedRef.current) return;
+    setPasscode("");
+    setIsBusy(false);
+    showLogin();
+  };
+
+  return (
+    <SmartBarIntroBackground>
+      <div className="relative z-10 flex min-h-[100svh] items-center justify-center px-4">
+        <div className="relative h-28 w-[min(92vw,540px)]">
+          <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+            <AnimatePresence>
+              <motion.div key={notice.id} {...INTRO_NOTICE_MOTION}>
+                {notice.kind === "login" ? (
+                  <SmartBarLoginSlip
+                    passcode={passcode}
+                    isBusy={isBusy}
+                    onPasscodeChange={setPasscode}
+                    onSubmit={handleSubmit}
+                  />
+                ) : (
+                  <SmartBarStatusSlip notice={notice} />
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </SmartBarIntroBackground>
+  );
 }
 
 function line(id: string, title: string, priceLabel: string, knownSelections: string[] = []) {
@@ -944,7 +1137,7 @@ function AdaptiveToolbarFrame({
 }
 
 
-export default function SmartBarSpeedDemo() {
+function SmartBarSpeedDemoRun() {
   const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
@@ -1113,4 +1306,14 @@ export default function SmartBarSpeedDemo() {
       />
     </main>
   );
+}
+
+export default function SmartBarSpeedDemo() {
+  const [accessGranted, setAccessGranted] = useState(false);
+
+  if (!accessGranted) {
+    return <SmartBarIntroGate onAccessGranted={() => setAccessGranted(true)} />;
+  }
+
+  return <SmartBarSpeedDemoRun />;
 }
