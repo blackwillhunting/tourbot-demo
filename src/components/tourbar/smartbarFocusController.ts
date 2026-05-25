@@ -37,6 +37,7 @@ let lastSmartBarFocusKey = "";
 let lastSmartBarFocusStartedAt = 0;
 let activeSmartBarFocusOverlayCleanup: (() => void) | null = null;
 let activeSmartBarFocusBottomRoom: HTMLElement | null = null;
+let activeSmartBarFocusScrollCancel: (() => void) | null = null;
 
 declare global {
   interface Window {
@@ -330,17 +331,90 @@ function ensureSmartBarFocusBottomRoomFor(desiredTop: number) {
   activeSmartBarFocusBottomRoom.style.height = `${Math.max(neededHeight, activeSmartBarFocusBottomRoom.offsetHeight || 0)}px`;
 }
 
-function scrollSmartBarFocusElementIntoPlace(
+function cancelSmartBarFocusScroll() {
+  activeSmartBarFocusScrollCancel?.();
+  activeSmartBarFocusScrollCancel = null;
+}
+
+function clampSmartBarScrollTop(value: number) {
+  return Math.min(Math.max(0, value), maxScrollTop());
+}
+
+function smartBarScrollEase(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function smartBarScrollDuration(distance: number) {
+  // Fast enough for a guided UI, slow enough to read as intentional movement.
+  return Math.min(920, Math.max(340, Math.abs(distance) * 0.58));
+}
+
+function scrollWindowDeterministicallyTo(
+  desiredTop: number,
+  behavior: ScrollBehavior,
+) {
+  cancelSmartBarFocusScroll();
+
+  const startTop = window.scrollY || document.documentElement.scrollTop || 0;
+  const endTop = clampSmartBarScrollTop(desiredTop);
+  const distance = endTop - startTop;
+
+  if (behavior === "auto" || Math.abs(distance) < 2) {
+    window.scrollTo(0, endTop);
+    return waitForFrame();
+  }
+
+  const duration = smartBarScrollDuration(distance);
+
+  return new Promise<void>((resolve) => {
+    let raf = 0;
+    let resolved = false;
+    let cancel: () => void = () => undefined;
+    const startedAt = performance.now();
+
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = 0;
+      if (activeSmartBarFocusScrollCancel === cancel) activeSmartBarFocusScrollCancel = null;
+      resolve();
+    };
+
+    cancel = () => {
+      finish();
+    };
+
+    const step = (now: number) => {
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+      const eased = smartBarScrollEase(progress);
+      const nextTop = startTop + distance * eased;
+
+      // Numeric scrollTo avoids browser-native smooth-scroll and CSS
+      // scroll-behavior. SmartBar owns every animation frame.
+      window.scrollTo(0, clampSmartBarScrollTop(nextTop));
+
+      if (progress >= 1) {
+        window.scrollTo(0, endTop);
+        finish();
+        return;
+      }
+
+      raf = window.requestAnimationFrame(step);
+    };
+
+    activeSmartBarFocusScrollCancel = cancel;
+    raf = window.requestAnimationFrame(step);
+  });
+}
+
+async function scrollSmartBarFocusElementIntoPlace(
   element: HTMLElement,
   behavior: ScrollBehavior,
 ) {
   const desiredTop = focusElementTop(element);
   ensureSmartBarFocusBottomRoomFor(desiredTop);
-
-  window.scrollTo({
-    top: Math.min(Math.max(0, desiredTop), maxScrollTop()),
-    behavior,
-  });
+  await scrollWindowDeterministicallyTo(desiredTop, behavior);
 }
 
 export function clearSmartBarFocusOverlay() {
@@ -348,6 +422,7 @@ export function clearSmartBarFocusOverlay() {
 
   activeSmartBarFocusOverlayCleanup?.();
   activeSmartBarFocusOverlayCleanup = null;
+  cancelSmartBarFocusScroll();
   clearSmartBarFocusBottomRoom();
 
   document
@@ -513,6 +588,7 @@ export async function smartbarFocusTarget(
 
   lastSmartBarFocusKey = targetKey;
   lastSmartBarFocusStartedAt = now;
+  cancelSmartBarFocusScroll();
   const focusRunId = ++smartBarFocusRunId;
 
   const isCurrentFocusRun = () => focusRunId === smartBarFocusRunId;
@@ -534,17 +610,11 @@ export async function smartbarFocusTarget(
   const placementAttempts = Math.max(5, Math.min(9, Math.ceil((options.attempts ?? 18) / 4)));
 
   for (let attempt = 0; attempt < placementAttempts; attempt += 1) {
-    const behavior = attempt === 0 ? options.scrollBehavior ?? "smooth" : "auto";
+    const behavior = options.scrollBehavior === "auto" ? "auto" : "smooth";
 
-    if (attempt === 2) {
-      // Fallback for pages with layout animations: ask the browser to center the
-      // element once, then let our safe-area math make the final correction.
-      element.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
-    } else {
-      scrollSmartBarFocusElementIntoPlace(element, behavior);
-    }
-
-    await wait(attempt === 0 && behavior === "smooth" ? 560 : 170);
+    await scrollSmartBarFocusElementIntoPlace(element, behavior);
+    if (!isCurrentFocusRun()) return false;
+    await wait(attempt === 0 ? 110 : 70);
     if (!isCurrentFocusRun()) return false;
     await waitForFrame();
     if (!isCurrentFocusRun()) return false;
@@ -556,8 +626,8 @@ export async function smartbarFocusTarget(
   if (!placed) {
     // One final deterministic correction after all page/shell animations have
     // settled. Do not frost a visibly cut-off target.
-    scrollSmartBarFocusElementIntoPlace(element, "auto");
-    await wait(120);
+    await scrollSmartBarFocusElementIntoPlace(element, "auto");
+    await wait(80);
     if (!isCurrentFocusRun()) return false;
     await waitForFrame();
     if (!isCurrentFocusRun()) return false;
