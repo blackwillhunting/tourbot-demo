@@ -144,6 +144,8 @@ function SmartBarIntroGate({ onAccessGranted }: { onAccessGranted: () => void })
   const mountedRef = useRef(true);
 
   useEffect(() => {
+        mountedRef.current = true;
+
     const entranceTimer = window.setTimeout(() => {
       if (!mountedRef.current) return;
       setNotice({ id: "login-initial", kind: "login" });
