@@ -418,6 +418,16 @@ export default function LaunchSelectorTourBar() {
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
 
+  const clearNoticeLanes = useCallback(async (runId: number) => {
+    setActiveNoticeLane(null);
+    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+    if (runIdRef.current !== runId) return false;
+
+    setNoticeA(null);
+    setNoticeB(null);
+    return true;
+  }, []);
+
   const startAcceptedFlow = useCallback(
     async (runId: number, options: { showAccessGranted?: boolean } = {}) => {
       setDemoAutoPlay(false);
@@ -439,11 +449,8 @@ export default function LaunchSelectorTourBar() {
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
         if (runIdRef.current !== runId) return;
 
-        setActiveNoticeLane(null);
-        setNoticeA(null);
-        setNoticeB(null);
-        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
-        if (runIdRef.current !== runId) return;
+        const noticeCleared = await clearNoticeLanes(runId);
+        if (!noticeCleared) return;
       }
 
       cleanupResetAccessUrl();
@@ -527,7 +534,7 @@ export default function LaunchSelectorTourBar() {
       setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
-    [activeNoticeLane],
+    [activeNoticeLane, clearNoticeLanes],
   );
 
   useEffect(() => {
@@ -595,22 +602,19 @@ export default function LaunchSelectorTourBar() {
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
         if (runIdRef.current !== runId) return;
 
-        setActiveNoticeLane(null);
-        setNoticeA(null);
-        setNoticeB(null);
-        setPreludeStackCards([]);
-        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
-        if (runIdRef.current !== runId) return;
+        const noticeCleared = await clearNoticeLanes(runId);
+        if (!noticeCleared) return;
 
         setPasscode("");
         setIsChecking(false);
+        setPreludeStackCards([]);
         setLaunchVisible(true);
         return;
       }
 
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
-    [activeNoticeLane, isChecking, launchVisible, passcode, startAcceptedFlow],
+    [activeNoticeLane, clearNoticeLanes, isChecking, launchVisible, passcode, startAcceptedFlow],
   );
 
   return (
@@ -629,12 +633,12 @@ export default function LaunchSelectorTourBar() {
           />
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "a"}>
-          <SmartBarFlashCard notice={noticeA} />
+        <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)}>
+          {noticeA ? <SmartBarFlashCard notice={noticeA} /> : null}
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "b"}>
-          <SmartBarFlashCard notice={noticeB} />
+        <SmartBarFlashCardLane active={activeNoticeLane === "b" && Boolean(noticeB)}>
+          {noticeB ? <SmartBarFlashCard notice={noticeB} /> : null}
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
 
