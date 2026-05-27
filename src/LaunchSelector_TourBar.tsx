@@ -316,8 +316,104 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
   },
 ];
 
+const MOBILE_PRELUDE_SLIPS: PreludeSlip[] = [
+  {
+    title: "What is **SmartBar**?",
+    cascadeGroup: "stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+  },
+  {
+    title: "It looks like search",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "feels like chat",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "returns action",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+    clearCascade: true,
+  },
+  {
+    title: "Search gives **results**",
+    cascadeGroup: "mobile-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "Chat gives **words**",
+    cascadeGroup: "mobile-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "SmartBar gives the **next step**",
+    cascadeGroup: "mobile-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Mobile-ready",
+    cascadeGroup: "mobile-ready",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 850,
+  },
+  {
+    title: "Bottom-mounted",
+    cascadeGroup: "mobile-ready",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 850,
+  },
+  {
+    title: "Works with **any site**",
+    cascadeGroup: "mobile-ready",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1800,
+    clearCascade: true,
+  },
+];
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function useSmartBarMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
 }
 
 function codeIsAccepted(value: string) {
@@ -360,15 +456,21 @@ function LaunchSlip({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex min-h-[72px] w-full items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl"
+      className="flex min-h-[72px] w-[min(100%,calc(100vw-1.5rem))] items-center gap-2 rounded-[28px] border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl sm:w-full sm:gap-3 sm:rounded-full sm:px-5 sm:py-3.5"
     >
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
-        <Search className="h-5 w-5" />
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85 sm:h-12 sm:w-12">
+        <Search className="h-4 w-4 sm:h-5 sm:w-5" />
       </span>
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-base font-black tracking-tight text-slate-950">Enter SmartBar passcode</div>
-        <div className="truncate text-xs font-semibold text-slate-600">Unlock the speed demo.</div>
+        <div className="truncate text-sm font-black tracking-tight text-slate-950 sm:text-base">
+          <span className="sm:hidden">Demo code</span>
+          <span className="hidden sm:inline">Enter SmartBar passcode</span>
+        </div>
+        <div className="truncate text-[11px] font-semibold text-slate-600 sm:text-xs">
+          <span className="sm:hidden">Unlock SmartBar.</span>
+          <span className="hidden sm:inline">Unlock the speed demo.</span>
+        </div>
       </div>
 
       {isChecking ? (
@@ -379,14 +481,14 @@ function LaunchSlip({
           onChange={(event) => onPasscodeChange(event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH))}
           aria-label="SmartBar demo passcode"
           placeholder="6 chars"
-          className="h-12 w-24 rounded-full border border-emerald-300/80 bg-white/92 px-3 text-center text-sm font-semibold tracking-[0.18em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:w-28"
+          className="h-11 w-[5.75rem] rounded-full border border-emerald-300/80 bg-white/92 px-2 text-center text-sm font-semibold tracking-[0.14em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:h-12 sm:w-28 sm:px-3 sm:tracking-[0.18em]"
         />
       )}
 
       <button
         type="submit"
         disabled={isChecking}
-        className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70"
+        className="h-11 rounded-full bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70 sm:h-12 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
       >
         Go
       </button>
@@ -405,6 +507,7 @@ function LaunchBackground() {
 }
 
 export default function LaunchSelectorTourBar() {
+  const isMobileSmartBar = useSmartBarMobileViewport();
   const [launchVisible, setLaunchVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [passcode, setPasscode] = useState("");
@@ -467,8 +570,10 @@ export default function LaunchSelectorTourBar() {
 
       let activeCascadeGroup: string | null = null;
 
-      for (let index = 0; index < PRELUDE_SLIPS.length; index += 1) {
-        const slip = PRELUDE_SLIPS[index];
+      const preludeSlips = isMobileSmartBar ? MOBILE_PRELUDE_SLIPS : PRELUDE_SLIPS;
+
+      for (let index = 0; index < preludeSlips.length; index += 1) {
+        const slip = preludeSlips[index];
         const preludeNotice: SmartBarFlashCardNotice = {
           variant: "prelude",
           title: slip.title,
@@ -533,9 +638,11 @@ export default function LaunchSelectorTourBar() {
       await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
       if (runIdRef.current !== runId) return;
 
-      setFitsAnimationVisible(true);
-      await wait(FITS_ANYWHERE_ANIMATION_MS);
-      if (runIdRef.current !== runId) return;
+      if (!isMobileSmartBar) {
+        setFitsAnimationVisible(true);
+        await wait(FITS_ANYWHERE_ANIMATION_MS);
+        if (runIdRef.current !== runId) return;
+      }
 
       setDemoVisible(true);
       await wait(DEMO_HANDOFF_SETTLE_MS);
@@ -544,7 +651,7 @@ export default function LaunchSelectorTourBar() {
       setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
-    [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState],
+    [clearNoticeLanes, getNextNoticeLane, isMobileSmartBar, setActiveNoticeLaneState],
   );
 
   useEffect(() => {
@@ -631,6 +738,7 @@ export default function LaunchSelectorTourBar() {
     <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
+      <div className={isMobileSmartBar ? "-translate-y-[8svh] sm:translate-y-0" : undefined}>
       <SmartBarFlashCardRail>
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
@@ -651,6 +759,7 @@ export default function LaunchSelectorTourBar() {
           {noticeB ? <SmartBarFlashCard notice={noticeB} /> : null}
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
+      </div>
 
       <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
     </div>

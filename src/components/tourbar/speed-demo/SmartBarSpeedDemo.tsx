@@ -130,8 +130,75 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
     clearCascade: true,
   },
 ];
+
+const MOBILE_OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
+  {
+    title: "Mobile-ready",
+    cascadeGroup: "mobile-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Bottom-mounted",
+    cascadeGroup: "mobile-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Works with **any site**",
+    cascadeGroup: "mobile-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1800,
+    clearCascade: true,
+  },
+  {
+    title: "First example: **NexaPath**",
+    cascadeGroup: "mobile-nexa",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1200,
+  },
+  {
+    title: "Managed IT for finance",
+    cascadeGroup: "mobile-nexa",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1200,
+  },
+  {
+    title: "SmartBar finds the path",
+    cascadeGroup: "mobile-nexa",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+    clearCascade: true,
+  },
+];
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function useSmartBarSpeedMobileViewport() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 767px)").matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const query = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return isMobile;
 }
 
 function waitForFrame() {
@@ -697,6 +764,29 @@ function speedDemoFixtureThinkingMsForQuery(query: string) {
   return speedDemoFixtureThinkingMs(result, query);
 }
 
+function mobileSpeedDemoCardTitle(value: string) {
+  const clean = value.trim();
+  const compact = speedDemoCompactText(clean);
+
+  if (compact === "search can't parse this") return "Search stalls";
+  if (compact.includes("moves the visitor")) return "Moves to the answer";
+  if (compact.includes("explains why")) return "Explains why";
+  if (compact === "visitor asks for specifics") return "Ask for specifics";
+  if (compact === "surfaces proof points") return "Shows proof";
+  if (compact === "provides a direct chat surface") return "Opens live chat";
+  if (compact === "hands off context") return "Carries context";
+  if (compact.includes("burgerrush")) return "Example 2: **BurgerRush**";
+  if (compact === "visible-cart ordering site") return "Ordering site";
+  if (compact === "smartbar turns intent into checkout") return "Intent to checkout";
+  if (compact === "messy food shorthand") return "Messy shorthand";
+  if (compact === "then checks totals and modifiers") return "Checks the cart";
+  if (compact.includes("domi hotel")) return "Example 3: **Domi**";
+  if (compact === "smartbar builds a booking path") return "Builds booking path";
+  if (compact === "same script") return "Same script";
+
+  return clean;
+}
+
 function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
   const raw = carryoutRaw(order, options.commerceAction || "carryout_show_cart");
   return {
@@ -744,8 +834,9 @@ function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
   };
 }
 
-function fixtureResult(query: string): TourBarShellResult {
+function fixtureResult(query: string, options: { compact?: boolean } = {}): TourBarShellResult {
   const text = query.trim().toLowerCase();
+  const compact = Boolean(options.compact);
 
   if (
     text.includes("hedge fund") ||
@@ -756,8 +847,10 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Showing: Hedge Fund industry path",
       body:
-        "Yes — this hedge-fund path covers both core IT support needs and AI/copilot-related modernization. In this context, that typically means:\n\n- Secure trading and collaboration infrastructure\n- Cyber/compliance operating model support\n- AI/data visibility and workflow enhancement, including governed copilot-style capabilities\n\nFor a hedge fund, the site frames this as a combined approach: stable infrastructure first, then security/compliance, then AI/data and workflow opportunities in a regulated operating model.",
-      invitation: { kind: "next", text: "Want to look specifically at the AI & Data lane for Copilot and agent setup?" },
+        compact
+          ? "You’re describing two needs: secure hedge-fund IT support and Copilot/agent enablement.\n\nSmartBar routes that to the finance-focused managed IT path, with AI/data advisory layered in."
+          : "Yes — this hedge-fund path covers both core IT support needs and AI/copilot-related modernization. In this context, that typically means:\n\n- Secure trading and collaboration infrastructure\n- Cyber/compliance operating model support\n- AI/data visibility and workflow enhancement, including governed copilot-style capabilities\n\nFor a hedge fund, the site frames this as a combined approach: stable infrastructure first, then security/compliance, then AI/data and workflow opportunities in a regulated operating model.",
+      invitation: { kind: "next", text: compact ? "Show Copilot use cases" : "Want to look specifically at the AI & Data lane for Copilot and agent setup?" },
       nextMove: { type: "ask_deeper", label: "Show Copilot use cases", query: "__copilot_use_cases" },
       canFollowUp: true,
       mode: "speed_info",
@@ -774,7 +867,9 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "What we would actually do",
       body:
-        "For a hedge fund, the practical Copilot/agent work would usually look like this:\n\n- **Readiness review:** confirm Microsoft 365 permissions, data exposure, identity controls, and security boundaries before anyone turns agents loose.\n- **Use-case selection:** pick a few high-value workflows — investment committee prep, policy lookup, vendor-risk intake, ticket triage, or research summarization.\n- **Agent design:** define what each agent can answer, what systems it can touch, and when it must escalate for review.\n- **Pilot support:** build a small controlled rollout, train the first users, measure adoption, and tighten governance before expanding.",
+        compact
+          ? "Practical work would start with:\n\n- **Readiness:** permissions, data exposure, and security boundaries\n- **Use cases:** investment prep, policy lookup, vendor risk, ticket triage\n- **Pilot:** small rollout, training, and governance before expansion"
+          : "For a hedge fund, the practical Copilot/agent work would usually look like this:\n\n- **Readiness review:** confirm Microsoft 365 permissions, data exposure, identity controls, and security boundaries before anyone turns agents loose.\n- **Use-case selection:** pick a few high-value workflows — investment committee prep, policy lookup, vendor-risk intake, ticket triage, or research summarization.\n- **Agent design:** define what each agent can answer, what systems it can touch, and when it must escalate for review.\n- **Pilot support:** build a small controlled rollout, train the first users, measure adoption, and tighten governance before expanding.",
       invitation: { kind: "case_studies", text: "Show relevant case studies" },
       nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
@@ -787,7 +882,9 @@ function fixtureResult(query: string): TourBarShellResult {
     return {
       title: "Relevant case studies",
       body:
-        "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
+        compact
+          ? "- **Operations assistant:** approved-source answers with human review for sensitive requests\n- **Compliance helper:** policy and vendor-risk evidence before audits\n- **Copilot sprint:** safe rollout, permission cleanup, and first-agent selection"
+          : "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
       invitation: { kind: "handoff", text: "Talk to someone about Copilot support" },
       nextMove: { type: "handoff", label: "Talk to someone about Copilot support", query: "nice, can I talk to someone?" },
       canFollowUp: true,
@@ -1157,34 +1254,42 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
 }
 
 function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
+  const isMobileReplay = useSmartBarSpeedMobileViewport();
+
   return (
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
       <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
       <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
 
+      <div className={isMobileReplay ? "-translate-y-[8svh] sm:translate-y-0" : undefined}>
       <SmartBarFlashCardRail>
         <SmartBarFlashCardLane active>
-          <div className="inline-flex min-h-[72px] w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
-              <RefreshCcw className="h-5 w-5" />
+          <div className="inline-flex min-h-[72px] w-[min(100%,calc(100vw-1.5rem))] items-center gap-2 rounded-[28px] border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl sm:w-fit sm:max-w-[calc(100vw-2rem)] sm:gap-3 sm:rounded-full sm:px-5 sm:py-3.5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85 sm:h-12 sm:w-12">
+              <RefreshCcw className="h-4 w-4 sm:h-5 sm:w-5" />
             </span>
 
             <div className="min-w-0">
-              <div className="truncate text-base font-black tracking-tight text-slate-950">Demo complete</div>
-              <div className="truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</div>
+              <div className="truncate text-sm font-black tracking-tight text-slate-950 sm:text-base">
+                {isMobileReplay ? "Demo complete" : "Demo complete"}
+              </div>
+              <div className="truncate text-[11px] font-semibold text-slate-600 sm:text-xs">
+                {isMobileReplay ? "Replay SmartBar." : "Run the SmartBar speed demo again."}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={onReplay}
-              className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800"
+              className="h-11 rounded-full bg-slate-950 px-4 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:h-12 sm:px-5 sm:text-xs sm:tracking-[0.14em]"
             >
               Replay
             </button>
           </div>
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
+      </div>
     </main>
   );
 }
@@ -1197,6 +1302,7 @@ export default function SmartBarSpeedDemo({
 }: {
   autoPlay?: boolean;
 }) {
+  const isMobileSpeedDemo = useSmartBarSpeedMobileViewport();
   const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
@@ -1266,8 +1372,10 @@ export default function SmartBarSpeedDemo({
       let nextLane: SmartBarFlashCardLaneName = "a";
       let activeCascadeGroup: string | null = null;
 
-      for (let index = 0; index < OPENING_DEMO_TUTOR_CARDS.length; index += 1) {
-        const card = OPENING_DEMO_TUTOR_CARDS[index];
+      const openingCards = isMobileSpeedDemo ? MOBILE_OPENING_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
+
+      for (let index = 0; index < openingCards.length; index += 1) {
+        const card = openingCards[index];
         const notice: SmartBarFlashCardNotice = {
           variant: "prelude",
           title: card.title,
@@ -1340,7 +1448,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isMobileSpeedDemo]);
 
   const showScriptCards = useCallback(
     async (
@@ -1375,7 +1483,9 @@ export default function SmartBarSpeedDemo({
       for (let index = 0; index < command.cards.length; index += 1) {
         const card = command.cards[index];
         const isTextCard = typeof card === "string";
-        const title = isTextCard ? card : card.title;
+        const title = isTextCard
+          ? (isMobileSpeedDemo ? mobileSpeedDemoCardTitle(card) : card)
+          : (isMobileSpeedDemo ? mobileSpeedDemoCardTitle(card.title) : card.title);
         const detail = isTextCard ? undefined : card.detail;
         const density = isTextCard ? defaultDensity : card.density || defaultDensity;
         const waitMs = isTextCard
@@ -1400,7 +1510,7 @@ export default function SmartBarSpeedDemo({
       setTutorStackCards([]);
       await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
     },
-    [],
+    [isMobileSpeedDemo],
   );
 
   const showPointerClick = useCallback(
@@ -1408,6 +1518,11 @@ export default function SmartBarSpeedDemo({
       command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
       cancelled: () => boolean,
     ) => {
+      if (isMobileSpeedDemo) {
+        await wait(Math.min(command.pulseMs ?? SMARTBAR_FAKE_POINTER_PULSE_MS, 320));
+        return;
+      }
+
       const stage = targetStageRef.current;
       let target: HTMLElement | null = null;
 
@@ -1462,7 +1577,7 @@ export default function SmartBarSpeedDemo({
       setFakePointer((current) => (current?.id === pointerId ? null : current));
       await wait(command.exitMs ?? SMARTBAR_FAKE_POINTER_EXIT_MS);
     },
-    [],
+    [isMobileSpeedDemo],
   );
 
   const typeIntoShell = useCallback(
@@ -1530,7 +1645,7 @@ export default function SmartBarSpeedDemo({
         return;
       }
       if (command.kind === "showFixture") {
-        const result = fixtureResult(command.value);
+        const result = fixtureResult(command.value, { compact: isMobileSpeedDemo });
         const thinkingMs = command.thinkingMs ?? 0;
 
         if (thinkingMs > 0 && speedResultAllowsThinkingTheater(result, command.value)) {
@@ -1581,7 +1696,7 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [sendCommand, showPointerClick, showScriptCards, typeIntoShell],
+    [isMobileSpeedDemo, sendCommand, showPointerClick, showScriptCards, typeIntoShell],
   );
 
   useEffect(() => {
@@ -1627,13 +1742,13 @@ export default function SmartBarSpeedDemo({
   }, [isPlaying, runCommand, sendCommand, stepIndex, tutorBlocking]);
 
   const onPrimarySubmit = async (query: string, _context: TourBarShellTurnContext) => {
-    const result = fixtureResult(query);
+    const result = fixtureResult(query, { compact: isMobileSpeedDemo });
     await wait(speedDemoFixtureThinkingMs(result, query));
     return result;
   };
 
   const onFollowUpSubmit = async (query: string, _context: TourBarShellTurnContext) => {
-    const result = fixtureResult(query);
+    const result = fixtureResult(query, { compact: isMobileSpeedDemo });
     await wait(speedDemoFixtureThinkingMs(result, query));
     return result;
   };
@@ -1663,7 +1778,7 @@ export default function SmartBarSpeedDemo({
 
   const smartBarNode = (
     <TourBarShell
-              primaryPlaceholder="Ask SmartBar in plain English..."
+              primaryPlaceholder={isMobileSpeedDemo ? "Ask SmartBar..." : "Ask SmartBar in plain English..."}
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"
               launcherAriaLabel="Open SmartBar speed demo"
@@ -1695,6 +1810,7 @@ export default function SmartBarSpeedDemo({
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
+      <div className={isMobileSpeedDemo ? "-translate-y-[8svh] sm:translate-y-0" : undefined}>
       <SmartBarFlashCardRail>
         <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
         <SmartBarFlashCardLane active={activeTutorLane === "a"}>
@@ -1704,10 +1820,11 @@ export default function SmartBarSpeedDemo({
           <SmartBarFlashCard notice={tutorNoticeB} />
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
+      </div>
 
-      <SmartBarFakePointerOverlay pointer={fakePointer} />
+      <SmartBarFakePointerOverlay pointer={isMobileSpeedDemo ? null : fakePointer} />
 
-      <div className="relative z-[10070] px-4 pt-4 sm:px-6">
+      <div className="relative z-[10070] px-3 pt-3 sm:px-6 sm:pt-4">
         <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
       </div>
 
@@ -1716,7 +1833,7 @@ export default function SmartBarSpeedDemo({
         ref={targetStageRef}
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={toolbarSurface}
-        className="relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
+        className="relative z-10 h-[calc(100svh-88px)] overflow-y-auto overscroll-contain pb-36 pt-1 [scrollbar-gutter:stable] sm:h-[calc(100svh-106px)] sm:pb-32 sm:pt-2"
       >
         <SmartBarSpeedTargetWall surface={toolbarSurface} />
       </div>
