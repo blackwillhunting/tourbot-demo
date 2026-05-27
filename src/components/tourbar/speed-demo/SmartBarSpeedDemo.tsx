@@ -1165,12 +1165,12 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
 
       <SmartBarFlashCardRail>
         <SmartBarFlashCardLane active>
-          <div className="inline-flex min-h-[72px] w-[calc(100vw-1.5rem)] max-w-[calc(100vw-1.5rem)] flex-wrap items-center justify-center gap-3 rounded-[28px] border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl sm:w-fit sm:max-w-[calc(100vw-2rem)] sm:flex-nowrap sm:justify-start sm:rounded-full sm:px-5">
+          <div className="inline-flex min-h-[72px] w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl">
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
               <RefreshCcw className="h-5 w-5" />
             </span>
 
-            <div className="min-w-[min(100%,12rem)] sm:min-w-0">
+            <div className="min-w-0">
               <div className="truncate text-base font-black tracking-tight text-slate-950">Demo complete</div>
               <div className="truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</div>
             </div>
@@ -1178,7 +1178,7 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
             <button
               type="button"
               onClick={onReplay}
-              className="h-11 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:h-12"
+              className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800"
             >
               Replay
             </button>
@@ -1707,7 +1707,7 @@ export default function SmartBarSpeedDemo({
 
       <SmartBarFakePointerOverlay pointer={fakePointer} />
 
-      <div className="relative z-[10070] px-3 pt-3 sm:px-6 sm:pt-4">
+      <div className="relative z-[10070] px-4 pt-4 sm:px-6">
         <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
       </div>
 
@@ -1716,7 +1716,7 @@ export default function SmartBarSpeedDemo({
         ref={targetStageRef}
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={toolbarSurface}
-        className="relative z-10 h-[calc(100svh-88px)] overflow-y-auto overscroll-contain pb-[9.5rem] pt-2 [scrollbar-gutter:stable] sm:h-[calc(100svh-106px)] sm:pb-32"
+        className="relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
       >
         <SmartBarSpeedTargetWall surface={toolbarSurface} />
       </div>

@@ -360,13 +360,13 @@ function LaunchSlip({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex min-h-[72px] w-full max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-3 rounded-[28px] border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-4 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl sm:max-w-none sm:flex-nowrap sm:rounded-full sm:px-5"
+      className="flex min-h-[72px] w-full items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl"
     >
       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
         <Search className="h-5 w-5" />
       </span>
 
-      <div className="min-w-[min(100%,11rem)] flex-1 sm:min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="truncate text-base font-black tracking-tight text-slate-950">Enter SmartBar passcode</div>
         <div className="truncate text-xs font-semibold text-slate-600">Unlock the speed demo.</div>
       </div>
@@ -379,14 +379,14 @@ function LaunchSlip({
           onChange={(event) => onPasscodeChange(event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH))}
           aria-label="SmartBar demo passcode"
           placeholder="6 chars"
-          className="h-11 w-24 rounded-full border border-emerald-300/80 bg-white/92 px-3 text-center text-sm font-semibold tracking-[0.18em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:h-12 sm:w-28"
+          className="h-12 w-24 rounded-full border border-emerald-300/80 bg-white/92 px-3 text-center text-sm font-semibold tracking-[0.18em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:w-28"
         />
       )}
 
       <button
         type="submit"
         disabled={isChecking}
-        className="h-11 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70 sm:h-12"
+        className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70"
       >
         Go
       </button>
@@ -628,7 +628,7 @@ export default function LaunchSelectorTourBar() {
   );
 
   return (
-    <div className="relative min-h-[100svh] overflow-x-hidden">
+    <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
       <SmartBarFlashCardRail>

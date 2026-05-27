@@ -1125,11 +1125,11 @@ export default function TourBarShell({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed left-3 right-3 top-3 w-auto translate-y-0 sm:absolute sm:left-auto sm:right-0 sm:top-1/2 sm:w-[430px] sm:-translate-y-1/2 md:w-[470px]"
+            className="absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]"
           >
             <div className="relative">
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
-                <div className="flex items-end gap-2 px-2 py-2 sm:px-2.5">
+                <div className="flex items-end gap-2 px-2.5 py-2">
                   <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
                     <Search className="h-4 w-4" />
                   </span>
@@ -1207,7 +1207,7 @@ export default function TourBarShell({
                       animate={{ y: "0%" }}
                       exit={{ y: "-100%" }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className="max-h-[calc(100dvh-7.25rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl sm:max-h-[calc(100vh-7rem)]"
+                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
                       {isLoading && (
                         <div className="px-4 py-4 text-sm font-medium text-slate-600">
@@ -1316,7 +1316,7 @@ export default function TourBarShell({
                       animate={{ y: "0%" }}
                       exit={{ y: "-100%" }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className="max-h-[calc(100dvh-7.25rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl sm:max-h-[calc(100vh-7rem)]"
+                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
                       <TourBarConsultantChat
                         copy={consultantChat}
