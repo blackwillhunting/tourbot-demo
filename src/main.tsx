@@ -12,7 +12,6 @@ const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
 const SMARTBAR_HOSTNAMES = new Set(["smartbar.getn2ai.com"]);
-const SMARTBAR_LOGIN_PARAM = "smartbarLogin";
 
 function normalizedPath() {
   return window.location.pathname.replace(/\/$/, "") || "/";
@@ -26,10 +25,6 @@ function isSmartBarHostname() {
   return SMARTBAR_HOSTNAMES.has(window.location.hostname.toLowerCase());
 }
 
-function isSmartBarLoginRoute(path: string) {
-  if (!isSmartBarHostname() || path !== "/") return false;
-  return new URLSearchParams(window.location.search).get(SMARTBAR_LOGIN_PARAM) === "1";
-}
 
 function clearStoredTourBotDemoToken() {
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
@@ -92,12 +87,6 @@ async function verifyStoredTourBotDemoToken() {
 
 function redirectToLaunchSelector() {
   const returnTo = encodeURIComponent(currentReturnTo());
-
-  if (isSmartBarHostname()) {
-    window.location.replace(`/?${SMARTBAR_LOGIN_PARAM}=1&returnTo=${returnTo}`);
-    return;
-  }
-
   window.location.replace(`/?returnTo=${returnTo}`);
 }
 
@@ -158,23 +147,7 @@ function Router() {
   const path = normalizedPath();
 
   if (isSmartBarHostname()) {
-    if (isSmartBarLoginRoute(path)) {
-      return <LaunchSelector />;
-    }
-
-    if (path === "/" || path === "/smartbar-speed") {
-      return (
-        <ProtectedDemoRoute>
-          <LaunchSelectorTourBar />
-        </ProtectedDemoRoute>
-      );
-    }
-
-    return (
-      <ProtectedDemoRoute>
-        <LaunchSelectorTourBar />
-      </ProtectedDemoRoute>
-    );
+    return <LaunchSelectorTourBar />;
   }
 
   if (path === "/transactional") {

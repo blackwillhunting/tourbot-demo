@@ -23,6 +23,165 @@ const DEFAULT_PRELUDE_HOLD_MS = 2500;
 const DEMO_HANDOFF_SETTLE_MS = 260;
 const REQUIRED_PASSCODE_LENGTH = 6;
 
+const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
+const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
+const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
+const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
+const TOURBOT_LEGACY_UNLOCK_COOKIE = "tourbot_demo_unlocked";
+
+type TourBotAuthResponse = {
+  ok?: boolean;
+  token?: string;
+  expiresAt?: number;
+};
+
+function isLocalDemoAuthBypassEnabled() {
+  return (
+    import.meta.env.DEV &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  );
+}
+
+function clearLegacyPrototypeCookie() {
+  if (typeof document === "undefined") return;
+
+  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${TOURBOT_LEGACY_UNLOCK_COOKIE}=; Max-Age=0; Path=/; SameSite=Lax${secureFlag}`;
+}
+
+function clearStoredTourBotDemoToken() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
+  window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  clearLegacyPrototypeCookie();
+}
+
+function saveStoredTourBotDemoToken(token: string, expiresAt?: number) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
+  if (typeof expiresAt === "number" && Number.isFinite(expiresAt)) {
+    window.localStorage.setItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+  } else {
+    window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  }
+
+  clearLegacyPrototypeCookie();
+}
+
+function getStoredTourBotDemoToken() {
+  if (typeof window === "undefined") return "";
+
+  const token = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_KEY) || "";
+  const expiresAtRaw = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  const expiresAt = expiresAtRaw ? Number(expiresAtRaw) : 0;
+
+  if (!token) return "";
+
+  if (expiresAt && Number.isFinite(expiresAt) && expiresAt * 1000 <= Date.now()) {
+    clearStoredTourBotDemoToken();
+    return "";
+  }
+
+  return token;
+}
+
+function shouldResetAccessFromUrl() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("logout") === "1" || params.get("resetAccess") === "1";
+}
+
+function cleanupResetAccessUrl() {
+  if (typeof window === "undefined") return;
+
+  const params = new URLSearchParams(window.location.search);
+  const changed = params.has("logout") || params.has("resetAccess") || params.has("returnTo") || params.has("smartbarLogin");
+  params.delete("logout");
+  params.delete("resetAccess");
+  params.delete("returnTo");
+  params.delete("smartbarLogin");
+  if (!changed) return;
+
+  const nextSearch = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`,
+  );
+}
+
+async function checkTourBotDemoSession() {
+  const token = getStoredTourBotDemoToken();
+  if (!token) return false;
+
+  try {
+    const response = await fetch(TOURBOT_AUTH_SESSION_URL, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    if (body.ok !== true) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    if (typeof body.expiresAt === "number") {
+      saveStoredTourBotDemoToken(token, body.expiresAt);
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function loginToTourBotDemo(passcode: string) {
+  if (isLocalDemoAuthBypassEnabled()) return codeIsAccepted(passcode);
+
+  try {
+    const response = await fetch(TOURBOT_AUTH_LOGIN_URL, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ passcode }),
+    });
+
+    if (!response.ok) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    if (body.ok !== true || !body.token) {
+      clearStoredTourBotDemoToken();
+      return false;
+    }
+
+    saveStoredTourBotDemoToken(body.token, body.expiresAt);
+    return true;
+  } catch {
+    clearStoredTourBotDemoToken();
+    return false;
+  }
+}
+
+
 type PreludeSlip = SmartBarTutorCard;
 
 const PRELUDE_SLIPS: PreludeSlip[] = [
@@ -259,57 +418,29 @@ export default function LaunchSelectorTourBar() {
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setLaunchVisible(true);
-    }, INTRO_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  const handleSubmit = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!launchVisible || isChecking) return;
-
-      const runId = runIdRef.current + 1;
-      runIdRef.current = runId;
-
-      const cleanCode = passcode.trim();
+  const startAcceptedFlow = useCallback(
+    async (runId: number, options: { showAccessGranted?: boolean } = {}) => {
       setDemoAutoPlay(false);
-      setIsChecking(true);
-      await wait(CHECKING_MS);
-      if (runIdRef.current !== runId) return;
-
-      const accepted = codeIsAccepted(cleanCode);
-      let nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
-      const resultNotice: SmartBarFlashCardNotice = accepted
-        ? {
-            variant: "success",
-            title: "Access granted",
-          }
-        : {
-            variant: "failure",
-            title: "Access denied",
-          };
-
-      if (nextLane === "a") setNoticeA(resultNotice);
-      else setNoticeB(resultNotice);
-
-      setActiveNoticeLane(nextLane);
       setLaunchVisible(false);
+      setIsChecking(false);
 
-      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
-      if (runIdRef.current !== runId) return;
+      let nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
 
-      if (!accepted) {
-        setPasscode("");
-        setIsChecking(false);
-        setLaunchVisible(true);
-        setActiveNoticeLane(null);
-        setPreludeStackCards([]);
-        return;
+      if (options.showAccessGranted !== false) {
+        const resultNotice: SmartBarFlashCardNotice = {
+          variant: "success",
+          title: "Access granted",
+        };
+
+        if (nextLane === "a") setNoticeA(resultNotice);
+        else setNoticeB(resultNotice);
+
+        setActiveNoticeLane(nextLane);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
+        if (runIdRef.current !== runId) return;
       }
+
+      cleanupResetAccessUrl();
 
       let activeCascadeGroup: string | null = null;
 
@@ -390,7 +521,85 @@ export default function LaunchSelectorTourBar() {
       setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
-    [activeNoticeLane, isChecking, launchVisible, passcode],
+    [activeNoticeLane],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAccessState = async () => {
+      if (shouldResetAccessFromUrl()) {
+        clearStoredTourBotDemoToken();
+        cleanupResetAccessUrl();
+      }
+
+      await wait(INTRO_DELAY_MS);
+      if (cancelled) return;
+
+      const hasValidSession = await checkTourBotDemoSession();
+      if (cancelled) return;
+
+      if (hasValidSession) {
+        const runId = runIdRef.current + 1;
+        runIdRef.current = runId;
+        await startAcceptedFlow(runId, { showAccessGranted: false });
+        return;
+      }
+
+      setLaunchVisible(true);
+    };
+
+    void loadAccessState();
+
+    return () => {
+      cancelled = true;
+      runIdRef.current += 1;
+    };
+  }, [startAcceptedFlow]);
+
+  const handleSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!launchVisible || isChecking) return;
+
+      const runId = runIdRef.current + 1;
+      runIdRef.current = runId;
+
+      const cleanCode = passcode.trim();
+      setDemoAutoPlay(false);
+      setIsChecking(true);
+      await wait(CHECKING_MS);
+      if (runIdRef.current !== runId) return;
+
+      const accepted = await loginToTourBotDemo(cleanCode);
+
+      if (!accepted) {
+        const nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
+        const resultNotice: SmartBarFlashCardNotice = {
+          variant: "failure",
+          title: "Access denied",
+        };
+
+        if (nextLane === "a") setNoticeA(resultNotice);
+        else setNoticeB(resultNotice);
+
+        setActiveNoticeLane(nextLane);
+        setLaunchVisible(false);
+
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
+        if (runIdRef.current !== runId) return;
+
+        setPasscode("");
+        setIsChecking(false);
+        setLaunchVisible(true);
+        setActiveNoticeLane(null);
+        setPreludeStackCards([]);
+        return;
+      }
+
+      await startAcceptedFlow(runId, { showAccessGranted: true });
+    },
+    [activeNoticeLane, isChecking, launchVisible, passcode, startAcceptedFlow],
   );
 
   return (
