@@ -417,16 +417,26 @@ export default function LaunchSelectorTourBar() {
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
+  const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
+
+  const setActiveNoticeLaneState = useCallback((lane: SmartBarFlashCardLaneName | null) => {
+    activeNoticeLaneRef.current = lane;
+    setActiveNoticeLane(lane);
+  }, []);
+
+  const getNextNoticeLane = useCallback((): SmartBarFlashCardLaneName => {
+    return activeNoticeLaneRef.current === "a" ? "b" : "a";
+  }, []);
 
   const clearNoticeLanes = useCallback(async (runId: number) => {
-    setActiveNoticeLane(null);
+    setActiveNoticeLaneState(null);
     await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
     if (runIdRef.current !== runId) return false;
 
     setNoticeA(null);
     setNoticeB(null);
     return true;
-  }, []);
+  }, [setActiveNoticeLaneState]);
 
   const startAcceptedFlow = useCallback(
     async (runId: number, options: { showAccessGranted?: boolean } = {}) => {
@@ -434,7 +444,7 @@ export default function LaunchSelectorTourBar() {
       setLaunchVisible(false);
       setIsChecking(false);
 
-      let nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
+      let nextLane: SmartBarFlashCardLaneName = getNextNoticeLane();
 
       if (options.showAccessGranted !== false) {
         const resultNotice: SmartBarFlashCardNotice = {
@@ -445,7 +455,7 @@ export default function LaunchSelectorTourBar() {
         if (nextLane === "a") setNoticeA(resultNotice);
         else setNoticeB(resultNotice);
 
-        setActiveNoticeLane(nextLane);
+        setActiveNoticeLaneState(nextLane);
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
         if (runIdRef.current !== runId) return;
 
@@ -475,7 +485,7 @@ export default function LaunchSelectorTourBar() {
           }
 
           if (activeCascadeGroup !== slip.cascadeGroup) {
-            setActiveNoticeLane(null);
+            setActiveNoticeLaneState(null);
             setPreludeStackCards([]);
             setActivePreludeStackMode(mode);
             activeCascadeGroup = slip.cascadeGroup;
@@ -513,12 +523,12 @@ export default function LaunchSelectorTourBar() {
         if (nextLane === "a") setNoticeA(preludeNotice);
         else setNoticeB(preludeNotice);
 
-        setActiveNoticeLane(nextLane);
+        setActiveNoticeLaneState(nextLane);
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + (slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS));
         if (runIdRef.current !== runId) return;
       }
 
-      setActiveNoticeLane(null);
+      setActiveNoticeLaneState(null);
       setPreludeStackCards([]);
       await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
       if (runIdRef.current !== runId) return;
@@ -534,7 +544,7 @@ export default function LaunchSelectorTourBar() {
       setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
-    [activeNoticeLane, clearNoticeLanes],
+    [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState],
   );
 
   useEffect(() => {
@@ -587,7 +597,7 @@ export default function LaunchSelectorTourBar() {
       const accepted = await loginToTourBotDemo(cleanCode);
 
       if (!accepted) {
-        const nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
+        const nextLane: SmartBarFlashCardLaneName = getNextNoticeLane();
         const resultNotice: SmartBarFlashCardNotice = {
           variant: "failure",
           title: "Access denied",
@@ -596,7 +606,7 @@ export default function LaunchSelectorTourBar() {
         if (nextLane === "a") setNoticeA(resultNotice);
         else setNoticeB(resultNotice);
 
-        setActiveNoticeLane(nextLane);
+        setActiveNoticeLaneState(nextLane);
         setLaunchVisible(false);
 
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
@@ -614,7 +624,7 @@ export default function LaunchSelectorTourBar() {
 
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
-    [activeNoticeLane, clearNoticeLanes, isChecking, launchVisible, passcode, startAcceptedFlow],
+    [clearNoticeLanes, getNextNoticeLane, isChecking, launchVisible, passcode, setActiveNoticeLaneState, startAcceptedFlow],
   );
 
   return (
