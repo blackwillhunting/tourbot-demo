@@ -438,6 +438,12 @@ export default function LaunchSelectorTourBar() {
         setActiveNoticeLane(nextLane);
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
         if (runIdRef.current !== runId) return;
+
+        setActiveNoticeLane(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
       }
 
       cleanupResetAccessUrl();
@@ -589,11 +595,16 @@ export default function LaunchSelectorTourBar() {
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
         if (runIdRef.current !== runId) return;
 
+        setActiveNoticeLane(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        setPreludeStackCards([]);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
+
         setPasscode("");
         setIsChecking(false);
         setLaunchVisible(true);
-        setActiveNoticeLane(null);
-        setPreludeStackCards([]);
         return;
       }
 
