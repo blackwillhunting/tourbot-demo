@@ -395,8 +395,8 @@ export function TourBarBookingHandoffSheet({
       : bookingHandoff.guestsLabel;
 
   const editableRowClass =
-    "group flex w-full items-start justify-between gap-3 rounded-xl px-2 py-1.5 text-left transition hover:bg-emerald-100/70 focus:outline-none focus:ring-2 focus:ring-emerald-300";
-  const staticRowClass = "flex items-start justify-between gap-3 px-2 py-1.5";
+    "group flex w-full flex-wrap items-start justify-between gap-x-3 gap-y-1 rounded-xl px-2 py-1.5 text-left transition hover:bg-emerald-100/70 focus:outline-none focus:ring-2 focus:ring-emerald-300";
+  const staticRowClass = "flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-2 py-1.5";
 
   const renderStaticRow = (label: string, value: string, bordered = false) => (
     <div className={`${staticRowClass} ${bordered ? "border-t border-emerald-100 pt-2" : ""}`}>
@@ -417,7 +417,7 @@ export function TourBarBookingHandoffSheet({
       aria-label={`Edit ${label.toLowerCase()}`}
     >
       <span className="text-emerald-800/75">{label}</span>
-      <span className="flex min-w-0 items-start justify-end gap-2 text-right">
+      <span className="flex min-w-0 flex-1 items-start justify-end gap-2 text-right">
         <strong className="font-semibold">{value}</strong>
         <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700/55 transition group-hover:text-emerald-900" />
       </span>
@@ -473,7 +473,7 @@ export function TourBarNavigationControls({
       data-tour-id="tourbar-navigation-controls"
       className="rounded-2xl border border-cyan-100 bg-cyan-50/85 px-3 py-2.5 text-sm text-cyan-950 shadow-sm ring-1 ring-cyan-100/80"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700/70">
             Guided stops · {activeIndex + 1} of {state.steps.length}
@@ -492,7 +492,7 @@ export function TourBarNavigationControls({
             </div>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex w-full flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:shrink-0 sm:flex-nowrap">
           <button
             type="button"
             data-tourbar-booking-nav="back"
