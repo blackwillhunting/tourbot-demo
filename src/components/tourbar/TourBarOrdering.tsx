@@ -1214,6 +1214,9 @@ export function OrderReview({
           ) : (
             <button
               type="button"
+              data-tourbar-order-cta={hasPendingItems ? "review-choices" : hasCannotMatchItems ? "continue" : "checkout"}
+              data-tourbar-order-checkout={!hasPendingItems && !hasCannotMatchItems ? "true" : undefined}
+              data-tourbar-order-review-choices={hasPendingItems ? "true" : undefined}
               onClick={() => {
                 if (hasPendingItems) {
                   openFirstPending();
@@ -1320,6 +1323,9 @@ export function OrderReview({
                             type="button"
                             data-demo-active-group-index={groupIndex}
                             data-demo-active-option-index={optionIndex}
+                            data-tourbar-qualifier-group={qualifierKey(group)}
+                            data-tourbar-qualifier-option={optionKey(option)}
+                            data-tourbar-qualifier-label={option.label || option.value || ""}
                             onClick={() => {
                               const nextOrder = onLocalOptionSelect(item, group, option);
                               const completedOrder = Boolean(

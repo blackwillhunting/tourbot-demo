@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { BedDouble, Building2, CalendarDays, Coffee, CreditCard, Menu, Search, ShieldCheck, ShoppingCart, Sparkles, Utensils, Users } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CalendarDays, RefreshCcw, Users } from "lucide-react";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../smartbarFocusController";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellDemoCommand,
@@ -8,14 +8,258 @@ import TourBarShell, {
   type TourBarShellTurnContext,
 } from "../TourBarShell";
 import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
-import { TourBarBookingHandoffSheet, type TourBarBookingHandoff } from "../TourBarBooking";
+import { TourBarBookingHandoffSheet, TourBarNavigationControls, type TourBarBookingHandoff, type TourBarBookingNavigationState } from "../TourBarBooking";
+import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
-import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand, type SmartBarSpeedSurface } from "./smartBarSpeedScript";
+import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
+import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
+import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
+import {
+  SmartBarFakePointerOverlay,
+  SMARTBAR_FAKE_POINTER_AIM_MS,
+  SMARTBAR_FAKE_POINTER_EXIT_MS,
+  SMARTBAR_FAKE_POINTER_PULSE_MS,
+  makeSmartBarFakePointerState,
+  type SmartBarFakePointerState,
+} from "./SmartBarFakePointer";
+import {
+  SmartBarFlashCard,
+  SmartBarFlashCardLane,
+  SmartBarFlashCardRail,
+  SMARTBAR_FLASH_CARD_TRANSITION_MS,
+  SMARTBAR_FLASH_CARD_CROSSOVER_MS,
+  type SmartBarFlashCardCascadeMode,
+  type SmartBarFlashCardLaneName,
+  type SmartBarFlashCardNotice,
+  type SmartBarTutorCard,
+} from "./SmartBarFlashCardRail";
+import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
-const FIXTURE_THINKING_MS = 280;
+const DETERMINISTIC_FIXTURE_THINKING_MS = 280;
+const TEXT_FIXTURE_THINKING_MS = 1500;
+const SCRIPTED_SUBMIT_SETTLE_BUFFER_MS = 120;
+const DEMO_TUTOR_INITIAL_DELAY_MS = 820;
+const DEMO_TUTOR_HOLD_MS = 2500;
+const DEMO_REPLAY_SETTLE_MS = 360;
+
+// FLASHCARD SPEED CONTROLS
+// Bigger number = slower. Smaller number = faster.
+// Change these values first; leave the card/stack animation files alone unless
+// you want to change the physical slide distance, overlap, or easing.
+const FLASHCARD_SPEED_CONTROLS = {
+  slowCascadeNextCardMs: 1000,
+  slowCascadeFinalHoldMs: 1800,
+  rapidCascadeNextCardMs: 500,
+  rapidCascadeFinalHoldMs: 1900,
+  normalCardHoldMs: DEMO_TUTOR_HOLD_MS,
+} as const;
+
+const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
+  {
+    title: "Or anywhere intent shows up",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+  },
+  {
+    title: "Search bars",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+    {
+    title: "Product cards",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+    {
+    title: "Cart panels",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+  {
+    title: "Mobile sticky bars",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+    {
+    title: "checkout panels",
+    cascadeGroup: "intro-fit",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+    clearCascade: true,
+  },
+  {
+    title: "Works with **any kind of site**",
+    cascadeGroup: "intro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 3000,
+    clearCascade: true,
+  },
+  {
+    title: "First example: **NexaPath Advisory**",
+    cascadeGroup: "intro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "Managed IT for finance",
+    cascadeGroup: "intro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "SmartBar finds the right path",
+    cascadeGroup: "intro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+    clearCascade: true,
+  },
+];
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function waitForFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
+function resetSpeedDemoStageToTop(stage: HTMLElement | null) {
+  if (typeof window !== "undefined") {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }
+
+  stage?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+}
+
+function speedDemoCssEscape(value: string) {
+  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
+  return value.replace(/["\\]/g, "\\$&");
+}
+
+function speedDemoClamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function speedDemoScrollEase(progress: number) {
+  return progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
+function speedDemoStageScrollDuration(distance: number) {
+  return Math.min(880, Math.max(360, Math.abs(distance) * 0.46));
+}
+
+function findSpeedDemoStageTarget(stage: HTMLElement, targetId: string) {
+  const escaped = speedDemoCssEscape(targetId);
+  return stage.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
+}
+
+function speedDemoElementLooksVisible(element: HTMLElement | null) {
+  if (!element) return false;
+
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+
+  return (
+    rect.width > 1 &&
+    rect.height > 1 &&
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < window.innerHeight &&
+    rect.left < window.innerWidth &&
+    style.visibility !== "hidden" &&
+    style.display !== "none" &&
+    Number(style.opacity || "1") > 0.02
+  );
+}
+
+function firstVisibleSpeedDemoElement(elements: HTMLElement[]) {
+  return elements.find(speedDemoElementLooksVisible) || elements[0] || null;
+}
+
+function findSpeedDemoPointerTarget(
+  stage: HTMLElement | null,
+  targetId?: string,
+  targetSelector?: string,
+) {
+  if (targetSelector) {
+    const stageMatches = stage ? Array.from(stage.querySelectorAll<HTMLElement>(targetSelector)) : [];
+    const documentMatches = Array.from(document.querySelectorAll<HTMLElement>(targetSelector));
+    return firstVisibleSpeedDemoElement([...stageMatches, ...documentMatches]);
+  }
+
+  if (!targetId) return null;
+
+  const escaped = speedDemoCssEscape(targetId);
+  const selector = `[data-tour-id="${escaped}"], #${escaped}`;
+  const stageMatches = stage ? Array.from(stage.querySelectorAll<HTMLElement>(selector)) : [];
+  const documentMatches = Array.from(document.querySelectorAll<HTMLElement>(selector));
+
+  return firstVisibleSpeedDemoElement([...stageMatches, ...documentMatches]);
+}
+
+async function scrollSpeedDemoStageToTarget(stage: HTMLElement, targetId: string) {
+  const target = findSpeedDemoStageTarget(stage, targetId);
+  if (!target) return null;
+
+  await waitForFrame();
+
+  const stageRect = stage.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const targetTopInStage = stage.scrollTop + targetRect.top - stageRect.top;
+  const maxTop = Math.max(0, stage.scrollHeight - stage.clientHeight);
+  const safeInset = Math.min(140, Math.max(72, stage.clientHeight * 0.16));
+  const availableHeight = Math.max(180, stage.clientHeight - safeInset * 2);
+  const desiredTop = targetRect.height >= availableHeight
+    ? targetTopInStage - safeInset
+    : targetTopInStage - (safeInset + (availableHeight - targetRect.height) / 2);
+  const startTop = stage.scrollTop;
+  const endTop = speedDemoClamp(desiredTop, 0, maxTop);
+  const distance = endTop - startTop;
+
+  if (Math.abs(distance) < 2) {
+    stage.scrollTo({ top: endTop, behavior: "auto" });
+    await waitForFrame();
+    return target;
+  }
+
+  const duration = speedDemoStageScrollDuration(distance);
+  const startedAt = performance.now();
+
+  await new Promise<void>((resolve) => {
+    const step = (now: number) => {
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+      const eased = speedDemoScrollEase(progress);
+      stage.scrollTo({ top: speedDemoClamp(startTop + distance * eased, 0, maxTop), behavior: "auto" });
+
+      if (progress >= 1) {
+        stage.scrollTo({ top: endTop, behavior: "auto" });
+        resolve();
+        return;
+      }
+
+      window.requestAnimationFrame(step);
+    };
+
+    window.requestAnimationFrame(step);
+  });
+
+  await waitForFrame();
+  return target;
 }
 
 function line(id: string, title: string, priceLabel: string, knownSelections: string[] = []) {
@@ -191,6 +435,161 @@ function pendingCarryoutOrder(stage: 0 | 1 | 2): CarryoutOrder {
   };
 }
 
+
+function readyCheeseburgerFriesShakeOrder(): CarryoutOrder {
+  // TourBarOrdering reverses backend-style cart lines into the visible review
+  // order. Keep fixture lines in backend order so the review steps land as:
+  // 1) Cheeseburger, 2) Fries, 3) Milkshake.
+  const items = [
+    line("milkshake", "Milkshake", "$4.29", ["Chocolate"]),
+    line("fries-size", "Fries", "$3.49", ["Large fries"]),
+    line("cheeseburger", "Cheeseburger", "$5.49", ["No onions"]),
+  ].map((item) => {
+    if (item.id === "cheeseburger") return { ...item, targetId: "item-cheeseburger" };
+    if (item.id === "fries-size") return { ...item, targetId: "side-fries" };
+    return { ...item, targetId: "drink-milkshake" };
+  });
+
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    totals: {
+      status: "ready",
+      subtotal: 13.27,
+      estimatedTax: 1.06,
+      estimatedTotal: 14.33,
+      currency: "USD",
+    },
+  };
+}
+
+function lockedCheeseburgerFriesShakeOrder(): CarryoutOrder {
+  return {
+    ...readyCheeseburgerFriesShakeOrder(),
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+  };
+}
+
+function pendingCheeseburgerFriesShakeOrder(stage: 0 | 1 | 2): CarryoutOrder {
+  const cheeseburgerReady = stage >= 1;
+  const friesReady = stage >= 2;
+
+  const cheeseburger = {
+    lineItemId: "cheeseburger",
+    id: "item-cheeseburger",
+    targetId: "item-cheeseburger",
+    title: "Cheeseburger",
+    quantity: 1,
+    priceLabel: cheeseburgerReady ? "$5.49" : undefined,
+    status: cheeseburgerReady ? "ready" : "needs_qualifier",
+    knownSelections: cheeseburgerReady ? ["No onions"] : [],
+    missingQualifiers: cheeseburgerReady ? [] : [{ qualifierId: "burger-setup", label: "Burger setup", targetId: "item-cheeseburger" }],
+    qualifierGroups: cheeseburgerReady
+      ? []
+      : [
+          {
+            qualifierId: "burger-setup",
+            label: "Choose burger setup",
+            targetId: "item-cheeseburger",
+            required: true,
+            missing: true,
+            options: [
+              { label: "No onions", value: "no-onions" },
+              { label: "No pickles", value: "no-pickles" },
+              { label: "Extra sauce", value: "extra-sauce" },
+            ],
+          },
+        ],
+  };
+
+  const fries = {
+    lineItemId: "fries-size",
+    id: "fries-size",
+    targetId: "side-fries",
+    title: "Fries",
+    quantity: 1,
+    priceLabel: friesReady ? "$3.49" : undefined,
+    status: friesReady ? "ready" : "needs_qualifier",
+    knownSelections: friesReady ? ["Large fries"] : [],
+    missingQualifiers: friesReady ? [] : [{ qualifierId: "fries", label: "Fries size", targetId: "side-fries" }],
+    qualifierGroups: friesReady
+      ? []
+      : [
+          {
+            qualifierId: "fries",
+            label: "Choose fries",
+            targetId: "side-fries",
+            required: true,
+            missing: true,
+            options: [
+              { label: "Small fries", value: "small" },
+              { label: "Medium fries", value: "medium" },
+              { label: "Large fries", value: "large" },
+            ],
+          },
+        ],
+  };
+
+  const milkshake = {
+    lineItemId: "milkshake",
+    id: "milkshake",
+    targetId: "drink-milkshake",
+    title: "Milkshake",
+    quantity: 1,
+    priceLabel: undefined,
+    status: "needs_qualifier",
+    knownSelections: [],
+    missingQualifiers: [{ qualifierId: "milkshake-flavor", label: "Milkshake flavor", targetId: "drink-milkshake" }],
+    qualifierGroups: [
+      {
+        qualifierId: "milkshake-flavor",
+        label: "Choose milkshake flavor",
+        targetId: "drink-milkshake",
+        required: true,
+        missing: true,
+        options: [
+          { label: "Vanilla", value: "vanilla" },
+          { label: "Chocolate", value: "chocolate" },
+          { label: "Strawberry", value: "strawberry" },
+        ],
+      },
+    ],
+  };
+
+  // Backend-style order is reversed by TourBarOrdering into the visible review
+  // sequence. This preserves the visible steps as cheeseburger → fries → milkshake.
+  const items = [milkshake, fries, cheeseburger];
+
+  return {
+    type: "carryout_order",
+    status: "needs_qualifier",
+    nextAction: "choose_qualifier",
+    items,
+    completeItems: items.filter((item) => item.status === "ready"),
+    pendingItems: items.filter((item) => item.status !== "ready"),
+    currentStep: {
+      type: "qualifier",
+      itemId: stage === 0 ? "cheeseburger" : stage === 1 ? "fries-size" : "milkshake",
+      targetId: stage === 0 ? "item-cheeseburger" : stage === 1 ? "side-fries" : "drink-milkshake",
+      qualifierId: stage === 0 ? "burger-setup" : stage === 1 ? "fries" : "milkshake-flavor",
+      question: stage === 0 ? "Choose burger setup" : stage === 1 ? "Choose fries" : "Choose milkshake flavor",
+    },
+    totals: {
+      status: "partial",
+      subtotal: stage === 0 ? null : stage === 1 ? 5.49 : 8.98,
+      estimatedTax: null,
+      estimatedTotal: null,
+      currency: "USD",
+    },
+  };
+}
+
 function carryoutRaw(order: CarryoutOrder, commerceAction = "carryout_show_cart"): GuideAiCarryoutResponse {
   return {
     title: order.status === "ready_cart" ? "Review order" : "Needs choices",
@@ -220,6 +619,8 @@ function speedMeta(
     separateSheetNextMove?: boolean;
     stableSheetKey?: string;
     readyPillLabel?: string;
+    thinkingOnNextMove?: boolean;
+    nextMoveLoadingMessage?: string;
   } = {},
 ) {
   return {
@@ -228,8 +629,72 @@ function speedMeta(
       separateSheetNextMove: Boolean(options.separateSheetNextMove),
       stableSheetKey: options.stableSheetKey,
       readyPillLabel: options.readyPillLabel,
+      thinkingOnNextMove: Boolean(options.thinkingOnNextMove),
+      nextMoveLoadingMessage: options.nextMoveLoadingMessage,
     },
   };
+}
+
+function speedDemoCompactText(value?: string | null) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function speedDemoQueryLooksInternal(value?: string | null) {
+  return speedDemoCompactText(value).startsWith("__");
+}
+
+function speedOrderResultAllowsThinkingTheater(
+  result: TourBarShellResult,
+  query?: string | null,
+) {
+  if (result.mode !== "speed_order") return false;
+
+  // BurgerRush has two kinds of speed_order moments:
+  // - visitor prompt -> structured order/cart result, which should get a brief
+  //   ThinkingText beat before the sheet opens
+  // - deterministic next-move steps like __checkout_* / __qualifier_*, which
+  //   should stay fast and not add theater
+  return !speedDemoQueryLooksInternal(query);
+}
+
+function speedResultAllowsThinkingTheater(
+  result: TourBarShellResult,
+  query?: string | null,
+) {
+  return (
+    [
+      "speed_info",
+      "speed_case_studies",
+      "speed_booking_reco",
+      "speed_package",
+      "speed_family_reco",
+    ].includes(result.mode || "") ||
+    speedOrderResultAllowsThinkingTheater(result, query)
+  );
+}
+
+function speedDemoLooksLikeConsultantRequest(value?: string | null) {
+  const text = speedDemoCompactText(value);
+  if (!text) return false;
+
+  return /\b(talk|speak|chat|connect|contact|call|reach)\b/.test(text) &&
+    /\b(consultant|specialist|advisor|adviser|expert|sales|someone|person|human|representative|rep|team)\b/.test(text);
+}
+
+function speedDemoFixtureThinkingMs(
+  result: TourBarShellResult,
+  query?: string | null,
+) {
+  return speedResultAllowsThinkingTheater(result, query)
+    ? TEXT_FIXTURE_THINKING_MS
+    : DETERMINISTIC_FIXTURE_THINKING_MS;
+}
+
+function speedDemoFixtureThinkingMsForQuery(query: string) {
+  if (speedDemoLooksLikeConsultantRequest(query)) return 0;
+
+  const result = fixtureResult(query);
+  return speedDemoFixtureThinkingMs(result, query);
 }
 
 function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
@@ -314,7 +779,7 @@ function fixtureResult(query: string): TourBarShellResult {
       nextMove: { type: "ask_deeper", label: "Show relevant case studies", query: "__case_studies" },
       canFollowUp: true,
       mode: "speed_info",
-      raw: speedMeta({ stableSheetKey: "copilot-use-cases", separateSheetNextMove: true }),
+      raw: speedMeta({ stableSheetKey: "copilot-use-cases", separateSheetNextMove: true, thinkingOnNextMove: true, nextMoveLoadingMessage: "Choosing the right tool..." }),
     };
   }
 
@@ -349,11 +814,22 @@ function fixtureResult(query: string): TourBarShellResult {
   }
 
   if (text === "__checkout_qualified") {
-    return orderResult(lockedCarryoutOrder("qualified"), {
+    return orderResult(lockedCheeseburgerFriesShakeOrder(), {
       title: "Order locked for handoff",
       reviewMode: "cart",
       stableSheetKey: "checkout-qualified",
       commerceAction: "carryout_checkout_handoff",
+    });
+  }
+
+  if (text.includes("cheeseburger") && text.includes("fries") && text.includes("milkshake")) {
+    return orderResult(pendingCheeseburgerFriesShakeOrder(0), {
+      title: "Choose required options",
+      body: "Cheeseburger, fries, and milkshake each need one required choice before checkout.",
+      activeIndex: 0,
+      reviewMode: "review",
+      nextQuery: "__qualifier_1",
+      keepSheetOpenNextMove: true,
     });
   }
 
@@ -369,9 +845,9 @@ function fixtureResult(query: string): TourBarShellResult {
   }
 
   if (text === "__qualifier_1") {
-    return orderResult(pendingCarryoutOrder(1), {
+    return orderResult(pendingCheeseburgerFriesShakeOrder(1), {
       title: "Choose required options",
-      body: "Burger size captured. Fries size is next.",
+      body: "Cheeseburger setup captured. Fries size is next.",
       activeIndex: 1,
       reviewMode: "review",
       nextQuery: "__qualifier_2",
@@ -380,18 +856,18 @@ function fixtureResult(query: string): TourBarShellResult {
   }
 
   if (text === "__qualifier_2") {
-    return orderResult(pendingCarryoutOrder(2), {
+    return orderResult(pendingCheeseburgerFriesShakeOrder(2), {
       title: "Choose required options",
-      body: "Fries size captured. Drink choice is next.",
+      body: "Fries size captured. Milkshake flavor is next.",
       activeIndex: 2,
       reviewMode: "review",
       nextQuery: "__qualifier_3",
-      keepSheetOpenNextMove: true,
+      separateSheetNextMove: true,
     });
   }
 
   if (text === "__qualifier_3") {
-    return orderResult(readyCarryoutOrder("qualified"), {
+    return orderResult(readyCheeseburgerFriesShakeOrder(), {
       title: "Review order",
       nextQuery: "__checkout_qualified",
       separateSheetNextMove: true,
@@ -403,7 +879,7 @@ function fixtureResult(query: string): TourBarShellResult {
       title: "Recommendation 1 of 3: Garden Terrace King",
       body:
         "$239/night. A quieter garden-facing option with a resort feel and lower price. It is a value fit, but the view is softer than the Ocean View Suite.",
-      nextMove: { type: "compare_options", label: "Show next recommendation", query: "__booking_step_2" },
+      nextMove: { type: "compare_options", label: "Next stop", query: "__booking_step_2" },
       canFollowUp: true,
       mode: "speed_booking_reco",
       raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "booking-recommendations" }),
@@ -415,7 +891,7 @@ function fixtureResult(query: string): TourBarShellResult {
       title: "Recommendation 2 of 3: Ocean View Suite",
       body:
         "$379/night. Best fit for a strong view without jumping to the villa tier. Breakfast can be attached with the Breakfast Flex Plan.",
-      nextMove: { type: "compare_options", label: "Show premium comparison", query: "__booking_step_3" },
+      nextMove: { type: "compare_options", label: "Next stop", query: "__booking_step_3" },
       canFollowUp: true,
       mode: "speed_booking_reco",
       raw: speedMeta({ keepSheetOpenNextMove: true, stableSheetKey: "booking-recommendations" }),
@@ -459,11 +935,19 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text.includes("family room")) {
     return {
-      title: "Stay details needed",
-      body: "Family-room recommendations require stay dates and guests before the booking path can be prepared.",
-      canFollowUp: true,
-      mode: "speed_needs_context",
-      raw: speedMeta({ stableSheetKey: "booking-context" }),
+      title: "Select your stay dates",
+      body: "I need stay dates before I can price and rank family-room options. Choose check-in and check-out dates to continue.",
+      canFollowUp: false,
+      answerMode: "tourbar_collect_dates",
+      mode: "tourbar_collect_dates",
+      action: "tourbar_collect_dates",
+      label: "Dates required",
+      raw: {
+        mode: "tourbar_collect_dates",
+        action: "tourbar_collect_dates",
+        requiredField: "dates",
+        pendingQuery: "",
+      },
     };
   }
 
@@ -488,6 +972,16 @@ function fixtureResult(query: string): TourBarShellResult {
         ...speedMeta({ stableSheetKey: "family-confirm" }),
         bookingHandoff: bookingHandoff("family"),
       },
+    };
+  }
+
+  if (text.includes("after hours") || text.includes("lead capture") || text.includes("offline handoff")) {
+    return {
+      title: "After-hours request capture",
+      body: "When the consultant desk is offline, SmartBar switches from live chat to a reusable lead-capture sheet.",
+      canFollowUp: false,
+      mode: "speed_after_hours",
+      raw: speedMeta({ stableSheetKey: "finale-after-hours" }),
     };
   }
 
@@ -537,6 +1031,38 @@ function fixtureResult(query: string): TourBarShellResult {
   };
 }
 
+const SPEED_BOOKING_RECO_STEPS: TourBarBookingNavigationState["steps"] = [
+  {
+    pageId: "rooms",
+    targetId: "room-garden-terrace",
+    targetText: "Garden Terrace King",
+  },
+  {
+    pageId: "rooms",
+    targetId: "room-ocean-view-suite",
+    targetText: "Ocean View Suite",
+  },
+  {
+    pageId: "rooms",
+    targetId: "room-coastal-villa",
+    targetText: "Coastal Villa Suite",
+  },
+];
+
+function speedBookingRecoIndex(result: TourBarShellResult) {
+  const title = result.title || "";
+  if (title.includes("2 of 3")) return 1;
+  if (title.includes("3 of 3")) return 2;
+  return 0;
+}
+
+function speedBookingRecoNavigationState(result: TourBarShellResult): TourBarBookingNavigationState {
+  return {
+    steps: SPEED_BOOKING_RECO_STEPS,
+    activeIndex: speedBookingRecoIndex(result),
+  };
+}
+
 function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActions) {
   const mode = result.mode || "";
 
@@ -578,44 +1104,16 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
   }
 
   if (mode === "speed_booking_reco") {
-    const title = result.title || "";
-    const backQuery = title.includes("2 of 3")
-      ? "__booking_step_1"
-      : title.includes("3 of 3")
-        ? "__booking_step_2"
-        : "";
-    const nextQuery = title.includes("1 of 3")
-      ? "__booking_step_2"
-      : title.includes("2 of 3")
-        ? "__booking_step_3"
-        : "";
-    const buttonBase = "rounded-2xl px-3 py-2.5 text-sm font-bold ring-1 transition";
-    const enabledClass = "bg-white text-slate-900 ring-slate-200 hover:bg-slate-50";
-    const disabledClass = "cursor-not-allowed bg-slate-50 text-slate-300 ring-slate-100";
+    const activeIndex = speedBookingRecoIndex(result);
+    const backQuery = activeIndex === 2 ? "__booking_step_2" : activeIndex === 1 ? "__booking_step_1" : "";
+    const nextQuery = activeIndex === 0 ? "__booking_step_2" : activeIndex === 1 ? "__booking_step_3" : "";
 
     return (
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={!backQuery}
-          onClick={() => {
-            if (backQuery) actions.submitFollowUp(backQuery);
-          }}
-          className={`${buttonBase} ${backQuery ? enabledClass : disabledClass}`}
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          disabled={!nextQuery}
-          onClick={() => {
-            if (nextQuery) actions.submitFollowUp(nextQuery);
-          }}
-          className={`${buttonBase} ${nextQuery ? enabledClass : disabledClass}`}
-        >
-          Next
-        </button>
-      </div>
+      <TourBarNavigationControls
+        state={speedBookingRecoNavigationState(result)}
+        onBack={backQuery ? () => actions.submitFollowUp(backQuery) : undefined}
+        onNext={nextQuery ? () => actions.submitFollowUp(nextQuery) : undefined}
+      />
     );
   }
 
@@ -625,6 +1123,16 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
       <TourBarBookingHandoffSheet
         bookingHandoff={raw.bookingHandoff || null}
         actions={actions}
+      />
+    );
+  }
+
+  if (mode === "speed_after_hours") {
+    return (
+      <TourBarAfterHoursLeadSheet
+        initialEmail="visitor@riverstonecap.com"
+        initialNote="I watched the SmartBar demo and want to talk through pricing and rollout options."
+        contextSummary="Visitor asked for consultant help after reviewing SmartBar capabilities."
       />
     );
   }
@@ -648,315 +1156,322 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
   return null;
 }
 
-
-
-function toolbarTone(surface: SmartBarSpeedSurface) {
-  if (surface === "ordering") {
-    return {
-      shell: "border-orange-200/70 bg-slate-950/94 text-white shadow-slate-950/18",
-      brandBadge: "bg-orange-400 text-slate-950",
-      muted: "text-orange-100/75",
-      pill: "border-white/10 bg-white/10 text-orange-50",
-      activePill: "bg-orange-400 text-slate-950 ring-orange-300/40",
-    };
-  }
-
-  if (surface === "booking") {
-    return {
-      shell: "border-sky-200/80 bg-white/94 text-slate-950 shadow-sky-950/10",
-      brandBadge: "bg-sky-950 text-white",
-      muted: "text-slate-500",
-      pill: "border-slate-200 bg-slate-50 text-slate-700",
-      activePill: "bg-sky-950 text-white ring-sky-200/70",
-    };
-  }
-
-  return {
-    shell: "border-slate-200/80 bg-white/94 text-slate-950 shadow-slate-950/10",
-    brandBadge: "bg-slate-950 text-white",
-    muted: "text-slate-500",
-    pill: "border-slate-200 bg-slate-50 text-slate-700",
-    activePill: "bg-slate-950 text-white ring-slate-300/70",
-  };
-}
-
-function ToolbarPill({
-  children,
-  active = false,
-  className = "",
-  surface,
-}: {
-  children: ReactNode;
-  active?: boolean;
-  className?: string;
-  surface: SmartBarSpeedSurface;
-}) {
-  const tone = toolbarTone(surface);
+function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
   return (
-    <span
-      className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold ring-1 ring-transparent ${
-        active ? tone.activePill : tone.pill
-      } ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
 
-function ToolbarBrand({ surface }: { surface: SmartBarSpeedSurface }) {
-  const tone = toolbarTone(surface);
+      <SmartBarFlashCardRail>
+        <SmartBarFlashCardLane active>
+          <div className="inline-flex min-h-[72px] w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
+              <RefreshCcw className="h-5 w-5" />
+            </span>
 
-  if (surface === "ordering") {
-    return (
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-          <Utensils className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">Ordering</div>
-          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Menu · cart · checkout</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (surface === "booking") {
-    return (
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-          <BedDouble className="h-5 w-5" />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">Booking</div>
-          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Rooms · packages · confirmation</div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-        <Building2 className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <div className="truncate text-sm font-black tracking-tight sm:text-base">Informational</div>
-        <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Services · proof · handoff</div>
-      </div>
-    </div>
-  );
-}
-
-function ToolbarOptions({ surface }: { surface: SmartBarSpeedSurface }) {
-  if (surface === "ordering") {
-    return (
-      <>
-        {["Combos", "Burgers", "Sides", "Drinks"].map((label, index) => (
-          <ToolbarPill key={label} surface={surface} active={index === 0}>
-            {label}
-          </ToolbarPill>
-        ))}
-      </>
-    );
-  }
-
-  if (surface === "booking") {
-    return (
-      <>
-        <ToolbarPill surface={surface} active>
-          <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
-          Jun 12–15
-        </ToolbarPill>
-        <ToolbarPill surface={surface}>
-          <Users className="mr-1.5 h-3.5 w-3.5" />
-          4 guests
-        </ToolbarPill>
-        <ToolbarPill surface={surface}>
-          <Coffee className="mr-1.5 h-3.5 w-3.5" />
-          Packages
-        </ToolbarPill>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <ToolbarPill surface={surface} active>
-        Services
-      </ToolbarPill>
-      <ToolbarPill surface={surface}>
-        Compliance
-      </ToolbarPill>
-      <ToolbarPill surface={surface}>
-        Industries
-      </ToolbarPill>
-    </>
-  );
-}
-
-function ToolbarActions({ surface }: { surface: SmartBarSpeedSurface }) {
-  if (surface === "ordering") {
-    return (
-      <>
-        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
-          <Search className="mr-1.5 h-3.5 w-3.5" />
-          Search menu
-        </ToolbarPill>
-        <ToolbarPill surface={surface} active>
-          <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
-          Cart
-        </ToolbarPill>
-      </>
-    );
-  }
-
-  if (surface === "booking") {
-    return (
-      <>
-        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
-          <CreditCard className="mr-1.5 h-3.5 w-3.5" />
-          Book
-        </ToolbarPill>
-        <ToolbarPill surface={surface}>
-          Help
-        </ToolbarPill>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <ToolbarPill surface={surface} className="hidden sm:inline-flex">
-        <Search className="mr-1.5 h-3.5 w-3.5" />
-        Search
-      </ToolbarPill>
-      <ToolbarPill surface={surface}>
-        Contact
-      </ToolbarPill>
-    </>
-  );
-}
-
-function SpeedDemoSitePreview({ surface }: { surface: SmartBarSpeedSurface }) {
-  if (surface === "ordering") {
-    return (
-      <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
-        {[
-          ["Combo item", "Burger, fries, drink", "$11.99"],
-          ["Side item", "Crispy salted side", "$3.49"],
-          ["Drink item", "Large fountain drink", "$2.19"],
-        ].map(([title, body, price]) => (
-          <div key={title} className="rounded-[28px] border border-orange-200/40 bg-slate-950/86 p-5 text-white shadow-xl shadow-slate-950/10">
-            <div className="flex items-center justify-between gap-3">
-              <span className="rounded-full bg-orange-400 px-3 py-1 text-xs font-black text-slate-950">{price}</span>
-              <Menu className="h-4 w-4 text-orange-200" />
+            <div className="min-w-0">
+              <div className="truncate text-base font-black tracking-tight text-slate-950">Demo complete</div>
+              <div className="truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</div>
             </div>
-            <div className="mt-8 text-lg font-black">{title}</div>
-            <div className="mt-1 text-sm text-orange-100/75">{body}</div>
-          </div>
-        ))}
-      </div>
-    );
-  }
 
-  if (surface === "booking") {
-    return (
-      <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
-        {[
-          ["Garden Terrace", "$239/night", "Quiet value option"],
-          ["Ocean View Suite", "$379/night", "Best practical view"],
-          ["Breakfast Flex", "+$32/night", "Package add-on"],
-        ].map(([title, price, body]) => (
-          <div key={title} className="rounded-[28px] border border-sky-100 bg-white/88 p-5 shadow-xl shadow-sky-950/8 ring-1 ring-white/80">
-            <div className="flex items-center justify-between gap-3">
-              <span className="rounded-full bg-sky-950 px-3 py-1 text-xs font-black text-white">{price}</span>
-              <BedDouble className="h-4 w-4 text-sky-600" />
-            </div>
-            <div className="mt-8 text-lg font-black text-slate-950">{title}</div>
-            <div className="mt-1 text-sm text-slate-500">{body}</div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto mt-10 grid max-w-5xl gap-4 px-4 pb-28 sm:grid-cols-3 sm:px-6">
-      {[
-        ["Hedge-fund IT support", "Secure operations, collaboration, and compliance-aware infrastructure"],
-        ["Copilot mentorship", "Use-case design, governance, adoption, and agent rollout"],
-        ["Contextual handoff", "The consultant receives the visitor’s goal before the conversation starts"],
-      ].map(([title, body], index) => (
-        <div key={title} className="rounded-[28px] border border-slate-200 bg-white/88 p-5 shadow-xl shadow-slate-950/8 ring-1 ring-white/80">
-          <div className="flex items-center justify-between gap-3">
-            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">0{index + 1}</span>
-            {index === 0 ? <ShieldCheck className="h-4 w-4 text-slate-500" /> : <Sparkles className="h-4 w-4 text-slate-500" />}
-          </div>
-          <div className="mt-8 text-lg font-black text-slate-950">{title}</div>
-          <div className="mt-1 text-sm text-slate-500">{body}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AdaptiveToolbarFrame({
-  surface,
-  smartBarNode,
-}: {
-  surface: SmartBarSpeedSurface;
-  smartBarNode: ReactNode;
-}) {
-  const tone = toolbarTone(surface);
-
-  return (
-    <div className={`mx-auto mt-4 max-w-7xl rounded-[28px] border px-3 py-3 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:px-4 ${tone.shell}`}>
-      <div className="flex items-center gap-3">
-        <ToolbarBrand surface={surface} />
-
-        <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 md:flex">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={surface}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-              className="flex min-w-0 items-center justify-center gap-2"
+            <button
+              type="button"
+              onClick={onReplay}
+              className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800"
             >
-              <ToolbarOptions surface={surface} />
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="hidden items-center gap-2 lg:flex">
-            <ToolbarActions surface={surface} />
+              Replay
+            </button>
           </div>
-          <div className="relative z-[10080] flex h-9 w-9 shrink-0 items-center justify-center">
-            {smartBarNode}
-          </div>
-        </div>
-      </div>
-    </div>
+        </SmartBarFlashCardLane>
+      </SmartBarFlashCardRail>
+    </main>
   );
 }
 
 
-export default function SmartBarSpeedDemo() {
+
+
+export default function SmartBarSpeedDemo({
+  autoPlay = false,
+}: {
+  autoPlay?: boolean;
+}) {
   const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [demoCommand, setDemoCommand] = useState<TourBarShellDemoCommand | null>(null);
+  const [activeTutorLane, setActiveTutorLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [tutorNoticeA, setTutorNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
+  const [tutorNoticeB, setTutorNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
+  const [activeTutorStackMode, setActiveTutorStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
+  const [tutorStackCards, setTutorStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
+  const [tutorBlocking, setTutorBlocking] = useState(true);
+  const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
+  const [replayVisible, setReplayVisible] = useState(false);
   const commandIdRef = useRef(0);
+  const fakePointerIdRef = useRef(0);
+  const targetStageRef = useRef<HTMLDivElement | null>(null);
+  const autoPlayStartedRef = useRef(false);
+  const primaryDraftRef = useRef("");
+  const followUpDraftRef = useRef("");
 
   const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
     commandIdRef.current += 1;
     setDemoCommand({ id: commandIdRef.current, ...command });
   }, []);
 
+  const restartDemo = useCallback(() => {
+    setReplayVisible(false);
+    setIsPlaying(false);
+    setStepIndex(-1);
+    setTutorStackCards([]);
+    setActiveTutorLane(null);
+    setTutorNoticeA(null);
+    setTutorNoticeB(null);
+    setFakePointer(null);
+    primaryDraftRef.current = "";
+    followUpDraftRef.current = "";
+    clearSmartBarFocusOverlay();
+    resetSpeedDemoStageToTop(targetStageRef.current);
+    sendCommand({ type: "closeAll" });
+
+    window.setTimeout(() => {
+      resetSpeedDemoStageToTop(targetStageRef.current);
+      setStepIndex(0);
+      setIsPlaying(true);
+    }, 180);
+  }, [sendCommand]);
+
+  useEffect(() => {
+    resetSpeedDemoStageToTop(targetStageRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (!autoPlay || autoPlayStartedRef.current) return;
+
+    autoPlayStartedRef.current = true;
+    setReplayVisible(false);
+    setStepIndex(0);
+    setIsPlaying(true);
+  }, [autoPlay]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runOpeningTutorCards = async () => {
+      setTutorBlocking(true);
+      await wait(DEMO_TUTOR_INITIAL_DELAY_MS);
+      if (cancelled) return;
+
+      let nextLane: SmartBarFlashCardLaneName = "a";
+      let activeCascadeGroup: string | null = null;
+
+      for (let index = 0; index < OPENING_DEMO_TUTOR_CARDS.length; index += 1) {
+        const card = OPENING_DEMO_TUTOR_CARDS[index];
+        const notice: SmartBarFlashCardNotice = {
+          variant: "prelude",
+          title: card.title,
+          detail: card.detail,
+        };
+
+        if (card.cascadeGroup) {
+          const mode = card.cascadeMode || "standard";
+
+          if (activeCascadeGroup && activeCascadeGroup !== card.cascadeGroup) {
+            setTutorStackCards([]);
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (cancelled) return;
+          }
+
+          if (activeCascadeGroup !== card.cascadeGroup) {
+            setActiveTutorLane(null);
+            setTutorStackCards([]);
+            setActiveTutorStackMode(mode);
+            activeCascadeGroup = card.cascadeGroup;
+          }
+
+          const stackItem: SmartBarFlashCardStackItem = {
+            ...notice,
+            id: `${card.cascadeGroup}-${index}`,
+            density: card.density || (mode === "flurry" ? "micro" : "compact"),
+          };
+
+          setTutorStackCards((items) => [...items, stackItem]);
+          await wait(card.holdMs ?? (mode === "flurry" ? FLASHCARD_SPEED_CONTROLS.rapidCascadeNextCardMs : FLASHCARD_SPEED_CONTROLS.slowCascadeNextCardMs));
+          if (cancelled) return;
+
+          if (card.clearCascade) {
+            setTutorStackCards([]);
+            activeCascadeGroup = null;
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (cancelled) return;
+          }
+
+          continue;
+        }
+
+        if (activeCascadeGroup) {
+          setTutorStackCards([]);
+          activeCascadeGroup = null;
+          await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+          if (cancelled) return;
+        }
+
+        if (nextLane === "a") setTutorNoticeA(notice);
+        else setTutorNoticeB(notice);
+
+        setActiveTutorLane(nextLane);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + (card.holdMs ?? FLASHCARD_SPEED_CONTROLS.normalCardHoldMs));
+        if (cancelled) return;
+
+        nextLane = nextLane === "a" ? "b" : "a";
+      }
+
+      setActiveTutorLane(null);
+      setTutorStackCards([]);
+      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+      if (cancelled) return;
+
+      setTutorBlocking(false);
+    };
+
+    void runOpeningTutorCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showScriptCards = useCallback(
+    async (
+      command: Extract<SmartBarSpeedCommand, { kind: "cards" }>,
+      cancelled: () => boolean,
+    ) => {
+      if (!command.cards.length) return;
+
+      const mode = command.mode || "standard";
+      const defaultDensity = command.density || (mode === "flurry" ? "compact" : "normal");
+      const defaultGapMs = command.holdMs ?? (
+        mode === "flurry"
+          ? FLASHCARD_SPEED_CONTROLS.rapidCascadeNextCardMs
+          : FLASHCARD_SPEED_CONTROLS.slowCascadeNextCardMs
+      );
+      const finalHoldMs = command.finalHoldMs ?? (
+        mode === "flurry"
+          ? FLASHCARD_SPEED_CONTROLS.rapidCascadeFinalHoldMs
+          : FLASHCARD_SPEED_CONTROLS.slowCascadeFinalHoldMs
+      );
+      const runStamp = `${Date.now()}-${Math.round(performance.now())}`;
+
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      setTutorStackCards([]);
+      setActiveTutorStackMode(mode);
+
+      await waitForFrame();
+      if (cancelled()) return;
+
+      for (let index = 0; index < command.cards.length; index += 1) {
+        const card = command.cards[index];
+        const isTextCard = typeof card === "string";
+        const title = isTextCard ? card : card.title;
+        const detail = isTextCard ? undefined : card.detail;
+        const density = isTextCard ? defaultDensity : card.density || defaultDensity;
+        const waitMs = isTextCard
+          ? (index === command.cards.length - 1 ? finalHoldMs : defaultGapMs)
+          : card.holdMs ?? (index === command.cards.length - 1 ? finalHoldMs : defaultGapMs);
+
+        setTutorStackCards((items) => [
+          ...items,
+          {
+            id: `script-card-${runStamp}-${index}`,
+            variant: "prelude",
+            title,
+            detail,
+            density,
+          },
+        ]);
+
+        await wait(waitMs);
+        if (cancelled()) return;
+      }
+
+      setTutorStackCards([]);
+      await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+    },
+    [],
+  );
+
+  const showPointerClick = useCallback(
+    async (
+      command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
+      cancelled: () => boolean,
+    ) => {
+      const stage = targetStageRef.current;
+      let target: HTMLElement | null = null;
+
+      if (command.targetId && stage) {
+        target = await scrollSpeedDemoStageToTarget(stage, command.targetId);
+      }
+
+      if (cancelled()) return;
+
+      target = target || findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
+
+      for (let attempt = 0; !target && attempt < 8; attempt += 1) {
+        await wait(120);
+        if (cancelled()) return;
+        target = findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
+      }
+
+      if (!target) return;
+
+      await waitForFrame();
+      if (cancelled()) return;
+
+      const pointerId = fakePointerIdRef.current + 1;
+      fakePointerIdRef.current = pointerId;
+
+      setFakePointer(
+        makeSmartBarFakePointerState(target, {
+          id: pointerId,
+          label: command.label,
+          anchorX: command.anchorX,
+          anchorY: command.anchorY,
+          offsetX: command.offsetX,
+          offsetY: command.offsetY,
+        }),
+      );
+
+      await wait(command.aimMs ?? SMARTBAR_FAKE_POINTER_AIM_MS);
+      if (cancelled()) return;
+
+      setFakePointer((current) =>
+        current?.id === pointerId
+          ? {
+              ...current,
+              phase: "pulse",
+            }
+          : current,
+      );
+
+      await wait(command.pulseMs ?? SMARTBAR_FAKE_POINTER_PULSE_MS);
+      if (cancelled()) return;
+
+      setFakePointer((current) => (current?.id === pointerId ? null : current));
+      await wait(command.exitMs ?? SMARTBAR_FAKE_POINTER_EXIT_MS);
+    },
+    [],
+  );
+
   const typeIntoShell = useCallback(
     async (field: "primary" | "followup" | "chat", value: string, cancelled: () => boolean) => {
       const type = field === "primary" ? "setPrimary" : field === "followup" ? "setFollowUp" : "setChatDraft";
+
+      if (field === "primary") primaryDraftRef.current = value;
+      if (field === "followup") followUpDraftRef.current = value;
+
       sendCommand({ type, value: "" });
       await wait(80);
 
@@ -979,11 +1494,15 @@ export default function SmartBarSpeedDemo() {
       if (command.kind === "typeFollowUp") return typeIntoShell("followup", command.value, cancelled);
       if (command.kind === "typeChat") return typeIntoShell("chat", command.value, cancelled);
       if (command.kind === "submitPrimary") {
+        const submittedValue = command.value ?? primaryDraftRef.current;
         sendCommand({ type: "submitPrimary", value: command.value });
+        await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
         return;
       }
       if (command.kind === "submitFollowUp") {
+        const submittedValue = command.value ?? followUpDraftRef.current;
         sendCommand({ type: "submitFollowUp", value: command.value });
+        await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
         return;
       }
       if (command.kind === "submitChat") {
@@ -998,19 +1517,75 @@ export default function SmartBarSpeedDemo() {
         sendCommand({ type: "setBookingContext", bookingContext: command.bookingContext });
         return;
       }
+      if (command.kind === "selectBookingDate") {
+        sendCommand({ type: "selectBookingDate", dateKind: command.dateKind, value: command.value });
+        return;
+      }
+      if (command.kind === "setBookingGuestCount") {
+        sendCommand({ type: "setBookingGuestCount", guestAdults: command.adults, guestChildren: command.children });
+        return;
+      }
+      if (command.kind === "commitBookingContext") {
+        sendCommand({ type: "commitBookingContext", field: command.field });
+        return;
+      }
       if (command.kind === "showFixture") {
-        sendCommand({ type: "showResult", result: fixtureResult(command.value) });
+        const result = fixtureResult(command.value);
+        const thinkingMs = command.thinkingMs ?? 0;
+
+        if (thinkingMs > 0 && speedResultAllowsThinkingTheater(result, command.value)) {
+          sendCommand({
+            type: "showThinking",
+            value: command.thinkingMessage || "Choosing the right tool...",
+          });
+          await wait(thinkingMs);
+          if (cancelled()) return;
+        }
+
+        sendCommand({ type: "showResult", result });
+        return;
+      }
+      if (command.kind === "cards") {
+        await showScriptCards(command, cancelled);
+        return;
+      }
+      if (command.kind === "pointerClick") {
+        await showPointerClick(command, cancelled);
+        return;
+      }
+      if (command.kind === "focusTarget") {
+        const stage = targetStageRef.current;
+        const stageTarget = stage
+          ? await scrollSpeedDemoStageToTarget(stage, command.targetId)
+          : null;
+        if (cancelled()) return;
+
+        await smartbarFocusTarget(
+          {
+            pageId: "smartbar-speed-demo",
+            targetId: command.targetId,
+            label: command.label,
+          },
+          {
+            initialDelayMs: command.initialDelayMs ?? 40,
+            attempts: Math.min(command.attempts ?? 10, 10),
+            overlayDurationMs: command.overlayDurationMs ?? 2800,
+            scrollBehavior: "auto",
+            skipPlacementScroll: Boolean(stageTarget),
+          },
+        );
         return;
       }
       if (command.kind === "shell") {
         sendCommand({ type: command.type });
+        if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [sendCommand, typeIntoShell],
+    [sendCommand, showPointerClick, showScriptCards, typeIntoShell],
   );
 
   useEffect(() => {
-    if (stepIndex < 0) return;
+    if (stepIndex < 0 || tutorBlocking || !isPlaying) return;
 
     let cancelled = false;
     const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
@@ -1022,11 +1597,25 @@ export default function SmartBarSpeedDemo() {
         await runCommand(command, () => cancelled);
       }
 
-      if (!cancelled && isPlaying) {
+      if (!cancelled) {
         await wait(650);
         if (cancelled) return;
-        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) setStepIndex((index) => Math.min(index + 1, SMARTBAR_SPEED_STEPS.length - 1));
-        else setIsPlaying(false);
+        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) {
+          setStepIndex((index) => Math.min(index + 1, SMARTBAR_SPEED_STEPS.length - 1));
+        } else {
+          setFakePointer(null);
+          setTutorStackCards([]);
+          setActiveTutorLane(null);
+          setTutorNoticeA(null);
+          setTutorNoticeB(null);
+          clearSmartBarFocusOverlay();
+          resetSpeedDemoStageToTop(targetStageRef.current);
+          sendCommand({ type: "closeAll" });
+          await wait(DEMO_REPLAY_SETTLE_MS);
+          if (cancelled) return;
+          setReplayVisible(true);
+          setIsPlaying(false);
+        }
       }
     };
 
@@ -1035,20 +1624,43 @@ export default function SmartBarSpeedDemo() {
     return () => {
       cancelled = true;
     };
-  }, [isPlaying, runCommand, stepIndex]);
+  }, [isPlaying, runCommand, sendCommand, stepIndex, tutorBlocking]);
 
   const onPrimarySubmit = async (query: string, _context: TourBarShellTurnContext) => {
-    await wait(FIXTURE_THINKING_MS);
-    return fixtureResult(query);
+    const result = fixtureResult(query);
+    await wait(speedDemoFixtureThinkingMs(result, query));
+    return result;
   };
 
   const onFollowUpSubmit = async (query: string, _context: TourBarShellTurnContext) => {
-    await wait(FIXTURE_THINKING_MS);
-    return fixtureResult(query);
+    const result = fixtureResult(query);
+    await wait(speedDemoFixtureThinkingMs(result, query));
+    return result;
   };
 
   const currentStep = stepIndex >= 0 ? SMARTBAR_SPEED_STEPS[stepIndex] : null;
   const toolbarSurface = currentStep?.surface || "info";
+
+  useLayoutEffect(() => {
+    clearSmartBarFocusOverlay();
+    resetSpeedDemoStageToTop(targetStageRef.current);
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      resetSpeedDemoStageToTop(targetStageRef.current);
+
+      secondFrame = window.requestAnimationFrame(() => {
+        resetSpeedDemoStageToTop(targetStageRef.current);
+        targetStageRef.current?.setAttribute("data-smartbar-speed-last-scroll-reset", toolbarSurface);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [toolbarSurface]);
+
   const smartBarNode = (
     <TourBarShell
               primaryPlaceholder="Ask SmartBar in plain English..."
@@ -1061,10 +1673,11 @@ export default function SmartBarSpeedDemo() {
               consultantChat={{
                 enabled: true,
                 title: "Talk to a consultant",
-                placeholder: "Send a quick note...",
-                waitingMessage: "Connecting you with the right specialist...",
-                confirmationMessage: "Context received — handing this to a consultant.",
-                consultantResponseMessage: "Hi there — so you’re interested in Copilots?",
+                placeholder: "Add anything else if needed...",
+                autoStartMessage: "Context received — handing this to a consultant.",
+                autoStartConsultantMessage: "Hi there — You’re interested in Copilot support?",
+                replyThinkingMessage: "Thinking...",
+                replyConfirmationMessage: "Great, lets set up a chat!",
               }}
               demoCommand={demoCommand}
               onPrimarySubmit={onPrimarySubmit}
@@ -1074,34 +1687,53 @@ export default function SmartBarSpeedDemo() {
             />
   );
 
+  if (replayVisible) {
+    return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+  }
+
   return (
-    <main className="relative min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
+    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
+      <SmartBarFlashCardRail>
+        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
+        <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+          <SmartBarFlashCard notice={tutorNoticeA} />
+        </SmartBarFlashCardLane>
+        <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+          <SmartBarFlashCard notice={tutorNoticeB} />
+        </SmartBarFlashCardLane>
+      </SmartBarFlashCardRail>
+
+      <SmartBarFakePointerOverlay pointer={fakePointer} />
+
       <div className="relative z-[10070] px-4 pt-4 sm:px-6">
-        <AdaptiveToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
+        <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
       </div>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={toolbarSurface}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
-        >
-          <SpeedDemoSitePreview surface={toolbarSurface} />
-        </motion.div>
-      </AnimatePresence>
+      <div
+        key={toolbarSurface}
+        ref={targetStageRef}
+        data-smartbar-speed-stage="true"
+        data-smartbar-speed-surface={toolbarSurface}
+        className="relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
+      >
+        <SmartBarSpeedTargetWall surface={toolbarSurface} />
+      </div>
+
 
       <SmartBarDemoScrubber
         index={stepIndex}
         isPlaying={isPlaying}
         onSelect={(index) => {
+          if (tutorBlocking) return;
+          setReplayVisible(false);
           setIsPlaying(false);
           setStepIndex(index);
         }}
         onTogglePlay={() => {
+          if (tutorBlocking) return;
+          setReplayVisible(false);
           if (isPlaying) {
             setIsPlaying(false);
             return;

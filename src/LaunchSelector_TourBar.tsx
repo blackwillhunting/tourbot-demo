@@ -1,60 +1,177 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, ShieldCheck, Sparkles, XCircle } from "lucide-react";
+import { Search } from "lucide-react";
 import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
+import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
+import {
+  SmartBarFlashCard,
+  SmartBarFlashCardLane,
+  SmartBarFlashCardRail,
+  SMARTBAR_FLASH_CARD_TRANSITION_MS,
+  SMARTBAR_FLASH_CARD_CROSSOVER_MS,
+  type SmartBarFlashCardCascadeMode,
+  type SmartBarFlashCardLaneName,
+  type SmartBarFlashCardNotice,
+  type SmartBarTutorCard,
+} from "./components/tourbar/speed-demo/SmartBarFlashCardRail";
 
-const INTRO_DELAY_MS = 2000;
+const INTRO_DELAY_MS = 1200;
 const CHECKING_MS = 1200;
-const RESULT_HOLD_MS = 1100;
-const PRELUDE_HOLD_MS = 1450;
-const MIN_PASSCODE_LENGTH = 4;
-const TOURBAR_SHEET_TRANSITION_SECONDS = 0.66;
-const SLIP_OFFSCREEN_X = 620;
+const RESULT_HOLD_MS = 2000;
+const DEFAULT_PRELUDE_HOLD_MS = 2500;
+const DEMO_HANDOFF_SETTLE_MS = 260;
+const REQUIRED_PASSCODE_LENGTH = 6;
 
-type LaunchState = "waiting" | "login" | "checking" | "success" | "failure" | "prelude" | "demo";
-
-type PreludeSlip = {
-  title: string;
-  detail: string;
-};
+type PreludeSlip = SmartBarTutorCard;
 
 const PRELUDE_SLIPS: PreludeSlip[] = [
-  {
-    title: "SmartBar turns search into action.",
-    detail: "Answers, filters, and opens the next step.",
+    {
+    title: "What is **SmartBar**?",
+    cascadeGroup: "stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 3000,
   },
   {
-    title: "Fits anywhere.",
-    detail: "A compact launcher for different site surfaces.",
+    title: "It looks like search",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1000,
+  },
+    {
+    title: "feels like chat",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1000,
   },
   {
-    title: "Now watch it work.",
-    detail: "One bar. Multiple outcomes.",
+    title: "but returns action",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2000,
+    clearCascade: true,
+  },
+  {
+    title: "Search bars return **results**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "AI chat returns **words**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "SmartBar returns the **next step**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2000,
+    clearCascade: true,
+  },
+  {
+    title: "an answer",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+  {
+    title: "guided navigation",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 800,
+  },
+    {
+    title: "a choice",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 700,
+  },
+    {
+    title: "a completed form",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 700,
+  },
+    {
+    title: "a cart",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 700,
+  },
+    {
+    title: "a booking path",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 700,
+  },
+  //    {
+   // title: "a proof sheet",
+   // cascadeGroup: "next-step",
+   // cascadeMode: "standard",
+    //density: "normal",
+    //holdMs: 700,
+ // },
+      {
+    title: "or a handoff",
+    cascadeGroup: "next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+  },
+  {
+    title: "SmartBar responds with **whatever's needed next**",
+    cascadeGroup: "stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+    clearCascade: true,
+  },
+        {
+    title: "Add it where visitors already look",
+    cascadeGroup: "pre-animate",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2500,
+  },
+      {
+    title: "Usually, that means the toolbar",
+    cascadeGroup: "pre-animate",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 3000,
   },
 ];
-
-const SLIP_MOTION = {
-  initial: { x: SLIP_OFFSCREEN_X },
-  animate: { x: 0 },
-  exit: { x: SLIP_OFFSCREEN_X },
-  transition: { duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" },
-} as const;
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 function codeIsAccepted(value: string) {
-  return value.trim().length >= MIN_PASSCODE_LENGTH;
+  return value.trim().length === REQUIRED_PASSCODE_LENGTH;
 }
 
 function ThinkingCode({ value }: { value: string }) {
-  const characters = value.trim().padEnd(6, "•").slice(0, 6).split("");
+  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "•").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
 
   return (
     <div
       aria-label="Checking passcode"
-      className="flex h-11 w-24 items-center justify-center gap-1 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 ring-1 ring-sky-100 sm:w-28"
+      className="flex h-11 w-24 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-white/88 px-3 text-center text-sm font-black tracking-[0.22em] text-slate-950 ring-1 ring-emerald-100 sm:w-28"
     >
       {characters.map((char, index) => (
         <motion.span
@@ -84,15 +201,15 @@ function LaunchSlip({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex w-[min(92vw,520px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl"
+      className="flex min-h-[72px] w-full items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
         <Search className="h-5 w-5" />
       </span>
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-black tracking-tight text-slate-950">Enter SmartBar passcode</div>
-        <div className="truncate text-xs font-semibold text-slate-500">Unlock the speed demo.</div>
+        <div className="truncate text-base font-black tracking-tight text-slate-950">Enter SmartBar passcode</div>
+        <div className="truncate text-xs font-semibold text-slate-600">Unlock the speed demo.</div>
       </div>
 
       {isChecking ? (
@@ -100,60 +217,21 @@ function LaunchSlip({
       ) : (
         <input
           value={passcode}
-          onChange={(event) => onPasscodeChange(event.target.value.slice(0, 12))}
-          autoFocus
+          onChange={(event) => onPasscodeChange(event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH))}
           aria-label="SmartBar demo passcode"
-          placeholder="Code"
-          className="h-11 w-24 rounded-full border border-sky-100 bg-white/88 px-3 text-center text-sm font-black tracking-[0.18em] text-slate-950 outline-none ring-1 ring-transparent transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-sky-200 focus:ring-sky-200 sm:w-28"
+          placeholder="6 chars"
+          className="h-12 w-24 rounded-full border border-emerald-300/80 bg-white/92 px-3 text-center text-sm font-semibold tracking-[0.18em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:w-28"
         />
       )}
 
       <button
         type="submit"
         disabled={isChecking}
-        className="h-11 rounded-full bg-slate-950 px-4 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70"
+        className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70"
       >
         Go
       </button>
     </form>
-  );
-}
-
-function ResultSlip({ kind }: { kind: "success" | "failure" }) {
-  const isSuccess = kind === "success";
-
-  return (
-    <div className="flex min-h-[68px] w-[min(92vw,430px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl">
-      <span
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ring-1 ${
-          isSuccess ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-rose-50 text-rose-700 ring-rose-200"
-        }`}
-      >
-        {isSuccess ? <ShieldCheck className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
-      </span>
-      <div className="min-w-0">
-        <div className="truncate text-sm font-black tracking-tight text-slate-950">
-          {isSuccess ? "Access granted" : "Access not recognized"}
-        </div>
-        <div className="truncate text-xs font-semibold text-slate-500">
-          {isSuccess ? "Starting SmartBar." : "Check the code and try again."}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PreludeSlipCard({ slip }: { slip: PreludeSlip }) {
-  return (
-    <div className="flex min-h-[68px] w-[min(92vw,460px)] items-center gap-3 rounded-full border border-white/75 bg-white/72 px-4 py-3 shadow-2xl shadow-sky-950/12 ring-1 ring-sky-100/80 backdrop-blur-2xl">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-700 ring-1 ring-sky-200">
-        <Sparkles className="h-5 w-5" />
-      </span>
-      <div className="min-w-0">
-        <div className="truncate text-sm font-black tracking-tight text-slate-950">{slip.title}</div>
-        <div className="truncate text-xs font-semibold text-slate-500">{slip.detail}</div>
-      </div>
-    </div>
   );
 }
 
@@ -168,14 +246,22 @@ function LaunchBackground() {
 }
 
 export default function LaunchSelectorTourBar() {
-  const [launchState, setLaunchState] = useState<LaunchState>("waiting");
+  const [launchVisible, setLaunchVisible] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
   const [passcode, setPasscode] = useState("");
-  const [preludeIndex, setPreludeIndex] = useState(0);
+  const [activeNoticeLane, setActiveNoticeLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
+  const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
+  const [activePreludeStackMode, setActivePreludeStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
+  const [preludeStackCards, setPreludeStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
+  const [fitsAnimationVisible, setFitsAnimationVisible] = useState(false);
+  const [demoVisible, setDemoVisible] = useState(false);
+  const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setLaunchState("login");
+      setLaunchVisible(true);
     }, INTRO_DELAY_MS);
 
     return () => window.clearTimeout(timer);
@@ -184,80 +270,155 @@ export default function LaunchSelectorTourBar() {
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (launchState !== "login") return;
+      if (!launchVisible || isChecking) return;
 
       const runId = runIdRef.current + 1;
       runIdRef.current = runId;
 
       const cleanCode = passcode.trim();
-      setLaunchState("checking");
+      setDemoAutoPlay(false);
+      setIsChecking(true);
       await wait(CHECKING_MS);
       if (runIdRef.current !== runId) return;
 
-      const nextState: LaunchState = codeIsAccepted(cleanCode) ? "success" : "failure";
-      setLaunchState(nextState);
-      await wait(RESULT_HOLD_MS);
+      const accepted = codeIsAccepted(cleanCode);
+      let nextLane: SmartBarFlashCardLaneName = activeNoticeLane === "a" ? "b" : "a";
+      const resultNotice: SmartBarFlashCardNotice = accepted
+        ? {
+            variant: "success",
+            title: "Access granted",
+          }
+        : {
+            variant: "failure",
+            title: "Access denied",
+          };
+
+      if (nextLane === "a") setNoticeA(resultNotice);
+      else setNoticeB(resultNotice);
+
+      setActiveNoticeLane(nextLane);
+      setLaunchVisible(false);
+
+      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + RESULT_HOLD_MS);
       if (runIdRef.current !== runId) return;
 
-      if (nextState === "success") {
-        for (let index = 0; index < PRELUDE_SLIPS.length; index += 1) {
-          setPreludeIndex(index);
-          setLaunchState("prelude");
-          await wait(PRELUDE_HOLD_MS);
-          if (runIdRef.current !== runId) return;
-        }
-
-        setLaunchState("demo");
+      if (!accepted) {
+        setPasscode("");
+        setIsChecking(false);
+        setLaunchVisible(true);
+        setActiveNoticeLane(null);
+        setPreludeStackCards([]);
         return;
       }
 
-      setPasscode("");
-      setLaunchState("login");
+      let activeCascadeGroup: string | null = null;
+
+      for (let index = 0; index < PRELUDE_SLIPS.length; index += 1) {
+        const slip = PRELUDE_SLIPS[index];
+        const preludeNotice: SmartBarFlashCardNotice = {
+          variant: "prelude",
+          title: slip.title,
+          detail: slip.detail,
+        };
+
+        if (slip.cascadeGroup) {
+          const mode = slip.cascadeMode || "standard";
+
+          if (activeCascadeGroup && activeCascadeGroup !== slip.cascadeGroup) {
+            setPreludeStackCards([]);
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+
+          if (activeCascadeGroup !== slip.cascadeGroup) {
+            setActiveNoticeLane(null);
+            setPreludeStackCards([]);
+            setActivePreludeStackMode(mode);
+            activeCascadeGroup = slip.cascadeGroup;
+          }
+
+          const stackItem: SmartBarFlashCardStackItem = {
+            ...preludeNotice,
+            id: `${slip.cascadeGroup}-${index}`,
+            density: slip.density || (mode === "flurry" ? "micro" : "compact"),
+          };
+
+          setPreludeStackCards((items) => [...items, stackItem]);
+          await wait(slip.holdMs ?? (mode === "flurry" ? 220 : 480));
+          if (runIdRef.current !== runId) return;
+
+          if (slip.clearCascade) {
+            setPreludeStackCards([]);
+            activeCascadeGroup = null;
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+
+          continue;
+        }
+
+        if (activeCascadeGroup) {
+          setPreludeStackCards([]);
+          activeCascadeGroup = null;
+          await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+          if (runIdRef.current !== runId) return;
+        }
+
+        nextLane = nextLane === "a" ? "b" : "a";
+
+        if (nextLane === "a") setNoticeA(preludeNotice);
+        else setNoticeB(preludeNotice);
+
+        setActiveNoticeLane(nextLane);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + (slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS));
+        if (runIdRef.current !== runId) return;
+      }
+
+      setActiveNoticeLane(null);
+      setPreludeStackCards([]);
+      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+      if (runIdRef.current !== runId) return;
+
+      setFitsAnimationVisible(true);
+      await wait(FITS_ANYWHERE_ANIMATION_MS);
+      if (runIdRef.current !== runId) return;
+
+      setDemoVisible(true);
+      await wait(DEMO_HANDOFF_SETTLE_MS);
+      if (runIdRef.current !== runId) return;
+
+      setFitsAnimationVisible(false);
+      setDemoAutoPlay(true);
     },
-    [launchState, passcode],
+    [activeNoticeLane, isChecking, launchVisible, passcode],
   );
-
-  if (launchState === "demo") {
-    return <SmartBarSpeedDemo />;
-  }
-
-  const slipKey =
-    launchState === "login" || launchState === "checking"
-      ? "launch-slip"
-      : launchState === "prelude"
-        ? `prelude-${preludeIndex}`
-        : launchState;
-
-  const activePreludeSlip = PRELUDE_SLIPS[preludeIndex] || PRELUDE_SLIPS[0];
 
   return (
     <div className="relative min-h-[100svh] overflow-hidden">
-      <LaunchBackground />
+      {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
-      <div className="absolute right-4 top-1/2 z-10 h-28 w-[min(92vw,540px)] -translate-y-1/2 sm:right-8">
-        <div className="relative flex h-full w-full items-center justify-end overflow-visible">
-          <AnimatePresence initial={false}>
-            {launchState === "login" || launchState === "checking" ? (
-              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
-                <LaunchSlip
-                  passcode={passcode}
-                  isChecking={launchState === "checking"}
-                  onPasscodeChange={setPasscode}
-                  onSubmit={handleSubmit}
-                />
-              </motion.div>
-            ) : launchState === "success" || launchState === "failure" ? (
-              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
-                <ResultSlip kind={launchState} />
-              </motion.div>
-            ) : launchState === "prelude" ? (
-              <motion.div key={slipKey} {...SLIP_MOTION} className="absolute inset-y-0 right-0 flex items-center will-change-transform">
-                <PreludeSlipCard slip={activePreludeSlip} />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      </div>
+      <SmartBarFlashCardRail>
+        <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
+
+        <SmartBarFlashCardLane active={launchVisible}>
+          <LaunchSlip
+            passcode={passcode}
+            isChecking={isChecking}
+            onPasscodeChange={setPasscode}
+            onSubmit={handleSubmit}
+          />
+        </SmartBarFlashCardLane>
+
+        <SmartBarFlashCardLane active={activeNoticeLane === "a"}>
+          <SmartBarFlashCard notice={noticeA} />
+        </SmartBarFlashCardLane>
+
+        <SmartBarFlashCardLane active={activeNoticeLane === "b"}>
+          <SmartBarFlashCard notice={noticeB} />
+        </SmartBarFlashCardLane>
+      </SmartBarFlashCardRail>
+
+      <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
     </div>
   );
 }

@@ -1,13 +1,11 @@
 import { useEffect, useRef, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MessageSquare, SendHorizonal } from "lucide-react";
-
-const THINKING_WIGGLE_DURATION = 1.15;
-const THINKING_WIGGLE_STAGGER = 0.025;
+import ThinkingText from "./ThinkingText";
 
 export type TourBarConsultantChatMessage = {
   id: string;
-  role: "visitor" | "consultant";
+  role: "visitor" | "consultant" | "smartbar";
   body: string;
   status?: "thinking" | "done";
 };
@@ -19,6 +17,11 @@ export type TourBarConsultantChatCopy = {
   waitingMessage?: string;
   confirmationMessage?: string;
   consultantResponseMessage?: string;
+  autoStartMessage?: string;
+  autoStartConsultantMessage?: string;
+  replyThinkingMessage?: string;
+  replyConfirmationMessage?: string;
+  replyConsultantResponseMessage?: string;
 };
 
 export type TourBarConsultantChatProps = {
@@ -30,55 +33,6 @@ export type TourBarConsultantChatProps = {
   onSubmit: () => void;
 };
 
-function ThinkingText({ body }: { body: string }) {
-  const tokens = body.match(/\S+|\s+/g) || [];
-  let characterIndex = 0;
-
-  return (
-    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
-      {tokens.map((token, tokenIndex) => {
-        if (/^\s+$/.test(token)) {
-          characterIndex += token.length;
-          return (
-            <span key={`space-${tokenIndex}`}>
-              {token.includes("\n") ? token : " "}
-            </span>
-          );
-        }
-
-        const startIndex = characterIndex;
-        characterIndex += token.length;
-
-        return (
-          <span
-            key={`${token}-${tokenIndex}`}
-            className="inline-block whitespace-nowrap align-baseline"
-          >
-            {token.split("").map((char, index) => (
-              <motion.span
-                key={`${char}-${tokenIndex}-${index}`}
-                className="inline-block"
-                animate={{
-                  y: [0, -1.5, 0, 1, 0],
-                  opacity: [0.72, 1, 0.82, 1, 0.72],
-                }}
-                transition={{
-                  duration: THINKING_WIGGLE_DURATION,
-                  repeat: Infinity,
-                  delay: (startIndex + index) * THINKING_WIGGLE_STAGGER,
-                  ease: "easeInOut",
-                }}
-              >
-                {char}
-              </motion.span>
-            ))}
-          </span>
-        );
-      })}
-    </span>
-  );
-}
-
 export default function TourBarConsultantChat({
   copy,
   draft,
@@ -88,7 +42,7 @@ export default function TourBarConsultantChat({
   onSubmit,
 }: TourBarConsultantChatProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const placeholder = copy?.placeholder || "Tell us what you need help with...";
+  const placeholder = copy?.placeholder || "Add anything else the consultant should know...";
   const hasThread = thread.length > 0;
 
   useEffect(() => {
@@ -123,7 +77,7 @@ export default function TourBarConsultantChat({
               {copy?.title || "Talk to someone"}
             </div>
             <p className="mt-1 text-xs leading-5 text-slate-600">
-              Send a short note and we’ll queue the next available person.
+              SmartBar has already passed the context brief. Add details only if needed.
             </p>
           </div>
         </div>
@@ -140,13 +94,14 @@ export default function TourBarConsultantChat({
             transition={{ duration: 0.26, ease: "easeOut" }}
             className="rounded-2xl bg-sky-50/85 px-3 py-2.5 text-sm leading-6 text-slate-700 ring-1 ring-sky-100"
           >
-            Tell us what you want to discuss. SmartBar has already helped narrow the context.
+            SmartBar is preparing the context brief for the consultant desk.
           </motion.div>
         )}
 
         <AnimatePresence initial={false}>
           {thread.map((message) => {
             const consultant = message.role === "consultant";
+            const smartbar = message.role === "smartbar";
             return (
               <motion.div
                 key={message.id}
@@ -155,16 +110,16 @@ export default function TourBarConsultantChat({
                 exit={{ opacity: 0, y: 16 }}
                 transition={{ duration: 0.34, ease: "easeOut" }}
                 className={`rounded-2xl px-3 py-2.5 text-sm leading-6 shadow-sm ring-1 ${
-                  consultant
+                  consultant || smartbar
                     ? "bg-sky-50/90 text-slate-800 ring-sky-100"
                     : "bg-white text-slate-900 ring-slate-200"
                 }`}
               >
                 <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  {consultant ? "Consultant desk" : "Visitor"}
+                  {consultant ? "Consultant desk" : smartbar ? "SmartBar" : "Visitor"}
                 </div>
                 {message.status === "thinking" ? (
-                  <ThinkingText body={message.body} />
+                  <ThinkingText key={`${message.id}-thinking`} body={message.body} />
                 ) : (
                   <span className="whitespace-pre-wrap">{message.body}</span>
                 )}

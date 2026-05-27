@@ -20,6 +20,7 @@ export type SmartBarFocusOptions = {
   overlayDurationMs?: number;
   debug?: boolean;
   dispatchLegacyEvent?: boolean;
+  skipPlacementScroll?: boolean;
 };
 
 type SmartBarFocusDebugDetail = {
@@ -607,31 +608,41 @@ export async function smartbarFocusTarget(
   }
 
   let placed = false;
-  const placementAttempts = Math.max(5, Math.min(9, Math.ceil((options.attempts ?? 18) / 4)));
 
-  for (let attempt = 0; attempt < placementAttempts; attempt += 1) {
-    const behavior = options.scrollBehavior === "auto" ? "auto" : "smooth";
-
-    await scrollSmartBarFocusElementIntoPlace(element, behavior);
-    if (!isCurrentFocusRun()) return false;
-    await wait(attempt === 0 ? 110 : 70);
-    if (!isCurrentFocusRun()) return false;
+  if (options.skipPlacementScroll) {
+    // The caller has already moved a local scroll stage into position. In that
+    // mode SmartBar should only measure and frost the target; it should not run
+    // the global window-placement correction that can make the whole page jump.
     await waitForFrame();
     if (!isCurrentFocusRun()) return false;
+    placed = true;
+  } else {
+    const placementAttempts = Math.max(5, Math.min(9, Math.ceil((options.attempts ?? 18) / 4)));
 
-    placed = focusElementIsPlaced(element);
-    if (placed) break;
-  }
+    for (let attempt = 0; attempt < placementAttempts; attempt += 1) {
+      const behavior = options.scrollBehavior === "auto" ? "auto" : "smooth";
 
-  if (!placed) {
-    // One final deterministic correction after all page/shell animations have
-    // settled. Do not frost a visibly cut-off target.
-    await scrollSmartBarFocusElementIntoPlace(element, "auto");
-    await wait(80);
-    if (!isCurrentFocusRun()) return false;
-    await waitForFrame();
-    if (!isCurrentFocusRun()) return false;
-    placed = focusElementIsPlaced(element);
+      await scrollSmartBarFocusElementIntoPlace(element, behavior);
+      if (!isCurrentFocusRun()) return false;
+      await wait(attempt === 0 ? 110 : 70);
+      if (!isCurrentFocusRun()) return false;
+      await waitForFrame();
+      if (!isCurrentFocusRun()) return false;
+
+      placed = focusElementIsPlaced(element);
+      if (placed) break;
+    }
+
+    if (!placed) {
+      // One final deterministic correction after all page/shell animations have
+      // settled. Do not frost a visibly cut-off target.
+      await scrollSmartBarFocusElementIntoPlace(element, "auto");
+      await wait(80);
+      if (!isCurrentFocusRun()) return false;
+      await waitForFrame();
+      if (!isCurrentFocusRun()) return false;
+      placed = focusElementIsPlaced(element);
+    }
   }
 
   // Let layout settle after the final scroll. The overlay is fixed-position and

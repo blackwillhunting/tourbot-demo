@@ -448,7 +448,7 @@ export function TourBarBookingHandoffSheet({
   );
 }
 
-function TourBarNavigationControls({
+export function TourBarNavigationControls({
   state,
   onBack,
   onNext,
@@ -495,6 +495,8 @@ function TourBarNavigationControls({
         <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
+            data-tourbar-booking-nav="back"
+            data-tourbar-booking-nav-state={isFirst || !onBack ? "disabled" : "enabled"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -507,6 +509,8 @@ function TourBarNavigationControls({
           </button>
           <button
             type="button"
+            data-tourbar-booking-nav="book"
+            data-tourbar-booking-nav-state={!onBook ? "disabled" : "enabled"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -519,6 +523,8 @@ function TourBarNavigationControls({
           </button>
           <button
             type="button"
+            data-tourbar-booking-nav="next"
+            data-tourbar-booking-nav-state={isLast || !onNext ? "disabled" : "enabled"}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();

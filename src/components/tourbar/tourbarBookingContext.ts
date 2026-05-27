@@ -677,11 +677,13 @@ function DateCard({
   value,
   active,
   onClick,
+  kind,
 }: {
   label: string;
   value?: string | null;
   active: boolean;
   onClick: () => void;
+  kind: Exclude<TourBarDatePickerKind, null>;
 }) {
   const completed = Boolean(value);
   const className =
@@ -694,7 +696,7 @@ function DateCard({
 
   return h(
     "button",
-    { type: "button", onClick, className },
+    { type: "button", onClick, className, "data-tourbar-date-card": kind },
     h("span", { className: completed ? "block text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700" : "block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400" }, label),
     h("strong", { className: completed ? "mt-1 block text-xs text-emerald-950" : "mt-1 block text-xs text-slate-950" }, formatTourBarBookingDate(value)),
   );
@@ -758,12 +760,14 @@ export function TourBarBookingContextPanel({
               value: context.checkInDate,
               active: controller.activeDatePicker === "check-in",
               onClick: () => controller.openDatePicker("check-in"),
+              kind: "check-in",
             }),
             h(DateCard, {
               label: "Check-out",
               value: context.checkOutDate,
               active: controller.activeDatePicker === "check-out",
               onClick: () => controller.openDatePicker("check-out"),
+              kind: "check-out",
             }),
           ),
           controller.activeDatePicker &&
@@ -776,8 +780,8 @@ export function TourBarBookingContextPanel({
                   h("div", { className: "mt-0.5 text-xs font-semibold text-slate-950" }, monthName),
                 ),
                 h("div", { className: "flex items-center gap-1" },
-                  h("button", { type: "button", onClick: () => controller.shiftCalendarMonth(-1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "←"),
-                  h("button", { type: "button", onClick: () => controller.shiftCalendarMonth(1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "→"),
+                  h("button", { type: "button", "data-tourbar-calendar-nav": "previous", onClick: () => controller.shiftCalendarMonth(-1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "←"),
+                  h("button", { type: "button", "data-tourbar-calendar-nav": "next", onClick: () => controller.shiftCalendarMonth(1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "→"),
                 ),
               ),
               h("div", { className: "grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-400" },
@@ -806,6 +810,8 @@ export function TourBarBookingContextPanel({
                       key: value,
                       type: "button",
                       disabled,
+                      "data-tourbar-calendar-date": value,
+                      "data-tourbar-calendar-picker": controller.activeDatePicker || "",
                       onClick: () => controller.activeDatePicker && controller.selectCalendarDate(controller.activeDatePicker, value),
                       className,
                     },
@@ -826,6 +832,7 @@ export function TourBarBookingContextPanel({
               context.datesSelected && h("button", { type: "button", onClick: controller.clearDates, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700" }, "Clear"),
               h("button", {
                 type: "button",
+                "data-tourbar-booking-apply": "dates",
                 disabled: !datesReady,
                 onClick: () => {
                   const next = controller.commitDates();
@@ -840,8 +847,8 @@ export function TourBarBookingContextPanel({
           "div",
           { className: "mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" },
           [
-            { label: "Adults", value: guestAdults, min: 1, onChange: controller.setGuestAdults },
-            { label: "Children", value: guestChildren, min: 0, onChange: controller.setGuestChildren },
+            { key: "adults", label: "Adults", value: guestAdults, min: 1, onChange: controller.setGuestAdults },
+            { key: "children", label: "Children", value: guestChildren, min: 0, onChange: controller.setGuestChildren },
           ].map((item) =>
             h("div", { key: item.label, className: "flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2" },
               h("div", null,
@@ -849,8 +856,8 @@ export function TourBarBookingContextPanel({
                 h("div", { className: "mt-0.5 text-sm font-semibold text-slate-950" }, item.value),
               ),
               h("div", { className: "flex items-center gap-2" },
-                h("button", { type: "button", onClick: () => item.onChange(Math.max(item.min, item.value - 1)), className: "h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50" }, "−"),
-                h("button", { type: "button", onClick: () => item.onChange(item.value + 1), className: "h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800" }, "+"),
+                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-decrement`, onClick: () => item.onChange(Math.max(item.min, item.value - 1)), className: "h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50" }, "−"),
+                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-increment`, onClick: () => item.onChange(item.value + 1), className: "h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800" }, "+"),
               ),
             ),
           ),
@@ -860,6 +867,7 @@ export function TourBarBookingContextPanel({
               context.guestsSelected && h("button", { type: "button", onClick: controller.clearGuests, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700" }, "Clear"),
               h("button", {
                 type: "button",
+                "data-tourbar-booking-apply": "guests",
                 onClick: () => {
                   const next = controller.commitGuests();
                   onResume(pendingQuery, next);
