@@ -169,26 +169,6 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
-function useTourBarMobileViewport() {
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 767px)").matches;
-  });
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const query = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(query.matches);
-
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
-  return isMobile;
-}
-
 function makeConsultantChatId() {
   return Math.random().toString(36).slice(2, 10);
 }
@@ -394,7 +374,6 @@ export default function TourBarShell({
   renderResultExtras,
   renderStandaloneSheet,
 }: TourBarShellProps) {
-  const isMobileShell = useTourBarMobileViewport();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [followUp, setFollowUp] = useState("");
@@ -1118,19 +1097,8 @@ export default function TourBarShell({
       </div>
     ) : null;
 
-  const sheetSlotClassName = isMobileShell
-    ? "absolute left-0 right-0 bottom-[calc(100%+8px)] overflow-hidden"
-    : "absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden";
-  const sheetPanelY = isMobileShell ? "100%" : "-100%";
-  const sheetPanelClassName = isMobileShell
-    ? "max-h-[min(68svh,520px)] overflow-y-auto overscroll-contain rounded-[24px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
-    : "max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl";
-
   return (
-    <div
-      data-tourbar-shell-root="true"
-      className="fixed bottom-[calc(env(safe-area-inset-bottom)+14px)] left-3 right-3 z-[10060] h-auto w-auto shrink-0 sm:relative sm:bottom-auto sm:left-auto sm:right-auto sm:h-9 sm:w-9"
-    >
+    <div data-tourbar-shell-root="true" className="relative z-[10060] h-9 w-9 shrink-0">
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
@@ -1141,24 +1109,23 @@ export default function TourBarShell({
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
             onClick={() => setIsOpen(true)}
-            className="group relative inline-flex h-12 w-full items-center justify-start overflow-hidden rounded-full bg-slate-950 px-4 text-white shadow-lg shadow-slate-950/12 ring-1 ring-slate-950/10 transition hover:bg-slate-800 sm:absolute sm:inset-0 sm:h-auto sm:w-auto sm:justify-center sm:px-0 sm:shadow-sm"
+            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             aria-label={launcherAriaLabel}
             title={launcherTitle}
           >
-            <span className="pointer-events-none inline-flex h-full w-full items-center justify-start gap-2 rounded-full sm:justify-center sm:gap-0 sm:animate-pulse">
+            <span className="pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse">
               <Sparkles className="h-4 w-4" />
-              <span className="text-sm font-semibold tracking-tight sm:hidden">Ask SmartBar</span>
             </span>
           </motion.button>
         ) : (
           <motion.div
             key="tourbar-open"
             data-tourbar-open-panel="true"
-            initial={{ opacity: 0, y: isMobileShell ? 12 : -8, scale: 0.98 }}
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: isMobileShell ? 10 : -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="fixed bottom-[calc(env(safe-area-inset-bottom)+14px)] left-3 right-3 w-auto sm:absolute sm:left-auto sm:right-0 sm:top-1/2 sm:bottom-auto sm:w-[430px] sm:-translate-y-1/2 md:w-[470px]"
+            className="absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]"
           >
             <div className="relative">
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
@@ -1180,7 +1147,7 @@ export default function TourBarShell({
                     }}
                     placeholder={primaryPlaceholder}
                     rows={1}
-                    className="max-h-24 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400 sm:max-h-32"
+                    className="max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
                   />
                   <button
                     type="button"
@@ -1233,14 +1200,14 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className={sheetSlotClassName}
+                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
                   >
                     <motion.div
-                      initial={{ y: sheetPanelY }}
+                      initial={{ y: "-100%" }}
                       animate={{ y: "0%" }}
-                      exit={{ y: sheetPanelY }}
+                      exit={{ y: "-100%" }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className={sheetPanelClassName}
+                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
                       {isLoading && (
                         <div className="px-4 py-4 text-sm font-medium text-slate-600">
@@ -1342,14 +1309,14 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className={sheetSlotClassName}
+                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
                   >
                     <motion.div
-                      initial={{ y: sheetPanelY }}
+                      initial={{ y: "-100%" }}
                       animate={{ y: "0%" }}
-                      exit={{ y: sheetPanelY }}
+                      exit={{ y: "-100%" }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className={sheetPanelClassName}
+                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
                       <TourBarConsultantChat
                         copy={consultantChat}
