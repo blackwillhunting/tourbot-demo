@@ -57,57 +57,6 @@ const FLASHCARD_SPEED_CONTROLS = {
 
 const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
   {
-    title: "Or anywhere intent shows up",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 2500,
-  },
-  {
-    title: "Search bars",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 800,
-  },
-    {
-    title: "Product cards",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 800,
-  },
-    {
-    title: "Cart panels",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 800,
-  },
-  {
-    title: "Mobile sticky bars",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 800,
-  },
-    {
-    title: "checkout panels",
-    cascadeGroup: "intro-fit",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 2500,
-    clearCascade: true,
-  },
-  {
-    title: "Works with **any kind of site**",
-    cascadeGroup: "intro-2",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 3000,
-    clearCascade: true,
-  },
-  {
     title: "First example: **NexaPath Advisory**",
     cascadeGroup: "intro-3",
     cascadeMode: "standard",
