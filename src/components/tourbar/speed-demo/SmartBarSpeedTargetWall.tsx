@@ -434,12 +434,12 @@ const TONE_CLASS: Record<NonNullable<TargetCard["tone"]> | FillerCard["tone"], {
 };
 
 const SHAPE_CLASS: Record<WallCardShape, string> = {
-  compact: "min-h-[150px] md:col-span-2 xl:col-span-3",
-  pill: "min-h-[112px] md:col-span-3 xl:col-span-4 rounded-[999px]",
-  wide: "min-h-[190px] md:col-span-4 xl:col-span-6",
-  tall: "min-h-[300px] md:col-span-3 xl:col-span-4 md:row-span-2",
-  large: "min-h-[260px] md:col-span-6 xl:col-span-7",
-  strip: "min-h-[128px] md:col-span-6 xl:col-span-8",
+  compact: "min-h-[92px] sm:min-h-[150px] md:col-span-2 xl:col-span-3",
+  pill: "min-h-[64px] sm:min-h-[112px] md:col-span-3 xl:col-span-4 rounded-[999px]",
+  wide: "min-h-[118px] sm:min-h-[190px] md:col-span-4 xl:col-span-6",
+  tall: "min-h-[150px] sm:min-h-[300px] md:col-span-3 xl:col-span-4 md:row-span-2",
+  large: "min-h-[142px] sm:min-h-[260px] md:col-span-6 xl:col-span-7",
+  strip: "min-h-[78px] sm:min-h-[128px] md:col-span-6 xl:col-span-8",
 };
 
 function fillerAt(surface: Exclude<SmartBarSpeedSurface, "info">, index: number) {
@@ -480,7 +480,7 @@ function legacyWallItemsFor(surface: Exclude<SmartBarSpeedSurface, "info">): Wal
 function Card({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border border-white/80 bg-white/94 shadow-sm shadow-slate-900/10 ring-1 ring-slate-950/[0.04] backdrop-blur sm:rounded-[28px] ${className}`}
+      className={`overflow-hidden rounded-[14px] border border-white/80 bg-white/94 shadow-sm shadow-slate-900/10 ring-1 ring-slate-950/[0.04] backdrop-blur sm:rounded-[28px] ${className}`}
     >
       {children}
     </div>
@@ -493,43 +493,43 @@ function CardContent({ className = "", children }: { className?: string; childre
 
 function NexaPathHeroReplica() {
   return (
-    <section className="pb-3 pt-3 sm:pb-8 sm:pt-8">
-      <div className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-800 px-3 py-4 text-white shadow-2xl shadow-slate-950/24 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12">
+    <section className="pb-2 pt-2 sm:pb-8 sm:pt-8">
+      <div className="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-800 px-3 py-3 text-white shadow-2xl shadow-slate-950/24 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12">
         <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
         <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-white/10 bg-white/5 lg:block" />
 
-        <div className="relative grid gap-5 sm:gap-8 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
+        <div className="relative grid gap-3 sm:gap-8 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
           <div>
-            <div className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:mb-4 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+            <div className="mb-2 inline-flex rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/80 sm:mb-4 sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.18em]">
               Industry operating model
             </div>
-            <h1 className="max-w-4xl text-xl font-semibold tracking-tight sm:text-4xl md:text-6xl">
+            <h1 className="max-w-4xl text-lg font-semibold tracking-tight sm:text-4xl md:text-6xl">
               Hedge Fund
             </h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-5 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">
+            <p className="mt-1.5 max-w-3xl text-xs leading-4 text-slate-200 sm:mt-5 sm:text-lg sm:leading-8">
               This prototype page demonstrates how a tour can shift from generic solution language to an industry-specific operating narrative.
             </p>
-            <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-7 sm:gap-3">
+            <div className="mt-2 flex flex-wrap gap-1 sm:mt-7 sm:gap-3">
               {["Fund operations", "Copilot journeys", "Scenario-first buyer path"].map((item) => (
-                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] text-white/90 sm:px-4 sm:py-2 sm:text-sm">
+                <span key={item} className="rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] text-white/90 sm:px-4 sm:py-2 sm:text-sm">
                   {item}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
+          <div className="grid gap-1.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="rounded-[14px] border border-white/15 bg-white/10 p-2.5 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Guide readiness</div>
-              <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">7 anchored stops</div>
-              <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
+              <div className="mt-1 text-sm font-semibold sm:mt-3 sm:text-2xl">7 anchored stops</div>
+              <p className="mt-1 text-[10px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
                 Each section remains addressable for spotlighting, multi-step navigation, and AI-guided explanations.
               </p>
             </div>
-            <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
+            <div className="rounded-[14px] border border-white/15 bg-white/10 p-2.5 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Current path</div>
-              <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">Industry-specific path for regulated investment operations</div>
-              <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
+              <div className="mt-1 text-sm font-semibold sm:mt-3 sm:text-2xl">Industry-specific path for regulated investment operations</div>
+              <p className="mt-1 text-[10px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
                 A more realistic page canvas gives the guide better visual moments to land on during demos.
               </p>
             </div>
@@ -560,38 +560,38 @@ function NexaPathSectionCard({ section }: { section: NexaPathSection }) {
     >
       <Card className={`md:hidden transition-all border-slate-200 ring-1 ring-slate-200/80 ${dark ? `bg-gradient-to-br ${section.tone} text-white` : ""}`}>
         <div className={`h-1.5 ${dark ? "bg-white/25" : `bg-gradient-to-r ${section.tone}`}`} />
-        <div className="p-3">
+        <div className="p-2.5 sm:p-3">
           <div className="flex items-start gap-2.5">
             <div
-              className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+              className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9 sm:rounded-xl ${
                 dark ? "bg-white/15 text-white" : `bg-gradient-to-br ${section.tone} text-white`
               } shadow-sm`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
             <div className="min-w-0">
               <div className={`text-[9px] font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/60" : "text-slate-400"}`}>
                 {section.pageId} / {String(section.pageIndex + 1).padStart(2, "0")}
               </div>
-              <h2 className={`mt-0.5 text-[15px] font-semibold leading-5 tracking-tight ${dark ? "text-white" : "text-slate-950"}`}>
+              <h2 className={`mt-0.5 text-sm font-semibold leading-5 tracking-tight sm:text-[15px] ${dark ? "text-white" : "text-slate-950"}`}>
                 {section.title}
               </h2>
             </div>
           </div>
 
           <p
-            className={`mt-2 overflow-hidden text-xs leading-4 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${
+            className={`mt-1.5 overflow-hidden text-[11px] leading-4 [display:-webkit-box] sm:text-xs [-webkit-box-orient:vertical] [-webkit-line-clamp:2] ${
               dark ? "text-slate-200" : "text-slate-600"
             }`}
           >
             {section.body}
           </p>
 
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-1.5 flex flex-wrap gap-1 sm:mt-2 sm:gap-1.5">
             {mobileChips.map((chip) => (
               <span
                 key={chip}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold sm:px-2 sm:text-[10px] ${
                   dark ? "bg-white/10 text-white/80" : "border border-slate-200 bg-slate-50 text-slate-600"
                 }`}
               >
@@ -666,7 +666,7 @@ function PageMapCard() {
   const sections = NEXAPATH_SECTIONS.filter((section) => section.pageId === "hedge-fund");
 
   return (
-    <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
+    <aside className="hidden space-y-5 md:block lg:sticky lg:top-4 lg:self-start">
       <Card>
         <CardContent className="p-3 sm:p-6">
           <div className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -717,12 +717,12 @@ function InfoSurfaceLayer({ active }: { active: boolean }) {
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[3200px]`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[2200px] sm:min-h-[3200px]`}
     >
       <NexaPathHeroReplica />
 
-      <main className="grid gap-5 pb-20 lg:grid-cols-[1fr_320px] lg:gap-8">
-        <div className="space-y-4 sm:space-y-5">
+      <main className="grid gap-3 pb-14 sm:gap-5 sm:pb-20 lg:grid-cols-[1fr_320px] lg:gap-8">
+        <div className="space-y-2.5 sm:space-y-5">
           {NEXAPATH_SECTIONS.map((section) => (
             <NexaPathSectionCard key={section.id} section={section} />
           ))}
@@ -906,7 +906,7 @@ function CarryoutAddButton({ targetId }: { targetId: string }) {
 
 function CarryoutDarkCard({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
-    <div className={`overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/90 shadow-xl shadow-slate-950/30 ring-1 ring-white/[0.04] ${className}`}>
+    <div className={`overflow-hidden rounded-[18px] border border-white/10 bg-slate-900/90 sm:rounded-[28px] shadow-xl shadow-slate-950/30 ring-1 ring-white/[0.04] ${className}`}>
       {children}
     </div>
   );
@@ -914,12 +914,12 @@ function CarryoutDarkCard({ className = "", children }: { className?: string; ch
 
 function CarryoutSectionHeader({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
   return (
-    <div className="mb-5 flex flex-col gap-2 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-3 flex flex-col gap-1.5 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
       <div>
         <div className="text-xs font-bold uppercase tracking-[0.18em] text-orange-300">{eyebrow}</div>
-        <h2 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">{title}</h2>
+        <h2 className="mt-1 text-xl font-black tracking-tight text-white sm:mt-2 sm:text-3xl">{title}</h2>
       </div>
-      <p className="max-w-xl text-sm leading-6 text-slate-300">{body}</p>
+      <p className="max-w-xl text-xs leading-5 text-slate-300 sm:text-sm sm:leading-6">{body}</p>
     </div>
   );
 }
@@ -931,28 +931,28 @@ function CarryoutHeroReplica() {
       data-tour-id="carryout-hero"
       data-smartbar-focus-surface="speed-demo"
       data-spotlight-mode="region"
-      className="relative overflow-hidden rounded-[34px] bg-slate-950 text-white shadow-2xl shadow-orange-200/40"
+      className="relative overflow-hidden rounded-[22px] bg-slate-950 text-white shadow-2xl shadow-orange-200/40 sm:rounded-[34px]"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.55),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(248,113,113,0.36),_transparent_36%)]" />
-      <div className="relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+      <div className="relative grid gap-4 p-4 sm:gap-8 sm:p-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-orange-100 ring-1 ring-white/15">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.13em] text-orange-100 ring-1 ring-white/15 sm:gap-2 sm:px-3 sm:py-1.5 sm:text-xs sm:tracking-[0.16em]">
             <Sparkles className="h-4 w-4" />
             Natural-language carryout demo
           </div>
-          <h1 className="mt-5 max-w-3xl text-4xl font-black tracking-tight sm:text-6xl">
+          <h1 className="mt-3 max-w-3xl text-2xl font-black tracking-tight sm:mt-5 sm:text-6xl">
             Say the order. TourBot builds the cart.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-orange-50/90 sm:text-lg">
+          <p className="mt-2 max-w-2xl text-xs leading-5 text-orange-50/90 sm:mt-5 sm:text-lg sm:leading-7">
             BurgerRush is built to show a realistic fast-food menu: combos, independent sides,
             drinks, modifiers, required choices, and a cart handoff that can be driven by plain English.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <span className="inline-flex items-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 shadow-sm">
+          <div className="mt-4 flex flex-wrap gap-2 sm:mt-7 sm:gap-3">
+            <span className="inline-flex items-center rounded-full bg-white px-3 py-2 text-xs font-black text-slate-950 shadow-sm sm:px-5 sm:py-3 sm:text-sm">
               Browse combos
               <ArrowRight className="ml-2 h-4 w-4" />
             </span>
-            <span className="inline-flex items-center rounded-full bg-white/10 px-5 py-3 text-sm font-black text-white ring-1 ring-white/15">
+            <span className="inline-flex items-center rounded-full bg-white/10 px-3 py-2 text-xs font-black text-white ring-1 ring-white/15 sm:px-5 sm:py-3 sm:text-sm">
               How TourBot works
             </span>
           </div>
@@ -963,25 +963,25 @@ function CarryoutHeroReplica() {
           data-tour-id="featured-double-stack-combo"
           data-smartbar-focus-surface="speed-demo"
           data-spotlight-mode="card"
-          className="rounded-[32px] border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur"
+          className="rounded-[20px] border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur sm:rounded-[32px] sm:p-5"
         >
           <div className="flex items-center justify-between gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-[24px] bg-orange-400 text-slate-950 shadow-lg shadow-orange-950/20">
-              <Flame className="h-8 w-8" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-400 text-slate-950 shadow-lg shadow-orange-950/20 sm:h-16 sm:w-16 sm:rounded-[24px]">
+              <Flame className="h-5 w-5 sm:h-8 sm:w-8" />
             </div>
             <div className="rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-orange-50 ring-1 ring-white/15">
               Featured combo
             </div>
           </div>
-          <div className="mt-8 text-5xl font-black leading-none tracking-tight">Double Stack</div>
-          <div className="mt-2 text-5xl font-black leading-none tracking-tight text-orange-300">Combo</div>
-          <p className="mt-5 text-sm leading-6 text-orange-50/85">
+          <div className="mt-4 text-3xl font-black leading-none tracking-tight sm:mt-8 sm:text-5xl">Double Stack</div>
+          <div className="mt-1 text-3xl font-black leading-none tracking-tight text-orange-300 sm:mt-2 sm:text-5xl">Combo</div>
+          <p className="mt-3 text-xs leading-5 text-orange-50/85 sm:mt-5 sm:text-sm sm:leading-6">
             Double cheeseburger, fries, and drink. A perfect target for showing how TourBot maps separate requests into a combo.
           </p>
-          <div className="mt-5 grid grid-cols-3 gap-2 text-center text-xs font-bold text-orange-50">
-            <div className="rounded-2xl bg-white/10 p-3">Burger</div>
-            <div className="rounded-2xl bg-white/10 p-3">Fries</div>
-            <div className="rounded-2xl bg-white/10 p-3">Drink</div>
+          <div className="mt-3 grid grid-cols-3 gap-1.5 text-center text-[11px] font-bold text-orange-50 sm:mt-5 sm:gap-2 sm:text-xs">
+            <div className="rounded-xl bg-white/10 p-2 sm:rounded-2xl sm:p-3">Burger</div>
+            <div className="rounded-xl bg-white/10 p-2 sm:rounded-2xl sm:p-3">Fries</div>
+            <div className="rounded-xl bg-white/10 p-2 sm:rounded-2xl sm:p-3">Drink</div>
           </div>
         </div>
       </div>
@@ -996,7 +996,7 @@ function CarryoutQualifierPanelReplica() {
       data-tour-id="qualifier-completion-panel"
       data-smartbar-focus-surface="speed-demo"
       data-spotlight-mode="region"
-      className="rounded-[30px] border border-amber-300/20 bg-slate-900/85 p-5 shadow-xl shadow-slate-950/20 ring-1 ring-white/[0.03] sm:p-6"
+      className="rounded-[20px] border border-amber-300/20 bg-slate-900/85 p-4 shadow-xl shadow-slate-950/20 ring-1 ring-white/[0.03] sm:rounded-[30px] sm:p-6"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -1013,10 +1013,10 @@ function CarryoutQualifierPanelReplica() {
           data-tour-id="sample-qualifier-chips"
           data-smartbar-focus-surface="speed-demo"
           data-spotlight-mode="card"
-          className="rounded-3xl bg-slate-950/70 p-4 shadow-sm ring-1 ring-white/10"
+          className="rounded-2xl bg-slate-950/70 p-3 shadow-sm ring-1 ring-white/10 sm:rounded-3xl sm:p-4"
         >
           <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Example chips</div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
             {["Small", "Medium", "Large"].map((item) => (
               <span key={item} className="rounded-full bg-slate-950 px-4 py-2 text-xs font-black text-white">{item}</span>
             ))}
@@ -1041,25 +1041,25 @@ function CarryoutComboCard({ combo, index }: { combo: CarryoutCombo; index: numb
       }`}
     >
       <div className={`grid h-full ${featured ? "md:grid-cols-[0.95fr_1.2fr]" : ""}`}>
-        <div className={`${featured ? "min-h-[250px]" : "min-h-[170px]"} bg-gradient-to-br from-orange-500 via-red-500 to-amber-400 p-5 text-white`}>
+        <div className={`${featured ? "min-h-[132px] sm:min-h-[250px]" : "min-h-[105px] sm:min-h-[170px]"} bg-gradient-to-br from-orange-500 via-red-500 to-amber-400 p-4 text-white sm:p-5`}>
           <div className="flex items-center justify-between gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 ring-1 ring-white/20">
-              <Package className="h-6 w-6" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/20 sm:h-12 sm:w-12 sm:rounded-2xl">
+              <Package className="h-4 w-4 sm:h-6 sm:w-6" />
             </div>
             {combo.badge ? <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold ring-1 ring-white/20">{combo.badge}</span> : null}
           </div>
-          <div className="mt-8 text-5xl font-black leading-none tracking-tight sm:text-6xl">{featured ? "2x" : "Meal"}</div>
+          <div className="mt-4 text-3xl font-black leading-none tracking-tight sm:mt-8 sm:text-6xl">{featured ? "2x" : "Meal"}</div>
           <div className="mt-2 text-sm font-bold uppercase tracking-[0.18em] text-white/75">BurgerRush combo</div>
         </div>
-        <div className="flex h-full flex-col p-5 sm:p-6">
+        <div className="flex h-full flex-col p-4 sm:p-6">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-xl font-black tracking-tight text-white">{combo.title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-300">{combo.description}</p>
+              <h3 className="text-lg font-black tracking-tight text-white sm:text-xl">{combo.title}</h3>
+              <p className="mt-1.5 text-xs leading-5 text-slate-300 sm:mt-2 sm:text-sm sm:leading-6">{combo.description}</p>
             </div>
             <CarryoutPrice>{combo.price}</CarryoutPrice>
           </div>
-          <div className="mt-5 rounded-2xl bg-slate-800/80 p-3 ring-1 ring-white/10">
+          <div className="mt-3 rounded-xl bg-slate-800/80 p-2.5 ring-1 ring-white/10 sm:mt-5 sm:rounded-2xl sm:p-3">
             <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Includes</div>
             <div className="mt-2 flex flex-wrap gap-2">
               {combo.includes.map((item) => (
@@ -1069,10 +1069,10 @@ function CarryoutComboCard({ combo, index }: { combo: CarryoutCombo; index: numb
               ))}
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap gap-1.5 sm:mt-5 sm:gap-2">
             {combo.chips?.map((chip) => <CarryoutChip key={chip}>{chip}</CarryoutChip>)}
           </div>
-          <div className="mt-auto pt-5">
+          <div className="mt-auto pt-3 sm:pt-5">
             <CarryoutAddButton targetId={combo.id} />
           </div>
         </div>
@@ -1090,15 +1090,15 @@ function CarryoutMenuRow({ item }: { item: CarryoutOffer }) {
       data-tour-id={item.id}
       data-smartbar-focus-surface="speed-demo"
       data-spotlight-mode={isModifierPanel ? "card" : "row"}
-      className="group grid gap-3 rounded-3xl border border-white/10 bg-slate-900/90 p-4 shadow-lg shadow-slate-950/20 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5"
+      className="group grid gap-2 rounded-[20px] border border-white/10 bg-slate-900/90 p-3 shadow-lg shadow-slate-950/20 sm:grid-cols-[1fr_auto] sm:items-center sm:rounded-3xl sm:p-5"
     >
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-base font-black tracking-tight text-white sm:text-lg">{item.title}</h3>
+          <h3 className="text-sm font-black tracking-tight text-white sm:text-lg">{item.title}</h3>
           {item.badge ? <CarryoutBadge>{item.badge}</CarryoutBadge> : null}
         </div>
-        <p className="mt-1.5 text-sm leading-6 text-slate-300">{item.description}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <p className="mt-1 text-xs leading-5 text-slate-300 sm:mt-1.5 sm:text-sm sm:leading-6">{item.description}</p>
+        <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
           {item.chips?.map((chip) => <CarryoutChip key={chip}>{chip}</CarryoutChip>)}
         </div>
       </div>
@@ -1119,7 +1119,7 @@ function CarryoutSmallOfferTile({ item }: { item: CarryoutOffer }) {
       data-tour-id={item.id}
       data-smartbar-focus-surface="speed-demo"
       data-spotlight-mode="card"
-      className="rounded-[26px] border border-white/10 bg-slate-900/90 p-4 shadow-lg shadow-slate-950/20"
+      className="rounded-[18px] border border-white/10 bg-slate-900/90 p-3 shadow-lg shadow-slate-950/20 sm:rounded-[26px] sm:p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-400/15 text-orange-200 ring-1 ring-orange-300/20">
@@ -1127,11 +1127,11 @@ function CarryoutSmallOfferTile({ item }: { item: CarryoutOffer }) {
         </div>
         <CarryoutPrice>{item.price}</CarryoutPrice>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:mt-4 sm:gap-2">
         <h3 className="text-base font-black tracking-tight text-white">{item.title}</h3>
         {item.badge ? <CarryoutBadge>{item.badge}</CarryoutBadge> : null}
       </div>
-      <p className="mt-2 text-sm leading-5 text-slate-300">{item.description}</p>
+      <p className="mt-1.5 text-xs leading-5 text-slate-300 sm:mt-2 sm:text-sm">{item.description}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {item.chips?.map((chip) => <CarryoutChip key={chip}>{chip}</CarryoutChip>)}
       </div>
@@ -1153,8 +1153,8 @@ function CarryoutDrinksRackReplica() {
         title="Drinks"
         body="The drink rack gives TourBot a realistic grouping challenge: five sodas should be clarified as a group, not one at a time."
       />
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {CARRYOUT_DRINKS.map((drink) => <CarryoutSmallOfferTile key={drink.id} item={drink} />)}
         </div>
         <CarryoutDarkCard>
@@ -1163,21 +1163,21 @@ function CarryoutDrinksRackReplica() {
             data-tour-id="drink-qualifiers"
             data-smartbar-focus-surface="speed-demo"
             data-spotlight-mode="card"
-            className="p-5 sm:p-6"
+            className="p-4 sm:p-6"
           >
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-orange-600">
               <Coffee className="h-4 w-4" />
               Drink qualifiers
             </div>
-            <div id="qualifier-drink-size" data-tour-id="qualifier-drink-size" data-smartbar-focus-surface="speed-demo" className="mt-5 rounded-3xl bg-slate-800/80 p-4">
+            <div id="qualifier-drink-size" data-tour-id="qualifier-drink-size" data-smartbar-focus-surface="speed-demo" className="mt-3 rounded-2xl bg-slate-800/80 p-3 sm:mt-5 sm:rounded-3xl sm:p-4">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Size</div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
                 {["Small", "Medium", "Large"].map((item) => <CarryoutChip key={item}>{item}</CarryoutChip>)}
               </div>
             </div>
-            <div id="qualifier-drink-flavor" data-tour-id="qualifier-drink-flavor" data-smartbar-focus-surface="speed-demo" className="mt-4 rounded-3xl bg-slate-800/80 p-4">
+            <div id="qualifier-drink-flavor" data-tour-id="qualifier-drink-flavor" data-smartbar-focus-surface="speed-demo" className="mt-3 rounded-2xl bg-slate-800/80 p-3 sm:mt-4 sm:rounded-3xl sm:p-4">
               <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Flavor</div>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex flex-wrap gap-1.5 sm:mt-3 sm:gap-2">
                 {["Coke", "Diet Coke", "Sprite", "Root Beer"].map((item) => <CarryoutChip key={item}>{item}</CarryoutChip>)}
               </div>
             </div>
@@ -1198,7 +1198,7 @@ function CarryoutExplainerPanelReplica() {
   return (
     <aside id="carryout-flow-panel" data-tour-id="carryout-flow-panel" data-smartbar-focus-surface="speed-demo" data-spotlight-mode="region" className="lg:sticky lg:top-4">
       <CarryoutDarkCard className="border-orange-300/20 bg-slate-950/85">
-        <div className="relative overflow-hidden p-5 text-white">
+        <div className="relative overflow-hidden p-4 text-white sm:p-5">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(251,146,60,0.22),_transparent_42%)]" />
           <div className="relative">
             <div className="flex items-center justify-between gap-3">
@@ -1217,7 +1217,7 @@ function CarryoutExplainerPanelReplica() {
 
             <div className="mt-5 space-y-3">
               {steps.map((step, index) => (
-                <div key={step.label} className="rounded-2xl bg-white/8 p-3 ring-1 ring-white/10">
+                <div key={step.label} className="rounded-xl bg-white/8 p-2.5 ring-1 ring-white/10 sm:rounded-2xl sm:p-3">
                   <div className="flex items-start gap-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-400/15 text-xs font-black text-orange-100 ring-1 ring-orange-300/20">
                       {index + 1}
@@ -1231,7 +1231,7 @@ function CarryoutExplainerPanelReplica() {
               ))}
             </div>
 
-            <div className="mt-5 rounded-3xl bg-orange-400/10 p-4 ring-1 ring-orange-300/20">
+            <div className="mt-3 rounded-2xl bg-orange-400/10 p-3 ring-1 ring-orange-300/20 sm:mt-5 sm:rounded-3xl sm:p-4">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-orange-200">
                 <CheckCircle2 className="h-4 w-4" />
                 Checkout happens in the sheet
@@ -1254,13 +1254,13 @@ function CarryoutSurfaceLayer({ active }: { active: boolean }) {
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[3200px] text-white`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[2300px] text-white sm:min-h-[3200px]`}
     >
-      <div className="space-y-8">
+      <div className="space-y-5 sm:space-y-8">
         <CarryoutHeroReplica />
 
-        <main className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-          <div className="space-y-8">
+        <main className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <div className="space-y-5 sm:space-y-8">
             <CarryoutQualifierPanelReplica />
 
             <section
@@ -1275,7 +1275,7 @@ function CarryoutSurfaceLayer({ active }: { active: boolean }) {
                 title="Combos"
                 body="Combos are the carryout version of packages: bundled offers with required side and drink choices."
               />
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
                 {CARRYOUT_COMBOS.map((combo, index) => <CarryoutComboCard key={combo.id} combo={combo} index={index} />)}
               </div>
             </section>
@@ -1292,7 +1292,7 @@ function CarryoutSurfaceLayer({ active }: { active: boolean }) {
                 title="Burgers"
                 body="Every burger is orderable on its own, and can also be included inside combos."
               />
-              <div className="grid gap-3">
+              <div className="grid gap-2.5 sm:gap-3">
                 {CARRYOUT_BURGERS.map((item) => <CarryoutMenuRow key={item.id} item={item} />)}
               </div>
             </section>
@@ -1309,7 +1309,7 @@ function CarryoutSurfaceLayer({ active }: { active: boolean }) {
                 title="Sides"
                 body="Sides show why a simple item request can still require one focused follow-up."
               />
-              <div className="grid gap-3">
+              <div className="grid gap-2.5 sm:gap-3">
                 {CARRYOUT_SIDES.map((item) => <CarryoutMenuRow key={item.id} item={item} />)}
               </div>
             </section>
@@ -1501,7 +1501,7 @@ const DOMI_SECTIONS: DomiSection[] = [
 function DomiCard({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border border-white/35 bg-slate-50/82 shadow-sm shadow-slate-950/20 ring-1 ring-white/[0.08] backdrop-blur sm:rounded-[30px] ${className}`}
+      className={`overflow-hidden rounded-[16px] border border-white/35 bg-slate-50/82 shadow-sm shadow-slate-950/20 ring-1 ring-white/[0.08] backdrop-blur sm:rounded-[30px] ${className}`}
     >
       {children}
     </div>
@@ -1526,26 +1526,26 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
       initial={false}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25 }}
-      className="relative scroll-mt-28"
+      className="relative scroll-mt-20 sm:scroll-mt-28"
     >
       <DomiCard className={`${dark ? `bg-gradient-to-br ${section.tone} text-white` : ""}`}>
         <div className={`grid ${isRoom || dark ? "lg:grid-cols-[0.82fr_1.18fr]" : "md:grid-cols-[190px_1fr]"}`}>
-          <div className={`relative min-h-[220px] overflow-hidden border-b text-white md:border-b-0 md:border-r md:border-white/10 ${dark ? "bg-white/10" : ""}`}>
+          <div className={`relative min-h-[132px] overflow-hidden border-b text-white sm:min-h-[220px] md:border-b-0 md:border-r md:border-white/10 ${dark ? "bg-white/10" : ""}`}>
             <div className={`absolute inset-0 bg-gradient-to-br ${section.tone}`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,rgba(255,255,255,0.42),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.14),transparent_45%)]" />
             {isRoom ? (
               <>
-                <div className="absolute bottom-5 right-5 h-28 w-28 rounded-[34px] border border-white/15 bg-white/10 shadow-2xl backdrop-blur" />
-                <div className="absolute bottom-10 right-12 h-16 w-16 rotate-12 rounded-[24px] border border-white/10 bg-white/10" />
+                <div className="absolute bottom-3 right-3 h-16 w-16 rounded-[22px] border border-white/15 bg-white/10 shadow-2xl backdrop-blur sm:bottom-5 sm:right-5 sm:h-28 sm:w-28 sm:rounded-[34px]" />
+                <div className="absolute bottom-7 right-8 h-9 w-9 rotate-12 rounded-[16px] border border-white/10 bg-white/10 sm:bottom-10 sm:right-12 sm:h-16 sm:w-16 sm:rounded-[24px]" />
               </>
             ) : null}
 
-            <div className="relative z-10 flex h-full min-h-[220px] flex-col justify-between p-6">
+            <div className="relative z-10 flex h-full min-h-[132px] flex-col justify-between p-4 sm:min-h-[220px] sm:p-6">
               <div>
-                <div className="inline-flex rounded-2xl bg-white/15 p-3 text-white shadow-sm backdrop-blur">
+                <div className="inline-flex rounded-xl bg-white/15 p-2 text-white shadow-sm backdrop-blur sm:rounded-2xl sm:p-3">
                   <Icon className="h-5 w-5" />
                 </div>
-                <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                <div className="mt-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/70 sm:mt-5 sm:text-[11px] sm:tracking-[0.18em]">
                   {section.eyebrow || `${section.pageId} / ${String(index + 1).padStart(2, "0")}`}
                 </div>
                 <div className="mt-1 break-all text-xs text-white/65">
@@ -1555,7 +1555,7 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
 
               <div>
                 {section.price ? (
-                  <div className="text-3xl font-semibold tracking-tight">
+                  <div className="text-xl font-semibold tracking-tight sm:text-3xl">
                     {section.price}
                   </div>
                 ) : null}
@@ -1566,12 +1566,12 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
             </div>
           </div>
 
-          <div className="p-5 md:p-8">
+          <div className="p-4 sm:p-5 md:p-8">
             <div className="flex flex-wrap gap-2">
               {tags.map((chip) => (
                 <span
                   key={chip}
-                  className={`rounded-full px-3 py-1 text-xs font-medium ${dark ? "bg-white/10 text-white/80" : "bg-slate-100 text-slate-600"}`}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium sm:px-3 sm:py-1 sm:text-xs ${dark ? "bg-white/10 text-white/80" : "bg-slate-100 text-slate-600"}`}
                 >
                   {chip}
                 </span>
@@ -1579,7 +1579,7 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
             </div>
 
             <div data-tour-id={isRoom ? `${section.id}-details` : undefined}>
-              <h2 className={`mt-4 text-2xl font-semibold tracking-tight ${dark ? "text-white" : "text-slate-950"}`}>
+              <h2 className={`mt-2 text-xl font-semibold tracking-tight sm:mt-4 sm:text-2xl ${dark ? "text-white" : "text-slate-950"}`}>
                 {section.title}
               </h2>
               {isRecommended ? (
@@ -1587,16 +1587,16 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
                   Recommendation path
                 </div>
               ) : null}
-              <p className={`mt-4 max-w-4xl text-base leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
+              <p className={`mt-2 max-w-4xl text-xs leading-5 sm:mt-4 sm:text-base sm:leading-8 ${dark ? "text-slate-200" : "text-slate-600"}`}>
                 {section.body}
               </p>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2 sm:mt-6 sm:grid-cols-2 sm:gap-3">
               {(details.length ? details : ["Anchor-ready commerce stop", "Recommend, refine, book"]).map((detail) => (
                 <div
                   key={detail}
-                  className={`rounded-2xl p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
+                  className={`rounded-xl p-2.5 sm:rounded-2xl sm:p-4 ${dark ? "bg-white/10" : "bg-slate-50"}`}
                 >
                   <div className={`text-xs font-semibold uppercase tracking-[0.14em] ${dark ? "text-white/55" : "text-slate-400"}`}>
                     {details.length ? "Included" : "Guide signal"}
@@ -1609,12 +1609,12 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
             {isRoom ? (
               <div
                 data-tour-id={`${section.id}-cta`}
-                className="mt-6 flex flex-wrap gap-3"
+                className="mt-3 flex flex-wrap gap-2 sm:mt-6 sm:gap-3"
               >
-                <button className="rounded-full bg-slate-950 px-5 py-2 text-sm font-semibold text-white shadow-sm">
+                <button className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm sm:px-5 sm:py-2 sm:text-sm">
                   Book this room
                 </button>
-                <button className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700">
+                <button className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 sm:px-5 sm:py-2 sm:text-sm">
                   See next option →
                 </button>
               </div>
@@ -1637,25 +1637,25 @@ function DomiBookingPanelReplica() {
       initial={false}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25 }}
-      className="relative scroll-mt-28"
+      className="relative scroll-mt-20 sm:scroll-mt-28"
     >
-      <div className="grid gap-5 lg:grid-cols-[1fr_0.78fr]">
+      <div className="grid gap-3 sm:gap-5 lg:grid-cols-[1fr_0.78fr]">
         <DomiCard className="bg-gradient-to-br from-slate-950 via-slate-900 to-sky-900 text-white">
-          <div className="p-6 md:p-8">
+          <div className="p-4 sm:p-6 md:p-8">
             <div className="inline-flex rounded-2xl bg-white/10 p-3 text-white shadow-sm backdrop-blur">
               <CreditCard className="h-5 w-5" />
             </div>
-            <div className="mt-5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/65">
+            <div className="mt-3 text-[9px] font-semibold uppercase tracking-[0.14em] text-white/65 sm:mt-5 sm:text-[11px] sm:tracking-[0.18em]">
               Booking page / booking-panel
             </div>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight">
+            <h2 className="mt-1.5 text-xl font-semibold tracking-tight sm:mt-2 sm:text-3xl">
               Booking preview
             </h2>
-            <p className="mt-4 max-w-3xl text-base leading-8 text-slate-200">
+            <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-200 sm:mt-4 sm:text-base sm:leading-8">
               Known stay context carries forward: selected room, dates, guests, budget, package signals, and missing fields. The user keeps momentum instead of starting over in a generic form.
             </p>
 
-            <div data-tour-id="booking-panel-cta" className="mt-6 flex flex-wrap gap-3">
+            <div data-tour-id="booking-panel-cta" className="mt-3 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
               <button className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-950">
                 Continue booking
               </button>
@@ -1671,7 +1671,7 @@ function DomiBookingPanelReplica() {
           data-tour-id="booking-summary-card"
           data-smartbar-focus-surface="speed-demo"
           data-spotlight-mode="region"
-          className="relative rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition"
+          className="relative rounded-[18px] border border-slate-200 bg-white p-4 shadow-sm transition sm:rounded-[28px] sm:p-5"
         >
           <div
             data-tour-id="booking-panel-main"
@@ -1748,34 +1748,34 @@ function DomiSurfaceLayer({ active }: { active: boolean }) {
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[4300px]`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[3000px] sm:min-h-[4300px]`}
     >
-      <div className="mb-8 grid gap-5 md:grid-cols-6 xl:grid-cols-12">
-        <div className="rounded-[34px] border border-sky-200/70 bg-white/90 p-6 text-slate-950 shadow-xl shadow-sky-950/10 ring-1 ring-white/80 backdrop-blur-xl md:col-span-6 xl:col-span-7">
+      <div className="mb-5 grid gap-3 sm:mb-8 sm:gap-5 md:grid-cols-6 xl:grid-cols-12">
+        <div className="rounded-[22px] border border-sky-200/70 bg-white/90 p-4 text-slate-950 shadow-xl shadow-sky-950/10 ring-1 ring-white/80 backdrop-blur-xl sm:rounded-[34px] sm:p-6 md:col-span-6 xl:col-span-7">
           <div className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700/80">
             {copy.eyebrow}
           </div>
-          <h2 className="mt-2 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+          <h2 className="mt-1.5 text-2xl font-black tracking-tight text-slate-950 sm:mt-2 sm:text-4xl">
             {copy.title}
           </h2>
-          <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-600">
+          <p className="mt-2 max-w-2xl text-xs font-medium leading-5 text-slate-600 sm:mt-3 sm:text-base sm:leading-7">
             The booking layer now mirrors real Domi room cards, package cards, and the booking preview panel instead of invented demo objects.
           </p>
         </div>
       </div>
 
-      <div className="space-y-8">
+      <div className="space-y-5 sm:space-y-8">
         {DOMI_SECTIONS.slice(0, 2).map((section, index) => (
           <DomiSectionCard key={section.id} section={section} index={index} />
         ))}
 
-        <div className="grid gap-8 xl:grid-cols-2">
+        <div className="grid gap-5 sm:gap-8 xl:grid-cols-2">
           {DOMI_SECTIONS.slice(2, 7).map((section, index) => (
             <DomiSectionCard key={section.id} section={section} index={index + 2} />
           ))}
         </div>
 
-        <div className="grid gap-8 xl:grid-cols-2">
+        <div className="grid gap-5 sm:gap-8 xl:grid-cols-2">
           {DOMI_SECTIONS.slice(7).map((section, index) => (
             <DomiSectionCard key={section.id} section={section} index={index + 7} />
           ))}
@@ -1826,7 +1826,7 @@ function LegacyCardContent({ item, target = false }: { item: TargetCard | Filler
           {item.badge || item.eyebrow}
         </span>
         <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ring-1 ${tone.icon}`}>
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </span>
       </div>
 
@@ -1875,10 +1875,10 @@ function LegacySurfaceLayer({
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[3200px]`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[2200px] sm:min-h-[3200px]`}
     >
-      <div className="mb-10 grid gap-5 md:grid-cols-6 xl:grid-cols-12">
-        <div className="rounded-[34px] border border-slate-700/50 bg-slate-900/88 p-6 text-white shadow-xl shadow-slate-950/14 ring-1 ring-slate-300/15 md:col-span-6 xl:col-span-7">
+      <div className="mb-5 grid gap-3 sm:mb-10 sm:gap-5 md:grid-cols-6 xl:grid-cols-12">
+        <div className="rounded-[22px] border border-slate-700/50 bg-slate-900/88 p-4 text-white shadow-xl shadow-slate-950/14 ring-1 ring-slate-300/15 sm:rounded-[34px] sm:p-6 md:col-span-6 xl:col-span-7">
           <div className="text-[11px] font-black uppercase tracking-[0.2em] text-emerald-200/80">
             {copy.eyebrow}
           </div>
@@ -1891,7 +1891,7 @@ function LegacySurfaceLayer({
         </div>
       </div>
 
-      <div className="grid auto-rows-[minmax(108px,auto)] gap-5 md:grid-cols-6 xl:grid-cols-12">
+      <div className="grid auto-rows-[minmax(74px,auto)] gap-3 sm:auto-rows-[minmax(108px,auto)] sm:gap-5 md:grid-cols-6 xl:grid-cols-12">
         {items.map((item, index) => (
           <LegacyWallItemView key={item.kind === "target" ? item.target.id : `${item.eyebrow}-${item.title}-${index}`} item={item} />
         ))}
@@ -1904,9 +1904,9 @@ export default function SmartBarSpeedTargetWall({ surface }: { surface: SmartBar
   return (
     <div
       data-smartbar-speed-target-wall="true"
-      className="relative z-10 mx-auto max-w-7xl px-4 pb-56 pt-8 sm:px-6"
+      className="relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
     >
-      <div className="relative min-h-[3200px]">
+      <div className="relative min-h-[2200px] sm:min-h-[3200px]">
         <InfoSurfaceLayer active={surface === "info"} />
         <CarryoutSurfaceLayer active={surface === "ordering"} />
         {surface === "booking" ? <DomiSurfaceLayer active /> : <LegacySurfaceLayer surface="booking" active={false} />}

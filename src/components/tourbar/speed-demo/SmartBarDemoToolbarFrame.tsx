@@ -66,7 +66,7 @@ function ToolbarPill({
   const tone = toolbarTone(surface);
   return (
     <span
-      className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold ring-1 ring-transparent ${
+      className={`inline-flex h-7 shrink-0 items-center rounded-full border px-2.5 text-[11px] font-bold ring-1 ring-transparent sm:h-8 sm:px-3 sm:text-xs ${
         active ? tone.activePill : tone.pill
       } ${className}`}
     >
@@ -80,12 +80,12 @@ function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 
   if (surface === "ordering") {
     return (
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-          <Utensils className="h-5 w-5" />
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone.brandBadge}`}>
+          <Utensils className="h-4 w-4 sm:h-5 sm:w-5" />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">Ordering</div>
+          <div className="truncate text-[13px] font-black tracking-tight sm:text-base">Ordering</div>
           <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Menu · cart · checkout</div>
         </div>
       </div>
@@ -94,12 +94,12 @@ function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 
   if (surface === "booking") {
     return (
-      <div className="flex min-w-0 items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-          <BedDouble className="h-5 w-5" />
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone.brandBadge}`}>
+          <BedDouble className="h-4 w-4 sm:h-5 sm:w-5" />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-black tracking-tight sm:text-base">Booking</div>
+          <div className="truncate text-[13px] font-black tracking-tight sm:text-base">Booking</div>
           <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Rooms · packages · confirmation</div>
         </div>
       </div>
@@ -107,12 +107,12 @@ function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
   }
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
-      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${tone.brandBadge}`}>
-        <Building2 className="h-5 w-5" />
+    <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone.brandBadge}`}>
+        <Building2 className="h-4 w-4 sm:h-5 sm:w-5" />
       </span>
       <div className="min-w-0">
-        <div className="truncate text-sm font-black tracking-tight sm:text-base">Informational</div>
+        <div className="truncate text-[13px] font-black tracking-tight sm:text-base">Informational</div>
         <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Services · proof · handoff</div>
       </div>
     </div>
@@ -203,7 +203,7 @@ function ToolbarActions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 
 function SmartBarMount({ children }: { children: ReactNode }) {
   return (
-    <div className="relative z-[10080] flex h-9 w-9 shrink-0 items-center justify-center">
+    <div className="relative z-[10080] flex h-12 w-12 shrink-0 items-center justify-center sm:h-9 sm:w-9">
       {children}
     </div>
   );
@@ -219,8 +219,8 @@ export default function SmartBarDemoToolbarFrame({
   const options = <ToolbarOptions surface={surface} />;
 
   return (
-    <div className={`mx-auto mt-4 max-w-7xl rounded-[28px] border px-3 py-3 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:px-4 ${tone.shell}`}>
-      <div className="flex items-center gap-3">
+    <div className={`mx-auto mt-2 max-w-7xl rounded-[20px] border px-2 py-2 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:mt-4 sm:rounded-[28px] sm:px-4 sm:py-3 ${tone.shell}`}>
+      <div className="flex items-center gap-2 sm:gap-3">
         {placement === "left" ? <SmartBarMount>{smartBarNode}</SmartBarMount> : null}
 
         <ToolbarBrand surface={surface} />
@@ -246,7 +246,7 @@ export default function SmartBarDemoToolbarFrame({
 
         {placement === "middleRight" ? <SmartBarMount>{smartBarNode}</SmartBarMount> : null}
 
-        <div className="ml-auto flex shrink-0 items-center gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div className="hidden items-center gap-2 lg:flex">
             <ToolbarActions surface={surface} />
           </div>

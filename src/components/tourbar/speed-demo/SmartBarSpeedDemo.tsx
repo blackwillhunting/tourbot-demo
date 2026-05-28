@@ -109,12 +109,15 @@ function speedDemoPointerAnchorY(
 ) {
   if (command.anchorY !== undefined) return command.anchorY;
 
-  // The closed mobile launcher is a small fixed/portal target near the safe-area
-  // edge. Aim slightly lower so the fake pointer's visual hotspot reads as
-  // center-shot instead of hovering above the button.
-  if (speedDemoIsPhoneViewport() && speedDemoPointerTargetKind(target) === "launcher") {
-    return 0.6;
-  }
+  if (!speedDemoIsPhoneViewport()) return 0.5;
+
+  const targetKind = speedDemoPointerTargetKind(target);
+
+  // Small bottom-mounted phone controls need a lower visual hotspot than normal
+  // content cards. The DOM center is mathematically correct, but the fake
+  // pointer graphic reads high on tiny circular controls unless we bias down.
+  if (targetKind === "launcher") return 0.64;
+  if (targetKind === "submit") return 0.62;
 
   return 0.5;
 }
@@ -125,11 +128,15 @@ function speedDemoPointerOffsetY(
 ) {
   const baseOffset = command.offsetY ?? 0;
 
-  // Keep desktop untouched. On phones, the launcher is intentionally larger but
-  // the pointer graphic still benefits from a tiny hotspot correction.
-  if (speedDemoIsPhoneViewport() && speedDemoPointerTargetKind(target) === "launcher") {
-    return baseOffset + 4;
-  }
+  if (!speedDemoIsPhoneViewport()) return command.offsetY;
+
+  const targetKind = speedDemoPointerTargetKind(target);
+
+  // Keep desktop untouched. On phones, bottom-mounted controls sit visually
+  // inside the browser chrome zone, so the pointer needs a tiny downward
+  // correction to land center-shot on the icon face.
+  if (targetKind === "launcher") return baseOffset + 8;
+  if (targetKind === "submit") return baseOffset + 6;
 
   return command.offsetY;
 }

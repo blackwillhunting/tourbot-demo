@@ -484,6 +484,7 @@ export default function TourBarShell({
   const pendingConsultantOfferRef = useRef(false);
   const consultantChatAutoStartedRef = useRef(false);
   const [isPhoneShellViewport, setIsPhoneShellViewport] = useState(() => isSmartBarPhoneViewport());
+  const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(false);
 
   useEffect(() => {
     const viewportQuery = window.matchMedia("(max-width: 767px)");
@@ -499,6 +500,26 @@ export default function TourBarShell({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isPhoneShellViewport) setMobileComposerCollapsed(false);
+  }, [isPhoneShellViewport]);
+
+  const openComposer = () => {
+    setIsOpen(true);
+    setMobileComposerCollapsed(false);
+
+    if (isPhoneShellViewport) {
+      window.requestAnimationFrame(() => {
+        queryRef.current?.focus();
+        resizeTextarea(queryRef.current);
+      });
+    }
+  };
+
+  const collapseMobileComposer = () => {
+    if (isPhoneShellViewport) setMobileComposerCollapsed(true);
+  };
+
   const activeFollowUpResult = standaloneResult || result;
   const canUseMobilePrimaryFollowUp =
     isPhoneShellViewport &&
@@ -512,12 +533,12 @@ export default function TourBarShell({
   const primaryComposerPlaceholder = canUseMobilePrimaryFollowUp ? followUpPlaceholder : primaryPlaceholder;
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || mobileComposerCollapsed) return;
     window.requestAnimationFrame(() => {
       queryRef.current?.focus();
       resizeTextarea(queryRef.current);
     });
-  }, [isOpen]);
+  }, [isOpen, mobileComposerCollapsed]);
 
   useEffect(() => {
     resizeTextarea(queryRef.current);
@@ -609,6 +630,7 @@ export default function TourBarShell({
     setConsultantChatAvailable(true);
     setConsultantChatOpen(true);
     setIsOpen(true);
+    collapseMobileComposer();
     setError("");
     setResult(null);
     setStandaloneResult(null);
@@ -714,6 +736,7 @@ export default function TourBarShell({
     setIsOpen(true);
     setQuery(isPhoneShellViewport ? "" : cleanQuery);
     setFollowUp("");
+    collapseMobileComposer();
 
     if (shouldRetractSheet) {
       setError("");
@@ -792,6 +815,7 @@ export default function TourBarShell({
     setIsOpen(true);
     setError("");
     setFollowUp("");
+    collapseMobileComposer();
     setIsAnswering(true);
     setResult(null);
     setStandaloneResult(null);
@@ -873,6 +897,7 @@ export default function TourBarShell({
 
     bookingContextController.openCollection(field);
     setIsOpen(true);
+    collapseMobileComposer();
     setError("");
     setFollowUp("");
     setBookingContextReturnResult(activeResult || null);
@@ -917,6 +942,7 @@ export default function TourBarShell({
     consultantChatAutoStartedRef.current = false;
     setConsultantChatThread([]);
     setIsOpen(false);
+    setMobileComposerCollapsed(false);
     setQuery("");
   };
 
@@ -1032,10 +1058,11 @@ export default function TourBarShell({
 
     switch (demoCommand.type) {
       case "open":
-        setIsOpen(true);
+        openComposer();
         return;
       case "closeBar":
         setIsOpen(false);
+        setMobileComposerCollapsed(false);
         return;
       case "closeSheet":
         closeSheet();
@@ -1053,7 +1080,7 @@ export default function TourBarShell({
         closeAll();
         return;
       case "setPrimary":
-        setIsOpen(true);
+        openComposer();
         setQuery(demoCommand.value || "");
         return;
       case "submitPrimary":
@@ -1061,7 +1088,7 @@ export default function TourBarShell({
         void submitQuery(demoCommand.value || query);
         return;
       case "setFollowUp":
-        setIsOpen(true);
+        openComposer();
         setFollowUp(demoCommand.value || "");
         return;
       case "submitFollowUp":
@@ -1079,7 +1106,7 @@ export default function TourBarShell({
         if (consultantChatIsEnabled(consultantChat)) {
           setConsultantChatAvailable(true);
           setConsultantChatOpen(true);
-          setIsOpen(true);
+          openComposer();
           setConsultantChatDraft(demoCommand.value || "");
         }
         return;
@@ -1128,6 +1155,7 @@ export default function TourBarShell({
         return;
       case "showThinking":
         setIsOpen(true);
+        collapseMobileComposer();
         setConsultantChatOpen(false);
         setConsultantChatDraft("");
         setConsultantChatWaiting(false);
@@ -1143,6 +1171,7 @@ export default function TourBarShell({
       case "showResult":
         if (demoCommand.result) {
           setIsOpen(true);
+          collapseMobileComposer();
           setConsultantChatOpen(false);
           setConsultantChatDraft("");
           setConsultantChatWaiting(false);
@@ -1215,11 +1244,11 @@ export default function TourBarShell({
           : "min(52svh, 430px)";
 
   const shellRootClass = isPhoneShellViewport
-    ? "fixed bottom-4 right-4 z-[10060] h-12 w-12 shrink-0"
+    ? "fixed bottom-0 right-3 z-[10060] h-12 w-12 shrink-0"
     : "relative z-[10060] h-9 w-9 shrink-0";
 
   const shellOpenPanelClass = isPhoneShellViewport
-    ? "fixed inset-x-3 bottom-4 top-auto z-[10060] w-auto translate-y-0"
+    ? "fixed inset-x-2 bottom-0 top-auto z-[10060] w-auto translate-y-0"
     : "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]";
 
   const shellSheetAnchorClass = isPhoneShellViewport
@@ -1245,6 +1274,7 @@ export default function TourBarShell({
   const shellSheetFooterClass = "shrink-0 border-t border-slate-300 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.12)]";
 
   const shellSheetInitialY = isPhoneShellViewport ? "100%" : "-100%";
+  const showMobileCollapsedComposer = isPhoneShellViewport && mobileComposerCollapsed;
 
   const submitPrimaryComposer = () => {
     const cleanQuery = query.trim();
@@ -1281,6 +1311,7 @@ export default function TourBarShell({
         <button
           type="button"
           data-smartbar-followup-submit="true"
+          data-smartbar-pointer-kind="submit"
           onClick={() => void submitFollowUp()}
           disabled={!canAskFollowUp}
           className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
@@ -1302,7 +1333,7 @@ export default function TourBarShell({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
-            onClick={() => setIsOpen(true)}
+            onClick={openComposer}
             data-smartbar-launcher="true"
             data-smartbar-pointer-kind="launcher"
             className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
@@ -1324,75 +1355,98 @@ export default function TourBarShell({
             className={shellOpenPanelClass}
           >
             <div className="relative">
-              <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
-                {mobileControls && (
-                  <div className="border-b border-slate-200 bg-slate-950 px-2.5 py-2 text-white">
-                    {mobileControls}
-                  </div>
-                )}
-                <div className="flex items-end gap-2 px-2.5 py-2">
-                  <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
-                    <Search className="h-4 w-4" />
+              {showMobileCollapsedComposer ? (
+                <button
+                  type="button"
+                  onClick={openComposer}
+                  data-smartbar-launcher="true"
+                  data-smartbar-pointer-kind="launcher"
+                  className="ml-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-t-full bg-slate-950 text-white shadow-[0_-12px_36px_rgba(2,6,23,0.26)] ring-1 ring-white/15 transition hover:bg-slate-800"
+                  aria-label={launcherAriaLabel}
+                  title={launcherTitle}
+                >
+                  <span className="pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse">
+                    <Sparkles className="h-5 w-5" />
                   </span>
-                  <textarea
-                    ref={queryRef}
-                    value={query}
-                    onChange={(event) => {
-                      setQuery(event.target.value);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        submitPrimaryComposer();
-                      }
-                    }}
-                    placeholder={primaryComposerPlaceholder}
-                    rows={1}
-                    className="max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
-                  />
-                  <button
-                    type="button"
-                    data-smartbar-primary-submit={canUseMobilePrimaryFollowUp ? undefined : "true"}
-                    data-smartbar-followup-submit={canUseMobilePrimaryFollowUp ? "true" : undefined}
-                    onClick={submitPrimaryComposer}
-                    disabled={!canSubmit}
-                    className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                    aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
-                  </button>
-                  {consultantChatIsEnabled(consultantChat) && consultantChatAvailable && (
+                </button>
+              ) : (
+                <div className={`overflow-hidden border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl ${isPhoneShellViewport ? "rounded-t-[22px] rounded-b-none" : "rounded-[22px]"}`}>
+                  {mobileControls && (
+                    <div className="border-b border-slate-200 bg-slate-950 px-2.5 py-2 text-white">
+                      {mobileControls}
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2 px-2.5 py-2">
+                    <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
+                      <Search className="h-4 w-4" />
+                    </span>
+                    <textarea
+                      ref={queryRef}
+                      value={query}
+                      onChange={(event) => {
+                        setQuery(event.target.value);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && !event.shiftKey) {
+                          event.preventDefault();
+                          submitPrimaryComposer();
+                        }
+                      }}
+                      placeholder={primaryComposerPlaceholder}
+                      rows={1}
+                      className="max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
+                    />
+                    <button
+                      type="button"
+                      data-smartbar-primary-submit={canUseMobilePrimaryFollowUp ? undefined : "true"}
+                      data-smartbar-followup-submit={canUseMobilePrimaryFollowUp ? "true" : undefined}
+                      data-smartbar-pointer-kind="submit"
+                      onClick={submitPrimaryComposer}
+                      disabled={!canSubmit}
+                      className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+                      aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
+                    </button>
+                    {consultantChatIsEnabled(consultantChat) && consultantChatAvailable && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openComposer();
+                          setConsultantChatOpen((open) => {
+                            const nextOpen = !open;
+                            if (nextOpen) startConsultantChatWithContext(standaloneResult || result);
+                            return nextOpen;
+                          });
+                        }}
+                        className={`mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
+                          consultantChatOpen
+                            ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
+                            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                        aria-label={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
+                        title={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
-                        setIsOpen(true);
-                        setConsultantChatOpen((open) => {
-                          const nextOpen = !open;
-                          if (nextOpen) startConsultantChatWithContext(standaloneResult || result);
-                          return nextOpen;
-                        });
+                        if (isPhoneShellViewport) {
+                          setMobileComposerCollapsed(true);
+                        } else {
+                          setIsOpen(false);
+                        }
                       }}
-                      className={`mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${
-                        consultantChatOpen
-                          ? "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
-                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                      aria-label={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
-                      title={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
+                      className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                      aria-label="Close TourBar"
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setIsOpen(false)}
-                    className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                    aria-label="Close TourBar"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <AnimatePresence>
                 {regularSheetVisible && (
