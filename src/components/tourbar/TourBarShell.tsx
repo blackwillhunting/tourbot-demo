@@ -1215,7 +1215,7 @@ export default function TourBarShell({
           : "min(52svh, 430px)";
 
   const shellRootClass = isPhoneShellViewport
-    ? "fixed bottom-4 right-4 z-[10060] h-9 w-9 shrink-0"
+    ? "fixed bottom-4 right-4 z-[10060] h-12 w-12 shrink-0"
     : "relative z-[10060] h-9 w-9 shrink-0";
 
   const shellOpenPanelClass = isPhoneShellViewport
@@ -1280,6 +1280,7 @@ export default function TourBarShell({
         />
         <button
           type="button"
+          data-smartbar-followup-submit="true"
           onClick={() => void submitFollowUp()}
           disabled={!canAskFollowUp}
           className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
@@ -1302,12 +1303,14 @@ export default function TourBarShell({
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
             onClick={() => setIsOpen(true)}
-            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10 transition hover:bg-slate-800"
+            data-smartbar-launcher="true"
+            data-smartbar-pointer-kind="launcher"
+            className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             aria-label={launcherAriaLabel}
             title={launcherTitle}
           >
             <span className="pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse">
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className={isPhoneShellViewport ? "h-5 w-5" : "h-4 w-4"} />
             </span>
           </motion.button>
         ) : (
@@ -1349,6 +1352,8 @@ export default function TourBarShell({
                   />
                   <button
                     type="button"
+                    data-smartbar-primary-submit={canUseMobilePrimaryFollowUp ? undefined : "true"}
+                    data-smartbar-followup-submit={canUseMobilePrimaryFollowUp ? "true" : undefined}
                     onClick={submitPrimaryComposer}
                     disabled={!canSubmit}
                     className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"

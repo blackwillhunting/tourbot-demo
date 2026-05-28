@@ -42,6 +42,9 @@ const SCRIPTED_SUBMIT_SETTLE_BUFFER_MS = 120;
 const DEMO_TUTOR_INITIAL_DELAY_MS = 820;
 const DEMO_TUTOR_HOLD_MS = 2500;
 const DEMO_REPLAY_SETTLE_MS = 360;
+const SPEED_DEMO_POINTER_SETTLE_FRAMES = 3;
+const SPEED_DEMO_POINTER_LOCK_ATTEMPTS = 10;
+const SPEED_DEMO_POINTER_MIN_VISIBLE_RATIO = 0.82;
 
 // FLASHCARD SPEED CONTROLS
 // Bigger number = slower. Smaller number = faster.
@@ -85,6 +88,124 @@ function wait(ms: number) {
 
 function waitForFrame() {
   return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
+function speedDemoIsPhoneViewport() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
+}
+
+function speedDemoPointerTargetKind(target: HTMLElement) {
+  return target.getAttribute("data-smartbar-pointer-kind") || "";
+}
+
+function speedDemoPointerAnchorY(
+  target: HTMLElement,
+  command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
+) {
+  if (command.anchorY !== undefined) return command.anchorY;
+
+  // The closed mobile launcher is a small fixed/portal target near the safe-area
+  // edge. Aim slightly lower so the fake pointer's visual hotspot reads as
+  // center-shot instead of hovering above the button.
+  if (speedDemoIsPhoneViewport() && speedDemoPointerTargetKind(target) === "launcher") {
+    return 0.6;
+  }
+
+  return 0.5;
+}
+
+function speedDemoPointerOffsetY(
+  target: HTMLElement,
+  command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
+) {
+  const baseOffset = command.offsetY ?? 0;
+
+  // Keep desktop untouched. On phones, the launcher is intentionally larger but
+  // the pointer graphic still benefits from a tiny hotspot correction.
+  if (speedDemoIsPhoneViewport() && speedDemoPointerTargetKind(target) === "launcher") {
+    return baseOffset + 4;
+  }
+
+  return command.offsetY;
+}
+
+async function waitForFrames(count: number) {
+  for (let index = 0; index < count; index += 1) {
+    await waitForFrame();
+  }
+}
+
+function speedDemoRectDelta(a: DOMRect, b: DOMRect) {
+  return Math.max(
+    Math.abs(a.top - b.top),
+    Math.abs(a.left - b.left),
+    Math.abs(a.width - b.width),
+    Math.abs(a.height - b.height),
+  );
+}
+
+async function waitForSpeedDemoStableRect(element: HTMLElement, frames = SPEED_DEMO_POINTER_SETTLE_FRAMES) {
+  let previousRect = element.getBoundingClientRect();
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await waitForFrames(frames);
+    const nextRect = element.getBoundingClientRect();
+
+    if (speedDemoRectDelta(previousRect, nextRect) < 0.75) {
+      return nextRect;
+    }
+
+    previousRect = nextRect;
+  }
+
+  return element.getBoundingClientRect();
+}
+
+function speedDemoIntersectionRatio(rect: DOMRect, clip: { top: number; right: number; bottom: number; left: number }) {
+  const width = Math.max(0, Math.min(rect.right, clip.right) - Math.max(rect.left, clip.left));
+  const height = Math.max(0, Math.min(rect.bottom, clip.bottom) - Math.max(rect.top, clip.top));
+  const visibleArea = width * height;
+  const totalArea = Math.max(1, rect.width * rect.height);
+
+  return visibleArea / totalArea;
+}
+
+function speedDemoClipRectForTarget(stage: HTMLElement | null, target: HTMLElement) {
+  const viewport = {
+    top: 0,
+    left: 0,
+    right: window.innerWidth,
+    bottom: window.innerHeight,
+  };
+
+  if (!stage || !stage.contains(target)) return viewport;
+
+  const stageRect = stage.getBoundingClientRect();
+  const inset = Math.min(28, Math.max(12, stageRect.height * 0.035));
+
+  return {
+    top: Math.max(viewport.top, stageRect.top + inset),
+    left: Math.max(viewport.left, stageRect.left + inset),
+    right: Math.min(viewport.right, stageRect.right - inset),
+    bottom: Math.min(viewport.bottom, stageRect.bottom - inset),
+  };
+}
+
+function speedDemoTargetIsReady(stage: HTMLElement | null, target: HTMLElement) {
+  if (!speedDemoElementLooksVisible(target)) return false;
+
+  const rect = target.getBoundingClientRect();
+  const clip = speedDemoClipRectForTarget(stage, target);
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const centerIsSafe = centerX >= clip.left && centerX <= clip.right && centerY >= clip.top && centerY <= clip.bottom;
+
+  return centerIsSafe && speedDemoIntersectionRatio(rect, clip) >= SPEED_DEMO_POINTER_MIN_VISIBLE_RATIO;
 }
 
 function resetSpeedDemoStageToTop(stage: HTMLElement | null) {
@@ -161,10 +282,7 @@ function findSpeedDemoPointerTarget(
   return firstVisibleSpeedDemoElement([...stageMatches, ...documentMatches]);
 }
 
-async function scrollSpeedDemoStageToTarget(stage: HTMLElement, targetId: string) {
-  const target = findSpeedDemoStageTarget(stage, targetId);
-  if (!target) return null;
-
+async function scrollSpeedDemoStageElementIntoView(stage: HTMLElement, target: HTMLElement) {
   await waitForFrame();
 
   const stageRect = stage.getBoundingClientRect();
@@ -209,6 +327,51 @@ async function scrollSpeedDemoStageToTarget(stage: HTMLElement, targetId: string
 
   await waitForFrame();
   return target;
+}
+
+async function scrollSpeedDemoStageToTarget(stage: HTMLElement, targetId: string) {
+  const target = findSpeedDemoStageTarget(stage, targetId);
+  if (!target) return null;
+
+  return scrollSpeedDemoStageElementIntoView(stage, target);
+}
+
+async function lockSpeedDemoPointerTarget(
+  stage: HTMLElement | null,
+  command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
+  cancelled: () => boolean,
+) {
+  let target: HTMLElement | null = null;
+
+  for (let attempt = 0; attempt < SPEED_DEMO_POINTER_LOCK_ATTEMPTS; attempt += 1) {
+    if (command.targetId && stage) {
+      target = await scrollSpeedDemoStageToTarget(stage, command.targetId);
+    }
+
+    if (cancelled()) return null;
+
+    target = target || findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
+
+    if (target && stage?.contains(target)) {
+      await scrollSpeedDemoStageElementIntoView(stage, target);
+    }
+
+    if (cancelled()) return null;
+
+    if (target) {
+      await waitForSpeedDemoStableRect(target);
+      if (cancelled()) return null;
+
+      if (speedDemoTargetIsReady(stage, target)) {
+        return target;
+      }
+    }
+
+    target = null;
+    await wait(90);
+  }
+
+  return findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
 }
 
 function line(id: string, title: string, priceLabel: string, knownSelections: string[] = []) {
@@ -1435,26 +1598,12 @@ export default function SmartBarSpeedDemo({
       cancelled: () => boolean,
     ) => {
       const stage = targetStageRef.current;
-      let target: HTMLElement | null = null;
+      const target = await lockSpeedDemoPointerTarget(stage, command, cancelled);
 
-      if (command.targetId && stage) {
-        target = await scrollSpeedDemoStageToTarget(stage, command.targetId);
-      }
+      if (cancelled() || !target) return;
 
-      if (cancelled()) return;
-
-      target = target || findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
-
-      for (let attempt = 0; !target && attempt < 8; attempt += 1) {
-        await wait(120);
-        if (cancelled()) return;
-        target = findSpeedDemoPointerTarget(stage, command.targetId, command.targetSelector);
-      }
-
-      if (!target) return;
-
-      await waitForFrame();
-      if (cancelled()) return;
+      await waitForSpeedDemoStableRect(target);
+      if (cancelled() || !speedDemoTargetIsReady(stage, target)) return;
 
       const pointerId = fakePointerIdRef.current + 1;
       fakePointerIdRef.current = pointerId;
@@ -1463,10 +1612,10 @@ export default function SmartBarSpeedDemo({
         makeSmartBarFakePointerState(target, {
           id: pointerId,
           label: command.label,
-          anchorX: command.anchorX,
-          anchorY: command.anchorY,
+          anchorX: command.anchorX ?? 0.5,
+          anchorY: speedDemoPointerAnchorY(target, command),
           offsetX: command.offsetX,
-          offsetY: command.offsetY,
+          offsetY: speedDemoPointerOffsetY(target, command),
         }),
       );
 

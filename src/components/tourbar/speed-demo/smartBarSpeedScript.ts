@@ -81,7 +81,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "shell", type: "closeAll", delayMs: 100 },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Open SmartBar speed demo"]',
+        targetSelector: '[data-smartbar-launcher="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -112,7 +112,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Submit TourBar query"]',
+        targetSelector: '[data-smartbar-primary-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -143,7 +143,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 900 },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Ask TourBar follow-up"]',
+        targetSelector: '[data-smartbar-followup-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -192,7 +192,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 1600 },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Ask TourBar follow-up"]',
+        targetSelector: '[data-smartbar-followup-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -251,7 +251,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Submit TourBar query"]',
+        targetSelector: '[data-smartbar-primary-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -312,7 +312,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Submit TourBar query"]',
+        targetSelector: '[data-smartbar-primary-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -419,7 +419,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Submit TourBar query"]',
+        targetSelector: '[data-smartbar-primary-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -471,7 +471,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 700 },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Ask TourBar follow-up"]',
+        targetSelector: '[data-smartbar-followup-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -523,7 +523,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: 'button[aria-label="Submit TourBar query"]',
+        targetSelector: '[data-smartbar-primary-submit="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
