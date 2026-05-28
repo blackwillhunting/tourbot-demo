@@ -57,28 +57,6 @@ const FLASHCARD_SPEED_CONTROLS = {
 
 const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
   {
-    title: "Mobile-ready",
-    cascadeGroup: "intro-mobile",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1250,
-  },
-  {
-    title: "Bottom-mounted",
-    cascadeGroup: "intro-mobile",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1250,
-  },
-  {
-    title: "Works with any site",
-    cascadeGroup: "intro-mobile",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1500,
-    clearCascade: true,
-  },
-  {
     title: "Take **NexaPath Advisory**",
     cascadeGroup: "intro-3",
     cascadeMode: "standard",

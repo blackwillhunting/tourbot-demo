@@ -317,6 +317,28 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     holdMs: 2500,
     clearCascade: true,
   },
+    {
+    title: "Screen-aware",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1250,
+  },
+  {
+    title: "Mounts where it belongs",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1250,
+  },
+  {
+    title: "Works on any site",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+    clearCascade: true,
+  },
 ];
 
 function wait(ms: number) {
