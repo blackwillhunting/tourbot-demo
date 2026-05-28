@@ -94,6 +94,12 @@ function shouldResetAccessFromUrl() {
   return params.get("logout") === "1" || params.get("resetAccess") === "1";
 }
 
+function shouldSkipFitsAnywhereAnimationOnPhone() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 function cleanupResetAccessUrl() {
   if (typeof window === "undefined") return;
 
@@ -532,6 +538,16 @@ export default function LaunchSelectorTourBar() {
       setPreludeStackCards([]);
       await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
       if (runIdRef.current !== runId) return;
+
+      if (shouldSkipFitsAnywhereAnimationOnPhone()) {
+        setFitsAnimationVisible(false);
+        setDemoVisible(true);
+        await wait(DEMO_HANDOFF_SETTLE_MS);
+        if (runIdRef.current !== runId) return;
+
+        setDemoAutoPlay(true);
+        return;
+      }
 
       setFitsAnimationVisible(true);
       await wait(FITS_ANYWHERE_ANIMATION_MS);
