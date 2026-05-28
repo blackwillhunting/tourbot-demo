@@ -1067,6 +1067,24 @@ export default function TourBarShell({
   const activeCollectionField = tourBarCollectionFieldFromResult(result);
   const activeCollectionPendingQuery = tourBarPendingQueryFromResult(result);
   const answerOnlyResult = isTourBarAnswerOnlyResult(result);
+  const [isPhoneShellViewport, setIsPhoneShellViewport] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const query = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsPhoneShellViewport(query.matches);
+
+    update();
+    query.addEventListener("change", update);
+
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  const shellSheetAnchorClass = isPhoneShellViewport
+    ? "absolute bottom-[calc(100%-1px)] left-0 right-0 overflow-hidden"
+    : "absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden";
+  const shellSheetInitialY = isPhoneShellViewport ? "100%" : "-100%";
 
   const followUpComposer =
     onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false ? (
@@ -1098,7 +1116,10 @@ export default function TourBarShell({
     ) : null;
 
   return (
-    <div data-tourbar-shell-root="true" className="relative z-[10060] h-9 w-9 shrink-0">
+    <div
+      data-tourbar-shell-root="true"
+      className="fixed bottom-[max(0.85rem,env(safe-area-inset-bottom))] right-4 z-[10060] h-9 w-9 shrink-0 sm:relative sm:bottom-auto sm:right-auto"
+    >
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
@@ -1121,11 +1142,11 @@ export default function TourBarShell({
           <motion.div
             key="tourbar-open"
             data-tourbar-open-panel="true"
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            initial={{ opacity: 0, y: isPhoneShellViewport ? 12 : -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: isPhoneShellViewport ? 10 : -6, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]"
+            className="fixed inset-x-3 bottom-[max(0.85rem,env(safe-area-inset-bottom))] top-auto w-auto translate-y-0 sm:absolute sm:inset-x-auto sm:bottom-auto sm:right-0 sm:top-1/2 sm:w-[430px] sm:-translate-y-1/2 md:w-[470px]"
           >
             <div className="relative">
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
@@ -1200,12 +1221,12 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
+                    className={shellSheetAnchorClass}
                   >
                     <motion.div
-                      initial={{ y: "-100%" }}
+                      initial={{ y: shellSheetInitialY }}
                       animate={{ y: "0%" }}
-                      exit={{ y: "-100%" }}
+                      exit={{ y: shellSheetInitialY }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
                       className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
@@ -1309,12 +1330,12 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
+                    className={shellSheetAnchorClass}
                   >
                     <motion.div
-                      initial={{ y: "-100%" }}
+                      initial={{ y: shellSheetInitialY }}
                       animate={{ y: "0%" }}
-                      exit={{ y: "-100%" }}
+                      exit={{ y: shellSheetInitialY }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
                       className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
                     >
