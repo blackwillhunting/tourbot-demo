@@ -14,7 +14,7 @@ export default function SmartBarDemoScrubber({
   const active = index >= 0 ? SMARTBAR_SPEED_STEPS[index] : null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[10090] w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 rounded-[24px] border border-white/70 bg-white/88 px-3 py-3 shadow-[0_20px_70px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:px-4">
+    <div className="hidden md:block fixed bottom-4 left-1/2 z-[10090] w-[calc(100vw-2rem)] max-w-5xl -translate-x-1/2 rounded-[24px] border border-white/70 bg-white/88 px-3 py-3 shadow-[0_20px_70px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/70 backdrop-blur-xl sm:px-4">
       <div className="flex items-center gap-3">
         <button
           type="button"

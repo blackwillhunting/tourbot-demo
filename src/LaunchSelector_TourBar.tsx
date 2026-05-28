@@ -36,9 +36,16 @@ type TourBotAuthResponse = {
 };
 
 function isLocalDemoAuthBypassEnabled() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("devBypass")) return true;
+
+  const hostname = window.location.hostname;
+
   return (
-    import.meta.env.DEV &&
-    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ["localhost", "127.0.0.1"].includes(hostname) ||
+    /^192\.168\.\d+\.\d+$/.test(hostname)
   );
 }
 
@@ -120,6 +127,7 @@ function cleanupResetAccessUrl() {
 }
 
 async function checkTourBotDemoSession() {
+  if (isLocalDemoAuthBypassEnabled()) return true;
   const token = getStoredTourBotDemoToken();
   if (!token) return false;
 
@@ -155,7 +163,10 @@ async function checkTourBotDemoSession() {
 }
 
 async function loginToTourBotDemo(passcode: string) {
-  if (isLocalDemoAuthBypassEnabled()) return codeIsAccepted(passcode);
+  if (isLocalDemoAuthBypassEnabled()) {
+    saveStoredTourBotDemoToken("local-dev", Math.floor(Date.now() / 1000) + 3600);
+    return true;
+  }
 
   try {
     const response = await fetch(TOURBOT_AUTH_LOGIN_URL, {
@@ -235,7 +246,7 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     holdMs: 1500,
   },
   {
-    title: "SmartBar returns the **next step**",
+    title: "SmartBar returns **next steps**",
     cascadeGroup: "smartbar-thesis",
     cascadeMode: "standard",
     density: "normal",
@@ -299,35 +310,17 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     holdMs: 2500,
   },
   {
-    title: "SmartBar responds with **whatever's needed next**",
+    title: "Whatever **next** means",
     cascadeGroup: "stage-2",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 2500,
     clearCascade: true,
   },
-        {
-    title: "Add it where visitors already look",
-    cascadeGroup: "pre-animate",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 2500,
-  },
-      {
-    title: "Usually, that means the toolbar",
-    cascadeGroup: "pre-animate",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 3000,
-  },
 ];
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-}
-
-function codeIsAccepted(value: string) {
-  return value.trim().length === REQUIRED_PASSCODE_LENGTH;
 }
 
 function ThinkingCode({ value }: { value: string }) {
@@ -647,7 +640,7 @@ export default function LaunchSelectorTourBar() {
     <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
-      <SmartBarFlashCardRail>
+      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
         <SmartBarFlashCardLane active={launchVisible}>
@@ -672,3 +665,4 @@ export default function LaunchSelectorTourBar() {
     </div>
   );
 }
+

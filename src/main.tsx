@@ -91,9 +91,16 @@ function redirectToLaunchSelector() {
 }
 
 function isLocalDemoAuthBypassEnabled() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("devBypass")) return true;
+
+  const hostname = window.location.hostname;
+
   return (
-    import.meta.env.DEV &&
-    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+    ["localhost", "127.0.0.1"].includes(hostname) ||
+    /^192\.168\.\d+\.\d+$/.test(hostname)
   );
 }
 

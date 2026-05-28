@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { createPortal } from "react-dom";
 import {
   buildTourBarCollectionResult,
   buildTourBarScopeLimitResult,
@@ -151,6 +152,8 @@ export type TourBarShellProps = {
   buildThreadMessage?: (result: TourBarShellResult) => string;
   renderResultExtras?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
   renderStandaloneSheet?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
+  renderMobileControls?: (result: TourBarShellResult, actions: TourBarShellActions) => ReactNode;
+  beforeResultReveal?: (result: TourBarShellResult, turnKind: TourBarShellTurnKind) => Promise<void> | void;
 };
 
 function resultMessage(result: TourBarShellResult | null) {
@@ -167,6 +170,15 @@ function resizeTextarea(textarea: HTMLTextAreaElement | null) {
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function dismissSmartBarKeyboard() {
+  if (typeof document === "undefined") return;
+
+  const activeElement = document.activeElement;
+  if (activeElement && activeElement instanceof HTMLElement) {
+    activeElement.blur();
+  }
 }
 
 function makeConsultantChatId() {
@@ -336,6 +348,70 @@ function MarkdownLite({ text }: { text: string }) {
 }
 
 
+const SMARTBAR_MOBILE_ACTION_RESULT_MODES = new Set([
+  "speed_order",
+  "speed_needs_context",
+  "speed_booking_reco",
+  "speed_package",
+  "speed_family_reco",
+  "speed_booking_confirm",
+  "speed_after_hours",
+  "speed_tiles",
+  "tourbar_collect_dates",
+  "tourbar_collect_guests",
+]);
+
+function shouldUseMobileActionResult(result?: TourBarShellResult | null) {
+  if (!result?.mode) return false;
+  return SMARTBAR_MOBILE_ACTION_RESULT_MODES.has(result.mode);
+}
+
+function stripMobileMarkdownText(text: string) {
+  return normalizeMarkdownLite(text)
+    .split("\n")
+    .map((line) => line.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function compactMobileResultText(text: string) {
+  const clean = stripMobileMarkdownText(text);
+  if (clean.length <= 240) return clean;
+
+  const sentences = clean.match(/[^.!?]+[.!?]+(?:\s|$)/g) || [];
+  const firstTwoSentences = sentences.slice(0, 2).join(" ").replace(/\s+/g, " ").trim();
+
+  if (firstTwoSentences && firstTwoSentences.length <= 260) return firstTwoSentences;
+  if (firstTwoSentences) return `${firstTwoSentences.slice(0, 257).trim()}…`;
+
+  return `${clean.slice(0, 237).trim()}…`;
+}
+
+function MobilePlainText({ text }: { text: string }) {
+  if (!text) return null;
+
+  return (
+    <p className="text-[13px] font-semibold leading-5 text-slate-100/88">
+      {text}
+    </p>
+  );
+}
+
+function MobileRoadSignTitle({ title }: { title?: string }) {
+  if (!title) return null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-center text-sm font-black leading-5 text-white shadow-sm ring-1 ring-white/10">
+      {title}
+    </div>
+  );
+}
+
+
+
 
 export type TourBarPageFocusTarget = {
   pageId?: string;
@@ -352,6 +428,16 @@ export async function focusTourBarPageTarget(
     initialDelayMs: options.initialDelayMs,
     dispatchLegacyEvent: false,
   });
+}
+
+
+function isSmartBarPhoneViewport() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
 }
 
 export default function TourBarShell({
@@ -373,6 +459,8 @@ export default function TourBarShell({
   buildThreadMessage = resultMessage,
   renderResultExtras,
   renderStandaloneSheet,
+  renderMobileControls,
+  beforeResultReveal,
 }: TourBarShellProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -395,14 +483,33 @@ export default function TourBarShell({
   const [consultantChatWaiting, setConsultantChatWaiting] = useState(false);
   const pendingConsultantOfferRef = useRef(false);
   const consultantChatAutoStartedRef = useRef(false);
+  const [isPhoneShellViewport, setIsPhoneShellViewport] = useState(() => isSmartBarPhoneViewport());
 
-  const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
+  useEffect(() => {
+    const viewportQuery = window.matchMedia("(max-width: 767px)");
+    const updatePhoneViewport = () => setIsPhoneShellViewport(isSmartBarPhoneViewport());
+
+    updatePhoneViewport();
+    viewportQuery.addEventListener("change", updatePhoneViewport);
+    window.addEventListener("orientationchange", updatePhoneViewport);
+
+    return () => {
+      viewportQuery.removeEventListener("change", updatePhoneViewport);
+      window.removeEventListener("orientationchange", updatePhoneViewport);
+    };
+  }, []);
+
   const activeFollowUpResult = standaloneResult || result;
+  const canUseMobilePrimaryFollowUp =
+    isPhoneShellViewport &&
+    Boolean(onFollowUpSubmit && activeFollowUpResult && activeFollowUpResult.canFollowUp !== false);
+  const canSubmit = query.trim().length > 1 && !isLoading && !isAnswering;
   const canAskFollowUp =
     followUp.trim().length > 1 &&
     !isLoading &&
     !isAnswering &&
     Boolean(onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false);
+  const primaryComposerPlaceholder = canUseMobilePrimaryFollowUp ? followUpPlaceholder : primaryPlaceholder;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -431,6 +538,16 @@ export default function TourBarShell({
         answerMode: tourBarResult.answerMode,
       },
     ]);
+  };
+
+  const waitForResultReveal = async (tourBarResult: TourBarShellResult, turnKind: TourBarShellTurnKind) => {
+    if (!isPhoneShellViewport || !beforeResultReveal) return;
+
+    try {
+      await beforeResultReveal(tourBarResult, turnKind);
+    } catch (exc) {
+      console.warn("SmartBar result reveal wait failed", exc);
+    }
   };
   const startConsultantChatWithContext = (
     _activeResult?: TourBarShellResult | null,
@@ -583,6 +700,8 @@ export default function TourBarShell({
     const cleanQuery = nextQuery.trim();
     if (!cleanQuery || isLoading || isAnswering) return;
 
+    if (isPhoneShellViewport) dismissSmartBarKeyboard();
+
     if (shouldOpenConsultantChatForMessage(cleanQuery)) {
       setQuery("");
       activateConsultantChat(null, cleanQuery);
@@ -593,7 +712,7 @@ export default function TourBarShell({
 
     setBookingContextReturnResult(null);
     setIsOpen(true);
-    setQuery(cleanQuery);
+    setQuery(isPhoneShellViewport ? "" : cleanQuery);
     setFollowUp("");
 
     if (shouldRetractSheet) {
@@ -638,6 +757,7 @@ export default function TourBarShell({
         bookingContext: bookingGate.context,
       });
 
+      await waitForResultReveal(response, "primary");
       setResult(response);
       appendThread([], cleanQuery, response);
       noteConsultantOffer(response);
@@ -657,6 +777,8 @@ export default function TourBarShell({
     const activeResult = standaloneResult || result;
 
     if (!cleanFollowUp || isLoading || isAnswering || !activeResult || !onFollowUpSubmit) return;
+
+    if (isPhoneShellViewport) dismissSmartBarKeyboard();
 
     if (shouldOpenConsultantChatForMessage(cleanFollowUp, activeResult)) {
       setFollowUp("");
@@ -709,6 +831,7 @@ export default function TourBarShell({
         bookingContext: bookingGate.context,
       });
 
+      await waitForResultReveal(response, "followup");
       setResult(response);
       appendThread(priorThread, cleanFollowUp, response);
       noteConsultantOffer(response);
@@ -859,6 +982,7 @@ export default function TourBarShell({
           setIsLoading(false);
         }
 
+        await waitForResultReveal(response, "followup");
         await wait(TOURBAR_SHEET_RETRACT_MS);
         setResult(response);
       } catch (exc) {
@@ -886,6 +1010,7 @@ export default function TourBarShell({
           bookingContext: bookingContextController.context,
         });
 
+        await waitForResultReveal(response, "followup");
         setStandaloneResult(null);
         setResult(response);
         appendThread(priorThread, nextQuery, response);
@@ -1035,7 +1160,8 @@ export default function TourBarShell({
     }
   }, [demoCommand?.id]);
 
-  const sheetVisible = isLoading || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
+  const showLoadingSheet = isLoading && !isPhoneShellViewport;
+  const sheetVisible = showLoadingSheet || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
   const consultantChatVisible = consultantChatIsEnabled(consultantChat) && consultantChatOpen;
   const regularSheetVisible = sheetVisible && !consultantChatVisible;
 
@@ -1057,6 +1183,10 @@ export default function TourBarShell({
   };
 
   const activeRegularSheetResult = standaloneResult || result;
+  const mobileControls =
+    isPhoneShellViewport && activeRegularSheetResult && !isLoading && !isAnswering
+      ? renderMobileControls?.(activeRegularSheetResult, shellActions)
+      : null;
   const activeRegularSheetMeta = speedDemoMeta(activeRegularSheetResult);
   const regularSheetKey = activeRegularSheetMeta.stableSheetKey
     ? `speed-demo-${activeRegularSheetMeta.stableSheetKey}`
@@ -1067,9 +1197,72 @@ export default function TourBarShell({
   const activeCollectionField = tourBarCollectionFieldFromResult(result);
   const activeCollectionPendingQuery = tourBarPendingQueryFromResult(result);
   const answerOnlyResult = isTourBarAnswerOnlyResult(result);
+  const useMobileActionResult = isPhoneShellViewport && shouldUseMobileActionResult(result);
+  const resultBodyForDisplay =
+    result?.body && isPhoneShellViewport
+      ? compactMobileResultText(result.body)
+      : result?.body || "";
+  const shouldShowResultBody = Boolean(resultBodyForDisplay) && !useMobileActionResult;
+  const useMobileRoadSignSheet = isPhoneShellViewport && Boolean(result) && !activeCollectionField && !standaloneResult;
+  const mobileSheetMaxHeight = activeCollectionField === "dates"
+    ? "min(78svh, 660px)"
+    : activeCollectionField === "guests"
+      ? "min(72svh, 560px)"
+      : consultantChatVisible
+        ? "min(68svh, 560px)"
+        : useMobileRoadSignSheet
+          ? "min(40svh, 340px)"
+          : "min(52svh, 430px)";
+
+  const shellRootClass = isPhoneShellViewport
+    ? "fixed bottom-4 right-4 z-[10060] h-9 w-9 shrink-0"
+    : "relative z-[10060] h-9 w-9 shrink-0";
+
+  const shellOpenPanelClass = isPhoneShellViewport
+    ? "fixed inset-x-3 bottom-4 top-auto z-[10060] w-auto translate-y-0"
+    : "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]";
+
+  const shellSheetAnchorClass = isPhoneShellViewport
+    ? "absolute left-0 right-0 bottom-[calc(100%+0.85rem)] max-h-[78svh] min-h-0 overflow-hidden"
+    : "absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden";
+
+  const shellSheetPanelClass = isPhoneShellViewport
+    ? "max-h-[78svh] min-h-0 overflow-hidden rounded-[24px] border-2 border-slate-950/85 bg-slate-950/96 text-white shadow-[0_28px_76px_rgba(2,6,23,0.50),0_0_0_1px_rgba(255,255,255,0.12)_inset] ring-4 ring-slate-950/16 backdrop-blur-xl"
+    : "max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl";
+
+  const shellSheetMaxHeightStyle = isPhoneShellViewport
+    ? { maxHeight: mobileSheetMaxHeight }
+    : undefined;
+
+  const shellSheetFrameClass = isPhoneShellViewport
+    ? "grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+    : undefined;
+
+  const shellSheetBodyClass = isPhoneShellViewport
+    ? "min-h-0 space-y-2 overflow-y-auto overscroll-contain p-2"
+    : "space-y-3 px-4 py-3";
+
+  const shellSheetFooterClass = "shrink-0 border-t border-slate-300 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.12)]";
+
+  const shellSheetInitialY = isPhoneShellViewport ? "100%" : "-100%";
+
+  const submitPrimaryComposer = () => {
+    const cleanQuery = query.trim();
+    if (!cleanQuery || isLoading || isAnswering) return;
+
+    if (isPhoneShellViewport) dismissSmartBarKeyboard();
+
+    if (canUseMobilePrimaryFollowUp) {
+      setQuery("");
+      void submitFollowUp(cleanQuery);
+      return;
+    }
+
+    void submitQuery(cleanQuery);
+  };
 
   const followUpComposer =
-    onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false ? (
+    !isPhoneShellViewport && onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false ? (
       <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
         <textarea
           ref={followUpRef}
@@ -1097,8 +1290,8 @@ export default function TourBarShell({
       </div>
     ) : null;
 
-  return (
-    <div data-tourbar-shell-root="true" className="relative z-[10060] h-9 w-9 shrink-0">
+  const shellMarkup = (
+    <div data-tourbar-shell-root="true" className={shellRootClass}>
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
@@ -1121,14 +1314,19 @@ export default function TourBarShell({
           <motion.div
             key="tourbar-open"
             data-tourbar-open-panel="true"
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            initial={{ opacity: 0, y: isPhoneShellViewport ? 12 : -8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            exit={{ opacity: 0, y: isPhoneShellViewport ? 10 : -6, scale: 0.98 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]"
+            className={shellOpenPanelClass}
           >
             <div className="relative">
               <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
+                {mobileControls && (
+                  <div className="border-b border-slate-200 bg-slate-950 px-2.5 py-2 text-white">
+                    {mobileControls}
+                  </div>
+                )}
                 <div className="flex items-end gap-2 px-2.5 py-2">
                   <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
                     <Search className="h-4 w-4" />
@@ -1142,19 +1340,19 @@ export default function TourBarShell({
                     onKeyDown={(event) => {
                       if (event.key === "Enter" && !event.shiftKey) {
                         event.preventDefault();
-                        void submitQuery();
+                        submitPrimaryComposer();
                       }
                     }}
-                    placeholder={primaryPlaceholder}
+                    placeholder={primaryComposerPlaceholder}
                     rows={1}
                     className="max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"
                   />
                   <button
                     type="button"
-                    onClick={() => void submitQuery()}
+                    onClick={submitPrimaryComposer}
                     disabled={!canSubmit}
                     className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
-                    aria-label="Submit TourBar query"
+                    aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
                   >
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
                   </button>
@@ -1200,14 +1398,16 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
+                    className={shellSheetAnchorClass}
+                    style={shellSheetMaxHeightStyle}
                   >
                     <motion.div
-                      initial={{ y: "-100%" }}
+                      initial={{ y: shellSheetInitialY }}
                       animate={{ y: "0%" }}
-                      exit={{ y: "-100%" }}
+                      exit={{ y: shellSheetInitialY }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                      className={shellSheetPanelClass}
+                      style={shellSheetMaxHeightStyle}
                     >
                       {isLoading && (
                         <div className="px-4 py-4 text-sm font-medium text-slate-600">
@@ -1222,35 +1422,51 @@ export default function TourBarShell({
                       )}
 
                       {(result || standaloneResult) && (
-                        <div>
+                        <div className={shellSheetFrameClass} style={shellSheetMaxHeightStyle}>
                           {isStandaloneSheet ? (
                             <>
-                              <div className="border-b border-emerald-100 bg-emerald-50/90 px-4 py-3">
-                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/70">
-                                  Booking handoff
+                              {!isPhoneShellViewport && (
+                                <div className="shrink-0 border-b border-emerald-100 bg-emerald-50/90 px-4 py-3">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/70">
+                                    Booking handoff
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-emerald-950">
+                                    {standaloneResult?.title || result?.title || "Booking handoff"}
+                                  </div>
                                 </div>
-                                <div className="mt-1 text-sm font-semibold text-emerald-950">
-                                  {standaloneResult?.title || result?.title || "Booking handoff"}
-                                </div>
-                              </div>
+                              )}
 
-                              <div className="space-y-3 px-4 py-3">
+                              <div className={shellSheetBodyClass}>
                                 {standaloneSheet}
-                                {followUpComposer}
+                                {!isPhoneShellViewport && followUpComposer}
                               </div>
+                              {isPhoneShellViewport && followUpComposer && (
+                                <div className={shellSheetFooterClass}>
+                                  {followUpComposer}
+                                </div>
+                              )}
                             </>
                           ) : (
                             <>
-                              <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-3">
-                                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                                  {resultEyebrow}
+                              {!isPhoneShellViewport && (
+                                <div className="shrink-0 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                                  <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                    {resultEyebrow}
+                                  </div>
+                                  <div className="mt-1 text-sm font-semibold text-slate-950">{result!.title}</div>
                                 </div>
-                                <div className="mt-1 text-sm font-semibold text-slate-950">{result!.title}</div>
-                              </div>
+                              )}
 
-                              <div className="space-y-3 px-4 py-3">
-                                {result!.body && (
-                                  <MarkdownLite text={result!.body} />
+                              <div className={shellSheetBodyClass}>
+                                {isPhoneShellViewport && !activeCollectionField && result!.mode !== "speed_order" && (
+                                  <MobileRoadSignTitle title={result!.title} />
+                                )}
+                                {shouldShowResultBody && (
+                                  isPhoneShellViewport ? (
+                                    <MobilePlainText text={resultBodyForDisplay} />
+                                  ) : (
+                                    <MarkdownLite text={resultBodyForDisplay} />
+                                  )
                                 )}
 
                                 {activeCollectionField ? (
@@ -1267,7 +1483,7 @@ export default function TourBarShell({
                                   renderResultExtras?.(result!, shellActions)
                                 )}
 
-                                {result!.invitation?.text && (
+                                {!isPhoneShellViewport && result!.invitation?.text && (
                                   result!.nextMove?.query || result!.nextMove?.focusAreaId ? (
                                     <button
                                       type="button"
@@ -1289,8 +1505,13 @@ export default function TourBarShell({
                                   )
                                 )}
 
-                                {followUpComposer}
+                                {!isPhoneShellViewport && followUpComposer}
                               </div>
+                              {isPhoneShellViewport && followUpComposer && (
+                                <div className={shellSheetFooterClass}>
+                                  {followUpComposer}
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
@@ -1309,14 +1530,16 @@ export default function TourBarShell({
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
                     transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                    className="absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden"
+                    className={shellSheetAnchorClass}
+                    style={shellSheetMaxHeightStyle}
                   >
                     <motion.div
-                      initial={{ y: "-100%" }}
+                      initial={{ y: shellSheetInitialY }}
                       animate={{ y: "0%" }}
-                      exit={{ y: "-100%" }}
+                      exit={{ y: shellSheetInitialY }}
                       transition={{ duration: TOURBAR_SHEET_TRANSITION_SECONDS, ease: "easeInOut" }}
-                      className="max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl"
+                      className={shellSheetPanelClass}
+                      style={shellSheetMaxHeightStyle}
                     >
                       <TourBarConsultantChat
                         copy={consultantChat}
@@ -1337,4 +1560,6 @@ export default function TourBarShell({
       </AnimatePresence>
     </div>
   );
+
+  return isPhoneShellViewport ? createPortal(shellMarkup, document.body) : shellMarkup;
 }
