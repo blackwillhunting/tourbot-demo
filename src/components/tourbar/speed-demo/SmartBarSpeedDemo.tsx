@@ -1644,7 +1644,7 @@ export default function SmartBarSpeedDemo({
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <SmartBarFlashCardRail className="top-[34%] sm:top-1/2">
+      <SmartBarFlashCardRail>
         <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
         <SmartBarFlashCardLane active={activeTutorLane === "a"}>
           <SmartBarFlashCard notice={tutorNoticeA} />
