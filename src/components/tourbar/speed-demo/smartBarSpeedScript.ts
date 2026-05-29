@@ -280,6 +280,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
           //"Complete cart is ready",
           //"SmartBar can hand it off",
           "Plain English",
+          "Plus typos",
           "Cart loaded",
           "Done",
         ],
