@@ -529,7 +529,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         cards: [
           "Travel dates missing",
           "Who's staying missing",
-           "Offers selectors",
+         //  "Offers selectors",
         ],
       },
       {
@@ -587,7 +587,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1400,
         cards: [
-          "Same thread, new selector",
+          "Selectors easier than typing",
         ],
       },
       { kind: "openBookingContext", field: "guests", delayMs: 400 },
