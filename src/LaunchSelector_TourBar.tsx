@@ -674,30 +674,7 @@ export default function LaunchSelectorTourBar() {
   return (
     <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
-
-      <AnimatePresence>
-        {launchVisible ? (
-          <motion.div
-            key="mobile-launch-slip"
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-center px-3 pb-0 sm:hidden"
-            initial={{ y: 18, opacity: 0, scale: 0.98 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 18, opacity: 0, scale: 0.98 }}
-            transition={{ duration: SMARTBAR_FLASH_CARD_TRANSITION_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="pointer-events-auto">
-              <LaunchSlip
-                passcode={passcode}
-                isChecking={isChecking}
-                onPasscodeChange={setPasscode}
-                onSubmit={handleSubmit}
-              />
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-
-      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
+<SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
         <SmartBarFlashCardLane active={launchVisible}>
