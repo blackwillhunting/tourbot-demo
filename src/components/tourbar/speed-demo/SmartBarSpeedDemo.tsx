@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CalendarDays, RefreshCcw, Users } from "lucide-react";
+import { motion } from "framer-motion";
+import { CalendarDays, ChevronLeft, ChevronRight, RefreshCcw, Users } from "lucide-react";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../smartbarFocusController";
 import TourBarShell, {
   type TourBarShellActions,
@@ -36,6 +37,13 @@ import {
 import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
+const MOBILE_TYPE_DELAY_MS = 42;
+const MOBILE_STAGE_SCROLL_MIN_MS = 620;
+const MOBILE_STAGE_SCROLL_MAX_MS = 1480;
+const MOBILE_STAGE_SCROLL_PX_FACTOR = 0.82;
+const MOBILE_STAGE_TOP_ANCHOR_Y = 30;
+const MOBILE_NEXT_MOVE_POINTER_EXTRA_WAIT_MS = 650;
+const MOBILE_NEXT_MOVE_POINTER_PULSE_MS = 1050;
 const DETERMINISTIC_FIXTURE_THINKING_MS = 280;
 const TEXT_FIXTURE_THINKING_MS = 1500;
 const SCRIPTED_SUBMIT_SETTLE_BUFFER_MS = 120;
@@ -60,7 +68,7 @@ const FLASHCARD_SPEED_CONTROLS = {
 
 const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
   {
-    title: "Take **NexaPath Advisory**",
+    title: "Example 1: **NexaPath Advisory**",
     cascadeGroup: "intro-3",
     cascadeMode: "standard",
     density: "normal",
@@ -74,7 +82,7 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
     holdMs: 1500,
   },
   {
-    title: "SmartBar finds the right path",
+    title: "SmartBar generates a lead",
     cascadeGroup: "intro-3",
     cascadeMode: "standard",
     density: "normal",
@@ -96,6 +104,17 @@ function speedDemoIsPhoneViewport() {
   return (
     window.matchMedia("(max-width: 767px)").matches ||
     /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
+}
+
+function speedDemoTypeDelayMs() {
+  return speedDemoIsPhoneViewport() ? MOBILE_TYPE_DELAY_MS : TYPE_DELAY_MS;
+}
+
+function speedDemoIsMobileNextMovePointer(command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>) {
+  return Boolean(
+    speedDemoIsPhoneViewport() &&
+      command.targetSelector?.includes("data-tourbar-nextmove-query"),
   );
 }
 
@@ -237,6 +256,13 @@ function speedDemoScrollEase(progress: number) {
 }
 
 function speedDemoStageScrollDuration(distance: number) {
+  if (speedDemoIsPhoneViewport()) {
+    return Math.min(
+      MOBILE_STAGE_SCROLL_MAX_MS,
+      Math.max(MOBILE_STAGE_SCROLL_MIN_MS, Math.abs(distance) * MOBILE_STAGE_SCROLL_PX_FACTOR),
+    );
+  }
+
   return Math.min(880, Math.max(360, Math.abs(distance) * 0.46));
 }
 
@@ -298,9 +324,15 @@ async function scrollSpeedDemoStageElementIntoView(stage: HTMLElement, target: H
   const maxTop = Math.max(0, stage.scrollHeight - stage.clientHeight);
   const safeInset = Math.min(140, Math.max(72, stage.clientHeight * 0.16));
   const availableHeight = Math.max(180, stage.clientHeight - safeInset * 2);
-  const desiredTop = targetRect.height >= availableHeight
-    ? targetTopInStage - safeInset
-    : targetTopInStage - (safeInset + (availableHeight - targetRect.height) / 2);
+  const mobileTopAnchorY = Math.min(
+    MOBILE_STAGE_TOP_ANCHOR_Y,
+    Math.max(16, stage.clientHeight - 180),
+  );
+  const desiredTop = speedDemoIsPhoneViewport()
+    ? targetTopInStage - mobileTopAnchorY
+    : targetRect.height >= availableHeight
+      ? targetTopInStage - safeInset
+      : targetTopInStage - (safeInset + (availableHeight - targetRect.height) / 2);
   const startTop = stage.scrollTop;
   const endTop = speedDemoClamp(desiredTop, 0, maxTop);
   const distance = endTop - startTop;
@@ -856,8 +888,8 @@ function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
   return {
     roomTitle: "Ocean View Suite",
     packageTitle: "Breakfast Flex Plan",
-    datesLabel: "Dates required",
-    guestsLabel: "Guests required",
+    datesLabel: "Aug 4–9, 2026",
+    guestsLabel: "1 guest",
     budgetLabel: "Good view, not villa tier",
     priceLabel: "$379/night + $32/night",
   };
@@ -995,7 +1027,7 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__booking_step_1" || text.includes("nice room") || text.includes("view and breakfast")) {
     return {
-      title: "Recommendation 1 of 3: Garden Terrace King",
+      title: "Recommendation 1 of 3",
       body:
         "$239/night. A quieter garden-facing option with a resort feel and lower price. It is a value fit, but the view is softer than the Ocean View Suite.",
       nextMove: { type: "compare_options", label: "Next stop", query: "__booking_step_2" },
@@ -1007,7 +1039,7 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__booking_step_2") {
     return {
-      title: "Recommendation 2 of 3: Ocean View Suite",
+      title: "Recommendation 2 of 3",
       body:
         "$379/night. Best fit for a strong view without jumping to the villa tier. Breakfast can be attached with the Breakfast Flex Plan.",
       nextMove: { type: "compare_options", label: "Next stop", query: "__booking_step_3" },
@@ -1019,7 +1051,7 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__booking_step_3") {
     return {
-      title: "Recommendation 3 of 3: Coastal Villa Suite",
+      title: "Recommendation 3 of 3",
       body:
         "$549/night. The premium view-and-space option. It is stronger than needed for this request, so the Ocean View Suite remains the practical recommendation.",
       canFollowUp: true,
@@ -1219,39 +1251,58 @@ function renderMobileSpeedControls(result: TourBarShellResult, actions: TourBarS
     const nextQuery = activeIndex === 0 ? "__booking_step_2" : activeIndex === 1 ? "__booking_step_3" : "";
 
     return (
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <button
           type="button"
+          data-tourbar-booking-nav="back"
+          data-tourbar-booking-nav-state={!backQuery ? "disabled" : "enabled"}
           onClick={() => backQuery && actions.submitFollowUp(backQuery)}
           disabled={!backQuery}
-          className="rounded-full bg-white/10 px-3 py-2 text-xs font-black text-white ring-1 ring-white/15 transition hover:bg-white/15 disabled:opacity-35"
+          aria-label="Previous recommendation"
+          className="inline-flex h-8 w-8 items-center justify-center justify-self-start rounded-full border border-white/15 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
         >
-          Back
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+        <div className="min-w-10 text-center text-[11px] font-semibold text-white/45">
           {activeIndex + 1}/3
         </div>
         <button
           type="button"
+          data-tourbar-booking-nav="next"
+          data-tourbar-booking-nav-state={!nextQuery ? "disabled" : "enabled"}
           onClick={() => nextQuery && actions.submitFollowUp(nextQuery)}
           disabled={!nextQuery}
-          className="rounded-full bg-white px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-slate-100 disabled:opacity-35"
+          aria-label="Next recommendation"
+          className="inline-flex h-8 w-8 items-center justify-center justify-self-end rounded-full border border-white/15 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0"
         >
-          Next
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
     );
   }
 
+  if (mode === "speed_order") {
+    // OrderReview owns food cart / qualifier controls. Suppress the generic
+    // mobile next-move link so internal qualifier steps do not add/remove an
+    // extra CTA row and jerk the sheet height between items.
+    return null;
+  }
+
   if (result.nextMove?.query) {
     return (
-      <button
-        type="button"
-        onClick={() => actions.submitFollowUp(result.nextMove?.query || result.nextMove?.label || "")}
-        className="flex w-full items-center justify-center rounded-full bg-white px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-slate-100"
-      >
-        {result.nextMove.label || result.invitation?.text || "Next"}
-      </button>
+      <div className="flex w-full justify-center">
+        <button
+          type="button"
+          data-tourbar-nextmove-button="true"
+          data-tourbar-nextmove-label={result.nextMove.label || result.invitation?.text || "Next"}
+          data-tourbar-nextmove-query={result.nextMove.query || ""}
+          data-tourbar-nextmove-invitation={result.invitation?.text || ""}
+          onClick={() => actions.submitFollowUp(result.nextMove?.query || result.nextMove?.label || "")}
+          className="inline-flex items-center justify-center px-1 py-1 text-xs font-black text-sky-300 underline underline-offset-4 transition hover:text-sky-100"
+        >
+          {result.nextMove.label || result.invitation?.text || "Next"}
+        </button>
+      </div>
     );
   }
 
@@ -1299,6 +1350,8 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
   }
 
   if (mode === "speed_booking_reco") {
+    if (speedDemoIsPhoneViewport()) return null;
+
     const activeIndex = speedBookingRecoIndex(result);
     const backQuery = activeIndex === 2 ? "__booking_step_2" : activeIndex === 1 ? "__booking_step_1" : "";
     const nextQuery = activeIndex === 0 ? "__booking_step_2" : activeIndex === 1 ? "__booking_step_3" : "";
@@ -1358,28 +1411,37 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
       <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
       <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
 
-      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
-        <SmartBarFlashCardLane active>
-          <div className="inline-flex min-h-[72px] w-fit max-w-[calc(100vw-2rem)] items-center gap-3 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-5 py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85">
-              <RefreshCcw className="h-5 w-5" />
-            </span>
+      <div className="pointer-events-auto absolute inset-0 z-10 flex items-center justify-center px-3">
+        <motion.button
+          type="button"
+          onClick={onReplay}
+          aria-label="Replay demo"
+          title="Replay demo"
+          initial={{ y: 36, opacity: 0, scale: 0.98 }}
+          animate={{ y: 0, opacity: 1, scale: 1 }}
+          transition={{
+            duration: SMARTBAR_FLASH_CARD_TRANSITION_MS / 1000,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.985 }}
+          className="group pointer-events-auto inline-flex min-h-[64px] w-fit max-w-[calc(100vw-1rem)] items-center gap-2 rounded-full border border-emerald-200/85 bg-gradient-to-b from-emerald-100/96 via-teal-100/90 to-emerald-50/84 px-3 py-2.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.95),inset_0_-1px_0_rgba(16,185,129,0.15),0_18px_45px_rgba(15,23,42,0.16)] ring-1 ring-emerald-200/75 backdrop-blur-xl transition sm:min-h-[72px] sm:gap-3 sm:px-5 sm:py-3.5"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-200/86 text-emerald-900 ring-1 ring-emerald-300/85 sm:h-12 sm:w-12">
+            <RefreshCcw className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+          </span>
 
-            <div className="min-w-0">
-              <div className="truncate text-base font-black tracking-tight text-slate-950">Demo complete</div>
-              <div className="truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</div>
-            </div>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-black tracking-tight text-slate-950 sm:text-base">Demo complete</span>
+            <span className="block truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</span>
+          </span>
 
-            <button
-              type="button"
-              onClick={onReplay}
-              className="h-12 rounded-full bg-slate-950 px-5 text-xs font-black uppercase tracking-[0.14em] text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800"
-            >
-              Replay
-            </button>
-          </div>
-        </SmartBarFlashCardLane>
-      </SmartBarFlashCardRail>
+          <span className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white shadow-lg shadow-slate-950/12 transition group-hover:bg-slate-800 sm:h-12 sm:w-auto sm:px-5 sm:text-xs sm:font-black sm:uppercase sm:tracking-[0.14em]">
+            <RefreshCcw className="h-4 w-4 sm:hidden" aria-hidden="true" />
+            <span className="hidden sm:inline">Replay</span>
+          </span>
+        </motion.button>
+      </div>
     </main>
   );
 }
@@ -1401,6 +1463,7 @@ export default function SmartBarSpeedDemo({
   const [activeTutorStackMode, setActiveTutorStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
   const [tutorStackCards, setTutorStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
   const [tutorBlocking, setTutorBlocking] = useState(true);
+  const [introRunId, setIntroRunId] = useState(0);
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
   const commandIdRef = useRef(0);
@@ -1408,6 +1471,7 @@ export default function SmartBarSpeedDemo({
   const targetStageRef = useRef<HTMLDivElement | null>(null);
   const lastAutoRevealTargetRef = useRef<{ targetId: string; at: number } | null>(null);
   const autoPlayStartedRef = useRef(false);
+  const replayStartPendingRef = useRef(false);
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
 
@@ -1420,6 +1484,7 @@ export default function SmartBarSpeedDemo({
     setReplayVisible(false);
     setIsPlaying(false);
     setStepIndex(-1);
+    setTutorBlocking(true);
     setTutorStackCards([]);
     setActiveTutorLane(null);
     setTutorNoticeA(null);
@@ -1430,12 +1495,8 @@ export default function SmartBarSpeedDemo({
     clearSmartBarFocusOverlay();
     resetSpeedDemoStageToTop(targetStageRef.current);
     sendCommand({ type: "closeAll" });
-
-    window.setTimeout(() => {
-      resetSpeedDemoStageToTop(targetStageRef.current);
-      setStepIndex(0);
-      setIsPlaying(true);
-    }, 180);
+    replayStartPendingRef.current = true;
+    setIntroRunId((runId) => runId + 1);
   }, [sendCommand]);
 
   useEffect(() => {
@@ -1529,6 +1590,13 @@ export default function SmartBarSpeedDemo({
       if (cancelled) return;
 
       setTutorBlocking(false);
+
+      if (replayStartPendingRef.current) {
+        replayStartPendingRef.current = false;
+        resetSpeedDemoStageToTop(targetStageRef.current);
+        setStepIndex(0);
+        setIsPlaying(true);
+      }
     };
 
     void runOpeningTutorCards();
@@ -1536,7 +1604,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [introRunId]);
 
   const showScriptCards = useCallback(
     async (
@@ -1605,6 +1673,13 @@ export default function SmartBarSpeedDemo({
       cancelled: () => boolean,
     ) => {
       const stage = targetStageRef.current;
+      const mobileNextMovePointer = speedDemoIsMobileNextMovePointer(command);
+
+      if (mobileNextMovePointer) {
+        await wait(MOBILE_NEXT_MOVE_POINTER_EXTRA_WAIT_MS);
+        if (cancelled()) return;
+      }
+
       const target = await lockSpeedDemoPointerTarget(stage, command, cancelled);
 
       if (cancelled() || !target) return;
@@ -1638,7 +1713,11 @@ export default function SmartBarSpeedDemo({
           : current,
       );
 
-      await wait(command.pulseMs ?? SMARTBAR_FAKE_POINTER_PULSE_MS);
+      await wait(
+        mobileNextMovePointer
+          ? Math.max(command.pulseMs ?? 0, MOBILE_NEXT_MOVE_POINTER_PULSE_MS)
+          : command.pulseMs ?? SMARTBAR_FAKE_POINTER_PULSE_MS,
+      );
       if (cancelled()) return;
 
       setFakePointer((current) => (current?.id === pointerId ? null : current));
@@ -1649,10 +1728,13 @@ export default function SmartBarSpeedDemo({
 
   const typeIntoShell = useCallback(
     async (field: "primary" | "followup" | "chat", value: string, cancelled: () => boolean) => {
-      const type = field === "primary" ? "setPrimary" : field === "followup" ? "setFollowUp" : "setChatDraft";
+      const visibleField = field === "followup" && speedDemoIsPhoneViewport() ? "primary" : field;
+      const type = visibleField === "primary" ? "setPrimary" : visibleField === "followup" ? "setFollowUp" : "setChatDraft";
+      const delayMs = speedDemoTypeDelayMs();
 
       if (field === "primary") primaryDraftRef.current = value;
       if (field === "followup") followUpDraftRef.current = value;
+      if (visibleField === "primary") primaryDraftRef.current = value;
 
       sendCommand({ type, value: "" });
       await wait(80);
@@ -1660,7 +1742,7 @@ export default function SmartBarSpeedDemo({
       for (let index = 1; index <= value.length; index += 1) {
         if (cancelled()) return;
         sendCommand({ type, value: value.slice(0, index) });
-        await wait(TYPE_DELAY_MS);
+        await wait(delayMs);
       }
     },
     [sendCommand],
@@ -1677,13 +1759,13 @@ export default function SmartBarSpeedDemo({
       if (command.kind === "typeChat") return typeIntoShell("chat", command.value, cancelled);
       if (command.kind === "submitPrimary") {
         const submittedValue = command.value ?? primaryDraftRef.current;
-        sendCommand({ type: "submitPrimary", value: command.value });
+        sendCommand({ type: "submitPrimary", value: submittedValue });
         await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
         return;
       }
       if (command.kind === "submitFollowUp") {
         const submittedValue = command.value ?? followUpDraftRef.current;
-        sendCommand({ type: "submitFollowUp", value: command.value });
+        sendCommand({ type: "submitFollowUp", value: submittedValue });
         await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
         return;
       }
@@ -1693,6 +1775,7 @@ export default function SmartBarSpeedDemo({
       }
       if (command.kind === "openBookingContext") {
         sendCommand({ type: "openBookingContext", field: command.field });
+        if (command.settleMs) await wait(command.settleMs);
         return;
       }
       if (command.kind === "setBookingContext") {
@@ -1725,6 +1808,7 @@ export default function SmartBarSpeedDemo({
         }
 
         sendCommand({ type: "showResult", result });
+        if (command.settleMs) await wait(command.settleMs);
         return;
       }
       if (command.kind === "cards") {
@@ -1757,8 +1841,8 @@ export default function SmartBarSpeedDemo({
           {
             initialDelayMs: command.initialDelayMs ?? 40,
             attempts: Math.min(command.attempts ?? 10, 10),
-            overlayDurationMs: command.overlayDurationMs ?? 2800,
-            scrollBehavior: "auto",
+            overlayDurationMs: command.overlayDurationMs ?? (speedDemoIsPhoneViewport() ? 3600 : 2800),
+            scrollBehavior: speedDemoIsPhoneViewport() ? "smooth" : "auto",
             skipPlacementScroll: Boolean(stageTarget),
           },
         );
@@ -1834,8 +1918,8 @@ export default function SmartBarSpeedDemo({
       {
         initialDelayMs: 40,
         attempts: 10,
-        overlayDurationMs: 2200,
-        scrollBehavior: "auto",
+        overlayDurationMs: speedDemoIsPhoneViewport() ? 3200 : 2200,
+        scrollBehavior: speedDemoIsPhoneViewport() ? "smooth" : "auto",
         skipPlacementScroll: Boolean(stageTarget),
       },
     );
@@ -1857,6 +1941,7 @@ export default function SmartBarSpeedDemo({
 
   const currentStep = stepIndex >= 0 ? SMARTBAR_SPEED_STEPS[stepIndex] : null;
   const toolbarSurface = currentStep?.surface || "info";
+  const isFinaleSurface = toolbarSurface === "finale";
 
   useLayoutEffect(() => {
     clearSmartBarFocusOverlay();
@@ -1880,7 +1965,7 @@ export default function SmartBarSpeedDemo({
 
   const smartBarNode = (
     <TourBarShell
-              primaryPlaceholder="Ask SmartBar in plain English..."
+              primaryPlaceholder="Ask in plain English..."
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"
               launcherAriaLabel="Open SmartBar speed demo"
@@ -1891,8 +1976,8 @@ export default function SmartBarSpeedDemo({
                 enabled: true,
                 title: "Talk to a consultant",
                 placeholder: "Add anything else if needed...",
-                autoStartMessage: "Context received — handing this to a consultant.",
-                autoStartConsultantMessage: "Hi there — You’re interested in Copilot support?",
+                autoStartMessage: "Context received — connecting consultant.",
+                autoStartConsultantMessage: "Hi there — You’re interested in Copilots?",
                 replyThinkingMessage: "Thinking...",
                 replyConfirmationMessage: "Great, lets set up a chat!",
               }}
@@ -1927,7 +2012,15 @@ export default function SmartBarSpeedDemo({
       <SmartBarFakePointerOverlay pointer={fakePointer} />
 
       <div className="relative z-[10070] px-4 pt-4 sm:px-6">
-        <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
+        {isFinaleSurface ? (
+          <div className="mx-auto flex max-w-7xl justify-end">
+            <div className="relative z-[10080] flex h-12 w-12 shrink-0 items-center justify-center sm:h-9 sm:w-9">
+              {smartBarNode}
+            </div>
+          </div>
+        ) : (
+          <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
+        )}
       </div>
 
       <div
@@ -1935,7 +2028,10 @@ export default function SmartBarSpeedDemo({
         ref={targetStageRef}
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={toolbarSurface}
-        className="relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
+        className={isFinaleSurface
+          ? "relative z-10 h-[calc(100svh-106px)] overflow-hidden pb-32 pt-2"
+          : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
+        }
       >
         <SmartBarSpeedTargetWall surface={toolbarSurface} />
       </div>
