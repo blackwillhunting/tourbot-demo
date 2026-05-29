@@ -675,22 +675,40 @@ export default function LaunchSelectorTourBar() {
     <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
-      <SmartBarFlashCardRail
-        className={
-          launchVisible
-            ? "!top-auto !bottom-0 !translate-y-0 sm:!top-1/2 sm:!bottom-auto sm:!-translate-y-1/2"
-            : "!top-[45%] sm:!top-1/2"
-        }
-      >
+      <AnimatePresence>
+        {launchVisible ? (
+          <motion.div
+            key="mobile-launch-slip"
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-center px-3 pb-0 sm:hidden"
+            initial={{ y: 18, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 18, opacity: 0, scale: 0.98 }}
+            transition={{ duration: SMARTBAR_FLASH_CARD_TRANSITION_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="pointer-events-auto">
+              <LaunchSlip
+                passcode={passcode}
+                isChecking={isChecking}
+                onPasscodeChange={setPasscode}
+                onSubmit={handleSubmit}
+              />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
         <SmartBarFlashCardLane active={launchVisible}>
-          <LaunchSlip
-            passcode={passcode}
-            isChecking={isChecking}
-            onPasscodeChange={setPasscode}
-            onSubmit={handleSubmit}
-          />
+          <div className="hidden sm:block">
+            <LaunchSlip
+              passcode={passcode}
+              isChecking={isChecking}
+              onPasscodeChange={setPasscode}
+              onSubmit={handleSubmit}
+            />
+          </div>
         </SmartBarFlashCardLane>
 
         <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)}>
