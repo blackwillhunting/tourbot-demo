@@ -16,7 +16,6 @@ import {
   Search,
   ShoppingCart,
   Sparkles,
-  Utensils,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -574,20 +573,13 @@ function LaunchMessage({
         </div>
 
         {message.demoButtons && (
-          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
             <DemoLaunchButton
               href="/carryout?mode=self_drive"
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="BurgerRush"
               description="Food ordering demo"
-            />
-            <DemoLaunchButton
-              href="/restaurant"
-              icon={Utensils}
-              eyebrow="Customer site"
-              title="Grand Cheesecake"
-              description="Large-menu restaurant stand-in"
             />
             <DemoLaunchButton
               href="/transactional?mode=self_drive"
