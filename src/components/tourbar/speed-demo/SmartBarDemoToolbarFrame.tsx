@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type SmartBarDemoToolbarSurface = "info" | "ordering" | "booking";
+export type SmartBarDemoToolbarSurface = "info" | "ordering" | "booking" | "finale";
 export type SmartBarDemoToolbarPlacement = "left" | "middleRight" | "right";
 
 type SmartBarDemoToolbarFrameProps = {
@@ -23,6 +23,17 @@ type SmartBarDemoToolbarFrameProps = {
 };
 
 function toolbarTone(surface: SmartBarDemoToolbarSurface) {
+
+  if (surface === "finale") {
+    return {
+      shell: "border-white/10 bg-transparent text-white shadow-none",
+      brandBadge: "bg-white/10 text-white",
+      muted: "text-white/55",
+      pill: "border-white/10 bg-white/10 text-white/70",
+      activePill: "bg-white text-slate-950 ring-white/30",
+    };
+  }
+
   if (surface === "ordering") {
     return {
       shell: "border-orange-200/70 bg-slate-950/94 text-white shadow-slate-950/18",
@@ -78,6 +89,20 @@ function ToolbarPill({
 function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
   const tone = toolbarTone(surface);
 
+  if (surface === "finale") {
+    return (
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone.brandBadge}`}>
+          <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-black tracking-tight sm:text-base">SmartBar</div>
+          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Tool sweep</div>
+        </div>
+      </div>
+    );
+  }
+
   if (surface === "ordering") {
     return (
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -120,6 +145,8 @@ function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 }
 
 function ToolbarOptions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
+  if (surface === "finale") return null;
+
   if (surface === "ordering") {
     return (
       <>
@@ -163,6 +190,8 @@ function ToolbarOptions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 }
 
 function ToolbarActions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
+  if (surface === "finale") return null;
+
   if (surface === "ordering") {
     return (
       <>

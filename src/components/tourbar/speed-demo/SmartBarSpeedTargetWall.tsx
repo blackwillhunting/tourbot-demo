@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import type { SmartBarSpeedSurface } from "./smartBarSpeedScript";
 
+type LegacySmartBarSpeedSurface = Exclude<SmartBarSpeedSurface, "info" | "finale">;
+
 type AppPageId = "home" | "solutions" | "cyber" | "hedge-fund" | "compliance";
 
 type NexaPathSection = {
@@ -321,7 +323,7 @@ const BOOKING_TARGETS: TargetCard[] = [
   },
 ];
 
-const TARGETS_BY_SURFACE: Record<Exclude<SmartBarSpeedSurface, "info">, TargetCard[]> = {
+const TARGETS_BY_SURFACE: Record<LegacySmartBarSpeedSurface, TargetCard[]> = {
   ordering: ORDERING_TARGETS,
   booking: BOOKING_TARGETS,
 };
@@ -342,9 +344,14 @@ const SURFACE_COPY: Record<SmartBarSpeedSurface, { eyebrow: string; title: strin
     title: "Domi Hotel",
     body: "A booking surface where SmartBar keeps room, package, date, and guest context together.",
   },
+  finale: {
+    eyebrow: "Finale",
+    title: "SmartBar tool sweep",
+    body: "A neutral stage for the closing sequence, with no dummy site underneath.",
+  },
 };
 
-const FILLERS_BY_SURFACE: Record<Exclude<SmartBarSpeedSurface, "info">, FillerCard[]> = {
+const FILLERS_BY_SURFACE: Record<LegacySmartBarSpeedSurface, FillerCard[]> = {
   ordering: [
     { kind: "filler", eyebrow: "Menu object", title: "Featured combos", body: "Meal tiles, modifiers, sauces", badge: "Combos", Icon: Utensils, shape: "large", tone: "amber" },
     { kind: "filler", eyebrow: "Promo", title: "Lunch rush bundle", badge: "Promo", Icon: Sparkles, shape: "compact", tone: "rose" },
@@ -442,11 +449,11 @@ const SHAPE_CLASS: Record<WallCardShape, string> = {
   strip: "min-h-[78px] sm:min-h-[128px] md:col-span-6 xl:col-span-8",
 };
 
-function fillerAt(surface: Exclude<SmartBarSpeedSurface, "info">, index: number) {
+function fillerAt(surface: LegacySmartBarSpeedSurface, index: number) {
   return FILLERS_BY_SURFACE[surface][index % FILLERS_BY_SURFACE[surface].length];
 }
 
-function legacyWallItemsFor(surface: Exclude<SmartBarSpeedSurface, "info">): WallItem[] {
+function legacyWallItemsFor(surface: LegacySmartBarSpeedSurface): WallItem[] {
   const targets = TARGETS_BY_SURFACE[surface];
 
   return [
@@ -1863,7 +1870,7 @@ function LegacySurfaceLayer({
   surface,
   active,
 }: {
-  surface: Exclude<SmartBarSpeedSurface, "info">;
+  surface: LegacySmartBarSpeedSurface;
   active: boolean;
 }) {
   const copy = SURFACE_COPY[surface];
@@ -1900,17 +1907,29 @@ function LegacySurfaceLayer({
   );
 }
 
+function FinaleNeutralSurfaceLayer() {
+  return <div className="min-h-[calc(100svh-150px)]" />;
+}
+
 export default function SmartBarSpeedTargetWall({ surface }: { surface: SmartBarSpeedSurface }) {
   return (
     <div
       data-smartbar-speed-target-wall="true"
-      className="relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
+      data-smartbar-speed-finale-stage={surface === "finale" ? "true" : undefined}
+      className={surface === "finale"
+        ? "relative z-10 mx-auto max-w-7xl px-3 pb-44 pt-6 sm:px-6 sm:pb-56 sm:pt-10"
+        : "relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
+      }
     >
-      <div className="relative min-h-[2200px] sm:min-h-[3200px]">
-        <InfoSurfaceLayer active={surface === "info"} />
-        <CarryoutSurfaceLayer active={surface === "ordering"} />
-        {surface === "booking" ? <DomiSurfaceLayer active /> : <LegacySurfaceLayer surface="booking" active={false} />}
-      </div>
+      {surface === "finale" ? (
+        <FinaleNeutralSurfaceLayer />
+      ) : (
+        <div className="relative min-h-[2200px] sm:min-h-[3200px]">
+          <InfoSurfaceLayer active={surface === "info"} />
+          <CarryoutSurfaceLayer active={surface === "ordering"} />
+          {surface === "booking" ? <DomiSurfaceLayer active /> : <LegacySurfaceLayer surface="booking" active={false} />}
+        </div>
+      )}
     </div>
   );
 }

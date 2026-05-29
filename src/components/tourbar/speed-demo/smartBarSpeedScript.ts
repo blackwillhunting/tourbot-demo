@@ -1,7 +1,7 @@
 import type { TourBarBookingContext, TourBarRequiredBookingField } from "../tourbarBookingContext";
 import type { SmartBarFlashCardCascadeMode, SmartBarFlashCardDensity } from "./SmartBarFlashCardRail";
 
-export type SmartBarSpeedSurface = "info" | "ordering" | "booking";
+export type SmartBarSpeedSurface = "info" | "ordering" | "booking" | "finale";
 
 export type SmartBarSpeedCardItem =
   | string
@@ -19,12 +19,12 @@ export type SmartBarSpeedCommand =
   | { kind: "submitPrimary"; value?: string; delayMs?: number }
   | { kind: "typeFollowUp"; value: string; delayMs?: number }
   | { kind: "submitFollowUp"; value?: string; delayMs?: number }
-  | { kind: "openBookingContext"; field: TourBarRequiredBookingField; delayMs?: number }
+  | { kind: "openBookingContext"; field: TourBarRequiredBookingField; delayMs?: number; settleMs?: number }
   | { kind: "setBookingContext"; bookingContext: TourBarBookingContext; delayMs?: number }
   | { kind: "selectBookingDate"; dateKind: "check-in" | "check-out"; value: string; delayMs?: number }
   | { kind: "setBookingGuestCount"; adults: number; children: number; delayMs?: number }
   | { kind: "commitBookingContext"; field: TourBarRequiredBookingField; delayMs?: number }
-  | { kind: "showFixture"; value: string; delayMs?: number; thinkingMs?: number; thinkingMessage?: string }
+  | { kind: "showFixture"; value: string; delayMs?: number; thinkingMs?: number; thinkingMessage?: string; settleMs?: number }
   | {
       kind: "cards";
       cards: SmartBarSpeedCardItem[];
@@ -81,7 +81,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "shell", type: "closeAll", delayMs: 100 },
       {
         kind: "pointerClick",
-        targetSelector: '[data-smartbar-launcher="true"]',
+        targetSelector: '[data-smartbar-launcher-hotspot="true"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -96,7 +96,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Messy prompt a normal site search cannot handle.",
     surface: "info",
     commands: [
-      { kind: "typePrimary", value: "we're a hedge fund and need IT support but could use help setting up copilot agents", delayMs: 250 },
+      { kind: "typePrimary", value: "we're a hedge fund, need help wih IT and setting up copilots", delayMs: 250 },
       {
         kind: "cards",
         mode: "standard",
@@ -104,10 +104,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1300,
         finalHoldMs: 1800,
         cards: [
-          "Search can't parse this",
-          "SmartBar **reads intent**",
-          "moves the visitor **to the answer**",
-          "then **explains why**",
+          //"Search can't parse this",
+          "Reads intent",
+          "moves visitor to the answer",
         ],
       },
       {
@@ -133,13 +132,14 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         kind: "cards",
         mode: "standard",
         density: "normal",
-        holdMs: 1300,
+        holdMs: 3300,
         finalHoldMs: 1800,
         cards: [
+          "Summarizes focus area",
           "Visitor asks for specifics",
         ],
       },
-      { kind: "typeFollowUp", value: "that doesn't say what you actually do", delayMs: 250 },
+      { kind: "typeFollowUp", value: "that doesn't say what you actually do", delayMs: 1250 },
       { kind: "pause", delayMs: 900 },
       {
         kind: "pointerClick",
@@ -166,8 +166,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1800,
         cards: [
-          "SmartBar digs deeper",
+          //"SmartBar digs deeper",
           "Surfaces proof points",
+          "Offers next step",
         ],
       },
       {
@@ -175,7 +176,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         targetSelector: '[data-tourbar-nextmove-query="__case_studies"]',
         label: "",
         delayMs: 250,
-        pulseMs: 820,
+        pulseMs: 1820,
       },
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1800 },
@@ -188,7 +189,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Consultant starts with the visitor’s context.",
     surface: "info",
     commands: [
-      { kind: "typeFollowUp", value: "nice, can I talk to someone?", delayMs: 250 },
+      { kind: "typeFollowUp", value: "Perfect, can I talk to someone?", delayMs: 3250 },
       { kind: "pause", delayMs: 1600 },
       {
         kind: "pointerClick",
@@ -206,7 +207,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1800,
         cards: [
-          "Provides a direct chat surface",
+          "Provides direct chat surface",
           "Hands off context",
         ],
       },
@@ -232,8 +233,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1400,
         cards: [
           "Example 2: **BurgerRush Carryout**",
-          "Visible-cart ordering site",
-          "SmartBar turns intent into checkout",
+          "Online ordering site",
+          "Turns intent into checkout",
         ],
       },
       { kind: "typePrimary", value: "dbl chzbrger combo lg friez diet coke pie", delayMs: 250 },
@@ -244,9 +245,11 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1600,
         cards: [
-          "Messy food shorthand",
-          "SmartBar **builds the cart**",
-          "then checks totals and modifiers",
+          //"Messy food shorthand",
+          //"Plain English",
+          //"Cart loaded",
+          //"then checks totals and modifiers",
+          //"Done",
         ],
       },
       {
@@ -274,8 +277,11 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Complete cart is ready",
-          "SmartBar can hand it off",
+          //"Complete cart is ready",
+          //"SmartBar can hand it off",
+          "Plain English",
+          "Cart loaded",
+          "Done",
         ],
       },
       {
@@ -297,6 +303,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     surface: "ordering",
     commands: [
       { kind: "shell", type: "closeChat", delayMs: 80 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       { kind: "typePrimary", value: "cheeseburger, fries and a milkshake", delayMs: 250 },
       {
         kind: "cards",
@@ -305,9 +312,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1600,
         cards: [
-          "Order is incomplete",
-          "SmartBar **stops before checkout**",
-          "and asks only for missing choices",
+          "Order incomplete",
+          //"SmartBar sweeps up missing choices",
+          //"and asks only for missing choices",
         ],
       },
       {
@@ -336,8 +343,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Choices become guided steps",
-          "Each missing detail gets a path",
+          //"Choices become guided steps",
+          //"Each missing detail gets a path",
+          "Collects missing choices",
         ],
       },
       {
@@ -401,10 +409,10 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         cards: [
           "Example 3: **Domi Hotel**",
           "Choice-heavy booking site",
-          "SmartBar ranks the best fit",
+          "Ranks best fit",
         ],
       },
-      { kind: "typePrimary", value: "nice room with a view and breakfast, not the most expensive option", delayMs: 250 },
+      { kind: "typePrimary", value: "Aug 4 to 9, nice room with a view and breakfast, just me", delayMs: 250 },
       {
         kind: "cards",
         mode: "standard",
@@ -413,8 +421,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1600,
         cards: [
           "Room request has tradeoffs",
-          "SmartBar **ranks options**",
-          "and keeps room context alive",
+          "Ranks options",
+          "stores room context",
         ],
       },
       {
@@ -463,8 +471,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Visitor changes the plan",
-          "SmartBar keeps the room context",
+          //"Visitor changes plan",
+          //"SmartBar keeps the room context",
         ],
       },
       { kind: "typeFollowUp", value: "add breakfast", delayMs: 250 },
@@ -486,8 +494,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Package attaches to the room",
-          "SmartBar prepares the summary",
+          "Package attaches to active room",
+          //"Prepares summary",
         ],
       },
       {
@@ -497,8 +505,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         delayMs: 250,
         pulseMs: 820,
       },
-      { kind: "shell", type: "runNextMove", delayMs: 350 },
-      { kind: "pause", delayMs: 1300 },
+      { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 2600 },
+      { kind: "pause", delayMs: 1700 },
     ],
   },
   {
@@ -509,6 +517,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     surface: "booking",
     commands: [
       { kind: "shell", type: "closeChat", delayMs: 80 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       { kind: "typePrimary", value: "need a family room", delayMs: 250 },
       {
         kind: "cards",
@@ -517,8 +526,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1600,
         cards: [
-          "Booking needs required context",
-          "SmartBar asks only for dates and guests",
+          "Travel dates missing",
+          "Who's staying missing",
+           "Offers selectors",
         ],
       },
       {
@@ -530,16 +540,17 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       { kind: "submitPrimary", delayMs: 650 },
       { kind: "pause", delayMs: 620 },
-      {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1400,
-        cards: [
-          "Calendar opens directly",
-        ],
-      },
+   //   {
+    //    kind: "cards",
+    //    mode: "standard",
+    //    density: "normal",
+    //    holdMs: 1000,
+    //    finalHoldMs: 1400,
+    //    cards: [
+         // "Offers selectors",
+          //"Easier entry",
+     //   ],
+    //  },
       {
         kind: "pointerClick",
         targetSelector: '[data-tourbar-calendar-date="2026-06-12"]',
@@ -627,7 +638,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Context becomes a booking summary",
+          "Context becomes booking",
         ],
       },
       {
@@ -637,8 +648,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         delayMs: 250,
         pulseMs: 820,
       },
-      { kind: "shell", type: "runNextMove", delayMs: 350 },
-      { kind: "pause", delayMs: 1300 },
+      { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 3000 },
+      { kind: "pause", delayMs: 2200 },
     ],
   },
   {
@@ -646,7 +657,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Finale",
     label: "Right tool",
     helper: "SmartBar chooses the right surface for the job.",
-    surface: "booking",
+    surface: "finale",
     commands: [
       { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "closeSheet", delayMs: 160 },
@@ -662,7 +673,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
           "with a bag full of clubs.",
           "The visitor describes the shot.",
           "SmartBar picks the right tool.",
-          "Then opens the next step.",
+          //"Then opens the next step.",
         ],
       },
     ],
@@ -672,34 +683,35 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     chapter: "Finale",
     label: "Search bar with a toolbelt",
     helper: "Clean tool sweep.",
-    surface: "booking",
+    surface: "finale",
     commands: [
       { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "open", delayMs: 200 },
-      { kind: "showFixture", value: "show me the short version", delayMs: 250, thinkingMs: 1500, thinkingMessage: "Choosing the right tool..." },
-      { kind: "pause", delayMs: 580 },
-      { kind: "showFixture", value: "show action choices", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
-      { kind: "showFixture", value: "show pending cart", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
-      { kind: "showFixture", value: "show final cart", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
-      { kind: "openBookingContext", field: "dates", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
-      { kind: "openBookingContext", field: "guests", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
-      { kind: "showFixture", value: "summarize this", delayMs: 80 },
-      { kind: "pause", delayMs: 760 },
+      { kind: "showFixture", value: "show me the short version", delayMs: 250, thinkingMs: 1500, thinkingMessage: "Choosing the right tool...", settleMs: 1600 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "showFixture", value: "show action choices", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "showFixture", value: "show pending cart", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "showFixture", value: "show final cart", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "openBookingContext", field: "dates", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "openBookingContext", field: "guests", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 650 },
+      { kind: "showFixture", value: "summarize this", delayMs: 80, settleMs: 1700 },
+      { kind: "pause", delayMs: 1200 },
+      { kind: "showFixture", value: "show after-hours lead capture", delayMs: 80, settleMs: 1700 },
+      { kind: "pause", delayMs: 1700 },
+      { kind: "shell", type: "closeSheet", delayMs: 320, settleMs: 1200 },
       { kind: "shell", type: "clearChat", delayMs: 80 },
-      { kind: "shell", type: "openChat", delayMs: 80 },
-      { kind: "pause", delayMs: 3150 },
+      { kind: "shell", type: "openChat", delayMs: 80, settleMs: 1500 },
+      { kind: "pause", delayMs: 2600 },
       { kind: "typeChat", value: "Yes — I’d love to hear about pricing!", delayMs: 120 },
       { kind: "submitChat", delayMs: 420 },
       { kind: "pause", delayMs: 3600 },
-      { kind: "shell", type: "closeChat", delayMs: 500 },
-      { kind: "showFixture", value: "show after-hours lead capture", delayMs: 320 },
-      { kind: "pause", delayMs: 1050 },
-      { kind: "shell", type: "closeSheet", delayMs: 320 },
+      { kind: "shell", type: "closeChat", delayMs: 500, settleMs: 1200 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       {
         kind: "cards",
         mode: "standard",

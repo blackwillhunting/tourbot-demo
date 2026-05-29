@@ -1,5 +1,6 @@
 const SMARTBAR_FOCUS_DEFAULT_DELAY_MS = 700;
 const SMARTBAR_FOCUS_OVERLAY_Z_INDEX = 10040;
+const SMARTBAR_FOCUS_MOBILE_TOP_ANCHOR_Y = 52;
 const SMARTBAR_FOCUS_ROOT_SELECTOR = "[data-tourbar-shell-root='true']";
 const SMARTBAR_OPEN_PANEL_SELECTORS = [
   "[data-tourbar-open-panel='true']",
@@ -253,6 +254,15 @@ function rectsOverlapHorizontally(targetRect: DOMRect, panelRect: SmartBarPanelR
 
 function smartBarSafeTop(targetRect?: DOMRect | null) {
   const baseTop = 92;
+
+  if (smartBarFocusIsPhoneViewport()) {
+    // On phones, SmartBar sheets occupy the lower viewport. Reserving their
+    // height as top-safe space pushes targets down and causes the focused card
+    // to disappear under the sheet. Keep the target anchored near the physical
+    // top of the phone instead.
+    return Math.min(SMARTBAR_FOCUS_MOBILE_TOP_ANCHOR_Y, Math.max(40, viewportHeight() - 240));
+  }
+
   const relevantPanels = targetRect
     ? visiblePanelRects().filter((panelRect) => rectsOverlapHorizontally(targetRect, panelRect))
     : visiblePanelRects();
@@ -274,6 +284,10 @@ function focusElementTop(element: HTMLElement) {
   const availableBottom = Math.max(safeTop + 180, viewportHeight() - safeBottom);
   const availableHeight = Math.max(180, availableBottom - safeTop);
 
+  if (smartBarFocusIsPhoneViewport()) {
+    return Math.max(0, elementTop - safeTop);
+  }
+
   if (rect.height >= availableHeight) {
     return Math.max(0, elementTop - safeTop);
   }
@@ -291,6 +305,15 @@ function focusElementIsPlaced(element: HTMLElement) {
   const horizontallyOk = centerX >= 0 && centerX <= viewportWidth();
 
   if (!horizontallyOk) return false;
+
+  if (smartBarFocusIsPhoneViewport()) {
+    const requiredVisibleHeight = Math.min(160, Math.max(48, rect.height * 0.38));
+    return (
+      rect.top >= safeTop - 16 &&
+      rect.top <= safeTop + 24 &&
+      rect.bottom >= safeTop + requiredVisibleHeight
+    );
+  }
 
   if (rect.height <= availableHeight) {
     return rect.top >= safeTop - 18 && rect.bottom <= availableBottom + 24;
@@ -345,8 +368,19 @@ function smartBarScrollEase(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+function smartBarFocusIsPhoneViewport() {
+  return (
+    viewportWidth() <= 767 ||
+    /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
+}
+
 function smartBarScrollDuration(distance: number) {
   // Fast enough for a guided UI, slow enough to read as intentional movement.
+  if (smartBarFocusIsPhoneViewport()) {
+    return Math.min(1500, Math.max(620, Math.abs(distance) * 0.88));
+  }
+
   return Math.min(920, Math.max(340, Math.abs(distance) * 0.58));
 }
 

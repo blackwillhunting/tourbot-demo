@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LockKeyhole, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellResult,
@@ -855,6 +855,46 @@ function cleanDetail(value: unknown, line?: CarryoutLine) {
   return text;
 }
 
+function escapeRegExpLiteral(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function compactQualifierSubject(value: unknown) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .replace(/^choose\s+/i, "")
+    .replace(/\s+(size|choice|flavor|setup|option|options)$/i, "")
+    .trim();
+}
+
+function compactQualifierOptionLabel(
+  option: CarryoutQualifierOption,
+  group: CarryoutQualifierGroup,
+  item?: ReviewItem,
+) {
+  const label = String(option.label || option.value || "Option").replace(/\s+/g, " ").trim();
+  if (!label) return "Option";
+
+  const removableSubjects = [
+    compactQualifierSubject(item?.line.title),
+    compactQualifierSubject(group.label),
+  ]
+    .filter((value) => value.length > 2)
+    .sort((a, b) => b.length - a.length);
+
+  let compactLabel = label;
+
+  for (const subject of removableSubjects) {
+    compactLabel = compactLabel.replace(
+      new RegExp(`\\s+${escapeRegExpLiteral(subject)}$`, "i"),
+      "",
+    );
+  }
+
+  return compactLabel.trim() || label;
+}
+
+
 function selectedGroupDetail(group: CarryoutQualifierGroup) {
   return cleanDetail(
     group.selectedLabel ||
@@ -901,13 +941,46 @@ function formatLinePrice(line: CarryoutLine) {
 }
 
 function itemStatusClass(pending: boolean) {
-  return pending ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+  return pending
+    ? "bg-transparent text-yellow-300 ring-0 md:bg-amber-200 md:text-amber-950 md:ring-1 md:ring-amber-300"
+    : "bg-transparent text-green-300 ring-0 md:bg-emerald-200 md:text-emerald-950 md:ring-1 md:ring-emerald-300";
 }
 
 function sectionStatusClass(hasPendingItems: boolean) {
   return hasPendingItems
-    ? "border-amber-200 bg-amber-50 text-amber-900"
-    : "border-emerald-200 bg-emerald-50 text-emerald-900";
+    ? "border-yellow-400/25 bg-transparent text-yellow-300 ring-1 ring-yellow-400/10 md:border-amber-300 md:bg-amber-50 md:text-amber-950 md:ring-amber-100"
+    : "border-green-400/25 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-emerald-300 md:bg-emerald-50 md:text-emerald-950 md:ring-emerald-100";
+}
+
+function cartLineCardClass(pending: boolean, isLocked: boolean) {
+  if (isLocked) {
+    return "border-green-400/20 bg-transparent text-green-300 ring-1 ring-green-400/10 opacity-90 md:border-slate-200 md:bg-slate-50/90 md:text-slate-900 md:ring-0 md:opacity-85";
+  }
+
+  return pending
+    ? "border-yellow-400/25 bg-transparent text-yellow-300 ring-1 ring-yellow-400/10 md:border-amber-300 md:bg-amber-50/95 md:text-amber-950 md:ring-amber-100"
+    : "border-green-400/25 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-emerald-300 md:bg-emerald-50/95 md:text-emerald-950 md:ring-emerald-100";
+}
+
+function cartLineDetailClass(pending: boolean, isLocked: boolean) {
+  if (isLocked) return "bg-transparent text-green-200/75 ring-1 ring-green-400/10 md:bg-white md:text-slate-500 md:ring-slate-200";
+  return pending
+    ? "bg-transparent text-yellow-200/85 ring-1 ring-yellow-400/15 md:bg-amber-100 md:text-amber-900 md:ring-amber-200"
+    : "bg-transparent text-green-200/85 ring-1 ring-green-400/15 md:bg-emerald-100 md:text-emerald-900 md:ring-emerald-200";
+}
+
+function cartLineTitleClass(pending: boolean, isLocked: boolean) {
+  if (isLocked) return "text-slate-300 italic md:text-slate-600";
+  return pending ? "text-yellow-300 md:text-amber-950" : "text-green-300 md:text-emerald-950";
+}
+
+function cartLineHelperClass(pending: boolean, isLocked: boolean) {
+  if (isLocked) return "text-slate-400 italic md:text-slate-500";
+  return pending ? "text-yellow-200/85 md:text-amber-800" : "text-green-200/85 md:text-emerald-800";
+}
+
+function orderUnknownStatusClass() {
+  return "border-red-400/25 bg-transparent text-red-300 ring-1 ring-red-400/10 md:border-amber-200 md:bg-amber-50 md:text-amber-900 md:ring-0";
 }
 
 
@@ -999,11 +1072,7 @@ export function OrderReview({
     const details = lineDetails(entry.line, entry.groups);
     const missingSummary = lineMissingSummary(entry.line, entry.groups);
     const helperText = pending ? missingSummary : details.length ? "" : "No extra choices.";
-    const lockedClass = isLocked
-      ? "border-slate-200 bg-slate-50/90 opacity-85"
-      : pending
-        ? "border-amber-200"
-        : "border-emerald-100";
+    const stateCardClass = cartLineCardClass(pending, isLocked);
     const interactiveClass = isLocked
       ? ""
       : "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80";
@@ -1011,15 +1080,15 @@ export function OrderReview({
     const lineBody = (
       <div className="min-w-0 flex-1 text-left">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`truncate text-sm font-semibold text-slate-900 ${isLocked ? "italic" : ""}`}>
+          <span className={`truncate text-sm font-semibold ${cartLineTitleClass(pending, isLocked)}`}>
             {qty}{entry.line.title || entry.line.id || entry.label}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${isLocked ? "bg-slate-200 text-slate-600" : itemStatusClass(pending)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${isLocked ? "bg-transparent text-green-300 ring-0 md:bg-slate-200 md:text-slate-600" : itemStatusClass(pending)}`}>
             {isLocked ? "Locked" : pending ? "Needs choices" : "Ready"}
           </span>
         </div>
         {helperText && (
-          <div className={`mt-1 text-[11px] leading-4 text-slate-500 ${isLocked ? "italic" : ""}`}>
+          <div className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass(pending, isLocked)}`}>
             {helperText}
           </div>
         )}
@@ -1028,7 +1097,7 @@ export function OrderReview({
             {details.slice(0, 5).map((selection) => (
               <span
                 key={`${entry.key}-detail-${selection}`}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isLocked ? "bg-white text-slate-500 ring-1 ring-slate-200" : "bg-slate-100 text-slate-600"}`}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cartLineDetailClass(pending, isLocked)}`}
               >
                 {selection}
               </span>
@@ -1036,7 +1105,7 @@ export function OrderReview({
           </div>
         )}
         {pending && !isLocked && (
-          <div className="mt-1 text-[11px] font-semibold text-amber-700">
+          <div className="mt-1 text-[11px] font-semibold text-yellow-300 md:text-amber-700">
             Tap to choose now
           </div>
         )}
@@ -1046,7 +1115,7 @@ export function OrderReview({
     return (
       <div
         key={`${entry.key}-cart-${status}-${index}`}
-        className={`rounded-xl border bg-white p-2.5 shadow-sm ${interactiveClass} ${lockedClass}`}
+        className={`rounded-xl border p-2.5 shadow-sm ${interactiveClass} ${stateCardClass}`}
       >
         <div className="flex items-start justify-between gap-2">
           {isLocked ? (
@@ -1061,7 +1130,7 @@ export function OrderReview({
             </button>
           )}
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+            <span className="rounded-full bg-transparent px-2 py-1 text-[11px] font-bold text-white/82 ring-1 ring-white/15 md:bg-slate-950 md:text-white md:ring-0">
               {formatLinePrice(entry.line)}
             </span>
             {!isLocked && (
@@ -1069,7 +1138,7 @@ export function OrderReview({
                 type="button"
                 onClick={() => onRemoveItem(entry, actions)}
                 aria-label={`Remove ${entry.label}`}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-transparent text-white/45 shadow-sm transition hover:border-red-400/40 hover:bg-red-950/30 hover:text-red-300 md:border-slate-200 md:bg-white md:text-slate-400 md:hover:border-red-200 md:hover:bg-red-50 md:hover:text-red-600"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -1085,11 +1154,11 @@ export function OrderReview({
     return (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+          <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${status === "pending" ? "text-yellow-300 md:text-amber-700" : "text-green-300 md:text-emerald-700"}`}>
             {label}
           </div>
           {status === "ready" && (
-            <div className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 ring-1 ring-slate-200">
+            <div className="rounded-full bg-transparent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-green-300 ring-1 ring-green-400/15 md:bg-emerald-100 md:text-emerald-800 md:ring-emerald-200">
               {isLocked ? "LOCKED" : "TAP TO EDIT"}
             </div>
           )}
@@ -1104,10 +1173,10 @@ export function OrderReview({
     return (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-600">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-red-300 md:text-amber-600">
             Couldn’t add
           </div>
-          <div className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-700 ring-1 ring-amber-200">
+          <div className="rounded-full bg-transparent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-red-300 ring-1 ring-red-400/15 md:bg-amber-100 md:text-amber-700 md:ring-amber-200">
             Not charged
           </div>
         </div>
@@ -1115,23 +1184,23 @@ export function OrderReview({
           {cannotMatchItems.map((entry, index) => (
             <div
               key={`cannot-match-${cannotMatchLabel(entry)}-${index}`}
-              className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 shadow-sm"
+              className="rounded-xl border border-red-400/25 bg-transparent px-3 py-2.5 text-red-300 shadow-sm ring-1 ring-red-400/10 md:border-amber-200 md:bg-amber-50 md:text-amber-950 md:ring-0"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-amber-950">
+                  <div className="text-sm font-semibold text-red-300 md:text-amber-950">
                     {cannotMatchLabel(entry)}
                   </div>
-                  <div className="mt-0.5 text-[11px] leading-4 text-amber-800">
+                  <div className="mt-0.5 text-[11px] leading-4 text-red-200/85 md:text-amber-800">
                     {cannotMatchReason(entry, notOnMenuLabel)}. Left out of the matched cart.
                   </div>
                   {entry.suggestion && (
-                    <div className="mt-1 text-[11px] font-semibold text-amber-900">
+                    <div className="mt-1 text-[11px] font-semibold text-red-200 md:text-amber-900">
                       Try: {entry.suggestion}
                     </div>
                   )}
                 </div>
-                <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-amber-800 ring-1 ring-amber-200">
+                <span className="shrink-0 rounded-full bg-transparent px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] text-red-300 ring-1 ring-red-400/15 md:bg-amber-100 md:text-amber-800 md:ring-amber-200">
                   Skipped
                 </span>
               </div>
@@ -1146,12 +1215,12 @@ export function OrderReview({
     <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
       {speedDemoReadyPillLabel ? (
         <div className="shrink-0">
-          <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+          <span className="inline-flex w-fit rounded-full bg-transparent px-3 py-1.5 text-xs font-bold text-green-300 ring-1 ring-green-400/20 md:bg-emerald-50 md:text-emerald-800 md:ring-emerald-200">
             {speedDemoReadyPillLabel}
           </span>
         </div>
       ) : (
-        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-slate-200 bg-slate-50 text-slate-800" : hasCannotMatchItems ? "border-amber-200 bg-amber-50 text-amber-900" : sectionStatusClass(hasPendingItems)}`}>
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-green-400/20 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-slate-200 md:bg-slate-50 md:text-slate-800 md:ring-0" : hasCannotMatchItems ? orderUnknownStatusClass() : sectionStatusClass(hasPendingItems)}`}>
           {isLocked
             ? hasCannotMatchItems
               ? `Checkout handoff is locked for matched items. ${cannotMatchItems.length} requested item${cannotMatchItems.length === 1 ? "" : "s"} stayed out.`
@@ -1174,19 +1243,19 @@ export function OrderReview({
             {renderCartSection(isLocked ? "Locked matched items" : "Ready items", readyItems, "ready")}
           </>
         ) : (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-3 text-xs text-slate-500">
+          <div className="rounded-xl border border-dashed border-white/15 bg-transparent px-3 py-3 text-xs text-white/50 md:border-slate-200 md:bg-white md:text-slate-500">
             No food items saved yet.
           </div>
         )}
       </div>
 
-      <div className="shrink-0 rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm">
+      <div className="shrink-0 rounded-xl border border-white/15 bg-transparent p-2.5 text-white shadow-none md:border-slate-200 md:bg-white md:text-slate-950 md:shadow-sm">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-slate-900">
+            <div className={`text-xs font-semibold ${isLocked || (!hasPendingItems && !hasCannotMatchItems) ? "text-green-300 md:text-slate-900" : hasPendingItems ? "text-yellow-300 md:text-slate-900" : "text-red-300 md:text-slate-900"}`}>
               {isLocked ? "Checkout handoff ready" : hasPendingItems ? "Complete choices first" : hasCannotMatchItems ? "Review matched items" : "Review and checkout"}
             </div>
-            <div className="mt-0.5 text-[11px] leading-4 text-slate-500">
+            <div className={`mt-0.5 text-[11px] leading-4 ${isLocked || (!hasPendingItems && !hasCannotMatchItems) ? "text-green-200/75 md:text-slate-500" : hasPendingItems ? "text-yellow-200/80 md:text-slate-500" : "text-red-200/80 md:text-slate-500"}`}>
               {isLocked
                 ? hasCannotMatchItems
                   ? "Only matched items are included in this handoff."
@@ -1207,7 +1276,7 @@ export function OrderReview({
             </div>
           </div>
           {isLocked ? (
-            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white shadow-sm">
+            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-transparent px-3 py-2 text-xs font-semibold text-green-300 shadow-sm ring-1 ring-green-400/20 md:bg-slate-950 md:text-white md:ring-0">
               <LockKeyhole className="h-3.5 w-3.5" />
               Handoff ready
             </div>
@@ -1227,10 +1296,10 @@ export function OrderReview({
               disabled={!items.length}
               className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
                 hasPendingItems
-                  ? "bg-amber-600 text-white hover:bg-amber-700"
+                  ? "bg-transparent text-yellow-300 ring-1 ring-yellow-400/25 hover:bg-yellow-950/20 md:bg-amber-600 md:text-white md:ring-0 md:hover:bg-amber-700"
                   : hasCannotMatchItems
-                    ? "bg-slate-950 text-white hover:bg-slate-800"
-                    : "bg-emerald-700 text-white hover:bg-emerald-800"
+                    ? "bg-transparent text-red-300 ring-1 ring-red-400/25 hover:bg-red-950/25 md:bg-slate-950 md:text-white md:ring-0 md:hover:bg-slate-800"
+                    : "bg-transparent text-green-300 ring-1 ring-green-400/25 hover:bg-green-950/20 md:bg-emerald-700 md:text-white md:ring-0 md:hover:bg-emerald-800"
               }`}
             >
               {hasPendingItems ? "Review choices" : hasCannotMatchItems ? "Continue" : "Checkout"}
@@ -1249,12 +1318,6 @@ export function OrderReview({
 
     return (
     <div className="space-y-3">
-      <div className={`rounded-xl border px-3 py-2 text-xs leading-5 ${sectionStatusClass(item.pending)}`}>
-        {item.pending
-          ? "This item needs choices before checkout."
-          : "This item is ready. Review or change any choice."}
-      </div>
-
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={item.key}
@@ -1262,25 +1325,25 @@ export function OrderReview({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.09, ease: "easeOut" }}
-          className={`rounded-xl border bg-white p-2.5 shadow-sm ${item.pending ? "border-amber-200" : "border-emerald-100"}`}
+          className={`rounded-xl border p-2.5 shadow-sm ${cartLineCardClass(item.pending, false)}`}
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="truncate text-sm font-semibold text-slate-900">
+                <span className={`truncate text-sm font-semibold ${cartLineTitleClass(item.pending, false)}`}>
                   {item.label}
                 </span>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${itemStatusClass(item.pending)}`}>
                   {item.pending ? "Needs choices" : "Ready"}
                 </span>
               </div>
-              <div className="mt-1 text-[11px] leading-4 text-slate-500">
+              <div className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass(item.pending, false)}`}>
                 Reviewing item {safeIndex + 1} of {items.length}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {price && (
-                <span className="rounded-full bg-slate-950 px-2 py-1 text-[11px] font-bold text-white">
+                <span className="rounded-full bg-transparent px-2 py-1 text-[11px] font-bold text-white/82 ring-1 ring-white/15 md:bg-slate-950 md:text-white md:ring-0">
                   {price}
                 </span>
               )}
@@ -1288,7 +1351,7 @@ export function OrderReview({
                 type="button"
                 onClick={() => onRemoveItem(item, actions)}
                 aria-label={`Remove ${item.label}`}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-transparent text-white/45 shadow-sm transition hover:border-red-400/40 hover:bg-red-950/30 hover:text-red-300 md:border-slate-200 md:bg-white md:text-slate-400 md:hover:border-red-200 md:hover:bg-red-50 md:hover:text-red-600"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -1296,20 +1359,20 @@ export function OrderReview({
           </div>
 
           {(groups.length > 0 || missing.length > 0) && (
-            <div className="mt-3 space-y-3 rounded-2xl border border-white/55 bg-white/45 p-3 shadow-sm backdrop-blur-sm">
+            <div className="mt-3 space-y-3 rounded-2xl border border-white/10 bg-transparent p-3 shadow-sm backdrop-blur-sm md:border-white/55 md:bg-white/45">
               {groups.map((group, groupIndex) => {
                 const selectedValue = groupSelectedValue(group);
                 const isMissing = Boolean(group.missing && !selectedValue);
                 return (
                   <div key={`${item.key}-${group.qualifierId || group.label || group.targetId}`} className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-white/45 md:text-slate-500">
                       <span>{group.label || "Qualifier"}</span>
                       {isMissing ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                        <span className="rounded-full bg-transparent px-2 py-0.5 text-yellow-300 ring-1 ring-yellow-400/20 md:bg-amber-100 md:text-amber-700 md:ring-0">
                           Required
                         </span>
                       ) : selectedValue ? (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                        <span className="rounded-full bg-transparent px-2 py-0.5 text-green-300 ring-1 ring-green-400/20 md:bg-emerald-100 md:text-emerald-700 md:ring-0">
                           Selected
                         </span>
                       ) : null}
@@ -1317,6 +1380,7 @@ export function OrderReview({
                     <div className="flex flex-wrap gap-2">
                       {(group.options || []).map((option, optionIndex) => {
                         const selected = optionIsSelected(group, option);
+                        const displayLabel = compactQualifierOptionLabel(option, group, item);
                         return (
                           <button
                             key={`${item.key}-${group.qualifierId || option.qualifierId}-${option.value || option.label}`}
@@ -1328,13 +1392,27 @@ export function OrderReview({
                             data-tourbar-qualifier-label={option.label || option.value || ""}
                             onClick={() => {
                               const nextOrder = onLocalOptionSelect(item, group, option);
+                              const nextItems = reviewItemsFrom(response, nextOrder);
                               const completedOrder = Boolean(
                                 nextOrder &&
                                   allLines(nextOrder).length > 0 &&
                                   !allLines(nextOrder).some(lineIsPending),
                               );
 
-                              if (!completedOrder) return;
+                              if (!completedOrder) {
+                                const currentItemStillPending = nextItems.find((entry) => entry.key === item.key && entry.pending);
+                                const nextPending =
+                                  currentItemStillPending ||
+                                  nextItems.find((entry) => entry.pending && entry.index > safeIndex) ||
+                                  nextItems.find((entry) => entry.pending);
+
+                                if (nextPending) {
+                                  onReviewModeChange("review");
+                                  onActiveIndexChange(nextPending.index);
+                                }
+
+                                return;
+                              }
 
                               onReviewModeChange("cart");
 
@@ -1351,16 +1429,16 @@ export function OrderReview({
                               actions.openStandaloneSheet(result);
                             }}
                             aria-pressed={selected}
-                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
+                            className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
                               selected
-                                ? "border-emerald-300 bg-emerald-600 text-white shadow-emerald-100"
+                                ? "border-green-400/30 bg-transparent text-green-300 ring-1 ring-green-400/20 md:border-emerald-300 md:bg-emerald-600 md:text-white md:ring-0 md:shadow-emerald-100"
                                 : isMissing
-                                  ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                                  : "border-white/70 bg-white/70 text-slate-700 hover:bg-white/85"
+                                  ? "border-yellow-400/30 bg-transparent text-yellow-300 hover:bg-yellow-950/20 md:border-amber-200 md:bg-amber-50 md:text-amber-800 md:hover:bg-amber-100"
+                                  : "border-white/15 bg-transparent text-white/70 hover:bg-white/5 md:border-white/70 md:bg-white/70 md:text-slate-700 md:hover:bg-white/85"
                             }`}
                           >
                             {selected ? "✓ " : ""}
-                            {option.label || option.value}
+                            {displayLabel}
                             {formatPriceDelta((option as { priceDelta?: number | null }).priceDelta)}
                           </button>
                         );
@@ -1373,7 +1451,7 @@ export function OrderReview({
               {missing.length > 0 && (
                 <div className="space-y-1.5">
                   {missing.map((missingItem) => (
-                    <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 ring-1 ring-amber-100">
+                    <div key={`${item.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-transparent px-3 py-2 text-xs font-semibold text-yellow-300 ring-1 ring-yellow-400/15 md:bg-amber-50 md:text-amber-800 md:ring-amber-100">
                       {missingItem.label || missingItem.qualifierId || "Choice"} needed
                     </div>
                   ))}
@@ -1384,25 +1462,27 @@ export function OrderReview({
         </motion.div>
       </AnimatePresence>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <div className="flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={() => goTo(safeIndex - 1)}
           disabled={safeIndex === 0}
-          className="rounded-full border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-md shadow-slate-200/80 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 md:border-slate-950 md:bg-slate-950 md:shadow-md md:shadow-slate-200/80 md:hover:bg-slate-800"
+          aria-label="Previous order item"
         >
-          Back
+          <ChevronLeft className="h-4 w-4" />
         </button>
-        <div className="text-[11px] font-semibold text-slate-400">
+        <div className="min-w-10 text-center text-[11px] font-semibold text-white/45 md:text-slate-400">
           {safeIndex + 1}/{items.length}
         </div>
         <button
           type="button"
           onClick={() => goTo(safeIndex + 1)}
           disabled={safeIndex >= items.length - 1}
-          className="rounded-full border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-bold text-white shadow-md shadow-slate-200/80 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(0,0,0,0.34)] transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 md:border-slate-950 md:bg-slate-950 md:shadow-md md:shadow-slate-200/80 md:hover:bg-slate-800"
+          aria-label="Next order item"
         >
-          Next
+          <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 

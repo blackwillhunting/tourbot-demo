@@ -689,16 +689,16 @@ function DateCard({
   const className =
     "rounded-xl border px-3 py-2 text-left transition " +
     (completed
-      ? `border-emerald-200 bg-emerald-50 text-emerald-950 shadow-sm ${active ? "ring-2 ring-emerald-200" : ""}`
+      ? `border-emerald-300/35 bg-white/[0.04] text-emerald-100 shadow-sm ring-1 ring-emerald-300/15 ${active ? "ring-2 ring-emerald-300/35" : ""} md:border-emerald-200 md:bg-emerald-50 md:text-emerald-950 md:ring-0 ${active ? "md:ring-2 md:ring-emerald-200" : ""}`
       : active
-        ? "border-slate-900 bg-white shadow-sm"
-        : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100");
+        ? "border-cyan-300/40 bg-white/[0.04] text-cyan-100 shadow-sm ring-1 ring-cyan-300/25 md:border-slate-900 md:bg-white md:text-slate-950 md:ring-0"
+        : "border-white/10 bg-white/[0.03] text-white/72 hover:bg-white/[0.06] md:border-slate-200 md:bg-slate-50 md:text-slate-700 md:hover:bg-slate-100");
 
   return h(
     "button",
     { type: "button", onClick, className, "data-tourbar-date-card": kind },
-    h("span", { className: completed ? "block text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700" : "block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400" }, label),
-    h("strong", { className: completed ? "mt-1 block text-xs text-emerald-950" : "mt-1 block text-xs text-slate-950" }, formatTourBarBookingDate(value)),
+    h("span", { className: completed ? "block text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300/80 md:text-emerald-700" : active ? "block text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-300/80 md:text-slate-400" : "block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/42 md:text-slate-400" }, label),
+    h("strong", { className: completed ? "mt-1 block text-xs text-emerald-100 md:text-emerald-950" : "mt-1 block text-xs text-white/88 md:text-slate-950" }, formatTourBarBookingDate(value)),
   );
 }
 
@@ -706,7 +706,6 @@ export function TourBarBookingContextPanel({
   controller,
   field,
   pendingQuery,
-  mode = "required",
   onResume,
 }: {
   controller: TourBarBookingContextController;
@@ -736,24 +735,17 @@ export function TourBarBookingContextPanel({
   const days = Array.from({ length: daysInMonth }, (_, index) => index + 1);
   const selectedDate = controller.activeDatePicker === "check-in" ? context.checkInDate : context.checkOutDate;
   const isDates = field === "dates";
-  const isEdit = mode === "edit";
 
   return h(
     "div",
     {
       "data-tour-id": "tourbar-booking-context-controls",
-      className: "rounded-2xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 text-sm text-slate-900 shadow-sm ring-1 ring-white/80",
+      className: "rounded-2xl border border-white/15 bg-slate-950 px-3 py-2.5 text-sm text-white shadow-sm ring-1 ring-white/10 md:border-slate-200 md:bg-slate-50/90 md:text-slate-900 md:ring-white/80",
     },
-    h("div", { className: "flex items-start justify-between gap-3" },
-      h("div", null,
-        h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400" }, isDates ? (isEdit ? "Edit dates" : "Dates required") : (isEdit ? "Edit guests" : "Guests required")),
-        h("div", { className: "mt-1 text-xs leading-4 text-slate-500" }, isDates ? (isEdit ? "Update the check-in and check-out dates for this booking." : "Choose check-in and check-out dates to continue.") : (isEdit ? "Update the adults and children for this stay." : "Confirm the adults and children for this stay.")),
-      ),
-    ),
     isDates
       ? h(
           "div",
-          { className: "mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" },
+          { className: "space-y-2 rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-sm md:border-slate-200 md:bg-white" },
           h("div", { className: "grid grid-cols-2 gap-2" },
             h(DateCard, {
               label: "Check-in",
@@ -773,18 +765,18 @@ export function TourBarBookingContextPanel({
           controller.activeDatePicker &&
             h(
               "div",
-              { className: "rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" },
+              { className: "rounded-2xl border border-white/10 bg-white/[0.03] p-2 shadow-sm md:border-slate-200 md:bg-white" },
               h("div", { className: "mb-2 flex items-center justify-between gap-2" },
                 h("div", null,
-                  h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400" }, controller.activeDatePicker === "check-in" ? "Check-in calendar" : "Check-out calendar"),
-                  h("div", { className: "mt-0.5 text-xs font-semibold text-slate-950" }, monthName),
+                  h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.14em] text-white/42 md:text-slate-400" }, controller.activeDatePicker === "check-in" ? "Check-in calendar" : "Check-out calendar"),
+                  h("div", { className: "mt-0.5 text-xs font-semibold text-white md:text-slate-950" }, monthName),
                 ),
                 h("div", { className: "flex items-center gap-1" },
-                  h("button", { type: "button", "data-tourbar-calendar-nav": "previous", onClick: () => controller.shiftCalendarMonth(-1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "←"),
-                  h("button", { type: "button", "data-tourbar-calendar-nav": "next", onClick: () => controller.shiftCalendarMonth(1), className: "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" }, "→"),
+                  h("button", { type: "button", "data-tourbar-calendar-nav": "previous", onClick: () => controller.shiftCalendarMonth(-1), className: "rounded-full border border-white/12 bg-white/[0.04] px-2 py-0.5 text-xs font-semibold text-white/72 transition hover:bg-white/[0.08] md:border-slate-200 md:bg-slate-50 md:text-slate-600 md:hover:bg-slate-100" }, "←"),
+                  h("button", { type: "button", "data-tourbar-calendar-nav": "next", onClick: () => controller.shiftCalendarMonth(1), className: "rounded-full border border-white/12 bg-white/[0.04] px-2 py-0.5 text-xs font-semibold text-white/72 transition hover:bg-white/[0.08] md:border-slate-200 md:bg-slate-50 md:text-slate-600 md:hover:bg-slate-100" }, "→"),
                 ),
               ),
-              h("div", { className: "grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-slate-400" },
+              h("div", { className: "grid grid-cols-7 gap-1 text-center text-[9px] font-semibold uppercase tracking-[0.06em] text-white/35 md:text-slate-400" },
                 ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) =>
                   h("div", { key: day, className: "py-0.5" }, day),
                 ),
@@ -800,10 +792,10 @@ export function TourBarBookingContextPanel({
                   const className =
                     "min-h-8 rounded-lg px-0 py-1 text-xs font-semibold transition " +
                     (isSelected
-                      ? "bg-slate-950 text-white shadow-sm"
+                      ? "bg-cyan-300 text-slate-950 shadow-sm md:bg-slate-950 md:text-white"
                       : disabled
-                        ? "cursor-not-allowed bg-slate-50 text-slate-300"
-                        : "bg-slate-50 text-slate-700 hover:bg-slate-100");
+                        ? "cursor-not-allowed bg-white/[0.025] text-white/20 md:bg-slate-50 md:text-slate-300"
+                        : "bg-white/[0.04] text-white/72 hover:bg-white/[0.08] md:bg-slate-50 md:text-slate-700 md:hover:bg-slate-100");
                   return h(
                     "button",
                     {
@@ -821,7 +813,7 @@ export function TourBarBookingContextPanel({
               ),
             ),
           h("div", { className: "flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between" },
-            h("div", { className: "text-xs leading-4 text-slate-500" },
+            h("div", { className: "text-xs leading-4 text-white/52 md:text-slate-500" },
               context.datesSelected
                 ? `Saved: ${formatTourBarDateRange(context.checkInDate, context.checkOutDate)}`
                 : datesReady
@@ -829,7 +821,7 @@ export function TourBarBookingContextPanel({
                   : "Choose a check-out date after check-in.",
             ),
             h("div", { className: "flex shrink-0 items-center gap-2" },
-              context.datesSelected && h("button", { type: "button", onClick: controller.clearDates, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700" }, "Clear"),
+              context.datesSelected && h("button", { type: "button", onClick: controller.clearDates, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-white/52 transition hover:bg-white/[0.06] hover:text-rose-200 md:text-slate-500 md:hover:bg-slate-100 md:hover:text-rose-700" }, "Clear"),
               h("button", {
                 type: "button",
                 "data-tourbar-booking-apply": "dates",
@@ -838,33 +830,33 @@ export function TourBarBookingContextPanel({
                   const next = controller.commitDates();
                   if (next) onResume(pendingQuery, next);
                 },
-                className: "rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45",
+                className: "rounded-full bg-cyan-300 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-45 md:bg-slate-950 md:text-white md:hover:bg-slate-800",
               }, "Apply dates"),
             ),
           ),
         )
       : h(
           "div",
-          { className: "mt-3 space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm" },
+          { className: "space-y-2 rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-sm md:border-slate-200 md:bg-white" },
           [
             { key: "adults", label: "Adults", value: guestAdults, min: 1, onChange: controller.setGuestAdults },
             { key: "children", label: "Children", value: guestChildren, min: 0, onChange: controller.setGuestChildren },
           ].map((item) =>
-            h("div", { key: item.label, className: "flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2" },
+            h("div", { key: item.label, className: "flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2 ring-1 ring-white/10 md:bg-slate-50 md:ring-0" },
               h("div", null,
-                h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400" }, item.label),
-                h("div", { className: "mt-0.5 text-sm font-semibold text-slate-950" }, item.value),
+                h("div", { className: "text-[10px] font-semibold uppercase tracking-[0.14em] text-white/42 md:text-slate-400" }, item.label),
+                h("div", { className: "mt-0.5 text-sm font-semibold text-white md:text-slate-950" }, item.value),
               ),
               h("div", { className: "flex items-center gap-2" },
-                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-decrement`, onClick: () => item.onChange(Math.max(item.min, item.value - 1)), className: "h-8 w-8 rounded-full border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:bg-slate-50" }, "−"),
-                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-increment`, onClick: () => item.onChange(item.value + 1), className: "h-8 w-8 rounded-full bg-slate-950 text-sm font-semibold text-white transition hover:bg-slate-800" }, "+"),
+                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-decrement`, onClick: () => item.onChange(Math.max(item.min, item.value - 1)), className: "h-8 w-8 rounded-full border border-white/12 bg-white/[0.04] text-sm font-semibold text-white/72 transition hover:bg-white/[0.08] md:border-slate-200 md:bg-white md:text-slate-700 md:hover:bg-slate-50" }, "−"),
+                h("button", { type: "button", "data-tourbar-guest-control": `${item.key}-increment`, onClick: () => item.onChange(item.value + 1), className: "h-8 w-8 rounded-full bg-cyan-300 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200 md:bg-slate-950 md:text-white md:hover:bg-slate-800" }, "+"),
               ),
             ),
           ),
           h("div", { className: "flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between" },
-            h("div", { className: "text-xs leading-4 text-slate-500" }, context.guestsSelected ? `Saved: ${guestLabel}` : `Ready to save ${guestLabel}.`),
+            h("div", { className: "text-xs leading-4 text-white/52 md:text-slate-500" }, context.guestsSelected ? `Saved: ${guestLabel}` : `Ready to save ${guestLabel}.`),
             h("div", { className: "flex shrink-0 items-center gap-2" },
-              context.guestsSelected && h("button", { type: "button", onClick: controller.clearGuests, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-rose-700" }, "Clear"),
+              context.guestsSelected && h("button", { type: "button", onClick: controller.clearGuests, className: "rounded-full px-3 py-1.5 text-xs font-semibold text-white/52 transition hover:bg-white/[0.06] hover:text-rose-200 md:text-slate-500 md:hover:bg-slate-100 md:hover:text-rose-700" }, "Clear"),
               h("button", {
                 type: "button",
                 "data-tourbar-booking-apply": "guests",
@@ -872,7 +864,7 @@ export function TourBarBookingContextPanel({
                   const next = controller.commitGuests();
                   onResume(pendingQuery, next);
                 },
-                className: "rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800",
+                className: "rounded-full bg-cyan-300 px-3 py-1.5 text-xs font-semibold text-slate-950 shadow-sm transition hover:bg-cyan-200 md:bg-slate-950 md:text-white md:hover:bg-slate-800",
               }, "Apply guests"),
             ),
           ),

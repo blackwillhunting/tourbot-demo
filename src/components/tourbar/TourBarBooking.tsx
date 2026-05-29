@@ -395,13 +395,13 @@ export function TourBarBookingHandoffSheet({
       : bookingHandoff.guestsLabel;
 
   const editableRowClass =
-    "group flex w-full items-start justify-between gap-3 rounded-xl px-2 py-1.5 text-left transition hover:bg-emerald-100/70 focus:outline-none focus:ring-2 focus:ring-emerald-300";
-  const staticRowClass = "flex items-start justify-between gap-3 px-2 py-1.5";
+    "group flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-cyan-300/45 md:rounded-xl md:hover:bg-emerald-100/70 md:focus:ring-emerald-300";
+  const staticRowClass = "flex items-start justify-between gap-3 px-3 py-2";
 
-  const renderStaticRow = (label: string, value: string, bordered = false) => (
-    <div className={`${staticRowClass} ${bordered ? "border-t border-emerald-100 pt-2" : ""}`}>
-      <span className="text-emerald-800/75">{label}</span>
-      <strong className="text-right font-semibold">{value}</strong>
+  const renderStaticRow = (label: string, value: string, _bordered = false) => (
+    <div className={staticRowClass}>
+      <span className="text-white/52 md:text-emerald-800/75">{label}</span>
+      <strong className="text-right font-semibold text-white md:text-emerald-950">{value}</strong>
     </div>
   );
 
@@ -416,10 +416,10 @@ export function TourBarBookingHandoffSheet({
       className={editableRowClass}
       aria-label={`Edit ${label.toLowerCase()}`}
     >
-      <span className="text-emerald-800/75">{label}</span>
+      <span className="text-white/52 md:text-emerald-800/75">{label}</span>
       <span className="flex min-w-0 items-start justify-end gap-2 text-right">
-        <strong className="font-semibold">{value}</strong>
-        <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700/55 transition group-hover:text-emerald-900" />
+        <strong className="font-semibold text-white md:text-emerald-950">{value}</strong>
+        <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300/70 transition group-hover:text-cyan-100 md:text-emerald-700/55 md:group-hover:text-emerald-900" />
       </span>
     </button>
   );
@@ -427,12 +427,9 @@ export function TourBarBookingHandoffSheet({
   return (
     <div
       data-tour-id="tourbar-booking-handoff"
-      className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-3 text-sm text-emerald-950 shadow-sm ring-1 ring-emerald-100/80"
+      className="overflow-hidden rounded-2xl border border-white/15 bg-slate-950 text-sm text-white shadow-sm ring-1 ring-white/10 md:border-emerald-100 md:bg-emerald-50/80 md:px-3 md:py-3 md:text-emerald-950 md:ring-emerald-100/80"
     >
-      <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-emerald-700/70">
-        Booking handoff
-      </div>
-      <div className="mt-2 space-y-0.5">
+      <div className="divide-y divide-white/10 md:space-y-0.5 md:divide-y-0">
         {renderStaticRow("Room", bookingHandoff.roomTitle)}
         {renderStaticRow("Add-ons", bookingHandoff.packageTitle)}
         {actions
@@ -463,34 +460,22 @@ export function TourBarNavigationControls({
 
   const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
   const active = state.steps[activeIndex];
-  const previous = state.steps[activeIndex - 1];
-  const next = state.steps[activeIndex + 1];
   const isFirst = activeIndex <= 0;
   const isLast = activeIndex >= state.steps.length - 1;
 
   return (
     <div
       data-tour-id="tourbar-navigation-controls"
-      className="rounded-2xl border border-cyan-100 bg-cyan-50/85 px-3 py-2.5 text-sm text-cyan-950 shadow-sm ring-1 ring-cyan-100/80"
+      className="rounded-2xl border border-white/12 bg-slate-950 px-3 py-2.5 text-sm text-white shadow-sm ring-1 ring-white/10 md:border-cyan-100 md:bg-cyan-50/85 md:text-cyan-950 md:ring-cyan-100/80"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-700/70">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/65 md:text-cyan-700/70">
             Guided stops · {activeIndex + 1} of {state.steps.length}
           </div>
-          <div className="mt-1 truncate font-semibold">
+          <div className="mt-1 truncate font-semibold text-white md:text-cyan-950">
             {active.targetText || active.targetId}
           </div>
-          {previous && (
-            <div className="mt-0.5 truncate text-xs font-medium text-cyan-800/55">
-              Back: {previous.targetText || previous.targetId}
-            </div>
-          )}
-          {next && (
-            <div className="mt-0.5 truncate text-xs font-medium text-cyan-800/70">
-              Next: {next.targetText || next.targetId}
-            </div>
-          )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           <button
@@ -503,7 +488,7 @@ export function TourBarNavigationControls({
               onBack?.();
             }}
             disabled={isFirst || !onBack}
-            className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-800 transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full px-2.5 py-1 text-xs font-semibold text-cyan-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 md:text-cyan-800 md:hover:bg-white/70"
           >
             Back
           </button>
@@ -517,7 +502,7 @@ export function TourBarNavigationControls({
               onBook?.();
             }}
             disabled={!onBook}
-            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-45 md:hover:bg-emerald-700"
           >
             Book
           </button>
@@ -531,9 +516,9 @@ export function TourBarNavigationControls({
               onNext?.();
             }}
             disabled={isLast || !onNext}
-            className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-45 md:bg-slate-950 md:text-white md:hover:bg-slate-800"
           >
-            {isLast ? "Last stop" : "Next stop"}
+            {isLast ? "Last" : "Next"}
           </button>
         </div>
       </div>
