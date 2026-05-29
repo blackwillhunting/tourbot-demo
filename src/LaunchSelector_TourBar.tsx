@@ -675,7 +675,13 @@ export default function LaunchSelectorTourBar() {
     <div className="relative min-h-[100svh] overflow-hidden">
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
 
-      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
+      <SmartBarFlashCardRail
+        className={
+          launchVisible
+            ? "!top-auto !bottom-0 !translate-y-0 sm:!top-1/2 sm:!bottom-auto sm:!-translate-y-1/2"
+            : "!top-[45%] sm:!top-1/2"
+        }
+      >
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
         <SmartBarFlashCardLane active={launchVisible}>
