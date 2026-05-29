@@ -351,7 +351,7 @@ function ThinkingCode({ value }: { value: string }) {
   return (
     <div
       aria-label="Checking passcode"
-      className="flex h-11 w-[5.5rem] items-center justify-center gap-1 rounded-full border border-emerald-200 bg-white/88 px-2 text-center text-xs font-black tracking-[0.20em] text-slate-950 ring-1 ring-emerald-100 sm:w-28 sm:px-3 sm:text-sm sm:tracking-[0.22em]"
+      className="flex h-11 w-24 items-center justify-center gap-1 rounded-full border border-emerald-200 bg-white/88 px-2 text-center text-base font-black tracking-[0.14em] text-slate-950 ring-1 ring-emerald-100 sm:w-28 sm:px-3 sm:text-sm sm:tracking-[0.22em]"
     >
       {characters.map((char, index) => (
         <motion.span
@@ -400,7 +400,11 @@ function LaunchSlip({
           onChange={(event) => onPasscodeChange(event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH))}
           aria-label="SmartBar demo passcode"
           placeholder="6 chars"
-          className="h-11 w-[5.5rem] rounded-full border border-emerald-300/80 bg-white/92 px-2 text-center text-xs font-semibold tracking-[0.16em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:h-12 sm:w-28 sm:px-3 sm:text-sm sm:tracking-[0.18em]"
+          inputMode="text"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          className="h-11 w-24 rounded-full border border-emerald-300/80 bg-white/92 px-2 text-center text-base font-semibold tracking-[0.12em] text-slate-950 outline-none ring-1 ring-emerald-200/70 transition placeholder:tracking-normal placeholder:text-slate-300 focus:border-emerald-500 focus:ring-emerald-300/80 sm:h-12 sm:w-28 sm:px-3 sm:text-sm sm:tracking-[0.18em]"
         />
       )}
 
@@ -617,6 +621,12 @@ export default function LaunchSelectorTourBar() {
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement) {
+        activeElement.blur();
+      }
+
       if (!launchVisible || isChecking) return;
 
       const runId = runIdRef.current + 1;
