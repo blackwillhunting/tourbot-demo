@@ -1174,8 +1174,11 @@ function fixtureResult(query: string): TourBarShellResult {
   }
 
   return {
-    title: "SmartBar response",
-    body: "I can answer the question, collect the right details, and open the next step.",
+    title: "SmartBar in one line",
+    body:
+      "SmartBar turns a plain visitor question into the next useful action.\nIt can answer, guide, qualify, compare, collect, and hand off without making the user hunt through the site.\nOn content-heavy sites, it behaves like a navigator.\nOn ordering or booking sites, it behaves like a completion layer.\nThe CTA is simple: ask for what you want, then let SmartBar open the right next step.",
+    invitation: { kind: "next", text: "Show me what it can do" },
+    nextMove: { type: "ask_deeper", label: "Show me what it can do", query: "show action choices" },
     canFollowUp: true,
     mode: "speed_info",
     raw: speedMeta({ stableSheetKey: "finale-natural-language" }),
@@ -1387,16 +1390,24 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
 
   if (mode === "speed_tiles") {
     return (
-      <div className="grid grid-cols-2 gap-2">
-        {["Answer", "Choose options", "Review cart", "Handoff"].map((label) => (
-          <button
-            key={label}
-            type="button"
-            className="rounded-2xl border border-slate-200 bg-white px-3 py-3 text-left text-sm font-semibold text-slate-900 shadow-sm"
-          >
-            {label}
-          </button>
-        ))}
+      <div className="overflow-hidden rounded-3xl border border-orange-100 bg-gradient-to-br from-orange-50 via-white to-amber-50 shadow-sm ring-1 ring-orange-100/70">
+        <div className="relative min-h-[132px] p-4">
+          <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-orange-200/45 blur-2xl" />
+          <div className="relative flex items-start gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-white text-3xl shadow-sm ring-1 ring-orange-100">
+              🍔
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-500">Featured item</div>
+              <div className="mt-1 text-lg font-black tracking-tight text-slate-950">Double cheeseburger combo</div>
+              <div className="mt-1 text-sm font-semibold text-slate-600">Large fries · Large Diet Coke · No onions</div>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">$11.99</span>
+                <span className="text-xs font-bold text-slate-500">SmartBar can turn a food request into a structured item slide.</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
