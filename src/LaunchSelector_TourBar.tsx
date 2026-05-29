@@ -678,14 +678,13 @@ export default function LaunchSelectorTourBar() {
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 
         <SmartBarFlashCardLane active={launchVisible}>
-          <div className="hidden sm:block">
-            <LaunchSlip
+          <LaunchSlip
               passcode={passcode}
               isChecking={isChecking}
               onPasscodeChange={setPasscode}
               onSubmit={handleSubmit}
             />
-          </div>
+          
         </SmartBarFlashCardLane>
 
         <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)}>
