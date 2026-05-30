@@ -731,9 +731,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1600,
         cards: [
           "Setup is simple.",
-          "SmartBar scans the site.",
-          "Add one snippet.",
-          "Tag only blind spots.",
+          "We scan the site.",
+          "You add one code snippet.",
+          "We build the Knowledge Pack.",
         ],
       },
     ],
