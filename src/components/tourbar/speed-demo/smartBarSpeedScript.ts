@@ -651,6 +651,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 3000 },
       { kind: "pause", delayMs: 2200 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 1100 },
+      { kind: "pause", delayMs: 650 },
     ],
   },
   {
