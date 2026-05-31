@@ -11,6 +11,8 @@ import "./index.css";
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
+const TOURBOT_LOCAL_DEV_TOKEN = "local-dev";
+const TOURBOT_LOCAL_DEV_TTL_SECONDS = 3600;
 const SMARTBAR_HOSTNAMES = new Set(["smartbar.getn2ai.com"]);
 
 function normalizedPath() {
@@ -26,9 +28,33 @@ function isSmartBarHostname() {
 }
 
 
+function smartBarSpeedVariantFromPath(path: string) {
+  return path === "/smartbar-burgerrush" || path === "/burger-rush" || path === "/direct-ordering"
+    ? "burgerRushOnly"
+    : "full";
+}
+
 function clearStoredTourBotDemoToken() {
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+}
+
+function saveStoredTourBotDemoToken(token: string, expiresAt?: number) {
+  window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
+  if (typeof expiresAt === "number" && Number.isFinite(expiresAt)) {
+    window.localStorage.setItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+  } else {
+    window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  }
+}
+
+function ensureLocalDemoAuthToken() {
+  if (!isLocalDemoAuthBypassEnabled()) return;
+
+  saveStoredTourBotDemoToken(
+    TOURBOT_LOCAL_DEV_TOKEN,
+    Math.floor(Date.now() / 1000) + TOURBOT_LOCAL_DEV_TTL_SECONDS,
+  );
 }
 
 function getStoredTourBotDemoToken() {
@@ -116,10 +142,15 @@ function CheckingAccessScreen() {
 }
 
 function ProtectedDemoRoute({ children }: { children: ReactNode }) {
-  const [isAllowed, setIsAllowed] = useState(() => isLocalDemoAuthBypassEnabled());
+  const [isAllowed, setIsAllowed] = useState(() => {
+    if (!isLocalDemoAuthBypassEnabled()) return false;
+    ensureLocalDemoAuthToken();
+    return true;
+  });
 
   useEffect(() => {
     if (isLocalDemoAuthBypassEnabled()) {
+      ensureLocalDemoAuthToken();
       setIsAllowed(true);
       return;
     }
@@ -154,7 +185,7 @@ function Router() {
   const path = normalizedPath();
 
   if (isSmartBarHostname()) {
-    return <LaunchSelectorTourBar />;
+    return <LaunchSelectorTourBar variant={smartBarSpeedVariantFromPath(path)} />;
   }
 
   if (path === "/transactional") {
@@ -201,6 +232,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <LaunchSelectorTourBar />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/smartbar-burgerrush") {
+    return (
+      <ProtectedDemoRoute>
+        <LaunchSelectorTourBar variant="burgerRushOnly" />
       </ProtectedDemoRoute>
     );
   }
