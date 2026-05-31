@@ -956,6 +956,7 @@ function orderNeedsBackendReprice(order: CarryoutOrder | null) {
 export type ReviewMode = "review" | "cart";
 
 type CartLineState = "ready" | "optional" | "pending" | "unrecognized";
+type TourBarOrderingAppearance = "dark" | "light";
 
 type CartActionPanel =
   | { kind: "required" | "optional"; itemKey: string }
@@ -1147,21 +1148,43 @@ function groupsForCartPanel(item: ReviewItem, kind: "required" | "optional") {
   return syncCartPanelGroupsToLine(item, requiredGroups.length ? requiredGroups : item.groups, kind);
 }
 
-function itemStatusClass(state: CartLineState) {
+function itemStatusClass(state: CartLineState, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (state === "pending") return "bg-rose-200 text-rose-950 ring-1 ring-rose-400 md:bg-rose-100 md:text-rose-800 md:ring-rose-200";
+    if (state === "optional") return "bg-amber-200 text-amber-950 ring-1 ring-amber-400 md:bg-amber-100 md:text-amber-800 md:ring-amber-200";
+    if (state === "unrecognized") return "bg-slate-300 text-slate-900 ring-1 ring-slate-500 md:bg-slate-200 md:text-slate-700 md:ring-slate-300";
+    return "bg-emerald-200 text-emerald-950 ring-1 ring-emerald-500 md:bg-emerald-200 md:text-emerald-950 md:ring-emerald-300";
+  }
+
   if (state === "pending") return "bg-transparent text-rose-300 ring-0 md:bg-rose-100 md:text-rose-800 md:ring-1 md:ring-rose-200";
   if (state === "optional") return "bg-transparent text-yellow-300 ring-0 md:bg-amber-100 md:text-amber-800 md:ring-1 md:ring-amber-200";
   if (state === "unrecognized") return "bg-transparent text-slate-300 ring-0 md:bg-slate-200 md:text-slate-700 md:ring-1 md:ring-slate-300";
   return "bg-transparent text-green-300 ring-0 md:bg-emerald-200 md:text-emerald-950 md:ring-1 md:ring-emerald-300";
 }
 
-function sectionStatusClass(state: CartLineState) {
+function sectionStatusClass(state: CartLineState, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (state === "pending") return "border-rose-400 bg-rose-100 text-rose-950 ring-1 ring-rose-300 md:border-rose-200 md:bg-rose-50 md:text-rose-900 md:ring-0";
+    if (state === "optional") return "border-amber-400 bg-amber-100 text-amber-950 ring-1 ring-amber-300 md:border-amber-200 md:bg-amber-50 md:text-amber-900 md:ring-0";
+    if (state === "unrecognized") return "border-slate-400 bg-slate-200 text-slate-900 ring-1 ring-slate-300 md:border-slate-200 md:bg-slate-50 md:text-slate-800 md:ring-0";
+    return "border-emerald-400 bg-emerald-100 text-emerald-950 ring-1 ring-emerald-300 md:border-emerald-300 md:bg-emerald-50 md:text-emerald-950 md:ring-emerald-100";
+  }
+
   if (state === "pending") return "border-rose-400/25 bg-transparent text-rose-300 ring-1 ring-rose-400/10 md:border-rose-200 md:bg-rose-50 md:text-rose-900 md:ring-0";
   if (state === "optional") return "border-yellow-400/25 bg-transparent text-yellow-300 ring-1 ring-yellow-400/10 md:border-amber-200 md:bg-amber-50 md:text-amber-900 md:ring-0";
   if (state === "unrecognized") return "border-slate-400/25 bg-transparent text-slate-300 ring-1 ring-slate-400/10 md:border-slate-200 md:bg-slate-50 md:text-slate-800 md:ring-0";
   return "border-green-400/25 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-emerald-300 md:bg-emerald-50 md:text-emerald-950 md:ring-emerald-100";
 }
 
-function cartLineCardClass(state: CartLineState, isLocked: boolean) {
+function cartLineCardClass(state: CartLineState, isLocked: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (isLocked) return "border-emerald-300 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-200 opacity-95 md:border-slate-200 md:bg-slate-50/90 md:text-slate-900 md:ring-0 md:opacity-85";
+    if (state === "pending") return "border-rose-400 bg-rose-100 text-rose-950 ring-1 ring-rose-300 md:border-rose-200 md:bg-rose-50/95 md:text-rose-950 md:ring-rose-100";
+    if (state === "optional") return "border-amber-400 bg-amber-100 text-amber-950 ring-1 ring-amber-300 md:border-amber-300 md:bg-amber-50/95 md:text-amber-950 md:ring-amber-100";
+    if (state === "unrecognized") return "border-slate-400 bg-slate-200 text-slate-900 ring-1 ring-slate-300 md:border-slate-200 md:bg-slate-50/95 md:text-slate-800 md:ring-slate-100";
+    return "border-emerald-400 bg-emerald-100 text-emerald-950 ring-1 ring-emerald-300 md:border-emerald-300 md:bg-emerald-50/95 md:text-emerald-950 md:ring-emerald-100";
+  }
+
   if (isLocked) {
     return "border-green-400/20 bg-transparent text-green-300 ring-1 ring-green-400/10 opacity-90 md:border-slate-200 md:bg-slate-50/90 md:text-slate-900 md:ring-0 md:opacity-85";
   }
@@ -1172,7 +1195,15 @@ function cartLineCardClass(state: CartLineState, isLocked: boolean) {
   return "border-green-400/25 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-emerald-300 md:bg-emerald-50/95 md:text-emerald-950 md:ring-emerald-100";
 }
 
-function cartLineDetailClass(state: CartLineState, isLocked: boolean) {
+function cartLineDetailClass(state: CartLineState, isLocked: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (isLocked) return "bg-white text-slate-600 ring-1 ring-slate-200";
+    if (state === "pending") return "bg-rose-200 text-rose-900 ring-1 ring-rose-300 md:bg-rose-100 md:text-rose-800 md:ring-rose-200";
+    if (state === "optional") return "bg-amber-200 text-amber-950 ring-1 ring-amber-300 md:bg-amber-100 md:text-amber-900 md:ring-amber-200";
+    if (state === "unrecognized") return "bg-slate-300 text-slate-800 ring-1 ring-slate-400 md:bg-slate-200 md:text-slate-700 md:ring-slate-300";
+    return "bg-emerald-200 text-emerald-950 ring-1 ring-emerald-300 md:bg-emerald-100 md:text-emerald-900 md:ring-emerald-200";
+  }
+
   if (isLocked) return "bg-transparent text-green-200/75 ring-1 ring-green-400/10 md:bg-white md:text-slate-500 md:ring-slate-200";
   if (state === "pending") return "bg-transparent text-rose-200/85 ring-1 ring-rose-400/15 md:bg-rose-100 md:text-rose-800 md:ring-rose-200";
   if (state === "optional") return "bg-transparent text-yellow-200/85 ring-1 ring-yellow-400/15 md:bg-amber-100 md:text-amber-900 md:ring-amber-200";
@@ -1180,7 +1211,15 @@ function cartLineDetailClass(state: CartLineState, isLocked: boolean) {
   return "bg-transparent text-green-200/85 ring-1 ring-green-400/15 md:bg-emerald-100 md:text-emerald-900 md:ring-emerald-200";
 }
 
-function cartLineTitleClass(state: CartLineState, isLocked: boolean) {
+function cartLineTitleClass(state: CartLineState, isLocked: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (isLocked) return "text-slate-600 italic";
+    if (state === "pending") return "text-rose-950";
+    if (state === "optional") return "text-amber-950";
+    if (state === "unrecognized") return "text-slate-800";
+    return "text-emerald-950";
+  }
+
   if (isLocked) return "text-slate-300 italic md:text-slate-600";
   if (state === "pending") return "text-rose-300 md:text-rose-950";
   if (state === "optional") return "text-yellow-300 md:text-amber-950";
@@ -1188,12 +1227,142 @@ function cartLineTitleClass(state: CartLineState, isLocked: boolean) {
   return "text-green-300 md:text-emerald-950";
 }
 
-function cartLineHelperClass(state: CartLineState, isLocked: boolean) {
+function cartLineHelperClass(state: CartLineState, isLocked: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (isLocked) return "text-slate-600 italic";
+    if (state === "pending") return "text-rose-800";
+    if (state === "optional") return "text-amber-800";
+    if (state === "unrecognized") return "text-slate-700";
+    return "text-emerald-800";
+  }
+
   if (isLocked) return "text-slate-400 italic md:text-slate-500";
   if (state === "pending") return "text-rose-200/85 md:text-rose-700";
   if (state === "optional") return "text-yellow-200/85 md:text-amber-800";
   if (state === "unrecognized") return "text-slate-300/80 md:text-slate-500";
   return "text-green-200/85 md:text-emerald-800";
+}
+
+function cartLinePriceClass(state: CartLineState, isLocked: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (isLocked) return "bg-slate-200 text-slate-700 ring-1 ring-slate-300 md:bg-slate-950 md:text-white md:ring-0";
+    if (state === "pending") return "bg-rose-700 text-white ring-1 ring-rose-700/20 md:bg-slate-950 md:text-white md:ring-0";
+    if (state === "optional") return "bg-amber-700 text-white ring-1 ring-amber-700/20 md:bg-slate-950 md:text-white md:ring-0";
+    if (state === "unrecognized") return "bg-slate-700 text-white ring-1 ring-slate-700/20 md:bg-slate-950 md:text-white md:ring-0";
+    return "bg-emerald-700 text-white ring-1 ring-emerald-700/20 md:bg-slate-950 md:text-white md:ring-0";
+  }
+
+  return "bg-transparent text-white/82 ring-1 ring-white/15 md:bg-slate-950 md:text-white md:ring-0";
+}
+
+function cartLineRemoveButtonClass(appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    return "border-slate-200 bg-white text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600";
+  }
+
+  return "border-white/15 bg-transparent text-white/45 hover:border-red-400/40 hover:bg-red-950/30 hover:text-red-300 md:border-slate-200 md:bg-white md:text-slate-400 md:hover:border-red-200 md:hover:bg-red-50 md:hover:text-red-600";
+}
+
+function cartSectionLabelClass(state: CartLineState, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (state === "pending") return "text-rose-800";
+    if (state === "optional") return "text-amber-800";
+    if (state === "unrecognized") return "text-slate-700";
+    return "text-emerald-800";
+  }
+
+  if (state === "pending") return "text-rose-300 md:text-rose-700";
+  if (state === "optional") return "text-yellow-300 md:text-amber-700";
+  if (state === "unrecognized") return "text-slate-300 md:text-slate-600";
+  return "text-green-300 md:text-emerald-700";
+}
+
+function cartSectionBadgeClass(state: CartLineState, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (state === "optional") return "bg-amber-200 text-amber-950 ring-1 ring-amber-400 md:bg-amber-100 md:text-amber-800 md:ring-amber-200";
+    if (state === "unrecognized") return "bg-slate-200 text-slate-800 ring-1 ring-slate-300 md:bg-slate-200 md:text-slate-700 md:ring-slate-300";
+    return "bg-emerald-200 text-emerald-950 ring-1 ring-emerald-400 md:bg-emerald-100 md:text-emerald-800 md:ring-emerald-200";
+  }
+
+  if (state === "optional") return "bg-transparent text-yellow-300 ring-1 ring-yellow-400/15 md:bg-amber-100 md:text-amber-800 md:ring-amber-200";
+  if (state === "unrecognized") return "bg-transparent text-slate-300 ring-1 ring-slate-400/15 md:bg-slate-200 md:text-slate-700 md:ring-slate-300";
+  return "bg-transparent text-green-300 ring-1 ring-green-400/15 md:bg-emerald-100 md:text-emerald-800 md:ring-emerald-200";
+}
+
+function actionPanelCardClass(panelKind: "required" | "optional" | "retry", appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (panelKind === "required") return "border-rose-300 bg-white text-slate-950 ring-1 ring-rose-200 shadow-rose-950/10";
+    if (panelKind === "optional") return "border-amber-300 bg-white text-slate-950 ring-1 ring-amber-200 shadow-amber-950/10";
+    return "border-slate-300 bg-white text-slate-950 ring-1 ring-slate-200 shadow-slate-950/10";
+  }
+
+  if (panelKind === "required") return "border-rose-400/25 bg-slate-950/96 text-white ring-1 ring-rose-400/10 md:border-rose-200 md:bg-white md:text-slate-950 md:ring-rose-100";
+  if (panelKind === "optional") return "border-yellow-400/25 bg-slate-950/96 text-white ring-1 ring-yellow-400/10 md:border-amber-200 md:bg-white md:text-slate-950 md:ring-amber-100";
+  return "border-slate-400/25 bg-slate-950/96 text-white ring-1 ring-white/10 md:border-slate-200 md:bg-white md:text-slate-950 md:ring-slate-200";
+}
+
+function actionPanelEyebrowClass(panelKind: "required" | "optional" | "retry", appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (panelKind === "required") return "text-rose-800";
+    if (panelKind === "optional") return "text-amber-800";
+    return "text-slate-600";
+  }
+
+  if (panelKind === "required") return "text-rose-300 md:text-rose-600";
+  if (panelKind === "optional") return "text-yellow-300 md:text-amber-600";
+  return "text-slate-300 md:text-slate-500";
+}
+
+function actionPanelCloseButtonClass(appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    return "border-slate-300 bg-white text-slate-950 shadow-sm hover:bg-slate-100 hover:text-slate-950";
+  }
+
+  return "border-white/20 bg-white/10 text-white shadow-sm hover:bg-white/15 md:border-slate-200 md:bg-white md:text-slate-700 md:hover:bg-slate-50";
+}
+
+function optionButtonClass(selected: boolean, isRequired: boolean, isMissing: boolean, appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (selected) return "border-emerald-600 bg-emerald-700 text-white ring-1 ring-emerald-700/20 shadow-emerald-100";
+    if (isMissing || isRequired) return "border-rose-400 bg-rose-50 text-rose-900 hover:bg-rose-100";
+    return "border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100";
+  }
+
+  if (selected) return "border-green-400/30 bg-transparent text-green-300 ring-1 ring-green-400/20 md:border-emerald-300 md:bg-emerald-600 md:text-white md:ring-0 md:shadow-emerald-100";
+  if (isMissing || isRequired) return "border-rose-400/30 bg-transparent text-rose-300 hover:bg-rose-950/20 md:border-rose-200 md:bg-rose-50 md:text-rose-800 md:hover:bg-rose-100";
+  return "border-yellow-400/30 bg-transparent text-yellow-300 hover:bg-yellow-950/20 md:border-amber-200 md:bg-amber-50 md:text-amber-800 md:hover:bg-amber-100";
+}
+
+function checkoutPanelClass(appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") return "border-slate-200 bg-white text-slate-950 shadow-sm";
+  return "border-white/15 bg-transparent text-white shadow-none md:border-slate-200 md:bg-white md:text-slate-950 md:shadow-sm";
+}
+
+function checkoutTitleClass(kind: "good" | "blocked", appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") return kind === "good" ? "text-emerald-800" : "text-rose-800";
+  return kind === "good" ? "text-green-300 md:text-slate-900" : "text-rose-300 md:text-slate-900";
+}
+
+function checkoutHelperClass(kind: "good" | "blocked", appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") return kind === "good" ? "text-emerald-700" : "text-rose-700";
+  return kind === "good" ? "text-green-200/75 md:text-slate-500" : "text-rose-200/80 md:text-slate-500";
+}
+
+function checkoutButtonClass(kind: "blocked" | "matched" | "checkout", appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") {
+    if (kind === "blocked") return "bg-rose-600 text-white ring-0 hover:bg-rose-700";
+    if (kind === "matched") return "bg-slate-950 text-white ring-0 hover:bg-slate-800";
+    return "bg-emerald-700 text-white ring-0 hover:bg-emerald-800";
+  }
+
+  if (kind === "blocked") return "bg-transparent text-rose-300 ring-1 ring-rose-400/25 hover:bg-rose-950/20 md:bg-rose-600 md:text-white md:ring-0 md:hover:bg-rose-700";
+  if (kind === "matched") return "bg-transparent text-green-300 ring-1 ring-green-400/25 hover:bg-green-950/20 md:bg-slate-950 md:text-white md:ring-0 md:hover:bg-slate-800";
+  return "bg-transparent text-green-300 ring-1 ring-green-400/25 hover:bg-green-950/20 md:bg-emerald-700 md:text-white md:ring-0 md:hover:bg-emerald-800";
+}
+
+function readyPillClass(appearance: TourBarOrderingAppearance) {
+  if (appearance === "light") return "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300 md:bg-emerald-50 md:text-emerald-800 md:ring-emerald-200";
+  return "bg-transparent text-green-300 ring-1 ring-green-400/20 md:bg-emerald-50 md:text-emerald-800 md:ring-emerald-200";
 }
 
 function navigateToItem(
@@ -1235,6 +1404,7 @@ function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
 }
 
 export function OrderReview({
+  appearance = "dark",
   result,
   actions,
   carryoutOrder,
@@ -1249,6 +1419,7 @@ export function OrderReview({
   onNavigateToFocus,
   notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
 }: {
+  appearance?: TourBarOrderingAppearance;
   result: TourBarShellResult;
   actions: TourBarShellActions;
   carryoutOrder: CarryoutOrder | null;
@@ -1390,7 +1561,7 @@ export function OrderReview({
           : details.length
             ? ""
             : "No extra choices.";
-    const stateCardClass = cartLineCardClass(state, isLocked);
+    const stateCardClass = cartLineCardClass(state, isLocked, appearance);
     const interactiveClass = isLocked
       ? ""
       : "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80";
@@ -1405,24 +1576,24 @@ export function OrderReview({
     const lineBody = (
       <div className="min-w-0 flex-1 text-left">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`truncate text-sm font-semibold ${cartLineTitleClass(state, isLocked)}`}>
+          <span className={`truncate text-base font-semibold leading-5 md:text-sm md:leading-tight ${cartLineTitleClass(state, isLocked, appearance)}`}>
             {qty}{entry.line.title || entry.line.id || entry.label}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${isLocked ? "bg-transparent text-green-300 ring-0 md:bg-slate-200 md:text-slate-600" : itemStatusClass(state)}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${isLocked ? (appearance === "light" ? "bg-slate-200 text-slate-700 ring-1 ring-slate-300" : "bg-transparent text-green-300 ring-0 md:bg-slate-200 md:text-slate-600") : itemStatusClass(state, appearance)}`}>
             {statusLabel}
           </span>
         </div>
         {helperText && (
-          <div className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass(state, isLocked)}`}>
+          <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, isLocked, appearance)}`}>
             {helperText}
           </div>
         )}
         {details.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
-            {details.slice(0, 5).map((selection) => (
+            {details.slice(0, 4).map((selection) => (
               <span
                 key={`${entry.key}-detail-${selection}`}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${cartLineDetailClass(state, isLocked)}`}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold md:text-[10px] ${cartLineDetailClass(state, isLocked, appearance)}`}
               >
                 {selection}
               </span>
@@ -1430,12 +1601,12 @@ export function OrderReview({
           </div>
         )}
         {!isLocked && state === "pending" && (
-          <div className="mt-1 text-[11px] font-semibold text-rose-300 md:text-rose-700">
+          <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-rose-800" : "text-rose-300 md:text-rose-700"}`}>
             Tap to choose now
           </div>
         )}
         {!isLocked && state === "optional" && (
-          <div className="mt-1 text-[11px] font-semibold text-yellow-300 md:text-amber-700">
+          <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-amber-800" : "text-yellow-300 md:text-amber-700"}`}>
             Tap to customize
           </div>
         )}
@@ -1447,7 +1618,7 @@ export function OrderReview({
         key={`${entry.key}-cart-${state}-${index}`}
         data-tourbar-cart-line-state={state}
         data-tourbar-cart-line-key={entry.key}
-        className={`rounded-xl border p-2.5 shadow-sm ${interactiveClass} ${stateCardClass}`}
+        className={`rounded-xl border p-3 shadow-sm md:p-2.5 ${interactiveClass} ${stateCardClass}`}
       >
         <div className="flex items-start justify-between gap-2">
           {isLocked ? (
@@ -1470,7 +1641,7 @@ export function OrderReview({
             </button>
           )}
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="rounded-full bg-transparent px-2 py-1 text-[11px] font-bold text-white/82 ring-1 ring-white/15 md:bg-slate-950 md:text-white md:ring-0">
+            <span className={`rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px] ${cartLinePriceClass(state, isLocked, appearance)}`}>
               {formatLinePrice(entry.line)}
             </span>
             {!isLocked && (
@@ -1478,7 +1649,7 @@ export function OrderReview({
                 type="button"
                 onClick={() => onRemoveItem(entry, actions)}
                 aria-label={`Remove ${entry.label}`}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-transparent text-white/45 shadow-sm transition hover:border-red-400/40 hover:bg-red-950/30 hover:text-red-300 md:border-slate-200 md:bg-white md:text-slate-400 md:hover:border-red-200 md:hover:bg-red-50 md:hover:text-red-600"
+                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition ${cartLineRemoveButtonClass(appearance)}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -1494,16 +1665,16 @@ export function OrderReview({
     return (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <div className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${state === "pending" ? "text-rose-300 md:text-rose-700" : state === "optional" ? "text-yellow-300 md:text-amber-700" : "text-green-300 md:text-emerald-700"}`}>
+          <div className={`text-[11px] font-semibold uppercase tracking-[0.12em] md:text-[10px] md:tracking-[0.14em] ${cartSectionLabelClass(state, appearance)}`}>
             {label}
           </div>
           {state === "ready" && (
-            <div className="rounded-full bg-transparent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-green-300 ring-1 ring-green-400/15 md:bg-emerald-100 md:text-emerald-800 md:ring-emerald-200">
+            <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] md:text-[9px] ${cartSectionBadgeClass("ready", appearance)}`}>
               {isLocked ? "LOCKED" : "READY"}
             </div>
           )}
           {state === "optional" && (
-            <div className="rounded-full bg-transparent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-yellow-300 ring-1 ring-yellow-400/15 md:bg-amber-100 md:text-amber-800 md:ring-amber-200">
+            <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] md:text-[9px] ${cartSectionBadgeClass("optional", appearance)}`}>
               CHECKOUT OK
             </div>
           )}
@@ -1518,10 +1689,10 @@ export function OrderReview({
     return (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-300 md:text-slate-600">
+          <div className={`text-[11px] font-semibold uppercase tracking-[0.12em] md:text-[10px] md:tracking-[0.14em] ${cartSectionLabelClass("unrecognized", appearance)}`}>
             Retry needed
           </div>
-          <div className="rounded-full bg-transparent px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-300 ring-1 ring-slate-400/15 md:bg-slate-200 md:text-slate-700 md:ring-slate-300">
+          <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] md:text-[9px] ${cartSectionBadgeClass("unrecognized", appearance)}`}>
             Not charged
           </div>
         </div>
@@ -1535,31 +1706,31 @@ export function OrderReview({
                 data-tourbar-cart-line-state="unrecognized"
                 data-tourbar-cart-retry-index={index}
                 onClick={() => openRetryPanel(index)}
-                className={`w-full rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:hover:shadow-slate-200/80 ${cartLineCardClass("unrecognized", isLocked)}`}
+                className={`w-full rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:hover:shadow-slate-200/80 ${cartLineCardClass("unrecognized", isLocked, appearance)}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <div className={`text-sm font-semibold ${cartLineTitleClass("unrecognized", isLocked)}`}>
+                      <div className={`text-base font-semibold leading-5 md:text-sm md:leading-tight ${cartLineTitleClass("unrecognized", isLocked, appearance)}`}>
                         {label}
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.10em] ${itemStatusClass("unrecognized")}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${itemStatusClass("unrecognized", appearance)}`}>
                         Retry
                       </span>
                     </div>
                     <div
                       title={cannotMatchReason(entry, notOnMenuLabel)}
-                      className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass("unrecognized", isLocked)}`}
+                      className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass("unrecognized", isLocked, appearance)}`}
                     >
                       Not priced.
                     </div>
                     {entry.suggestion && (
-                      <div className="mt-1 text-[11px] font-semibold text-slate-200 md:text-slate-700">
+                      <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-slate-700" : "text-slate-200 md:text-slate-700"}`}>
                         Try: {entry.suggestion}
                       </div>
                     )}
                   </div>
-                  <span className="shrink-0 rounded-full bg-transparent px-2 py-1 text-[11px] font-bold text-slate-300 ring-1 ring-slate-400/15 md:bg-slate-200 md:text-slate-700 md:ring-slate-300">
+                  <span className={`shrink-0 rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px] ${cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
                     —
                   </span>
                 </div>
@@ -1591,14 +1762,14 @@ export function OrderReview({
             animate="visible"
             exit="exit"
             data-tourbar-cart-action-panel="retry"
-            className="pointer-events-none absolute inset-x-0 bottom-[86px] z-20 px-1 md:left-auto md:max-w-sm"
+            className="pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"
           >
-            <div className="pointer-events-auto rounded-2xl border border-slate-400/25 bg-slate-950/96 p-3 text-white shadow-2xl shadow-black/35 ring-1 ring-white/10 backdrop-blur md:border-slate-200 md:bg-white md:text-slate-950 md:ring-slate-200">
+            <div className={`pointer-events-auto max-h-[min(420px,calc(100svh-138px))] overflow-y-auto overscroll-contain rounded-2xl border p-3 shadow-2xl backdrop-blur ${actionPanelCardClass("retry", appearance)}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 md:text-slate-500">Retry item</div>
-                  <div className="mt-1 text-sm font-bold">{label}</div>
-                  <div className="mt-1 text-[11px] leading-4 text-slate-300 md:text-slate-500">
+                  <div className={`text-[11px] font-black uppercase tracking-[0.14em] md:text-[10px] md:tracking-[0.16em] ${actionPanelEyebrowClass("retry", appearance)}`}>Retry item</div>
+                  <div className="mt-1 text-base font-bold leading-5 md:text-sm md:leading-tight">{label}</div>
+                  <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${appearance === "light" ? "text-slate-600" : "text-slate-300 md:text-slate-500"}`}>
                     No menu match.
                   </div>
                 </div>
@@ -1607,12 +1778,12 @@ export function OrderReview({
                   onClick={() => setCartActionPanel(null)}
                   data-tourbar-cart-action-close="retry"
                   aria-label="Close retry panel"
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:bg-white/10 md:border-slate-200 md:text-slate-500 md:hover:bg-slate-50"
+                  className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
                 >
                   ×
                 </button>
               </div>
-              <label className="mt-3 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 md:text-slate-500">
+              <label className={`mt-3 block text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-slate-400 md:text-slate-500"}`}>
                 Try again
               </label>
               <input
@@ -1626,7 +1797,7 @@ export function OrderReview({
                   onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                 }}
                 data-tourbar-cart-retry-input="true"
-                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white outline-none ring-0 placeholder:text-white/30 focus:border-white/25 md:border-slate-200 md:bg-slate-50 md:text-slate-950 md:focus:border-slate-400"
+                className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-base font-semibold outline-none ring-0 md:py-2 md:text-sm ${appearance === "light" ? "border-slate-300 bg-slate-50 text-slate-950 placeholder:text-slate-400 focus:border-slate-500" : "border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-white/25 md:border-slate-200 md:bg-slate-50 md:text-slate-950 md:focus:border-slate-400"}`}
               />
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -1640,14 +1811,14 @@ export function OrderReview({
                     onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                   }}
                   data-tourbar-cart-retry-submit="true"
-                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-white md:bg-slate-950 md:text-white md:hover:bg-slate-800"
+                  className={`rounded-full px-3 py-2 text-sm font-bold transition md:py-1.5 md:text-xs ${appearance === "light" ? "bg-slate-950 text-white hover:bg-slate-800" : "bg-slate-100 text-slate-700 hover:bg-white md:bg-slate-950 md:text-white md:hover:bg-slate-800"}`}
                 >
                   Retry
                 </button>
                 <button
                   type="button"
                   onClick={() => setCartActionPanel(null)}
-                  className="rounded-full border border-white/10 px-3 py-1.5 text-xs font-bold text-white/75 transition hover:bg-white/10 md:border-slate-200 md:text-slate-600 md:hover:bg-slate-50"
+                  className={`rounded-full border px-3 py-2 text-sm font-bold transition md:py-1.5 md:text-xs ${appearance === "light" ? "border-slate-300 text-slate-700 hover:bg-slate-100" : "border-white/10 text-white/75 hover:bg-white/10 md:border-slate-200 md:text-slate-600 md:hover:bg-slate-50"}`}
                 >
                   Leave out
                 </button>
@@ -1678,16 +1849,16 @@ export function OrderReview({
           animate="visible"
           exit="exit"
           data-tourbar-cart-action-panel={panelKind}
-          className="pointer-events-none absolute inset-x-0 bottom-[86px] z-20 px-1 md:left-auto md:max-w-sm"
+          className="pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"
         >
-          <div className={`pointer-events-auto rounded-2xl border p-3 shadow-2xl shadow-black/35 backdrop-blur ${panelKind === "required" ? "border-rose-400/25 bg-slate-950/96 text-white ring-1 ring-rose-400/10 md:border-rose-200 md:bg-white md:text-slate-950 md:ring-rose-100" : "border-yellow-400/25 bg-slate-950/96 text-white ring-1 ring-yellow-400/10 md:border-amber-200 md:bg-white md:text-slate-950 md:ring-amber-100"}`}>
+          <div className={`pointer-events-auto max-h-[min(420px,calc(100svh-138px))] overflow-y-auto overscroll-contain rounded-2xl border p-3 shadow-2xl backdrop-blur ${actionPanelCardClass(panelKind, appearance)}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className={`text-[10px] font-black uppercase tracking-[0.16em] ${panelKind === "required" ? "text-rose-300 md:text-rose-600" : "text-yellow-300 md:text-amber-600"}`}>
+                <div className={`text-[11px] font-black uppercase tracking-[0.14em] md:text-[10px] md:tracking-[0.16em] ${actionPanelEyebrowClass(panelKind, appearance)}`}>
                   {panelKind === "required" ? "Required choice" : "Optional extras"}
                 </div>
-                <div className="mt-1 truncate text-sm font-bold">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : `Customize ${panelItem.line.title || panelItem.label}`}</div>
-                <div className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass(state, false)}`}>
+                <div className="mt-1 truncate text-base font-bold leading-5 md:text-sm md:leading-tight">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : `Customize ${panelItem.line.title || panelItem.label}`}</div>
+                <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, false, appearance)}`}>
                   {panelKind === "required" ? "Choose one to finish the cart." : "Checkout is already available; add extras only if wanted."}
                 </div>
               </div>
@@ -1696,7 +1867,7 @@ export function OrderReview({
                 onClick={() => setCartActionPanel(null)}
                 data-tourbar-cart-action-close={panelKind}
                 aria-label="Close cart action panel"
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:bg-white/10 md:border-slate-200 md:text-slate-500 md:hover:bg-slate-50"
+                className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
               >
                 ×
               </button>
@@ -1710,7 +1881,7 @@ export function OrderReview({
                   return (
                     <div key={`${panelItem.key}-${group.qualifierId || group.label || group.targetId}`} className="space-y-2">
                       {panelGroups.length > 1 && (
-                        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/45 md:text-slate-500">
+                        <div className={`text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-white/45 md:text-slate-500"}`}>
                           {group.label || "Choices"}
                         </div>
                       )}
@@ -1731,13 +1902,7 @@ export function OrderReview({
                               data-tourbar-qualifier-label={option.label || option.value || ""}
                               onClick={() => handlePanelOptionSelect(panelItem, panelKind, group, option)}
                               aria-pressed={selected}
-                              className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold shadow-sm transition ${
-                                selected
-                                  ? "border-green-400/30 bg-transparent text-green-300 ring-1 ring-green-400/20 md:border-emerald-300 md:bg-emerald-600 md:text-white md:ring-0 md:shadow-emerald-100"
-                                  : isMissing || panelKind === "required"
-                                    ? "border-rose-400/30 bg-transparent text-rose-300 hover:bg-rose-950/20 md:border-rose-200 md:bg-rose-50 md:text-rose-800 md:hover:bg-rose-100"
-                                    : "border-yellow-400/30 bg-transparent text-yellow-300 hover:bg-yellow-950/20 md:border-amber-200 md:bg-amber-50 md:text-amber-800 md:hover:bg-amber-100"
-                              }`}
+                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
                             >
                               {selected ? "✓ " : ""}
                               {displayLabel}
@@ -1755,7 +1920,7 @@ export function OrderReview({
             {panelMissing.length > 0 && (
               <div className="mt-3 space-y-1.5">
                 {panelMissing.map((missingItem) => (
-                  <div key={`${panelItem.key}-${missingItem.qualifierId || missingItem.label}`} className="rounded-xl bg-transparent px-3 py-2 text-xs font-semibold text-rose-300 ring-1 ring-rose-400/15 md:bg-rose-50 md:text-rose-800 md:ring-rose-100">
+                  <div key={`${panelItem.key}-${missingItem.qualifierId || missingItem.label}`} className={`rounded-xl px-3 py-2 text-sm font-semibold md:text-xs ${appearance === "light" ? "bg-rose-50 text-rose-900 ring-1 ring-rose-200" : "bg-transparent text-rose-300 ring-1 ring-rose-400/15 md:bg-rose-50 md:text-rose-800 md:ring-rose-100"}`}>
                     {missingItem.label || missingItem.qualifierId || "Choice"} needed
                   </div>
                 ))}
@@ -1770,15 +1935,15 @@ export function OrderReview({
   const summaryState: CartLineState = hasPendingItems ? "pending" : hasOptionalItems ? "optional" : hasCannotMatchItems ? "unrecognized" : "ready";
 
   return (
-    <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-hidden">
+    <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-visible">
       {speedDemoReadyPillLabel ? (
         <div className="shrink-0">
-          <span className="inline-flex w-fit rounded-full bg-transparent px-3 py-1.5 text-xs font-bold text-green-300 ring-1 ring-green-400/20 md:bg-emerald-50 md:text-emerald-800 md:ring-emerald-200">
+          <span className={`inline-flex w-fit rounded-full px-3 py-1.5 text-sm font-bold md:text-xs ${readyPillClass(appearance)}`}>
             {speedDemoReadyPillLabel}
           </span>
         </div>
       ) : (
-        <div className={`shrink-0 rounded-xl border px-3 py-2 text-xs leading-5 ${isLocked ? "border-green-400/20 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-slate-200 md:bg-slate-50 md:text-slate-800 md:ring-0" : sectionStatusClass(summaryState)}`}>
+        <div className={`shrink-0 rounded-xl border px-3 py-2 text-[13px] font-semibold leading-5 md:text-xs ${isLocked ? (appearance === "light" ? "border-slate-200 bg-slate-50 text-slate-800 ring-0" : "border-green-400/20 bg-transparent text-green-300 ring-1 ring-green-400/10 md:border-slate-200 md:bg-slate-50 md:text-slate-800 md:ring-0") : sectionStatusClass(summaryState, appearance)}`}>
           {isLocked
             ? hasCannotMatchItems
               ? `Checkout handoff is locked for matched items. ${cannotMatchItems.length} raw item${cannotMatchItems.length === 1 ? "" : "s"} stayed out.`
@@ -1797,7 +1962,7 @@ export function OrderReview({
         </div>
       )}
 
-      <div className="max-h-[clamp(180px,34dvh,340px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
+      <div className="max-h-[clamp(190px,38dvh,360px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
         {items.length || cannotMatchItems.length ? (
           <>
             {renderCannotMatchSection()}
@@ -1806,7 +1971,7 @@ export function OrderReview({
             {renderCartSection("Options available", optionalItems, "optional")}
           </>
         ) : (
-          <div className="rounded-xl border border-dashed border-white/15 bg-transparent px-3 py-3 text-xs text-white/50 md:border-slate-200 md:bg-white md:text-slate-500">
+          <div className={`rounded-xl border border-dashed px-3 py-3 text-sm md:text-xs ${appearance === "light" ? "border-slate-300 bg-white text-slate-600" : "border-white/15 bg-transparent text-white/50 md:border-slate-200 md:bg-white md:text-slate-500"}`}>
             No food items saved yet.
           </div>
         )}
@@ -1814,13 +1979,13 @@ export function OrderReview({
 
       {renderActionPanel()}
 
-      <div className="shrink-0 rounded-xl border border-white/15 bg-transparent p-2.5 text-white shadow-none md:border-slate-200 md:bg-white md:text-slate-950 md:shadow-sm">
+      <div className={`shrink-0 rounded-xl border p-2.5 ${checkoutPanelClass(appearance)}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className={`text-xs font-semibold ${isLocked || canCheckoutMatchedItems ? "text-green-300 md:text-slate-900" : "text-rose-300 md:text-slate-900"}`}>
+            <div className={`text-sm font-semibold md:text-xs ${checkoutTitleClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
               {isLocked ? "Checkout handoff ready" : hasPendingItems ? "Complete required choices" : hasCannotMatchItems ? "Checkout matched items" : "Review and checkout"}
             </div>
-            <div className={`mt-0.5 text-[11px] leading-4 ${isLocked || canCheckoutMatchedItems ? "text-green-200/75 md:text-slate-500" : "text-rose-200/80 md:text-slate-500"}`}>
+            <div className={`mt-0.5 text-[13px] leading-5 md:text-[11px] md:leading-4 ${checkoutHelperClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
               {isLocked
                 ? hasCannotMatchItems
                   ? "Only matched items are included in this handoff."
@@ -1841,7 +2006,7 @@ export function OrderReview({
             </div>
           </div>
           {isLocked ? (
-            <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-transparent px-3 py-2 text-xs font-semibold text-green-300 shadow-sm ring-1 ring-green-400/20 md:bg-slate-950 md:text-white md:ring-0">
+            <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm md:text-xs ${appearance === "light" ? "bg-slate-950 text-white ring-0" : "bg-transparent text-green-300 ring-1 ring-green-400/20 md:bg-slate-950 md:text-white md:ring-0"}`}>
               <LockKeyhole className="h-3.5 w-3.5" />
               Handoff ready
             </div>
@@ -1860,12 +2025,11 @@ export function OrderReview({
                 actions.submitFollowUp("checkout");
               }}
               disabled={!items.length}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 ${
-                hasPendingItems
-                  ? "bg-transparent text-rose-300 ring-1 ring-rose-400/25 hover:bg-rose-950/20 md:bg-rose-600 md:text-white md:ring-0 md:hover:bg-rose-700"
-                  : hasCannotMatchItems
-                    ? "bg-transparent text-green-300 ring-1 ring-green-400/25 hover:bg-green-950/20 md:bg-slate-950 md:text-white md:ring-0 md:hover:bg-slate-800"
-                    : "bg-transparent text-green-300 ring-1 ring-green-400/25 hover:bg-green-950/20 md:bg-emerald-700 md:text-white md:ring-0 md:hover:bg-emerald-800"
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 md:text-xs ${
+                checkoutButtonClass(
+                  hasPendingItems ? "blocked" : hasCannotMatchItems ? "matched" : "checkout",
+                  appearance,
+                )
               }`}
             >
               {hasPendingItems ? "Choose required" : hasCannotMatchItems ? "Checkout matched" : "Checkout"}

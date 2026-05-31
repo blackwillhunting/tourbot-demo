@@ -135,6 +135,8 @@ export type TourBarShellDemoCommand = {
   result?: TourBarShellResult;
 };
 
+export type TourBarShellAppearance = "auto" | "light" | "dark";
+
 export type TourBarShellProps = {
   primaryPlaceholder?: string;
   followUpPlaceholder?: string;
@@ -144,6 +146,7 @@ export type TourBarShellProps = {
   initialLoadingMessage?: string;
   followUpLoadingMessage?: string;
   requireBookingContext?: boolean;
+  appearance?: TourBarShellAppearance;
   consultantChat?: TourBarConsultantChatConfig;
   demoCommand?: TourBarShellDemoCommand | null;
   onPrimarySubmit: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
@@ -402,21 +405,21 @@ function compactMobileResultText(text: string) {
   return `${clean.slice(0, 237).trim()}…`;
 }
 
-function MobilePlainText({ text }: { text: string }) {
+function MobilePlainText({ text, appearance = "dark" }: { text: string; appearance?: TourBarShellAppearance }) {
   if (!text) return null;
 
   return (
-    <p className="text-[13px] font-semibold leading-5 text-slate-100/88">
+    <p className={`text-[15px] font-semibold leading-6 ${appearance === "light" ? "text-slate-700" : "text-slate-100/88"}`}>
       {text}
     </p>
   );
 }
 
-function MobileSheetTitleRail({ title }: { title?: string }) {
+function MobileSheetTitleRail({ title, appearance = "dark" }: { title?: string; appearance?: TourBarShellAppearance }) {
   if (!title) return null;
 
   return (
-    <div className="shrink-0 px-3 pb-2 pt-1 text-left text-[11px] font-black uppercase tracking-[0.16em] text-white/86">
+    <div className={`shrink-0 px-3 pb-2 pt-1 text-left text-[12px] font-black uppercase tracking-[0.14em] ${appearance === "light" ? "text-slate-600" : "text-white/86"}`}>
       {title}
     </div>
   );
@@ -443,6 +446,11 @@ export async function focusTourBarPageTarget(
 }
 
 
+function resolveTourBarShellAppearance(appearance: TourBarShellAppearance, _isPhoneViewport: boolean) {
+  if (appearance === "auto") return "light";
+  return appearance;
+}
+
 function isSmartBarPhoneViewport() {
   if (typeof window === "undefined") return false;
 
@@ -461,6 +469,7 @@ export default function TourBarShell({
   initialLoadingMessage = "Finding the right part of this site…",
   followUpLoadingMessage = "Thinking through that follow-up…",
   requireBookingContext = false,
+  appearance = "dark",
   consultantChat,
   demoCommand,
   onPrimarySubmit,
@@ -1310,12 +1319,17 @@ export default function TourBarShell({
       : "min(78svh, 680px)";
   const mobileSheetInnerMaxHeight = `calc(${mobileSheetMaxHeight} - 56px)`;
 
+  const resolvedAppearance = resolveTourBarShellAppearance(appearance, isPhoneShellViewport);
+  const isLightShell = resolvedAppearance === "light";
+
   const shellRootClass = isPhoneShellViewport
     ? "fixed inset-x-0 bottom-0 z-[10060] h-[76px] shrink-0"
     : "relative z-[10060] h-9 w-9 shrink-0";
 
   const shellOpenPanelClass = isPhoneShellViewport
-    ? "fixed inset-x-0 bottom-0 top-auto z-[10060] min-h-[76px] w-auto overflow-visible bg-slate-950 text-white shadow-[0_-18px_42px_rgba(2,6,23,0.38)]"
+    ? isLightShell
+      ? "fixed inset-x-0 bottom-0 top-auto z-[10060] min-h-[76px] w-auto overflow-visible border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-18px_42px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+      : "fixed inset-x-0 bottom-0 top-auto z-[10060] min-h-[76px] w-auto overflow-visible bg-slate-950 text-white shadow-[0_-18px_42px_rgba(2,6,23,0.38)]"
     : "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]";
 
   const shellSheetAnchorClass = isPhoneShellViewport
@@ -1323,7 +1337,9 @@ export default function TourBarShell({
     : "absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden";
 
   const shellSheetPanelClass = isPhoneShellViewport
-    ? "max-h-[78svh] min-h-0 overflow-hidden bg-slate-950 p-2 text-white shadow-[0_28px_76px_rgba(2,6,23,0.50)]"
+    ? isLightShell
+      ? "max-h-[78svh] min-h-0 overflow-hidden border border-slate-200/80 bg-white/96 p-2 text-slate-950 shadow-[0_28px_76px_rgba(15,23,42,0.18)] ring-1 ring-white/90 backdrop-blur-xl"
+      : "max-h-[78svh] min-h-0 overflow-hidden bg-slate-950 p-2 text-white shadow-[0_28px_76px_rgba(2,6,23,0.50)]"
     : "max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl";
 
   const shellSheetMaxHeightStyle = isPhoneShellViewport
@@ -1342,7 +1358,9 @@ export default function TourBarShell({
     ? "min-h-0 space-y-2 overflow-y-auto overscroll-contain p-2 pb-3"
     : "space-y-3 px-4 py-3";
 
-  const shellSheetFooterClass = "shrink-0 border-t border-slate-300 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.12)]";
+  const shellSheetFooterClass = isLightShell
+    ? "shrink-0 border-t border-slate-200 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.10)]"
+    : "shrink-0 border-t border-slate-800 bg-slate-950 px-3 py-2 shadow-[0_-12px_28px_rgba(2,6,23,0.32)]";
 
   const shellSheetInitialY = isPhoneShellViewport ? "100%" : "-100%";
   const showMobileCollapsedComposer = isPhoneShellViewport && mobileComposerCollapsed;
@@ -1394,7 +1412,13 @@ export default function TourBarShell({
     ) : null;
 
   const shellMarkup = (
-    <div data-tourbar-shell-root="true" data-smartbar-mobile-footer-mode={mobileFooterMode || undefined} className={shellRootClass}>
+    <div
+      data-tourbar-shell-root="true"
+      data-tourbar-appearance={resolvedAppearance}
+      data-tourbar-viewport={isPhoneShellViewport ? "phone" : "desktop"}
+      data-smartbar-mobile-footer-mode={mobileFooterMode || undefined}
+      className={shellRootClass}
+    >
       <AnimatePresence mode="wait">
         {!isOpen ? (
           <motion.button
@@ -1409,8 +1433,12 @@ export default function TourBarShell({
             data-smartbar-pointer-kind="launcher"
             className={
               isPhoneShellViewport
-                ? "group absolute inset-0 flex items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 shadow-[0_-16px_36px_rgba(2,6,23,0.34)] transition hover:bg-slate-900 hover:text-white/90"
-                : "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
+                ? isLightShell
+                  ? "group absolute inset-0 flex items-center justify-center overflow-hidden border-t border-slate-200/80 bg-white/96 px-4 text-slate-600 shadow-[0_-16px_36px_rgba(15,23,42,0.14)] transition hover:bg-white hover:text-slate-950"
+                  : "group absolute inset-0 flex items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 shadow-[0_-16px_36px_rgba(2,6,23,0.34)] transition hover:bg-slate-900 hover:text-white/90"
+                : isLightShell
+                  ? "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-950/10 ring-1 ring-white transition hover:bg-slate-50 hover:text-slate-950"
+                  : "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             }
             aria-label={launcherAriaLabel}
             title={launcherTitle}
@@ -1419,13 +1447,13 @@ export default function TourBarShell({
               data-smartbar-launcher-hotspot="true"
               className={
                 isPhoneShellViewport
-                  ? "pointer-events-none inline-flex items-center justify-center gap-2 text-white/70"
+                  ? `pointer-events-none inline-flex items-center justify-center gap-2 ${isLightShell ? "text-slate-600" : "text-white/70"}`
                   : "pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse"
               }
             >
-              <Sparkles className={isPhoneShellViewport ? "h-4 w-4 animate-pulse text-white/75" : "h-4 w-4"} />
+              <Sparkles className={isPhoneShellViewport ? `h-4 w-4 animate-pulse ${isLightShell ? "text-orange-500" : "text-white/75"}` : "h-4 w-4"} />
               {isPhoneShellViewport ? (
-                <span className="text-[12px] font-black uppercase tracking-[0.16em] text-white/70">SmartBar</span>
+                <span className={`text-[13px] font-black uppercase tracking-[0.14em] ${isLightShell ? "text-slate-700" : "text-white/70"}`}>SmartBar</span>
               ) : null}
             </span>
           </motion.button>
@@ -1439,7 +1467,7 @@ export default function TourBarShell({
             transition={isPhoneShellViewport ? undefined : { duration: 0.2, ease: "easeInOut" }}
             className={shellOpenPanelClass}
           >
-            <div className={isPhoneShellViewport ? "relative min-h-[76px] bg-slate-950" : "relative"}>
+            <div className={isPhoneShellViewport ? `relative min-h-[76px] ${isLightShell ? "bg-white/96" : "bg-slate-950"}` : "relative"}>
               <AnimatePresence initial={false} mode={isPhoneShellViewport ? "sync" : "wait"}>
                 {showMobileCollapsedComposer ? (
                   <motion.button
@@ -1449,7 +1477,10 @@ export default function TourBarShell({
                     onClick={openComposer}
                     data-smartbar-launcher="true"
                     data-smartbar-pointer-kind="launcher"
-                    className="flex h-[76px] w-full items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 transition hover:bg-slate-900 hover:text-white/90"
+                    className={isLightShell
+                      ? "flex h-[76px] w-full items-center justify-center overflow-hidden border-t border-slate-200/80 bg-white/96 px-4 text-slate-600 shadow-[0_-14px_32px_rgba(15,23,42,0.12)] transition hover:bg-white hover:text-slate-950"
+                      : "flex h-[76px] w-full items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 transition hover:bg-slate-900 hover:text-white/90"
+                    }
                     aria-label={launcherAriaLabel}
                     title={launcherTitle}
                   >
@@ -1457,7 +1488,7 @@ export default function TourBarShell({
                       data-smartbar-launcher-hotspot="true"
                       data-smartbar-mobile-status={mobileFooterHasStatus ? "true" : undefined}
                       className={mobileFooterHasStatus
-                        ? "pointer-events-none flex min-h-[76px] w-full items-center justify-center px-6 py-3 text-center text-[12px] font-semibold leading-4 text-white/72"
+                        ? `pointer-events-none flex min-h-[76px] w-full items-center justify-center px-6 py-3 text-center text-[13px] font-semibold leading-5 ${isLightShell ? "text-slate-600" : "text-white/72"}`
                         : "pointer-events-none inline-flex h-7 min-w-20 items-center justify-center px-5 py-1.5"
                       }
                     >
@@ -1468,7 +1499,7 @@ export default function TourBarShell({
                           <span className="block max-w-[92vw] whitespace-normal">{mobileFooterStatusText}</span>
                         )
                       ) : (
-                        <span className="h-1.5 w-10 rounded-full bg-white/35" />
+                        <span className={`h-1.5 w-10 rounded-full ${isLightShell ? "bg-slate-300" : "bg-white/35"}`} />
                       )}
                     </span>
                   </motion.button>
@@ -1477,9 +1508,9 @@ export default function TourBarShell({
                     key="tourbar-mobile-entry-composer"
                     initial={false}
                   >
-                    <div className={isPhoneShellViewport ? "min-h-[76px] overflow-visible bg-slate-950 text-white" : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
+                    <div className={isPhoneShellViewport ? `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
                   <div className={isPhoneShellViewport ? "flex min-h-[76px] items-start gap-2 px-3 pb-2 pt-3" : "flex items-end gap-2 px-3 py-2"}>
-                    <span className={isPhoneShellViewport ? "mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center text-white/85" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
+                    <span className={isPhoneShellViewport ? `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center ${isLightShell ? "text-orange-500" : "text-white/85"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
                       <Search className="h-4 w-4" />
                     </span>
                     <textarea
@@ -1496,7 +1527,7 @@ export default function TourBarShell({
                       }}
                       placeholder={primaryComposerPlaceholder}
                       rows={isPhoneShellViewport ? 2 : 1}
-                      className={isPhoneShellViewport ? "max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-sm font-medium leading-6 text-white outline-none placeholder:text-white/40" : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"}
+                      className={isPhoneShellViewport ? `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-medium leading-6 outline-none md:text-sm ${isLightShell ? "text-slate-950 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}` : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"}
                     />
                     <button
                       type="button"
@@ -1505,7 +1536,7 @@ export default function TourBarShell({
                       data-smartbar-pointer-kind="submit"
                       onClick={submitPrimaryComposer}
                       disabled={!canSubmit}
-                      className={isPhoneShellViewport ? "mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center text-white transition hover:text-white/80 disabled:cursor-not-allowed disabled:opacity-45" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"}
+                      className={isPhoneShellViewport ? `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-45 ${isLightShell ? "text-slate-700 hover:text-slate-950" : "text-white hover:text-white/80"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"}
                       aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
@@ -1524,10 +1555,10 @@ export default function TourBarShell({
                         className={`${isPhoneShellViewport ? "mt-0.5 h-10 w-10" : "mb-0.5 h-8 w-8"} inline-flex shrink-0 items-center justify-center rounded-full transition ${
                           consultantChatOpen
                             ? isPhoneShellViewport
-                              ? "text-white"
+                              ? isLightShell ? "text-sky-700" : "text-white"
                               : "bg-sky-100 text-sky-700 ring-1 ring-sky-200"
                             : isPhoneShellViewport
-                              ? "text-white/60 hover:text-white"
+                              ? isLightShell ? "text-slate-500 hover:text-slate-950" : "text-white/60 hover:text-white"
                               : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                         }`}
                         aria-label={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
@@ -1545,7 +1576,7 @@ export default function TourBarShell({
                           setIsOpen(false);
                         }
                       }}
-                      className={isPhoneShellViewport ? "mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center text-white/50 transition hover:text-white" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"}
+                      className={isPhoneShellViewport ? `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition ${isLightShell ? "text-slate-400 hover:text-slate-900" : "text-white/50 hover:text-white"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"}
                       aria-label="Close TourBar"
                     >
                       <X className="h-4 w-4" />
@@ -1577,17 +1608,17 @@ export default function TourBarShell({
                       style={shellSheetMaxHeightStyle}
                     >
                       {isPhoneShellViewport && !isLoading && (
-                        <MobileSheetTitleRail title={mobileRegularSheetTitle} />
+                        <MobileSheetTitleRail title={mobileRegularSheetTitle} appearance={resolvedAppearance} />
                       )}
 
                       {isLoading && (
-                        <div className={isPhoneShellViewport ? "px-4 py-4 text-sm font-semibold text-white/80" : "px-4 py-4 text-sm font-medium text-slate-600"}>
+                        <div className={isPhoneShellViewport ? `px-4 py-4 text-[15px] font-semibold leading-6 ${isLightShell ? "text-slate-600" : "text-white/80"}` : "px-4 py-4 text-sm font-medium text-slate-600"}>
                           <ThinkingText body={loadingMessage} />
                         </div>
                       )}
 
                       {error && (
-                        <div className={isPhoneShellViewport ? "rounded-[19px] bg-rose-950/55 px-4 py-4 text-sm font-semibold leading-5 text-rose-100 ring-1 ring-rose-300/20" : "px-4 py-4 text-sm leading-5 text-rose-700"}>
+                        <div className={isPhoneShellViewport ? `rounded-[19px] px-4 py-4 text-[15px] font-semibold leading-6 ring-1 ${isLightShell ? "bg-rose-50 text-rose-800 ring-rose-200" : "bg-rose-950/55 text-rose-100 ring-rose-300/20"}` : "px-4 py-4 text-sm leading-5 text-rose-700"}>
                           {error}
                         </div>
                       )}
@@ -1632,7 +1663,7 @@ export default function TourBarShell({
                               <div className={shellSheetBodyClass}>
                                 {shouldShowResultBody && (
                                   isPhoneShellViewport ? (
-                                    <MobilePlainText text={resultBodyForDisplay} />
+                                    <MobilePlainText text={resultBodyForDisplay} appearance={resolvedAppearance} />
                                   ) : (
                                     <MarkdownLite text={resultBodyForDisplay} />
                                   )
@@ -1713,7 +1744,7 @@ export default function TourBarShell({
                       style={shellSheetMaxHeightStyle}
                     >
                       {isPhoneShellViewport && (
-                        <MobileSheetTitleRail title={mobileConsultantSheetTitle} />
+                        <MobileSheetTitleRail title={mobileConsultantSheetTitle} appearance={resolvedAppearance} />
                       )}
 
                       <div
