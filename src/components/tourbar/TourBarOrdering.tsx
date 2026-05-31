@@ -927,33 +927,6 @@ function applyLocalLineRemoval(order: CarryoutOrder | null, item: ReviewItem): C
   return rebuildOrderCollections(nextOrder);
 }
 
-function applyLocalCannotMatchRemoval(order: CarryoutOrder | null, retryIndex: number): CarryoutOrder | null {
-  if (!order) return order;
-
-  let displayedIndex = -1;
-  const nextCannotMatchItems = (order.cannotMatchItems || []).filter((entry) => {
-    if (!cannotMatchLabel(entry)) return false;
-    displayedIndex += 1;
-    return displayedIndex !== retryIndex;
-  });
-
-  const nextOrder: CarryoutOrder = {
-    ...order,
-    cannotMatchItems: nextCannotMatchItems,
-    // A retry replacement is a fresh cart mutation. Do not carry forward any
-    // target/step data from the unmatched row; otherwise the next response can
-    // inherit stale navigation hints and SmartBar may hunt for a target that no
-    // longer exists.
-    currentStep: undefined,
-    currentQualifierControls: undefined,
-    navigationOrder: undefined,
-    lockedForHandoff: false,
-    handoffStatus: undefined,
-  };
-
-  return rebuildOrderCollections(nextOrder);
-}
-
 function checkoutIsLocked(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
   const action = String(response.commerceAction || "").toLowerCase();
   return Boolean(
@@ -1236,6 +1209,31 @@ function navigateToItem(
   });
 }
 
+function cartEntryMatchesKey(entry: ReviewItem, key?: string) {
+  const cleanKey = String(key || "").trim();
+  if (!cleanKey) return false;
+
+  return Boolean(
+    valuesEqual(entry.key, cleanKey) ||
+      lineIdentityKeys(entry.line).some((lineKey) => valuesEqual(lineKey, cleanKey)) ||
+      valuesEqual(entry.line.targetId, cleanKey),
+  );
+}
+
+function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
+  if (!promotedKey || !entries.some((entry) => cartEntryMatchesKey(entry, promotedKey))) {
+    return entries;
+  }
+
+  return [...entries].sort((a, b) => {
+    const aPromoted = cartEntryMatchesKey(a, promotedKey);
+    const bPromoted = cartEntryMatchesKey(b, promotedKey);
+
+    if (aPromoted === bPromoted) return a.index - b.index;
+    return aPromoted ? -1 : 1;
+  });
+}
+
 export function OrderReview({
   result,
   actions,
@@ -1269,12 +1267,19 @@ export function OrderReview({
   void activeIndex;
 
   const [cartActionPanel, setCartActionPanel] = useState<CartActionPanel>(null);
+  const [recentlyCompletedItemKey, setRecentlyCompletedItemKey] = useState("");
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
   const order = carryoutOrder || extractCarryoutOrder(response);
+  const speedDemoPromotedReadyLineItemId = String(
+    ((response as GuideAiCarryoutResponse & { __speedDemo?: { promoteReadyLineItemId?: string } }).__speedDemo?.promoteReadyLineItemId || ""),
+  ).trim();
   const items = order ? reviewItemsFrom(response, order) : [];
   const pendingItems = items.filter((entry) => entry.pending);
   const optionalItems = items.filter(lineHasOptionalChoices);
-  const readyItems = items.filter((entry) => !entry.pending && !lineHasOptionalChoices(entry));
+  const readyItems = promoteCartEntries(
+    items.filter((entry) => !entry.pending && !lineHasOptionalChoices(entry)),
+    speedDemoPromotedReadyLineItemId || recentlyCompletedItemKey,
+  );
   const cannotMatchItems = (order?.cannotMatchItems || []).filter((entry) => cannotMatchLabel(entry));
   const hasPendingItems = pendingItems.length > 0;
   const hasOptionalItems = optionalItems.length > 0;
@@ -1346,6 +1351,7 @@ export function OrderReview({
     }
 
     if (panelKind === "optional") {
+      setRecentlyCompletedItemKey("");
       if (nextPanelItem && lineHasOptionalChoices(nextPanelItem)) {
         setCartActionPanel({ kind: "optional", itemKey: nextPanelItem.key });
       }
@@ -1357,14 +1363,17 @@ export function OrderReview({
       return;
     }
 
+    const completedItemKey = nextPanelItem?.key || panelItem.key;
     const nextPending = nextItems.find((entry) => entry.pending);
     if (nextPending) {
+      setRecentlyCompletedItemKey(completedItemKey);
       onActiveIndexChange(nextPending.index);
       setCartActionPanel({ kind: "required", itemKey: nextPending.key });
       navigateToItem(nextPending, onNavigateToFocus);
       return;
     }
 
+    setRecentlyCompletedItemKey(completedItemKey);
     setCartActionPanel(null);
     onReviewModeChange("cart");
   };
@@ -1573,10 +1582,14 @@ export function OrderReview({
         <AnimatePresence>
           <motion.div
             key={`retry-panel-${cartActionPanel.index}`}
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            variants={{
+              hidden: { y: "125%" },
+              visible: { y: 0, transition: { duration: 1.35, ease: "easeOut" } },
+              exit: { y: "125%", transition: { duration: 0.24, ease: "easeIn" } },
+            }}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
             data-tourbar-cart-action-panel="retry"
             className="pointer-events-none absolute inset-x-0 bottom-[86px] z-20 px-1 md:left-auto md:max-w-sm"
           >
@@ -1656,10 +1669,14 @@ export function OrderReview({
       <AnimatePresence>
         <motion.div
           key={`${panelKind}-panel-${panelItem.key}`}
-          initial={{ opacity: 0, y: 18, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 12, scale: 0.98 }}
-          transition={{ duration: 0.18, ease: "easeOut" }}
+          variants={{
+            hidden: { y: "125%" },
+            visible: { y: 0, transition: { duration: 1.35, ease: "easeOut" } },
+            exit: { y: "125%", transition: { duration: 0.24, ease: "easeIn" } },
+          }}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
           data-tourbar-cart-action-panel={panelKind}
           className="pointer-events-none absolute inset-x-0 bottom-[86px] z-20 px-1 md:left-auto md:max-w-sm"
         >
@@ -1784,9 +1801,9 @@ export function OrderReview({
         {items.length || cannotMatchItems.length ? (
           <>
             {renderCannotMatchSection()}
+            {renderCartSection(isLocked ? "Locked matched items" : "Ready items", readyItems, "ready")}
             {renderCartSection("Required choices", pendingItems, "pending")}
             {renderCartSection("Options available", optionalItems, "optional")}
-            {renderCartSection(isLocked ? "Locked matched items" : "Ready items", readyItems, "ready")}
           </>
         ) : (
           <div className="rounded-xl border border-dashed border-white/15 bg-transparent px-3 py-3 text-xs text-white/50 md:border-slate-200 md:bg-white md:text-slate-500">
@@ -1961,19 +1978,9 @@ export default function TourBarOrdering({
     setReviewMode("cart");
   };
 
-  const replaceCannotMatchItem = (retryIndex: number, retryValue: string, actions: TourBarShellActions) => {
-    const next = applyLocalCannotMatchRemoval(carryoutOrderRef.current, retryIndex);
-    const nextLength = allLines(next).length;
-    const cannotMatchCount = next?.cannotMatchItems?.length || 0;
-
-    setCarryoutOrder(next);
-    setActiveReviewIndex((index) => (nextLength ? Math.min(index, nextLength - 1) : 0));
-    setReviewMode(nextLength > 0 || cannotMatchCount > 0 ? "cart" : "review");
-
-    // Replacing an unmatched gray row should update the cart sheet, not trigger
-    // a background page hunt. The replacement can still add the new item; the
-    // next result just should not carry a stale focus target from the raw row.
-    suppressNextOrderingFocusRef.current = true;
+  const replaceCannotMatchItem = (_retryIndex: number, retryValue: string, actions: TourBarShellActions) => {
+    // Retry is a menu lookup, not a local cart toggle. Let the shell retract the
+    // current cart, show ThinkingText, and then mount the backend/fixture result.
     clearSmartBarFocusOverlay();
     actions.submitFollowUp(retryValue);
   };

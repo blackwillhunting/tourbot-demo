@@ -51,6 +51,7 @@ const DEMO_TUTOR_INITIAL_DELAY_MS = 820;
 const DEMO_TUTOR_HOLD_MS = 2500;
 const DEMO_REPLAY_SETTLE_MS = 360;
 const SPEED_DEMO_POINTER_SETTLE_FRAMES = 3;
+const SPEED_DEMO_POINTER_STABLE_RECT_ATTEMPTS = 34;
 const SPEED_DEMO_POINTER_LOCK_ATTEMPTS = 10;
 const SPEED_DEMO_POINTER_MIN_VISIBLE_RATIO = 0.82;
 
@@ -211,7 +212,7 @@ function speedDemoRectDelta(a: DOMRect, b: DOMRect) {
 async function waitForSpeedDemoStableRect(element: HTMLElement, frames = SPEED_DEMO_POINTER_SETTLE_FRAMES) {
   let previousRect = element.getBoundingClientRect();
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < SPEED_DEMO_POINTER_STABLE_RECT_ATTEMPTS; attempt += 1) {
     await waitForFrames(frames);
     const nextRect = element.getBoundingClientRect();
 
@@ -914,6 +915,9 @@ type SpeedResultOptions = {
   separateSheetNextMove?: boolean;
   stableSheetKey?: string;
   commerceAction?: string;
+  promoteReadyLineItemId?: string;
+  focusTargetId?: string;
+  nextMoveLoadingMessage?: string;
 };
 
 function speedMeta(
@@ -1019,6 +1023,9 @@ function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): To
         separateSheetNextMove: Boolean(options.separateSheetNextMove),
         stableSheetKey: options.stableSheetKey || "ordering",
         readyPillLabel: order.status === "ready_cart" ? "All items are ready for checkout" : undefined,
+        promoteReadyLineItemId: options.promoteReadyLineItemId,
+        focusTargetId: options.focusTargetId,
+        nextMoveLoadingMessage: options.nextMoveLoadingMessage,
       },
     },
   };
@@ -1171,6 +1178,8 @@ function fixtureResult(query: string): TourBarShellResult {
       body: "Medium onion rings added. The gray item was replaced.",
       reviewMode: "cart",
       stableSheetKey: "retry-onion-rings",
+      promoteReadyLineItemId: "medium-onion-rings",
+      focusTargetId: "side-onion-rings",
     });
   }
 
@@ -1180,6 +1189,7 @@ function fixtureResult(query: string): TourBarShellResult {
       body: "Matched items ready. The gray row(s) held out.",
       reviewMode: "cart",
       stableSheetKey: "cannot-match-tacos",
+      nextMoveLoadingMessage: "Checking the BurgerRush menu...",
     });
   }
 
@@ -1202,6 +1212,7 @@ function fixtureResult(query: string): TourBarShellResult {
       reviewMode: "cart",
       nextQuery: "__qualifier_2",
       keepSheetOpenNextMove: true,
+      promoteReadyLineItemId: "cheeseburger",
     });
   }
 
@@ -1212,7 +1223,8 @@ function fixtureResult(query: string): TourBarShellResult {
       activeIndex: 2,
       reviewMode: "cart",
       nextQuery: "__qualifier_3",
-      separateSheetNextMove: true,
+      keepSheetOpenNextMove: true,
+      promoteReadyLineItemId: "fries-size",
     });
   }
 
@@ -1221,6 +1233,7 @@ function fixtureResult(query: string): TourBarShellResult {
       title: "Review order",
       nextQuery: "__checkout_qualified",
       separateSheetNextMove: true,
+      promoteReadyLineItemId: "milkshake",
     });
   }
 
@@ -1420,6 +1433,9 @@ function speedDemoOrderTarget(result: TourBarShellResult) {
   const raw = (result.raw || {}) as GuideAiCarryoutResponse;
   const order = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
   if (!order) return null;
+
+  const explicitTarget = (raw as GuideAiCarryoutResponse & { __speedDemo?: { focusTargetId?: string } }).__speedDemo?.focusTargetId;
+  if (explicitTarget) return explicitTarget;
 
   const currentTarget = order.currentStep?.targetId;
   if (currentTarget) return currentTarget;

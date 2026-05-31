@@ -828,6 +828,8 @@ export default function TourBarShell({
     }
 
     const priorThread = thread.slice(-8);
+    const activeSpeedMeta = speedDemoMeta(activeResult);
+    const shouldKeepSpeedSheetOpen = Boolean(activeSpeedMeta.keepSheetOpenNextMove);
 
     setBookingContextReturnResult(null);
     setIsOpen(true);
@@ -835,11 +837,13 @@ export default function TourBarShell({
     setFollowUp("");
     collapseMobileComposer();
     setIsAnswering(true);
-    setResult(null);
     setStandaloneResult(null);
-    setLoadingMessage(followUpLoadingMessage);
+    setLoadingMessage(activeSpeedMeta.nextMoveLoadingMessage || followUpLoadingMessage);
 
-    await wait(sheetRetractMs);
+    if (!shouldKeepSpeedSheetOpen) {
+      setResult(null);
+      await wait(sheetRetractMs);
+    }
 
     const scopeLimitKind = requireBookingContext ? tourBarScopeLimitKindFromPrompt(cleanFollowUp) : null;
     if (scopeLimitKind) {
@@ -863,7 +867,7 @@ export default function TourBarShell({
       return;
     }
 
-    setIsLoading(true);
+    setIsLoading(!shouldKeepSpeedSheetOpen);
     setIsAnswering(false);
 
     try {
