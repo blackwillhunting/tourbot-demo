@@ -18,6 +18,7 @@ export type SmartBarSpeedCommand =
   | { kind: "typePrimary"; value: string; delayMs?: number }
   | { kind: "submitPrimary"; value?: string; delayMs?: number }
   | { kind: "typeFollowUp"; value: string; delayMs?: number }
+  | { kind: "typeInput"; targetSelector: string; value: string; clearFirst?: boolean; delayMs?: number }
   | { kind: "submitFollowUp"; value?: string; delayMs?: number }
   | { kind: "openBookingContext"; field: TourBarRequiredBookingField; delayMs?: number; settleMs?: number }
   | { kind: "setBookingContext"; bookingContext: TourBarBookingContext; delayMs?: number }
@@ -39,6 +40,7 @@ export type SmartBarSpeedCommand =
       targetId?: string;
       targetSelector?: string;
       label?: string;
+      click?: boolean;
       delayMs?: number;
       aimMs?: number;
       pulseMs?: number;
@@ -277,12 +279,10 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          //"Complete cart is ready",
-          //"SmartBar can hand it off",
           "Plain English",
-          "Plus typos",
+          "Typos included",
           "Cart loaded",
-          "Done",
+          "Checkout-ready",
         ],
       },
       {
@@ -300,7 +300,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     id: "incomplete-order",
     chapter: "Ordering",
     label: "Incomplete order",
-    helper: "Qualifier sheet.",
+    helper: "Cart opens with required-choice overlay.",
     surface: "ordering",
     commands: [
       { kind: "shell", type: "closeChat", delayMs: 80 },
@@ -313,9 +313,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1600,
         cards: [
-          "Order incomplete",
-          //"SmartBar sweeps up missing choices",
-          //"and asks only for missing choices",
+          "Missing choices",
+          "Only blockers are flagged",
+          "Cart stays intact",
         ],
       },
       {
@@ -326,15 +326,14 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 820,
       },
       { kind: "submitPrimary", delayMs: 650 },
-      { kind: "focusTarget", targetId: "item-cheeseburger", label: "Cheeseburger", delayMs: 650 },
-      { kind: "pause", delayMs: 950 },
+      { kind: "pause", delayMs: 1250 },
     ],
   },
   {
     id: "qualifiers",
     chapter: "Ordering",
     label: "Resolve choices",
-    helper: "Choices, cart, checkout.",
+    helper: "Overlay choices, cart, checkout.",
     surface: "ordering",
     commands: [
       {
@@ -344,9 +343,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          //"Choices become guided steps",
-          //"Each missing detail gets a path",
-          "Collects missing choices",
+          "One choice at a time",
+          "Cart updates live",
+          "Checkout unlocks when ready",
         ],
       },
       {
@@ -357,8 +356,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 820,
       },
       { kind: "shell", type: "runNextMove", delayMs: 350 },
-      { kind: "focusTarget", targetId: "side-fries", label: "Fries", delayMs: 520 },
-      { kind: "pause", delayMs: 950 },
+      { kind: "pause", delayMs: 1050 },
       {
         kind: "pointerClick",
         targetSelector: '[data-tourbar-qualifier-option="large"]',
@@ -367,7 +365,6 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 720,
       },
       { kind: "shell", type: "runNextMove", delayMs: 350 },
-      { kind: "focusTarget", targetId: "drink-milkshake", label: "Milkshake", delayMs: 520 },
       { kind: "pause", delayMs: 1250 },
       {
         kind: "pointerClick",
@@ -390,6 +387,189 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 1800 },
       { kind: "shell", type: "closeSheet", delayMs: 650 },
       { kind: "pause", delayMs: 650 },
+    ],
+  },
+  {
+    id: "optional-extras",
+    chapter: "Ordering",
+    label: "Optional extras",
+    helper: "Checkout stays available while extras stay optional.",
+    surface: "ordering",
+    commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
+      { kind: "typePrimary", value: "cheeseburger no onions, show burger options", delayMs: 250 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 1000,
+        finalHoldMs: 1500,
+        cards: [
+          "Extras stay optional",
+          "Add bacon",
+          "Checkout stays open",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-primary-submit="true"]',
+        label: "",
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "submitPrimary", delayMs: 650 },
+      { kind: "pause", delayMs: 1050 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-state="optional"] button',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 650 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-qualifier-option="bacon"]',
+        label: "",
+        delayMs: 180,
+        pulseMs: 760,
+      },
+      { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 1200 },
+      { kind: "pause", delayMs: 450 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        pulseMs: 640,
+      },
+      { kind: "pause", delayMs: 1150 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        label: "",
+        delayMs: 300,
+        pulseMs: 820,
+        anchorY: 0.68,
+      },
+      { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 2200 },
+      { kind: "pause", delayMs: 1200 },
+      { kind: "shell", type: "closeSheet", delayMs: 500, settleMs: 850 },
+    ],
+  },
+  {
+    id: "unmatched-order",
+    chapter: "Ordering",
+    label: "Unmatched item",
+    helper: "Gray retry row for items not on the menu.",
+    surface: "ordering",
+    commands: [
+      { kind: "shell", type: "closeChat", delayMs: 80 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
+      { kind: "typePrimary", value: "cheeseburger, large fries, lava tacos", delayMs: 250 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 1000,
+        finalHoldMs: 1500,
+        cards: [
+          "Bad item isolated",
+          "Matched items stay ready",
+          "Retry replaces the gray row",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-primary-submit="true"]',
+        label: "",
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "submitPrimary", delayMs: 650 },
+      { kind: "pause", delayMs: 1100 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-state="unrecognized"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 550 },
+      {
+        kind: "typeInput",
+        targetSelector: '[data-tourbar-cart-retry-input="true"]',
+        value: "med rings",
+        delayMs: 120,
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-retry-submit="true"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 2600 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        label: "",
+        delayMs: 250,
+        pulseMs: 820,
+        anchorY: 0.68,
+      },
+      { kind: "pause", delayMs: 550 },
+      { kind: "shell", type: "closeSheet", delayMs: 420, settleMs: 850 },
+      { kind: "pause", delayMs: 450 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1500,
+        cards: [
+          "Not a burger-shop toy.",
+          "Real menu complexity.",
+          "Modifiers.",
+          "Sizes.",
+          "Missing choices.",
+          "Bad items.",
+        ],
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1500,
+        cards: [
+          "One burger.",
+          "Office lunches.",
+          "Team meals.",
+          "Catering requests.",
+          "Paste the list.",
+          "Build the cart.",
+        ],
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1800,
+        cards: [
+          "Setup is simple.",
+          "Site scan.",
+          "Code snippet.",
+          "Menu brief.",
+          "Go live.",
+        ],
+      },
     ],
   },
   {
@@ -730,8 +910,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 850,
         finalHoldMs: 1300,
         cards: [
-          "Guided discovery.",
-          "Finds the right answer.",
+          "Menu guidance.",
+          "Finds the right item.",
           "Opens the next step.",
         ],
       },
@@ -754,9 +934,9 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 850,
         finalHoldMs: 1300,
         cards: [
-          "Booking assistance.",
-          "Ranks the options.",
-          "Carries the context.",
+          "Order recovery.",
+          "Fixes bad items.",
+          "Keeps good items.",
         ],
       },
       {
@@ -767,11 +947,54 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1600,
         cards: [
           "Setup is simple.",
-          "A site scan.",
-          "A code snippet.",
-          "And a Knowledge Pack.",
+          "Site scan.",
+          "Code snippet.",
+          "Menu brief.",
         ],
       },
     ],
   },
 ];
+
+const BURGERRUSH_ONLY_STEP_IDS = [
+  "open",
+  "complete-order",
+  "checkout",
+  "incomplete-order",
+  "qualifiers",
+  "optional-extras",
+  "unmatched-order",
+];
+
+export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = SMARTBAR_SPEED_STEPS
+  .filter((step) => BURGERRUSH_ONLY_STEP_IDS.includes(step.id))
+  .map((step) => {
+    if (step.id === "open") {
+      return {
+        ...step,
+        chapter: "BurgerRush",
+        surface: "ordering",
+      };
+    }
+
+    if (step.id === "complete-order") {
+      return {
+        ...step,
+        chapter: "BurgerRush",
+        label: "Complete order",
+        commands: step.commands.filter((command) => {
+          if (command.kind !== "cards") return true;
+          return !command.cards.some((card) => {
+            const title = typeof card === "string" ? card : card.title;
+            return title.includes("Example 2:");
+          });
+        }),
+      };
+    }
+
+    return {
+      ...step,
+      chapter: "BurgerRush",
+    };
+  });
+

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, ChevronLeft, ChevronRight, RefreshCcw, Users } from "lucide-react";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../smartbarFocusController";
@@ -34,7 +34,7 @@ import {
   type SmartBarFlashCardNotice,
   type SmartBarTutorCard,
 } from "./SmartBarFlashCardRail";
-import { SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import { SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const MOBILE_TYPE_DELAY_MS = 42;
@@ -90,6 +90,39 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
     clearCascade: true,
   },
 ];
+
+const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
+  {
+    title: "BurgerRush Carryout",
+    cascadeGroup: "burger-rush-only-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "Order in plain English",
+    cascadeGroup: "burger-rush-only-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "SmartBar builds the cart",
+    cascadeGroup: "burger-rush-only-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "Choices, fixes, checkout",
+    cascadeGroup: "burger-rush-only-intro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+];
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -627,6 +660,125 @@ function lockedCheeseburgerFriesShakeOrder(): CarryoutOrder {
   };
 }
 
+function optionalCheeseburgerOrder(kind: "plain" | "bacon" = "plain"): CarryoutOrder {
+  const hasBacon = kind === "bacon";
+  const subtotal = hasBacon ? 6.74 : 5.49;
+  const item = {
+    lineItemId: "cheeseburger-options",
+    id: "item-cheeseburger",
+    targetId: "item-cheeseburger",
+    title: "Cheeseburger",
+    quantity: 1,
+    priceLabel: `$${subtotal.toFixed(2)}`,
+    status: "ready",
+    knownSelections: ["No onions"],
+    modifiers: hasBacon ? [{ label: "Bacon", priceDelta: 1.25 }] : [],
+    qualifierGroups: [
+      {
+        kind: "modifier",
+        qualifierId: "burger-extras",
+        label: "Optional extras",
+        targetId: "item-cheeseburger",
+        required: false,
+        missing: false,
+        selectionMode: "multi",
+        options: [
+          { label: "Bacon", value: "bacon", priceDelta: 1.25 },
+          { label: "Extra sauce", value: "extra-sauce", priceDelta: 0.5 },
+          { label: "Pickles", value: "pickles", priceDelta: 0 },
+        ],
+      },
+    ],
+  };
+
+  const items = [item];
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    totals: {
+      status: "ready",
+      subtotal,
+      estimatedTax: hasBacon ? 0.54 : 0.44,
+      estimatedTotal: hasBacon ? 7.28 : 5.93,
+      currency: "USD",
+    },
+  };
+}
+
+function lockedOptionalCheeseburgerOrder(): CarryoutOrder {
+  return {
+    ...optionalCheeseburgerOrder("bacon"),
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+  };
+}
+
+function cannotMatchTacoOrder(): CarryoutOrder {
+  const items = [
+    line("fries-size", "Fries", "$3.49", ["Large fries"]),
+    line("cheeseburger", "Cheeseburger", "$5.49", ["No onions"]),
+  ].map((item) => {
+    if (item.id === "cheeseburger") return { ...item, targetId: "item-cheeseburger" };
+    return { ...item, targetId: "side-fries" };
+  });
+
+  return {
+    type: "carryout_order",
+    status: "partial_match",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    cannotMatchItems: [
+      {
+        text: "lava tacos",
+        reason: "not_on_menu",
+      },
+    ],
+    totals: {
+      status: "partial",
+      subtotal: 8.98,
+      estimatedTax: 0.72,
+      estimatedTotal: 9.7,
+      currency: "USD",
+    },
+  };
+}
+
+function retriedMediumOnionRingsOrder(): CarryoutOrder {
+  const items = [
+    line("medium-onion-rings", "Medium onion rings", "$3.99", ["Medium"]),
+    line("fries-size", "Fries", "$3.49", ["Large fries"]),
+    line("cheeseburger", "Cheeseburger", "$5.49", ["No onions"]),
+  ].map((item) => {
+    if (item.id === "cheeseburger") return { ...item, targetId: "item-cheeseburger" };
+    if (item.id === "fries-size") return { ...item, targetId: "side-fries" };
+    return { ...item, targetId: "side-onion-rings" };
+  });
+
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    cannotMatchItems: [],
+    totals: {
+      status: "ready",
+      subtotal: 12.97,
+      estimatedTax: 1.04,
+      estimatedTotal: 14.01,
+      currency: "USD",
+    },
+  };
+}
+
 function pendingCheeseburgerFriesShakeOrder(stage: 0 | 1 | 2): CarryoutOrder {
   const cheeseburgerReady = stage >= 1;
   const friesReady = stage >= 2;
@@ -975,12 +1127,59 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text.includes("cheeseburger") && text.includes("fries") && text.includes("milkshake")) {
     return orderResult(pendingCheeseburgerFriesShakeOrder(0), {
-      title: "Choose required options",
-      body: "Cheeseburger, fries, and milkshake each need one required choice before checkout.",
+      title: "Review order",
+      body: "Cart opened with required choices. Pick each missing option to finish checkout.",
       activeIndex: 0,
-      reviewMode: "review",
+      reviewMode: "cart",
       nextQuery: "__qualifier_1",
       keepSheetOpenNextMove: true,
+    });
+  }
+
+  if (text.includes("optional extras") || text.includes("show burger options")) {
+    return orderResult(optionalCheeseburgerOrder("plain"), {
+      title: "Review order",
+      body: "Cheeseburger is ready. Optional extras are available, but checkout is not blocked.",
+      reviewMode: "cart",
+      nextQuery: "__optional_bacon",
+      keepSheetOpenNextMove: true,
+    });
+  }
+
+  if (text === "__optional_bacon") {
+    return orderResult(optionalCheeseburgerOrder("bacon"), {
+      title: "Review order",
+      body: "Bacon added. The cart is still ready for checkout.",
+      reviewMode: "cart",
+      nextQuery: "__checkout_optional",
+      separateSheetNextMove: true,
+    });
+  }
+
+  if (text === "__checkout_optional") {
+    return orderResult(lockedOptionalCheeseburgerOrder(), {
+      title: "Order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "checkout-optional",
+      commerceAction: "carryout_checkout_handoff",
+    });
+  }
+
+  if (text.includes("med rings") || text.includes("medium onion rings")) {
+    return orderResult(retriedMediumOnionRingsOrder(), {
+      title: "Review order",
+      body: "Medium onion rings added. The gray item was replaced.",
+      reviewMode: "cart",
+      stableSheetKey: "retry-onion-rings",
+    });
+  }
+
+  if (text.includes("lava tacos") || text.includes("not on the menu")) {
+    return orderResult(cannotMatchTacoOrder(), {
+      title: "Review order",
+      body: "Matched items ready. The gray row(s) held out.",
+      reviewMode: "cart",
+      stableSheetKey: "cannot-match-tacos",
     });
   }
 
@@ -997,10 +1196,10 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__qualifier_1") {
     return orderResult(pendingCheeseburgerFriesShakeOrder(1), {
-      title: "Choose required options",
-      body: "Cheeseburger setup captured. Fries size is next.",
+      title: "Review order",
+      body: "Cheeseburger setup captured. Fries still needs a required choice.",
       activeIndex: 1,
-      reviewMode: "review",
+      reviewMode: "cart",
       nextQuery: "__qualifier_2",
       keepSheetOpenNextMove: true,
     });
@@ -1008,10 +1207,10 @@ function fixtureResult(query: string): TourBarShellResult {
 
   if (text === "__qualifier_2") {
     return orderResult(pendingCheeseburgerFriesShakeOrder(2), {
-      title: "Choose required options",
-      body: "Fries size captured. Milkshake flavor is next.",
+      title: "Review order",
+      body: "Fries size captured. Milkshake flavor is the last required choice.",
       activeIndex: 2,
-      reviewMode: "review",
+      reviewMode: "cart",
       nextQuery: "__qualifier_3",
       separateSheetNextMove: true,
     });
@@ -1330,6 +1529,9 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
         onLocalOptionSelect={() => order}
         onSilentReprice={() => undefined}
         onRemoveItem={() => undefined}
+        onRetryItemReplace={(_retryIndex, retryValue, panelActions) => {
+          panelActions.submitFollowUp(retryValue);
+        }}
         notOnMenuLabel="Not on the demo menu"
       />
     );
@@ -1416,6 +1618,14 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
 }
 
 function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
+  const replayRequestedRef = useRef(false);
+  const requestReplay = useCallback(() => {
+    if (replayRequestedRef.current) return;
+
+    replayRequestedRef.current = true;
+    onReplay();
+  }, [onReplay]);
+
   return (
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
@@ -1425,7 +1635,14 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
       <div className="pointer-events-auto absolute inset-0 z-10 flex items-center justify-center px-3">
         <motion.button
           type="button"
-          onClick={onReplay}
+          onClick={(event) => {
+            event.preventDefault();
+            requestReplay();
+          }}
+          onPointerUp={(event) => {
+            event.preventDefault();
+            requestReplay();
+          }}
           aria-label="Replay demo"
           title="Replay demo"
           initial={{ y: 36, opacity: 0, scale: 0.98 }}
@@ -1444,7 +1661,7 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
 
           <span className="min-w-0">
             <span className="block truncate text-sm font-black tracking-tight text-slate-950 sm:text-base">Demo complete</span>
-            <span className="block truncate text-xs font-semibold text-slate-600">Run the SmartBar speed demo again.</span>
+            <span className="block truncate text-xs font-semibold text-slate-600">Swipe down to replay.</span>
           </span>
 
           <span className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white shadow-lg shadow-slate-950/12 transition group-hover:bg-slate-800 sm:h-12 sm:w-auto sm:px-5 sm:text-xs sm:font-black sm:uppercase sm:tracking-[0.14em]">
@@ -1460,10 +1677,14 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
 
 
 
+export type SmartBarSpeedDemoVariant = "full" | "burgerRushOnly";
+
 export default function SmartBarSpeedDemo({
   autoPlay = false,
+  variant = "full",
 }: {
   autoPlay?: boolean;
+  variant?: SmartBarSpeedDemoVariant;
 }) {
   const [stepIndex, setStepIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1483,15 +1704,29 @@ export default function SmartBarSpeedDemo({
   const lastAutoRevealTargetRef = useRef<{ targetId: string; at: number } | null>(null);
   const autoPlayStartedRef = useRef(false);
   const replayStartPendingRef = useRef(false);
+  const replayFallbackTimerRef = useRef<number | null>(null);
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
+  const demoSteps = useMemo(
+    () => (variant === "burgerRushOnly" ? SMARTBAR_BURGERRUSH_ONLY_STEPS : SMARTBAR_SPEED_STEPS),
+    [variant],
+  );
+  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
 
   const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
     commandIdRef.current += 1;
     setDemoCommand({ id: commandIdRef.current, ...command });
   }, []);
 
+  const clearReplayFallbackTimer = useCallback(() => {
+    if (replayFallbackTimerRef.current === null) return;
+
+    window.clearTimeout(replayFallbackTimerRef.current);
+    replayFallbackTimerRef.current = null;
+  }, []);
+
   const restartDemo = useCallback(() => {
+    clearReplayFallbackTimer();
     setReplayVisible(false);
     setIsPlaying(false);
     setStepIndex(-1);
@@ -1508,11 +1743,30 @@ export default function SmartBarSpeedDemo({
     sendCommand({ type: "closeAll" });
     replayStartPendingRef.current = true;
     setIntroRunId((runId) => runId + 1);
-  }, [sendCommand]);
+
+    replayFallbackTimerRef.current = window.setTimeout(() => {
+      if (!replayStartPendingRef.current) return;
+
+      replayStartPendingRef.current = false;
+      replayFallbackTimerRef.current = null;
+      setTutorBlocking(false);
+      setTutorStackCards([]);
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      resetSpeedDemoStageToTop(targetStageRef.current);
+      setStepIndex(0);
+      setIsPlaying(true);
+    }, 9000);
+  }, [clearReplayFallbackTimer, sendCommand]);
 
   useEffect(() => {
     resetSpeedDemoStageToTop(targetStageRef.current);
   }, []);
+
+  useEffect(() => () => {
+    clearReplayFallbackTimer();
+  }, [clearReplayFallbackTimer]);
 
   useEffect(() => {
     if (!autoPlay || autoPlayStartedRef.current) return;
@@ -1534,8 +1788,8 @@ export default function SmartBarSpeedDemo({
       let nextLane: SmartBarFlashCardLaneName = "a";
       let activeCascadeGroup: string | null = null;
 
-      for (let index = 0; index < OPENING_DEMO_TUTOR_CARDS.length; index += 1) {
-        const card = OPENING_DEMO_TUTOR_CARDS[index];
+      for (let index = 0; index < openingTutorCards.length; index += 1) {
+        const card = openingTutorCards[index];
         const notice: SmartBarFlashCardNotice = {
           variant: "prelude",
           title: card.title,
@@ -1604,6 +1858,7 @@ export default function SmartBarSpeedDemo({
 
       if (replayStartPendingRef.current) {
         replayStartPendingRef.current = false;
+        clearReplayFallbackTimer();
         resetSpeedDemoStageToTop(targetStageRef.current);
         setStepIndex(0);
         setIsPlaying(true);
@@ -1615,7 +1870,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [introRunId]);
+  }, [clearReplayFallbackTimer, introRunId, openingTutorCards]);
 
   const showScriptCards = useCallback(
     async (
@@ -1731,6 +1986,12 @@ export default function SmartBarSpeedDemo({
       );
       if (cancelled()) return;
 
+      if (command.click) {
+        target.click();
+        await wait(80);
+        if (cancelled()) return;
+      }
+
       setFakePointer((current) => (current?.id === pointerId ? null : current));
       await wait(command.exitMs ?? SMARTBAR_FAKE_POINTER_EXIT_MS);
     },
@@ -1759,6 +2020,45 @@ export default function SmartBarSpeedDemo({
     [sendCommand],
   );
 
+  const typeIntoElement = useCallback(
+    async (targetSelector: string, value: string, cancelled: () => boolean, clearFirst = true) => {
+      let target: HTMLInputElement | HTMLTextAreaElement | null = null;
+
+      for (let attempt = 0; attempt < 16; attempt += 1) {
+        target = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(targetSelector);
+        if (target && speedDemoElementLooksVisible(target)) break;
+        await wait(90);
+        if (cancelled()) return;
+      }
+
+      if (!target) return;
+
+      target.focus();
+      if (clearFirst) {
+        const proto = target instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        setter?.call(target, "");
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        await wait(70);
+      }
+
+      const delayMs = speedDemoTypeDelayMs();
+
+      for (let index = 1; index <= value.length; index += 1) {
+        if (cancelled()) return;
+        const nextValue = value.slice(0, index);
+        const proto = target instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+        setter?.call(target, nextValue);
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        await wait(delayMs);
+      }
+    },
+    [],
+  );
+
   const runCommand = useCallback(
     async (command: SmartBarSpeedCommand, cancelled: () => boolean) => {
       if (command.delayMs) await wait(command.delayMs);
@@ -1767,6 +2067,7 @@ export default function SmartBarSpeedDemo({
       if (command.kind === "pause") return;
       if (command.kind === "typePrimary") return typeIntoShell("primary", command.value, cancelled);
       if (command.kind === "typeFollowUp") return typeIntoShell("followup", command.value, cancelled);
+      if (command.kind === "typeInput") return typeIntoElement(command.targetSelector, command.value, cancelled, command.clearFirst ?? true);
       if (command.kind === "typeChat") return typeIntoShell("chat", command.value, cancelled);
       if (command.kind === "submitPrimary") {
         const submittedValue = command.value ?? primaryDraftRef.current;
@@ -1864,14 +2165,14 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [sendCommand, showPointerClick, showScriptCards, typeIntoShell],
+    [sendCommand, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
   );
 
   useEffect(() => {
     if (stepIndex < 0 || tutorBlocking || !isPlaying) return;
 
     let cancelled = false;
-    const currentStep = SMARTBAR_SPEED_STEPS[stepIndex];
+    const currentStep = demoSteps[stepIndex];
     if (!currentStep) return;
 
     const run = async () => {
@@ -1883,8 +2184,8 @@ export default function SmartBarSpeedDemo({
       if (!cancelled) {
         await wait(650);
         if (cancelled) return;
-        if (stepIndex < SMARTBAR_SPEED_STEPS.length - 1) {
-          setStepIndex((index) => Math.min(index + 1, SMARTBAR_SPEED_STEPS.length - 1));
+        if (stepIndex < demoSteps.length - 1) {
+          setStepIndex((index) => Math.min(index + 1, demoSteps.length - 1));
         } else {
           setFakePointer(null);
           setTutorStackCards([]);
@@ -1907,7 +2208,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [isPlaying, runCommand, sendCommand, stepIndex, tutorBlocking]);
+  }, [demoSteps, isPlaying, runCommand, sendCommand, stepIndex, tutorBlocking]);
 
   const beforeResultReveal = async (result: TourBarShellResult) => {
     const targetId = speedDemoResultTarget(result);
@@ -1950,8 +2251,9 @@ export default function SmartBarSpeedDemo({
     return result;
   };
 
-  const currentStep = stepIndex >= 0 ? SMARTBAR_SPEED_STEPS[stepIndex] : null;
-  const toolbarSurface = currentStep?.surface || "info";
+  const currentStep = stepIndex >= 0 ? demoSteps[stepIndex] : null;
+  const defaultSurface = variant === "burgerRushOnly" ? "ordering" : "info";
+  const toolbarSurface = currentStep?.surface || defaultSurface;
   const isFinaleSurface = toolbarSurface === "finale";
 
   useLayoutEffect(() => {

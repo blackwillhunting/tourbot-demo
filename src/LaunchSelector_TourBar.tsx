@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search } from "lucide-react";
-import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
+import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
@@ -27,12 +27,21 @@ const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
+const TOURBOT_AUTH_DEMO_PATH_KEY = "tourbot_demo_path";
+const TOURBOT_LOCAL_DEV_TOKEN = "local-dev";
+const TOURBOT_LOCAL_DEV_TTL_SECONDS = 3600;
 const TOURBOT_LEGACY_UNLOCK_COOKIE = "tourbot_demo_unlocked";
 
 type TourBotAuthResponse = {
   ok?: boolean;
   token?: string;
   expiresAt?: number;
+  demoPath?: string;
+};
+
+type TourBotAuthResult = {
+  accepted: boolean;
+  demoPath?: string;
 };
 
 function isLocalDemoAuthBypassEnabled() {
@@ -61,10 +70,52 @@ function clearStoredTourBotDemoToken() {
 
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  window.localStorage.removeItem(TOURBOT_AUTH_DEMO_PATH_KEY);
   clearLegacyPrototypeCookie();
 }
 
-function saveStoredTourBotDemoToken(token: string, expiresAt?: number) {
+function normalizeTourBotDemoPath(value?: string | null) {
+  const path = String(value || "").trim();
+  if (!path) return "";
+  if (path === "/") return "/";
+  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("://")) return "";
+
+  const cleanPath = path.split("?")[0].split("#")[0].replace(/\/+$/, "");
+  return cleanPath || "/";
+}
+
+function getStoredTourBotDemoPath() {
+  if (typeof window === "undefined") return "";
+  return normalizeTourBotDemoPath(window.localStorage.getItem(TOURBOT_AUTH_DEMO_PATH_KEY));
+}
+
+function saveStoredTourBotDemoPath(demoPath?: string | null) {
+  if (typeof window === "undefined") return;
+
+  const cleanPath = normalizeTourBotDemoPath(demoPath);
+  if (cleanPath) {
+    window.localStorage.setItem(TOURBOT_AUTH_DEMO_PATH_KEY, cleanPath);
+  } else {
+    window.localStorage.removeItem(TOURBOT_AUTH_DEMO_PATH_KEY);
+  }
+}
+
+function currentTourBotDemoPath() {
+  if (typeof window === "undefined") return "/";
+  return normalizeTourBotDemoPath(window.location.pathname) || "/";
+}
+
+function redirectToTourBotDemoPath(demoPath?: string | null) {
+  if (typeof window === "undefined") return false;
+
+  const cleanPath = normalizeTourBotDemoPath(demoPath);
+  if (!cleanPath || currentTourBotDemoPath() === cleanPath) return false;
+
+  window.location.assign(cleanPath);
+  return true;
+}
+
+function saveStoredTourBotDemoToken(token: string, expiresAt?: number, demoPath?: string) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
@@ -74,7 +125,17 @@ function saveStoredTourBotDemoToken(token: string, expiresAt?: number) {
     window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
   }
 
+  saveStoredTourBotDemoPath(demoPath);
   clearLegacyPrototypeCookie();
+}
+
+function ensureLocalDemoAuthToken() {
+  if (!isLocalDemoAuthBypassEnabled()) return;
+
+  saveStoredTourBotDemoToken(
+    TOURBOT_LOCAL_DEV_TOKEN,
+    Math.floor(Date.now() / 1000) + TOURBOT_LOCAL_DEV_TTL_SECONDS,
+  );
 }
 
 function getStoredTourBotDemoToken() {
@@ -126,10 +187,14 @@ function cleanupResetAccessUrl() {
   );
 }
 
-async function checkTourBotDemoSession() {
-  if (isLocalDemoAuthBypassEnabled()) return true;
+async function checkTourBotDemoSession(): Promise<TourBotAuthResult> {
+  if (isLocalDemoAuthBypassEnabled()) {
+    ensureLocalDemoAuthToken();
+    return { accepted: true };
+  }
+
   const token = getStoredTourBotDemoToken();
-  if (!token) return false;
+  if (!token) return { accepted: false };
 
   try {
     const response = await fetch(TOURBOT_AUTH_SESSION_URL, {
@@ -143,29 +208,31 @@ async function checkTourBotDemoSession() {
 
     if (!response.ok) {
       clearStoredTourBotDemoToken();
-      return false;
+      return { accepted: false };
     }
 
     const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
     if (body.ok !== true) {
       clearStoredTourBotDemoToken();
-      return false;
+      return { accepted: false };
     }
 
     if (typeof body.expiresAt === "number") {
-      saveStoredTourBotDemoToken(token, body.expiresAt);
+      saveStoredTourBotDemoToken(token, body.expiresAt, body.demoPath || getStoredTourBotDemoPath());
+    } else if (body.demoPath) {
+      saveStoredTourBotDemoPath(body.demoPath);
     }
 
-    return true;
+    return { accepted: true, demoPath: body.demoPath || getStoredTourBotDemoPath() };
   } catch {
-    return false;
+    return { accepted: false };
   }
 }
 
-async function loginToTourBotDemo(passcode: string) {
+async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> {
   if (isLocalDemoAuthBypassEnabled()) {
-    saveStoredTourBotDemoToken("local-dev", Math.floor(Date.now() / 1000) + 3600);
-    return true;
+    ensureLocalDemoAuthToken();
+    return { accepted: true };
   }
 
   try {
@@ -181,20 +248,20 @@ async function loginToTourBotDemo(passcode: string) {
 
     if (!response.ok) {
       clearStoredTourBotDemoToken();
-      return false;
+      return { accepted: false };
     }
 
     const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
     if (body.ok !== true || !body.token) {
       clearStoredTourBotDemoToken();
-      return false;
+      return { accepted: false };
     }
 
-    saveStoredTourBotDemoToken(body.token, body.expiresAt);
-    return true;
+    saveStoredTourBotDemoToken(body.token, body.expiresAt, body.demoPath);
+    return { accepted: true, demoPath: body.demoPath };
   } catch {
     clearStoredTourBotDemoToken();
-    return false;
+    return { accepted: false };
   }
 }
 
@@ -341,6 +408,162 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
   },
 ];
 
+const BURGERRUSH_ONLY_PRELUDE_SLIPS: PreludeSlip[] = [
+  {
+    title: "What is **SmartBar**?",
+    cascadeGroup: "stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 3000,
+  },
+  {
+    title: "It looks like search",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1000,
+  },
+  {
+    title: "feels like chat",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1000,
+  },
+  {
+    title: "but returns action",
+    cascadeGroup: "stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2000,
+    clearCascade: true,
+  },
+  {
+    title: "Search bars return **results**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "AI chat returns **words**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "SmartBar returns **next steps**",
+    cascadeGroup: "smartbar-thesis",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2000,
+    clearCascade: true,
+  },
+  {
+    title: "a menu answer",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 750,
+  },
+  {
+    title: "a cart",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 750,
+  },
+  {
+    title: "a required choice",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 750,
+  },
+  {
+    title: "an optional add-on",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 750,
+  },
+  {
+    title: "a retry field",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 750,
+  },
+  {
+    title: "or checkout",
+    cascadeGroup: "food-next-step",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1600,
+    clearCascade: true,
+  },
+  {
+    title: "Whatever the order needs",
+    cascadeGroup: "stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2200,
+    clearCascade: true,
+  },
+  {
+    title: "Screen-aware",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "Mounts where it belongs",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "Works on any restaurant site",
+    cascadeGroup: "intro-mobile",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+    clearCascade: true,
+  },
+  {
+    title: "For this demo:",
+    cascadeGroup: "burger-rush-lead-in",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "restaurant ordering",
+    cascadeGroup: "burger-rush-lead-in",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "from plain English",
+    cascadeGroup: "burger-rush-lead-in",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "to a checkout-ready cart",
+    cascadeGroup: "burger-rush-lead-in",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+];
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -432,7 +655,11 @@ function LaunchBackground() {
   );
 }
 
-export default function LaunchSelectorTourBar() {
+export default function LaunchSelectorTourBar({
+  variant = "full",
+}: {
+  variant?: SmartBarSpeedDemoVariant;
+}) {
   const [launchVisible, setLaunchVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [passcode, setPasscode] = useState("");
@@ -494,9 +721,10 @@ export default function LaunchSelectorTourBar() {
       cleanupResetAccessUrl();
 
       let activeCascadeGroup: string | null = null;
+      const activePreludeSlips = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_PRELUDE_SLIPS : PRELUDE_SLIPS;
 
-      for (let index = 0; index < PRELUDE_SLIPS.length; index += 1) {
-        const slip = PRELUDE_SLIPS[index];
+      for (let index = 0; index < activePreludeSlips.length; index += 1) {
+        const slip = activePreludeSlips[index];
         const preludeNotice: SmartBarFlashCardNotice = {
           variant: "prelude",
           title: slip.title,
@@ -582,7 +810,7 @@ export default function LaunchSelectorTourBar() {
       setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
-    [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState],
+    [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState, variant],
   );
 
   useEffect(() => {
@@ -597,10 +825,12 @@ export default function LaunchSelectorTourBar() {
       await wait(INTRO_DELAY_MS);
       if (cancelled) return;
 
-      const hasValidSession = await checkTourBotDemoSession();
+      const sessionResult = await checkTourBotDemoSession();
       if (cancelled) return;
 
-      if (hasValidSession) {
+      if (sessionResult.accepted) {
+        if (redirectToTourBotDemoPath(sessionResult.demoPath)) return;
+
         const runId = runIdRef.current + 1;
         runIdRef.current = runId;
         await startAcceptedFlow(runId, { showAccessGranted: false });
@@ -638,9 +868,9 @@ export default function LaunchSelectorTourBar() {
       await wait(CHECKING_MS);
       if (runIdRef.current !== runId) return;
 
-      const accepted = await loginToTourBotDemo(cleanCode);
+      const loginResult = await loginToTourBotDemo(cleanCode);
 
-      if (!accepted) {
+      if (!loginResult.accepted) {
         const nextLane: SmartBarFlashCardLaneName = getNextNoticeLane();
         const resultNotice: SmartBarFlashCardNotice = {
           variant: "failure",
@@ -666,6 +896,8 @@ export default function LaunchSelectorTourBar() {
         return;
       }
 
+      if (redirectToTourBotDemoPath(loginResult.demoPath)) return;
+
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
     [clearNoticeLanes, getNextNoticeLane, isChecking, launchVisible, passcode, setActiveNoticeLaneState, startAcceptedFlow],
@@ -673,7 +905,7 @@ export default function LaunchSelectorTourBar() {
 
   return (
     <div className="relative h-[100dvh] min-h-[100dvh] overflow-hidden">
-      {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} /> : <LaunchBackground />}
+      {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} variant={variant} /> : <LaunchBackground />}
 <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
 

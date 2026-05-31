@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
@@ -6,7 +6,7 @@ import TourBarShell, {
   type TourBarShellResult,
   type TourBarThreadMessage,
 } from "./TourBarShell";
-import { smartbarFocusTarget } from "./smartbarFocusController";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "./smartbarFocusController";
 
 const GUIDE_AI_URL = "/api/guide_ai";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
@@ -366,8 +366,19 @@ function optionKey(option: CarryoutQualifierOption) {
     .replace(/^-+|-+$/g, "");
 }
 
+function optionHasRawSelection(option: CarryoutQualifierOption) {
+  return Boolean(option.selected || option.state === "selected");
+}
+
+function groupAllowsMultipleSelections(group: CarryoutQualifierGroup) {
+  const kind = String(group.kind || "").toLowerCase();
+  const selectionMode = String(group.selectionMode || "").toLowerCase();
+
+  return selectionMode === "multi" || kind === "modifier" || kind === "upgrade";
+}
+
 function firstRawSelectedOption(group: CarryoutQualifierGroup) {
-  return (group.options || []).find((option) => option.selected || option.state === "selected");
+  return (group.options || []).find(optionHasRawSelection);
 }
 
 function groupSelectedValue(group: CarryoutQualifierGroup) {
@@ -381,6 +392,10 @@ function groupSelectedLabel(group: CarryoutQualifierGroup) {
 }
 
 function groupHasSelection(group: CarryoutQualifierGroup) {
+  if (groupAllowsMultipleSelections(group)) {
+    return (group.options || []).some(optionHasRawSelection);
+  }
+
   return Boolean(groupSelectedValue(group) || groupSelectedLabel(group));
 }
 
@@ -388,23 +403,37 @@ function mergeQualifierGroups(
   preferred: CarryoutQualifierGroup,
   fallback: CarryoutQualifierGroup,
 ) {
+  const allowsMultipleSelections =
+    groupAllowsMultipleSelections(preferred) || groupAllowsMultipleSelections(fallback);
   const preferredSelected = groupHasSelection(preferred);
   const fallbackSelected = groupHasSelection(fallback);
-  const selectedValue = groupSelectedValue(preferred) || groupSelectedValue(fallback);
-  const selectedLabel = groupSelectedLabel(preferred) || groupSelectedLabel(fallback);
+  const selectedValue = allowsMultipleSelections
+    ? ""
+    : groupSelectedValue(preferred) || groupSelectedValue(fallback);
+  const selectedLabel = allowsMultipleSelections
+    ? ""
+    : groupSelectedLabel(preferred) || groupSelectedLabel(fallback);
 
   const options = new Map<string, CarryoutQualifierOption>();
   const addOption = (option: CarryoutQualifierOption) => {
     const key = optionKey(option);
     const existing = options.get(key);
     if (!existing) {
-      options.set(key, option);
+      const selected = optionHasRawSelection(option);
+      options.set(key, {
+        ...option,
+        selected,
+        state: selected ? "selected" : option.state,
+      });
       return;
     }
 
+    const selected = optionHasRawSelection(existing) || optionHasRawSelection(option);
     options.set(key, {
       ...option,
       ...existing,
+      selected,
+      state: selected ? "selected" : existing.state || option.state,
     });
   };
 
@@ -418,12 +447,14 @@ function mergeQualifierGroups(
     selectedLabel,
     missing: preferredSelected || fallbackSelected ? false : Boolean(preferred.missing || fallback.missing),
     options: Array.from(options.values()).map((option) => {
-      const selected = selectedValue || selectedLabel
-        ? Boolean(
-            (selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
-              (selectedLabel && valuesEqual(option.label || option.value, selectedLabel)),
-          )
-        : Boolean(option.selected || option.state === "selected");
+      const selected = allowsMultipleSelections
+        ? optionHasRawSelection(option)
+        : selectedValue || selectedLabel
+          ? Boolean(
+              (selectedValue && valuesEqual(option.value || option.label, selectedValue)) ||
+                (selectedLabel && valuesEqual(option.label || option.value, selectedLabel)),
+            )
+          : optionHasRawSelection(option);
 
       return {
         ...option,
@@ -542,6 +573,8 @@ function pageTarget(targetId?: string | null) {
 function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
   const action = response.commerceAction || "";
   const displayMode = response.displayMode || "";
+  const status = order?.status || "";
+  const cannotCount = (order?.cannotMatchItems || []).filter((item) => cannotMatchLabel(item)).length;
   const items = reviewItemsFrom(response, order);
   const pendingItem = items.find((item) => item.pending);
   const initialItem = pendingItem || items[initialReviewIndexFor(response, order)];
@@ -559,12 +592,17 @@ function primaryTarget(response: GuideAiCarryoutResponse, order: CarryoutOrder |
     if (pendingTarget) return pendingTarget;
   }
 
-  // Ready/cart/checkout states now live inside the TourBar sheet. Do not
-  // spotlight a background page target for those internal review states.
+  // Ready/cart/checkout/cannot-match states now live inside the TourBar
+  // sheet. Do not spotlight a background page target for those internal review
+  // states. This also prevents unmatched-only prompts from scrolling the
+  // BurgerRush page to the top while the gray retry row is already visible.
   if (
     action.includes("checkout") ||
     action.includes("show_cart") ||
+    action.includes("cannot_match") ||
+    status === "cannot_match" ||
     displayMode.includes("cart_panel") ||
+    cannotCount > 0 ||
     (items.length && !pendingItem)
   ) {
     return undefined;
@@ -591,24 +629,26 @@ function titleFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null
   if (status === "ready_cart" || action.includes("ready_cart")) return "Review order";
   if (status === "partial_match" || action.includes("partial_match")) return "Partial order";
   if (status === "needs_qualifier" || action.includes("needs_qualifier")) return "Needs choices";
-  if (status === "cannot_match" || action.includes("cannot_match")) return "Could not match that order";
+  if (status === "cannot_match" || action.includes("cannot_match")) return fallbackTitle;
   if (action.includes("show_cart")) return "Review order";
   return response.title || fallbackTitle;
 }
 
 function bodyFor(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
   const items = reviewItemsFrom(response, order);
+  const cannotCount = (order?.cannotMatchItems || []).filter((item) => cannotMatchLabel(item)).length;
   if (items.length) {
     const pendingCount = items.filter((item) => item.pending).length;
-    const cannotCount = order?.cannotMatchItems?.length || 0;
     if (pendingCount > 0) {
       return cannotCount
         ? "Pick the missing choices and review anything TourBar could not add."
         : "Pick the missing choices, or open the cart to review everything.";
     }
-    if (cannotCount > 0) return "Review matched items and skipped requests before checkout.";
+    if (cannotCount > 0) return "";
     return "Review the cart before checkout.";
   }
+
+  if (cannotCount > 0) return "";
 
   return response.answer || response.body || response.reply || response.message || "I received the order, but the backend did not return a response.";
 }
@@ -648,16 +688,9 @@ function toShellResult(response: GuideAiCarryoutResponse, fallbackTitle = DEFAUL
   };
 }
 
-function groupAllowsMultipleSelections(group: CarryoutQualifierGroup) {
-  const kind = String(group.kind || "").toLowerCase();
-  const selectionMode = String(group.selectionMode || "").toLowerCase();
-
-  return selectionMode === "multi" || kind === "modifier" || kind === "upgrade";
-}
-
 function optionIsSelected(group: CarryoutQualifierGroup, option: CarryoutQualifierOption) {
   if (groupAllowsMultipleSelections(group)) {
-    return Boolean(option.selected || option.state === "selected");
+    return optionHasRawSelection(option);
   }
 
   const selectedValue = groupSelectedValue(group);
@@ -670,7 +703,7 @@ function optionIsSelected(group: CarryoutQualifierGroup, option: CarryoutQualifi
     );
   }
 
-  return Boolean(option.selected || option.state === "selected");
+  return optionHasRawSelection(option);
 }
 
 function valuesEqual(a: unknown, b: unknown) {
@@ -894,6 +927,33 @@ function applyLocalLineRemoval(order: CarryoutOrder | null, item: ReviewItem): C
   return rebuildOrderCollections(nextOrder);
 }
 
+function applyLocalCannotMatchRemoval(order: CarryoutOrder | null, retryIndex: number): CarryoutOrder | null {
+  if (!order) return order;
+
+  let displayedIndex = -1;
+  const nextCannotMatchItems = (order.cannotMatchItems || []).filter((entry) => {
+    if (!cannotMatchLabel(entry)) return false;
+    displayedIndex += 1;
+    return displayedIndex !== retryIndex;
+  });
+
+  const nextOrder: CarryoutOrder = {
+    ...order,
+    cannotMatchItems: nextCannotMatchItems,
+    // A retry replacement is a fresh cart mutation. Do not carry forward any
+    // target/step data from the unmatched row; otherwise the next response can
+    // inherit stale navigation hints and SmartBar may hunt for a target that no
+    // longer exists.
+    currentStep: undefined,
+    currentQualifierControls: undefined,
+    navigationOrder: undefined,
+    lockedForHandoff: false,
+    handoffStatus: undefined,
+  };
+
+  return rebuildOrderCollections(nextOrder);
+}
+
 function checkoutIsLocked(response: GuideAiCarryoutResponse, order: CarryoutOrder | null) {
   const action = String(response.commerceAction || "").toLowerCase();
   return Boolean(
@@ -1043,10 +1103,67 @@ function lineHasOptionalChoices(entry: ReviewItem) {
   );
 }
 
+function optionMatchesCartSelection(option: CarryoutQualifierOption, selection: { label?: string; modifierId?: string; id?: string }) {
+  const optionId = optionRawId(option);
+  const optionLabel = option.label || option.value || "";
+  const selectionLabel = selection.label || "";
+
+  return Boolean(
+    (optionId && selection.modifierId && valuesEqual(optionId, selection.modifierId)) ||
+      (optionId && selection.id && valuesEqual(optionId, selection.id)) ||
+      (selectionLabel && optionLabel && valuesEqual(selectionLabel, optionLabel)) ||
+      (selectionLabel && option.value && valuesEqual(selectionLabel, option.value)),
+  );
+}
+
+function optionMatchesCartLineSelection(line: CarryoutLine, option: CarryoutQualifierOption) {
+  const optionLabel = option.label || option.value || "";
+  const optionValue = option.value || option.label || "";
+  const cartSelections = [...(line.modifiers || []), ...(line.upgrades || [])];
+
+  return Boolean(
+    cartSelections.some((selection) => optionMatchesCartSelection(option, selection)) ||
+      (line.knownSelections || []).some(
+        (selection) =>
+          (optionLabel && valuesEqual(selection, optionLabel)) ||
+          (optionValue && valuesEqual(selection, optionValue)),
+      ),
+  );
+}
+
+function groupWithLineSelections(group: CarryoutQualifierGroup, line: CarryoutLine, panelKind: "required" | "optional") {
+  if (panelKind !== "optional" || !(group.options || []).length) return group;
+
+  // Optional extras are cart-state driven. The backend/group payload can keep a
+  // stale single selectedValue, while the cart line has the real modifier and
+  // upgrade arrays. Make the overlay reflect the cart line exactly.
+  return {
+    ...group,
+    selectedValue: "",
+    selectedLabel: "",
+    options: (group.options || []).map((option) => {
+      const selected = optionMatchesCartLineSelection(line, option);
+      return {
+        ...option,
+        selected,
+        state: selected ? "selected" : "available",
+      };
+    }),
+  };
+}
+
+function syncCartPanelGroupsToLine(item: ReviewItem, groups: CarryoutQualifierGroup[], panelKind: "required" | "optional") {
+  return groups.map((group) => groupWithLineSelections(group, item.line, panelKind));
+}
+
 function groupsForCartPanel(item: ReviewItem, kind: "required" | "optional") {
   if (kind === "optional") {
-    return item.groups.filter(
-      (group) => !group.required && !group.missing && (group.options || []).length > 0,
+    return syncCartPanelGroupsToLine(
+      item,
+      item.groups.filter(
+        (group) => !group.required && !group.missing && (group.options || []).length > 0,
+      ),
+      kind,
     );
   }
 
@@ -1054,7 +1171,7 @@ function groupsForCartPanel(item: ReviewItem, kind: "required" | "optional") {
     (group) => Boolean(group.required || group.missing || missingLabels(item.line, [group]).length),
   );
 
-  return requiredGroups.length ? requiredGroups : item.groups;
+  return syncCartPanelGroupsToLine(item, requiredGroups.length ? requiredGroups : item.groups, kind);
 }
 
 function itemStatusClass(state: CartLineState) {
@@ -1130,6 +1247,7 @@ export function OrderReview({
   onLocalOptionSelect,
   onSilentReprice,
   onRemoveItem,
+  onRetryItemReplace,
   onNavigateToFocus,
   notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
 }: {
@@ -1143,6 +1261,7 @@ export function OrderReview({
   onLocalOptionSelect: (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => CarryoutOrder | null;
   onSilentReprice: (order: CarryoutOrder | null) => void;
   onRemoveItem: (item: ReviewItem, actions?: TourBarShellActions) => void;
+  onRetryItemReplace: (retryIndex: number, retryValue: string, actions: TourBarShellActions) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
   notOnMenuLabel?: string;
 }) {
@@ -1419,8 +1538,11 @@ export function OrderReview({
                         Retry
                       </span>
                     </div>
-                    <div className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass("unrecognized", isLocked)}`}>
-                      {cannotMatchReason(entry, notOnMenuLabel)}. Not priced or included.
+                    <div
+                      title={cannotMatchReason(entry, notOnMenuLabel)}
+                      className={`mt-1 text-[11px] leading-4 ${cartLineHelperClass("unrecognized", isLocked)}`}
+                    >
+                      Not priced.
                     </div>
                     {entry.suggestion && (
                       <div className="mt-1 text-[11px] font-semibold text-slate-200 md:text-slate-700">
@@ -1464,12 +1586,13 @@ export function OrderReview({
                   <div className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-300 md:text-slate-500">Retry item</div>
                   <div className="mt-1 text-sm font-bold">{label}</div>
                   <div className="mt-1 text-[11px] leading-4 text-slate-300 md:text-slate-500">
-                    This stayed raw because it did not match the menu.
+                    No menu match.
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCartActionPanel(null)}
+                  data-tourbar-cart-action-close="retry"
                   aria-label="Close retry panel"
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:bg-white/10 md:border-slate-200 md:text-slate-500 md:hover:bg-slate-50"
                 >
@@ -1477,16 +1600,17 @@ export function OrderReview({
                 </button>
               </div>
               <label className="mt-3 block text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 md:text-slate-500">
-                Try a clearer menu item
+                Try again
               </label>
               <input
-                defaultValue={entry.suggestion || label}
+                defaultValue=""
+                placeholder="Type item"
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
-                  const retryValue = (event.currentTarget.value || label).trim();
+                  const retryValue = (event.currentTarget.value || "").trim();
                   if (!retryValue) return;
                   setCartActionPanel(null);
-                  actions.submitFollowUp(retryValue);
+                  onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                 }}
                 data-tourbar-cart-retry-input="true"
                 className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white outline-none ring-0 placeholder:text-white/30 focus:border-white/25 md:border-slate-200 md:bg-slate-50 md:text-slate-950 md:focus:border-slate-400"
@@ -1497,14 +1621,15 @@ export function OrderReview({
                   onClick={(event) => {
                     const panel = event.currentTarget.closest('[data-tourbar-cart-action-panel="retry"]');
                     const input = panel?.querySelector<HTMLInputElement>('[data-tourbar-cart-retry-input="true"]');
-                    const retryValue = (input?.value || label).trim();
+                    const retryValue = (input?.value || "").trim();
                     if (!retryValue) return;
                     setCartActionPanel(null);
-                    actions.submitFollowUp(retryValue);
+                    onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                   }}
+                  data-tourbar-cart-retry-submit="true"
                   className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-white md:bg-slate-950 md:text-white md:hover:bg-slate-800"
                 >
-                  Replace item
+                  Retry
                 </button>
                 <button
                   type="button"
@@ -1552,6 +1677,7 @@ export function OrderReview({
               <button
                 type="button"
                 onClick={() => setCartActionPanel(null)}
+                data-tourbar-cart-action-close={panelKind}
                 aria-label="Close cart action panel"
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/65 transition hover:bg-white/10 md:border-slate-200 md:text-slate-500 md:hover:bg-slate-50"
               >
@@ -1573,7 +1699,9 @@ export function OrderReview({
                       )}
                       <div className="flex flex-wrap gap-2">
                         {(group.options || []).map((option, optionIndex) => {
-                          const selected = optionIsSelected(group, option);
+                          const selected = panelKind === "optional"
+                            ? optionMatchesCartLineSelection(panelItem.line, option)
+                            : optionIsSelected(group, option);
                           const displayLabel = compactQualifierOptionLabel(option, group, panelItem);
                           return (
                             <button
@@ -1643,7 +1771,9 @@ export function OrderReview({
                 ? `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need required choices. ${cannotMatchItems.length} raw item${cannotMatchItems.length === 1 ? "" : "s"} need retry.`
                 : `${pendingItems.length} item${pendingItems.length === 1 ? "" : "s"} need required choices before checkout.`
               : hasCannotMatchItems
-                ? "Matched items are ready. Gray rows are not priced or included."
+                ? items.length
+                  ? "Matched items are ready. Gray rows are not priced or included."
+                  : "Gray rows are not priced or included."
                 : hasOptionalItems
                   ? `${optionalItems.length} ready item${optionalItems.length === 1 ? "" : "s"} have optional extras available.`
                   : "All items are ready for checkout."}
@@ -1765,12 +1895,25 @@ export default function TourBarOrdering({
   initialLoadingMessage = "Building your BurgerRush draft cart…",
   followUpLoadingMessage = "Updating your order…",
 }: TourBarOrderingProps) {
-  const [carryoutOrder, setCarryoutOrder] = useState<CarryoutOrder | null>(null);
+  const [carryoutOrder, setCarryoutOrderState] = useState<CarryoutOrder | null>(null);
+  const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
+  const suppressNextOrderingFocusRef = useRef(false);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("cart");
 
+  const setCarryoutOrder = useCallback((nextOrder: CarryoutOrder | null) => {
+    carryoutOrderRef.current = nextOrder;
+    setCarryoutOrderState(nextOrder);
+  }, []);
+
   const focusOrderingTarget = useCallback(
     (target: TourBarOrderingFocusTarget) => {
+      if (suppressNextOrderingFocusRef.current) {
+        suppressNextOrderingFocusRef.current = false;
+        clearSmartBarFocusOverlay();
+        return;
+      }
+
       const targetId = pageTarget(target.targetId);
       const focusTarget = {
         targetId,
@@ -1795,13 +1938,13 @@ export default function TourBarOrdering({
   );
 
   const updateLocalOption = (item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
-    const nextOrder = applyLocalQualifierSelection(carryoutOrder, item, group, option);
+    const nextOrder = applyLocalQualifierSelection(carryoutOrderRef.current, item, group, option);
     setCarryoutOrder(nextOrder);
     return nextOrder;
   };
 
   const removeLocalItem = (item: ReviewItem, actions?: TourBarShellActions) => {
-    const next = applyLocalLineRemoval(carryoutOrder, item);
+    const next = applyLocalLineRemoval(carryoutOrderRef.current, item);
     const nextLength = allLines(next).length;
     const cannotMatchCount = next?.cannotMatchItems?.length || 0;
     const shouldCloseSheet = nextLength === 0 && cannotMatchCount === 0;
@@ -1816,6 +1959,23 @@ export default function TourBarOrdering({
     }
 
     setReviewMode("cart");
+  };
+
+  const replaceCannotMatchItem = (retryIndex: number, retryValue: string, actions: TourBarShellActions) => {
+    const next = applyLocalCannotMatchRemoval(carryoutOrderRef.current, retryIndex);
+    const nextLength = allLines(next).length;
+    const cannotMatchCount = next?.cannotMatchItems?.length || 0;
+
+    setCarryoutOrder(next);
+    setActiveReviewIndex((index) => (nextLength ? Math.min(index, nextLength - 1) : 0));
+    setReviewMode(nextLength > 0 || cannotMatchCount > 0 ? "cart" : "review");
+
+    // Replacing an unmatched gray row should update the cart sheet, not trigger
+    // a background page hunt. The replacement can still add the new item; the
+    // next result just should not carry a stale focus target from the raw row.
+    suppressNextOrderingFocusRef.current = true;
+    clearSmartBarFocusOverlay();
+    actions.submitFollowUp(retryValue);
   };
 
   const silentReprice = async (nextOrder: CarryoutOrder | null) => {
@@ -1840,7 +2000,7 @@ export default function TourBarOrdering({
   };
 
   const submit = async (query: string, thread: TourBarThreadMessage[]) => {
-    const response = await postGuideAi(query, carryoutOrder, thread, siteLabel);
+    const response = await postGuideAi(query, carryoutOrderRef.current, thread, siteLabel);
     const nextOrder = extractCarryoutOrder(response);
     if (response.visibleContext && "carryoutOrder" in response.visibleContext) {
       setCarryoutOrder(nextOrder);
@@ -1883,6 +2043,7 @@ export default function TourBarOrdering({
           onLocalOptionSelect={updateLocalOption}
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
+          onRetryItemReplace={replaceCannotMatchItem}
           onNavigateToFocus={focusOrderingTarget}
           notOnMenuLabel={notOnMenuLabel}
         />
@@ -1899,6 +2060,7 @@ export default function TourBarOrdering({
           onLocalOptionSelect={updateLocalOption}
           onSilentReprice={silentReprice}
           onRemoveItem={removeLocalItem}
+          onRetryItemReplace={replaceCannotMatchItem}
           onNavigateToFocus={focusOrderingTarget}
           notOnMenuLabel={notOnMenuLabel}
         />
