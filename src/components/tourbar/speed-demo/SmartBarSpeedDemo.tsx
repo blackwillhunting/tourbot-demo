@@ -1535,6 +1535,7 @@ function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActi
     const order = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
     return (
       <OrderReview
+        appearance="light"
         result={result}
         actions={actions}
         carryoutOrder={order}
@@ -2294,6 +2295,7 @@ export default function SmartBarSpeedDemo({
 
   const smartBarNode = (
     <TourBarShell
+              appearance="light"
               primaryPlaceholder="Ask in plain English..."
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"

@@ -36,11 +36,11 @@ function toolbarTone(surface: SmartBarDemoToolbarSurface) {
 
   if (surface === "ordering") {
     return {
-      shell: "border-orange-200/70 bg-slate-950/94 text-white shadow-slate-950/18",
-      brandBadge: "bg-orange-400 text-slate-950",
-      muted: "text-orange-100/75",
-      pill: "border-white/10 bg-white/10 text-orange-50",
-      activePill: "bg-orange-400 text-slate-950 ring-orange-300/40",
+      shell: "border-orange-200/80 bg-white/94 text-slate-950 shadow-orange-950/10",
+      brandBadge: "bg-orange-500 text-white",
+      muted: "text-slate-500",
+      pill: "border-orange-200 bg-orange-50 text-orange-800",
+      activePill: "bg-orange-500 text-white ring-orange-200/80",
     };
   }
 

@@ -527,6 +527,15 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 550 },
       { kind: "shell", type: "closeSheet", delayMs: 420, settleMs: 850 },
       { kind: "pause", delayMs: 450 },
+    ],
+  },
+  {
+    id: "ordering-closeout",
+    chapter: "Ordering",
+    label: "Ordering closeout",
+    helper: "BurgerRush clears so the closing cards own the screen.",
+    surface: "finale",
+    commands: [
       {
         kind: "cards",
         mode: "standard",
@@ -965,6 +974,7 @@ const BURGERRUSH_ONLY_STEP_IDS = [
   "qualifiers",
   "optional-extras",
   "unmatched-order",
+  "ordering-closeout",
 ];
 
 export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = SMARTBAR_SPEED_STEPS
