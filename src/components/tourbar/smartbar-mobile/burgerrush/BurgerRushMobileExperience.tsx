@@ -27,6 +27,46 @@ function BurgerRushMobileProductSurface() {
   return <BurgerRushCarryoutSite showTourBarOrdering={false} />;
 }
 
+// Mobile navigation speed controls. Tune these first for demo pacing.
+const SMARTBAR_MOBILE_NAV_SCROLL_MS = 1200;
+const SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS = 140;
+const SMARTBAR_MOBILE_NAV_FOCUS_HOLD_MS = 2100;
+
+function smartBarMobileNavEase(progress: number) {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+}
+
+function smartBarMobileAnimateWindowScrollTo(top: number, durationMs: number) {
+  if (typeof window === "undefined") return;
+
+  const startTop = window.scrollY;
+  const distance = top - startTop;
+
+  if (Math.abs(distance) < 2 || durationMs <= 0) {
+    window.scrollTo({ top, left: 0, behavior: "auto" });
+    return;
+  }
+
+  const startedAt = performance.now();
+
+  const step = (now: number) => {
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
+    const eased = smartBarMobileNavEase(progress);
+    window.scrollTo({ top: startTop + distance * eased, left: 0, behavior: "auto" });
+
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
+      return;
+    }
+
+    window.scrollTo({ top, left: 0, behavior: "auto" });
+  };
+
+  window.requestAnimationFrame(step);
+}
+
 type SmartBarMobileFocusSnapshot = {
   element: HTMLElement;
   outline: string;
@@ -76,7 +116,7 @@ function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
   const targetTop = window.scrollY + target.getBoundingClientRect().top;
   const nextTop = Math.max(0, targetTop - anchorY);
 
-  window.scrollTo({ top: nextTop, left: 0, behavior: "smooth" });
+  smartBarMobileAnimateWindowScrollTo(nextTop, SMARTBAR_MOBILE_NAV_SCROLL_MS);
   return anchorY;
 }
 
@@ -155,8 +195,8 @@ export default function BurgerRushMobileExperience() {
         if (mobileFocusSnapshotRef.current?.element === target) {
           clearMobileFocusTarget();
         }
-      }, 2100);
-    }, 620);
+      }, SMARTBAR_MOBILE_NAV_FOCUS_HOLD_MS);
+    }, SMARTBAR_MOBILE_NAV_SCROLL_MS + SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS);
   }, [clearMobileFocusTarget]);
 
   const handleSubmitPrompt = useCallback(async (query: string, meta?: SmartBarMobileSubmitMeta) => {
