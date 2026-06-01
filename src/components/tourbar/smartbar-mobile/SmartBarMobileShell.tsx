@@ -344,15 +344,20 @@ export default function SmartBarMobileShell({
     setSelectedChoice({ lineId: line.id, value });
     disarmClose();
 
+    const selectedOptionKey = value.trim().toLowerCase();
+    const optionKeys = new Set((line.options || []).map((option) => option.trim().toLowerCase()));
     const cleanedDetails = (line.details || []).filter((detail) => {
-      return !/^(choice needed|size needed)$/i.test(detail.trim());
+      const detailKey = detail.trim().toLowerCase();
+      if (/^(choice needed|size needed)$/i.test(detail.trim())) return false;
+      if (optionKeys.has(detailKey) && detailKey !== selectedOptionKey) return false;
+      return true;
     });
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
       status: "ready",
       helper: `${value} selected`,
       details: Array.from(new Set([...cleanedDetails, value])),
-      options: [],
+      options: line.options || [],
     };
     const parentResult = onApplyLineChoice?.(line, value);
 
@@ -774,7 +779,11 @@ export default function SmartBarMobileShell({
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                               {selectedLine.options.map((option) => {
-                                const isSelected = selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option;
+                                const persistedSelected = (selectedLine.details || []).some((detail) => {
+                                  return detail.trim().toLowerCase() === option.trim().toLowerCase();
+                                });
+                                const isSelected = persistedSelected ||
+                                  (selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option);
                                 const isLocked = selectedChoice?.lineId === selectedLine.id && !isSelected;
 
                                 return (

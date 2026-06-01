@@ -1,0 +1,699 @@
+import type { CarryoutOrder } from "../../TourBarOrdering";
+import type {
+  SmartBarMobileOrderLine,
+  SmartBarMobileOrderResult,
+  SmartBarMobileOrderStatus,
+  SmartBarMobileSubmitMeta,
+} from "../SmartBarMobileShell";
+
+function burgerRushMobileCompactText(value?: string | null) {
+  return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function smartBarMobileQueryStartsFreshCart(value: string) {
+  const text = burgerRushMobileCompactText(value);
+  if (!text) return false;
+
+  return /^(new order|start over|start again|clear cart|clear order|reset cart|reset order|replace cart|replace order)\b/.test(text) ||
+    /\b(start over|clear the cart|clear my cart|reset the cart|replace the order)\b/.test(text);
+}
+
+export function smartBarMobileQueryShouldUseExistingCart(value: string, hasExistingCart: boolean) {
+  if (!hasExistingCart) return false;
+  if (smartBarMobileQueryStartsFreshCart(value)) return false;
+
+  // On the separated mobile surface, the entry box reopens specifically so the
+  // visitor can add more food to the current cart. Treat follow-up food prompts
+  // as additive by default instead of requiring "add/also/plus" wording.
+  return true;
+}
+
+function smartBarMobileMoney(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  return `$${value.toFixed(2)}`;
+}
+
+function smartBarMobileMoneyLabel(value: unknown) {
+  if (typeof value === "number") return smartBarMobileMoney(value);
+
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text || text === "—") return "";
+  if (/^\$\d/.test(text)) return text;
+
+  const numeric = Number(text.replace(/[^0-9.-]+/g, ""));
+  return Number.isFinite(numeric) && /\d/.test(text) ? smartBarMobileMoney(numeric) : text;
+}
+
+function smartBarMobilePriceFromLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  const looseLine = line as NonNullable<CarryoutOrder["items"]>[number] & Record<string, unknown>;
+
+  return (
+    smartBarMobileMoneyLabel(line.priceLabel) ||
+    smartBarMobileMoneyLabel(looseLine.displayPrice) ||
+    smartBarMobileMoneyLabel(looseLine.price) ||
+    smartBarMobileMoneyLabel(looseLine.priceLabelShort) ||
+    smartBarMobileMoneyLabel(looseLine.itemTotal) ||
+    smartBarMobileMoneyLabel(looseLine.total) ||
+    smartBarMobileMoneyLabel(looseLine.subtotal) ||
+    smartBarMobileMoneyLabel(line.lineSubtotal) ||
+    smartBarMobileMoneyLabel(looseLine.unitPrice) ||
+    "—"
+  );
+}
+
+function smartBarMobileSelectionKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function smartBarMobileDetailAlreadyCovers(details: string[], value: string) {
+  const key = smartBarMobileSelectionKey(value);
+  if (!key) return true;
+
+  return details.some((detail) => {
+    const detailKey = smartBarMobileSelectionKey(detail);
+    return detailKey === key || detailKey.includes(key) || key.includes(detailKey);
+  });
+}
+
+function smartBarMobilePushDetail(details: string[], rawValue: unknown) {
+  const value = String(rawValue || "").replace(/\s+/g, " ").trim();
+  if (!value) return;
+
+  if (smartBarMobileDetailAlreadyCovers(details, value)) return;
+
+  const sizeOnly = /^(small|medium|large)$/i.test(value);
+  if (sizeOnly && details.some((detail) => smartBarMobileSelectionKey(detail).includes(smartBarMobileSelectionKey(value)))) {
+    return;
+  }
+
+  details.push(value);
+}
+
+function smartBarMobileValuesFromLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  const details: string[] = [];
+
+  (line.knownSelections || []).forEach((value) => smartBarMobilePushDetail(details, value));
+  (line.qualifiers || []).forEach((item) => {
+    smartBarMobilePushDetail(details, item.valueLabel || item.label || item.value);
+  });
+  (line.modifiers || []).forEach((item) => smartBarMobilePushDetail(details, item.label));
+  (line.upgrades || []).forEach((item) => smartBarMobilePushDetail(details, item.label));
+
+  return details.slice(0, 6);
+}
+
+function smartBarMobileGroupOptionLabels(group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]) {
+  const labels: string[] = [];
+
+  (group.options || []).forEach((option) => {
+    const label = String(option.label || option.value || "").replace(/\s+/g, " ").trim();
+    if (!label) return;
+    if (labels.some((existing) => smartBarMobileSelectionKey(existing) === smartBarMobileSelectionKey(label))) return;
+    labels.push(label);
+  });
+
+  return labels;
+}
+
+function smartBarMobileOptionsFromLine(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  status: SmartBarMobileOrderStatus,
+) {
+  const missingQualifierIds = new Set(
+    (line.missingQualifiers || [])
+      .map((missing) => String(missing.qualifierId || ""))
+      .filter(Boolean),
+  );
+
+  const groups = line.qualifierGroups || [];
+
+  const activeMissingGroup = groups.find((group) => {
+    const qualifierId = String(group.qualifierId || "");
+    return Boolean(
+      group.missing ||
+        (qualifierId && missingQualifierIds.has(qualifierId)) ||
+        (group.required && !(group.selectedValue || group.selectedLabel)),
+    );
+  });
+
+  const selectedGroup = groups.find((group) => {
+    return Boolean(
+      group.selectedValue ||
+        group.selectedLabel ||
+        (group.options || []).some((option) => option.selected || option.state === "selected"),
+    );
+  });
+
+  const reusableRequiredGroup = groups.find((group) => {
+    return Boolean(group.required && (group.options || []).length);
+  });
+
+  const activeGroup = activeMissingGroup ||
+    selectedGroup ||
+    (status === "ready" ? reusableRequiredGroup : undefined);
+
+  return activeGroup ? smartBarMobileGroupOptionLabels(activeGroup) : [];
+}
+
+function smartBarMobileStatusForLine(line: NonNullable<CarryoutOrder["items"]>[number]): SmartBarMobileOrderStatus {
+  const rawStatus = String(line.status || "").toLowerCase();
+  const hasMissingQualifiers = Boolean(
+    line.missingQualifiers?.length ||
+      line.qualifierGroups?.some((group) => group.missing),
+  );
+
+  if (rawStatus.includes("pending") || rawStatus.includes("need") || hasMissingQualifiers) return "pending";
+  return "ready";
+}
+
+function smartBarMobileHelperForLine(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  status: SmartBarMobileOrderStatus,
+) {
+  if (status === "pending") {
+    const missing = line.missingQualifiers?.[0]?.label ||
+      line.qualifierGroups?.find((group) => group.missing)?.label;
+    return missing ? `Choose ${missing.toLowerCase()}` : "Choose a required option";
+  }
+
+  if (status === "options") return "Options available";
+  return "Matched and ready";
+}
+
+function smartBarMobileLineFromCarryoutLine(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  index: number,
+): SmartBarMobileOrderLine {
+  const status = smartBarMobileStatusForLine(line);
+  const details = smartBarMobileValuesFromLine(line);
+  const options = smartBarMobileOptionsFromLine(line, status);
+
+  return {
+    id: line.lineItemId || line.id || `line-${index}`,
+    title: `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`,
+    status,
+    helper: smartBarMobileHelperForLine(line, status),
+    price: smartBarMobilePriceFromLine(line),
+    details: details.length ? details : status === "pending" ? ["Choice needed"] : ["Ready"],
+    ...(options.length ? { options } : {}),
+  };
+}
+
+export function smartBarMobileEstimatedTotalFromLines(lines: SmartBarMobileOrderLine[]) {
+  const total = lines.reduce((sum, line) => {
+    const value = smartBarMobileParseMoney(line.price);
+    return value === null ? sum : sum + value;
+  }, 0);
+
+  return total > 0 ? smartBarMobileMoneyFromNumber(total) : "—";
+}
+
+export function smartBarMobileResultFromOrder(
+  order: CarryoutOrder | null,
+  fallbackQuery: string,
+): SmartBarMobileOrderResult {
+  if (!order) {
+    return {
+      lines: [
+        {
+          id: "fallback-unknown",
+          title: fallbackQuery || "Requested item",
+          status: "unknown",
+          helper: "Could not build cart from this response",
+          price: "—",
+          details: [],
+          retryPrompt: "Try the order again in plain English.",
+        },
+      ],
+      estimatedTotal: "—",
+    };
+  }
+
+  const baseLines = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const matchedLines = [...baseLines]
+    .reverse()
+    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index));
+  const cannotMatchLines = (order.cannotMatchItems || [])
+    .map((item, index): SmartBarMobileOrderLine => {
+      const title = item.text || item.label || item.title || item.item || "Unmatched item";
+      return {
+        id: `cannot-match-${index}-${title}`,
+        title,
+        status: "unknown",
+        helper: item.reason === "not_on_menu" ? "Not on the BurgerRush menu" : "Could not match item",
+        price: "—",
+        details: item.suggestion ? [item.suggestion] : [],
+        retryPrompt: "Re-enter the item so SmartBar can match it.",
+      };
+    });
+  const allLines = [...matchedLines, ...cannotMatchLines];
+  const estimatedTotal = smartBarMobileMoney(order.totals?.estimatedTotal) ||
+    smartBarMobileMoney(order.totals?.subtotal) ||
+    smartBarMobileEstimatedTotalFromLines(allLines);
+
+  return {
+    lines: allLines,
+    estimatedTotal,
+  };
+}
+
+function smartBarMobileLineKeys(line: SmartBarMobileOrderLine) {
+  return [
+    line.id,
+    line.title,
+    line.title.replace(/^\s*\d+\s*[×x]\s*/i, ""),
+  ]
+    .map((value) => smartBarMobileSelectionKey(value))
+    .filter(Boolean);
+}
+
+function smartBarMobileKeysMatch(leftKey: string, rightKey: string) {
+  if (!leftKey || !rightKey) return false;
+  if (leftKey === rightKey) return true;
+
+  const shorter = leftKey.length <= rightKey.length ? leftKey : rightKey;
+  const longer = leftKey.length > rightKey.length ? leftKey : rightKey;
+
+  return shorter.length >= 4 && longer.includes(shorter);
+}
+
+function smartBarMobileLinesMatch(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
+  const leftKeys = smartBarMobileLineKeys(left);
+  const rightKeys = smartBarMobileLineKeys(right);
+
+  return leftKeys.some((leftKey) => rightKeys.some((rightKey) => smartBarMobileKeysMatch(leftKey, rightKey)));
+}
+
+function smartBarMobileFindMatchingLineIndex(
+  lines: SmartBarMobileOrderLine[],
+  line: SmartBarMobileOrderLine,
+) {
+  return lines.findIndex((candidate) => smartBarMobileLinesMatch(candidate, line));
+}
+
+function smartBarMobileHydrateLineFromPrevious(
+  line: SmartBarMobileOrderLine,
+  previousLines: SmartBarMobileOrderLine[],
+) {
+  const previous = previousLines.find((candidate) => smartBarMobileLinesMatch(candidate, line));
+  if (!previous) return line;
+
+  return {
+    ...line,
+    price: line.price && line.price !== "—" ? line.price : previous.price,
+    details: line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
+      ? line.details
+      : previous.details,
+  };
+}
+
+function smartBarMobileParseMoney(value?: string) {
+  const cleaned = String(value || "").replace(/[^0-9.-]+/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === "-.") return null;
+
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function smartBarMobileMoneyFromNumber(value: number) {
+  return `$${value.toFixed(2)}`;
+}
+
+export function smartBarMobileMergeOrderResults(
+  nextResult: SmartBarMobileOrderResult,
+  previousLines: SmartBarMobileOrderLine[],
+  previousEstimatedTotal: string,
+  shouldMergeWithPrevious: boolean,
+): SmartBarMobileOrderResult {
+  const hydratedNextLines = nextResult.lines.map((line) => smartBarMobileHydrateLineFromPrevious(line, previousLines));
+
+  if (!shouldMergeWithPrevious) {
+    return {
+      ...nextResult,
+      lines: hydratedNextLines,
+      estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+        ? nextResult.estimatedTotal
+        : smartBarMobileEstimatedTotalFromLines(hydratedNextLines),
+    };
+  }
+
+  if (previousLines.length === 0) {
+    return {
+      ...nextResult,
+      lines: hydratedNextLines,
+      estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+        ? nextResult.estimatedTotal
+        : previousEstimatedTotal && previousEstimatedTotal !== "—"
+          ? previousEstimatedTotal
+          : smartBarMobileEstimatedTotalFromLines(hydratedNextLines),
+    };
+  }
+
+  const mergedLines = [...previousLines];
+  let appendedLineCount = 0;
+  let matchedPreviousLineCount = 0;
+
+  for (const line of hydratedNextLines) {
+    const existingIndex = smartBarMobileFindMatchingLineIndex(mergedLines, line);
+
+    if (existingIndex >= 0) {
+      matchedPreviousLineCount += 1;
+      mergedLines[existingIndex] = smartBarMobileHydrateLineFromPrevious(line, [mergedLines[existingIndex]]);
+      continue;
+    }
+
+    appendedLineCount += 1;
+    mergedLines.push(line);
+  }
+
+  const previousTotal = smartBarMobileParseMoney(previousEstimatedTotal);
+  const nextTotal = smartBarMobileParseMoney(nextResult.estimatedTotal);
+  const responseLooksLikeFullCart = matchedPreviousLineCount > 0;
+  const mergedLineTotal = smartBarMobileEstimatedTotalFromLines(mergedLines);
+  const estimatedTotal = responseLooksLikeFullCart
+    ? nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+      ? nextResult.estimatedTotal
+      : mergedLineTotal
+    : appendedLineCount > 0 && previousTotal !== null && nextTotal !== null
+      ? smartBarMobileMoneyFromNumber(previousTotal + nextTotal)
+      : nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+        ? nextResult.estimatedTotal
+        : previousEstimatedTotal && previousEstimatedTotal !== "—"
+          ? previousEstimatedTotal
+          : mergedLineTotal;
+
+  return {
+    ...nextResult,
+    lines: mergedLines,
+    estimatedTotal,
+  };
+}
+
+function smartBarMobileCarryoutLineKeys(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  return [
+    line.lineItemId,
+    line.id,
+    line.title,
+    line.title?.replace(/^\s*\d+\s*[×x]\s*/i, ""),
+  ]
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
+    .filter(Boolean);
+}
+
+function smartBarMobileCarryoutLinesMatch(
+  left: NonNullable<CarryoutOrder["items"]>[number],
+  right: NonNullable<CarryoutOrder["items"]>[number],
+) {
+  const leftKeys = smartBarMobileCarryoutLineKeys(left);
+  const rightKeys = smartBarMobileCarryoutLineKeys(right);
+
+  return leftKeys.some((leftKey) => rightKeys.some((rightKey) => smartBarMobileKeysMatch(leftKey, rightKey)));
+}
+
+function smartBarMobileCarryoutLineIsPending(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  const status = String(line.status || "").toLowerCase();
+  return Boolean(
+    status.includes("pending") ||
+      status.includes("need") ||
+      line.missingQualifiers?.length ||
+      line.qualifierGroups?.some((group) => group.missing),
+  );
+}
+
+export function smartBarMobileMergeCarryoutOrders(
+  previousOrder: CarryoutOrder | null,
+  nextOrder: CarryoutOrder | null,
+  shouldMergeWithPrevious: boolean,
+): CarryoutOrder | null {
+  if (!shouldMergeWithPrevious || !previousOrder) return nextOrder;
+  if (!nextOrder) return previousOrder;
+
+  const previousItems = Array.isArray(previousOrder.items)
+    ? previousOrder.items
+    : [...(previousOrder.completeItems || []), ...(previousOrder.pendingItems || [])];
+  const nextItems = Array.isArray(nextOrder.items)
+    ? nextOrder.items
+    : [...(nextOrder.completeItems || []), ...(nextOrder.pendingItems || [])];
+
+  const mergedItems = [...previousItems];
+
+  for (const line of nextItems) {
+    const existingIndex = mergedItems.findIndex((candidate) => smartBarMobileCarryoutLinesMatch(candidate, line));
+    if (existingIndex >= 0) {
+      mergedItems[existingIndex] = {
+        ...mergedItems[existingIndex],
+        ...line,
+        priceLabel: line.priceLabel || mergedItems[existingIndex].priceLabel,
+        lineSubtotal: line.lineSubtotal ?? mergedItems[existingIndex].lineSubtotal,
+      };
+      continue;
+    }
+
+    mergedItems.push(line);
+  }
+
+  const pendingItems = mergedItems.filter(smartBarMobileCarryoutLineIsPending);
+  const completeItems = mergedItems.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+
+  return {
+    ...previousOrder,
+    ...nextOrder,
+    items: mergedItems,
+    completeItems,
+    pendingItems,
+  };
+}
+
+function smartBarMobileLineMatchesReplacement(line: SmartBarMobileOrderLine, meta?: SmartBarMobileSubmitMeta) {
+  if (!meta?.replaceLineId && !meta?.replaceLineTitle) return false;
+
+  const targetKeys = [meta.replaceLineId, meta.replaceLineTitle]
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
+    .filter(Boolean);
+  const lineKeys = smartBarMobileLineKeys(line);
+
+  return line.id === meta.replaceLineId ||
+    lineKeys.some((lineKey) => targetKeys.some((targetKey) => smartBarMobileKeysMatch(lineKey, targetKey)));
+}
+
+export function smartBarMobileFilterReplacementLine(
+  lines: SmartBarMobileOrderLine[],
+  meta?: SmartBarMobileSubmitMeta,
+) {
+  if (meta?.intent !== "replace_unknown") return lines;
+  return lines.filter((line) => !smartBarMobileLineMatchesReplacement(line, meta));
+}
+
+function smartBarMobileCarryoutLineMatchesReplacement(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  meta?: SmartBarMobileSubmitMeta,
+) {
+  if (!meta?.replaceLineId && !meta?.replaceLineTitle) return false;
+
+  const targetKeys = [meta.replaceLineId, meta.replaceLineTitle]
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
+    .filter(Boolean);
+  const lineKeys = smartBarMobileCarryoutLineKeys(line);
+
+  return lineKeys.some((lineKey) => targetKeys.some((targetKey) => smartBarMobileKeysMatch(lineKey, targetKey)));
+}
+
+export function smartBarMobileRemoveReplacementFromCarryoutOrder(
+  order: CarryoutOrder | null,
+  meta?: SmartBarMobileSubmitMeta,
+): CarryoutOrder | null {
+  if (!order || meta?.intent !== "replace_unknown") return order;
+
+  const items = Array.isArray(order.items)
+    ? order.items.filter((line) => !smartBarMobileCarryoutLineMatchesReplacement(line, meta))
+    : [];
+  const completeItems = (order.completeItems || []).filter((line) => !smartBarMobileCarryoutLineMatchesReplacement(line, meta));
+  const pendingItems = (order.pendingItems || []).filter((line) => !smartBarMobileCarryoutLineMatchesReplacement(line, meta));
+  const targetKey = smartBarMobileSelectionKey(meta.replaceLineTitle || meta.replaceLineId || "");
+  const cannotMatchItems = (order.cannotMatchItems || []).filter((item) => {
+    const itemKey = smartBarMobileSelectionKey(String(item.text || item.label || item.title || item.item || ""));
+    return !itemKey || !targetKey || !smartBarMobileKeysMatch(itemKey, targetKey);
+  });
+
+  return {
+    ...order,
+    ...(Array.isArray(order.items) ? { items } : {}),
+    completeItems,
+    pendingItems,
+    cannotMatchItems,
+  };
+}
+
+
+function smartBarMobileChoiceDetails(details: string[], value: string, optionLabels: string[] = []) {
+  const valueKey = smartBarMobileSelectionKey(value);
+  const optionKeys = new Set(
+    optionLabels
+      .map((option) => smartBarMobileSelectionKey(option))
+      .filter(Boolean),
+  );
+
+  const cleaned = (details || []).filter((detail) => {
+    const detailText = String(detail || "").trim();
+    const detailKey = smartBarMobileSelectionKey(detailText);
+    if (/^(choice needed|size needed)$/i.test(detailText)) return false;
+
+    // For single-choice qualifier groups such as Small/Medium/Large, selecting
+    // a new value replaces the old value instead of stacking conflicting tags.
+    if (detailKey && optionKeys.has(detailKey) && detailKey !== valueKey) return false;
+
+    return true;
+  });
+
+  return Array.from(new Set([...cleaned, value]));
+}
+
+export function smartBarMobileApplyChoiceToVisibleLines(
+  lines: SmartBarMobileOrderLine[],
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+) {
+  const nextLines = [...lines];
+  const existingIndex = smartBarMobileFindMatchingLineIndex(nextLines, selectedLine);
+
+  const resolvedLine: SmartBarMobileOrderLine = {
+    ...selectedLine,
+    status: "ready",
+    helper: `${value} selected`,
+    price: selectedLine.price && selectedLine.price !== "—" ? selectedLine.price : "—",
+    details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || []),
+    options: selectedLine.options || [],
+  };
+
+  if (existingIndex >= 0) {
+    nextLines[existingIndex] = smartBarMobileHydrateLineFromPrevious(resolvedLine, [nextLines[existingIndex]]);
+    return nextLines;
+  }
+
+  return [...nextLines, resolvedLine];
+}
+
+function smartBarMobileApplyChoiceToCarryoutLine(
+  carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+) {
+  const visibleLine = smartBarMobileLineFromCarryoutLine(carryoutLine, 0);
+  if (!smartBarMobileLinesMatch(visibleLine, selectedLine)) return carryoutLine;
+
+  const matchingQualifierIds = new Set<string>();
+  const selectedOptionLabels = selectedLine.options || [];
+
+  const qualifierGroups = (carryoutLine.qualifierGroups || []).map((group) => {
+    const optionLabels = smartBarMobileGroupOptionLabels(group);
+    const groupMatchesChoice = optionLabels.some((option) => {
+      return smartBarMobileKeysMatch(
+        smartBarMobileSelectionKey(option),
+        smartBarMobileSelectionKey(value),
+      );
+    });
+
+    if (!groupMatchesChoice) return group;
+
+    const qualifierId = String(group.qualifierId || "");
+    if (qualifierId) matchingQualifierIds.add(qualifierId);
+
+    return {
+      ...group,
+      missing: false,
+      selectedLabel: value,
+      selectedValue: value,
+      options: (group.options || []).map((option) => {
+        const optionLabel = String(option.label || option.value || "").replace(/\s+/g, " ").trim();
+        const selected = smartBarMobileKeysMatch(
+          smartBarMobileSelectionKey(optionLabel),
+          smartBarMobileSelectionKey(value),
+        );
+
+        return {
+          ...option,
+          selected,
+          state: selected ? "selected" : "available",
+        };
+      }),
+    };
+  });
+
+  const missingQualifiers = (carryoutLine.missingQualifiers || []).filter((missing) => {
+    const qualifierId = String(missing.qualifierId || "");
+    return !qualifierId || !matchingQualifierIds.has(qualifierId);
+  });
+
+  const knownSelections = smartBarMobileChoiceDetails(
+    carryoutLine.knownSelections || [],
+    value,
+    selectedOptionLabels.length ? selectedOptionLabels : smartBarMobileGroupOptionLabels(
+      (carryoutLine.qualifierGroups || []).find((group) => {
+        const qualifierId = String(group.qualifierId || "");
+        return qualifierId && matchingQualifierIds.has(qualifierId);
+      }) || ({} as NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]),
+    ),
+  );
+
+  const stillMissingGroup = qualifierGroups.some((group) => Boolean(group.required && group.missing));
+  const stillPending = missingQualifiers.length > 0 || stillMissingGroup;
+
+  return {
+    ...carryoutLine,
+    status: stillPending ? "needs_qualifier" : "ready",
+    knownSelections,
+    missingQualifiers,
+    qualifierGroups,
+    priceLabel: smartBarMobileMoneyLabel(selectedLine.price) || carryoutLine.priceLabel,
+  };
+}
+
+function smartBarMobileNextCurrentStep(order: CarryoutOrder, pendingItems: NonNullable<CarryoutOrder["items"]>) {
+  const nextPending = pendingItems[0];
+  if (!nextPending) return undefined;
+
+  const activeGroup = (nextPending.qualifierGroups || []).find((group) => group.missing) ||
+    (nextPending.qualifierGroups || [])[0];
+  const activeMissing = (nextPending.missingQualifiers || [])[0];
+
+  return {
+    ...order.currentStep,
+    type: "qualifier",
+    itemId: nextPending.lineItemId || nextPending.id,
+    targetId: nextPending.targetId || activeMissing?.targetId || activeGroup?.targetId,
+    qualifierId: activeMissing?.qualifierId || activeGroup?.qualifierId,
+    question: activeGroup?.label || activeMissing?.label || "Choose required option",
+  };
+}
+
+export function smartBarMobileApplyChoiceToCarryoutOrder(
+  order: CarryoutOrder | null,
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+): CarryoutOrder | null {
+  if (!order) return order;
+
+  const sourceItems = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const items = sourceItems.map((line) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value));
+  const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
+  const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+  const nextCurrentStep = smartBarMobileNextCurrentStep(order, pendingItems);
+
+  return {
+    ...order,
+    status: pendingItems.length ? order.status : "ready_cart",
+    nextAction: pendingItems.length ? order.nextAction : "show_cart",
+    items,
+    completeItems,
+    pendingItems,
+    currentStep: nextCurrentStep,
+  };
+}
+
