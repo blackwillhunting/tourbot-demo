@@ -6,6 +6,7 @@ import {
   ChevronUp,
   ShoppingBag,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -102,6 +103,24 @@ function statusClass(status: SmartBarMobileOrderStatus) {
   if (status === "pending") return "bg-rose-100 text-rose-900 ring-rose-200";
   if (status === "options") return "bg-amber-100 text-amber-950 ring-amber-200";
   return "bg-slate-200 text-slate-700 ring-slate-300";
+}
+
+function smartBarMobileRibbonPillClass(kind: "complete" | "pending" | "extras", isOverlay: boolean) {
+  if (kind === "complete") {
+    return isOverlay
+      ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
+      : "bg-emerald-300/18 text-emerald-100 ring-1 ring-emerald-200/20";
+  }
+
+  if (kind === "pending") {
+    return isOverlay
+      ? "bg-rose-100 text-rose-900 ring-1 ring-rose-200"
+      : "bg-rose-300/18 text-rose-100 ring-1 ring-rose-200/20";
+  }
+
+  return isOverlay
+    ? "bg-amber-100 text-amber-950 ring-1 ring-amber-200"
+    : "bg-amber-300/18 text-amber-100 ring-1 ring-amber-200/20";
 }
 
 const SMARTBAR_MOBILE_TAX_RATE = 0.0825;
@@ -343,7 +362,6 @@ export default function SmartBarMobileShell({
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
   const choiceLockedLineIdRef = useRef<string | null>(null);
-  const rowSwipeActiveRef = useRef(false);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
@@ -402,15 +420,15 @@ export default function SmartBarMobileShell({
   const selectedLine = selectedLineId
     ? lines.find((line) => line.id === selectedLineId) || null
     : null;
+  const completeCount = lines.filter((line) => line.status === "ready").length;
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
-  const unknownCount = lines.filter((line) => line.status === "unknown").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const checkoutReady = lines.length > 0 && blockingIssueCount === 0;
   const cartTotals = smartBarMobileTotalsFromLines(lines);
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const cartSummaryHeight = Math.min(
     maxCartPanelHeight,
-    Math.max(360, 250 + lines.length * 92 + Math.max(0, lines.length - 1) * 10),
+    Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
   );
   const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
   const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 3);
@@ -698,7 +716,6 @@ export default function SmartBarMobileShell({
     clearBuildTimer();
     disarmClose();
     choiceLockedLineIdRef.current = null;
-    rowSwipeActiveRef.current = false;
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
@@ -734,7 +751,6 @@ export default function SmartBarMobileShell({
     setOrderEstimatedTotal(estimatedTotal);
     setLineOverrides({});
     choiceLockedLineIdRef.current = null;
-    rowSwipeActiveRef.current = false;
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setHasCart(false);
@@ -837,7 +853,6 @@ export default function SmartBarMobileShell({
   const softTextClass = isOverlay ? "text-slate-600" : "text-white/62";
   const quietTextClass = isOverlay ? "text-slate-500" : "text-white/44";
   const skyEyebrowClass = isOverlay ? "text-sky-700" : "text-sky-200";
-  const greenEyebrowClass = isOverlay ? "text-emerald-700" : "text-emerald-200";
   const inputTextClass = isOverlay ? "text-slate-950 caret-slate-950" : "text-white caret-white";
   const retryInputClass = isOverlay
     ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-slate-950/10 bg-white/66 px-4 py-3 text-center text-[16px] font-bold leading-5 text-slate-950 outline-none ring-0 placeholder:text-slate-400 caret-slate-950"
@@ -1070,17 +1085,8 @@ export default function SmartBarMobileShell({
                     className="flex h-full min-h-0 flex-col p-4"
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
-                      <div>
-                        <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${greenEyebrowClass}`}>
-                          {checkoutReady
-                            ? optionCount > 0
-                              ? "Ready · options available"
-                              : unknownCount > 0
-                                ? "Ready · retry optional"
-                                : "Ready for checkout"
-                            : "Needs attention"}
-                        </div>
-                        <div className="mt-1 text-xl font-black tracking-tight">
+                      <div className="min-w-0">
+                        <div className="text-xl font-black tracking-tight">
                           Review order
                         </div>
                       </div>
@@ -1095,53 +1101,64 @@ export default function SmartBarMobileShell({
                       </div>
                     </div>
 
-                    <div className={`mt-3 shrink-0 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
-                      &lt;--- swipe to remove
+                    <div className="mt-3 grid shrink-0 grid-cols-3 gap-2">
+                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
+                        Complete {completeCount}
+                      </div>
+                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}>
+                        Pending {blockingIssueCount}
+                      </div>
+                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
+                        Extras {optionCount}
+                      </div>
                     </div>
 
-                    <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 pb-2">
+                    <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 pb-2 overscroll-contain touch-pan-y">
                       {lines.map((line) => (
-                        <div key={line.id} className="relative overflow-hidden rounded-2xl">
-                          <motion.button
-                            type="button"
-                            animate={smartBarMobileRowAnimate(line.status)}
-                            transition={smartBarMobileRowTransition(line.status)}
-                            drag="x"
-                            dragConstraints={{ left: -154, right: 0 }}
-                            dragElastic={0.42}
-                            dragMomentum={false}
-                            dragTransition={{ bounceStiffness: 160, bounceDamping: 14 }}
-                            onDragStart={() => {
-                              rowSwipeActiveRef.current = true;
-                            }}
-                            onDragEnd={(_, info) => {
-                              const shouldRemove = info.offset.x < -46 || info.velocity.x < -260;
-                              window.setTimeout(() => {
-                                rowSwipeActiveRef.current = false;
-                              }, 0);
-                              if (shouldRemove) removeLine(line);
-                            }}
-                            onClick={() => {
-                              if (rowSwipeActiveRef.current) return;
+                        <motion.div
+                          key={line.id}
+                          role="button"
+                          tabIndex={0}
+                          animate={smartBarMobileRowAnimate(line.status)}
+                          transition={smartBarMobileRowTransition(line.status)}
+                          onClick={() => selectLine(line)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
                               selectLine(line);
-                            }}
-                            className={`${lineButtonClass} ${smartBarMobileRowSurfaceClass(line.status, isOverlay)}`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className={`truncate text-base font-black ${line.status === "unknown" ? unknownTitleClass : ""}`}>
-                                  {smartBarMobileShortTitle(line.title)}
-                                </div>
-                                <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
-                                  {line.helper}
-                                </div>
+                            }
+                          }}
+                          className={`${lineButtonClass} ${smartBarMobileRowSurfaceClass(line.status, isOverlay)} cursor-pointer`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className={`truncate text-base font-black ${line.status === "unknown" ? unknownTitleClass : ""}`}>
+                                {smartBarMobileShortTitle(line.title)}
                               </div>
-                              <div className="shrink-0 text-right">
-                                <div className="text-sm font-black">{line.price}</div>
+                              <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
+                                {line.helper}
                               </div>
                             </div>
-                          </motion.button>
-                        </div>
+                            <div className="flex shrink-0 flex-col items-end gap-2 text-right">
+                              <div className="text-sm font-black">{line.price}</div>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  removeLine(line);
+                                }}
+                                className={
+                                  isOverlay
+                                    ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/7 text-slate-600 ring-1 ring-slate-950/10 transition active:scale-95"
+                                    : "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/12 transition active:scale-95"
+                                }
+                                aria-label={`Remove ${line.title}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
                       ))}
                     </div>
 
