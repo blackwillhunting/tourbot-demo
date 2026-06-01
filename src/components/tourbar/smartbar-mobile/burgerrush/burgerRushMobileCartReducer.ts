@@ -213,9 +213,16 @@ function smartBarMobileLineFromCarryoutLine(
   const status = smartBarMobileStatusForLine(line);
   const details = smartBarMobileValuesFromLine(line);
   const options = smartBarMobileOptionsFromLine(line, status);
+  const sourceLineItemId = String(line.lineItemId || line.id || `line-${index}`);
+  const sourceItemId = String(line.id || "");
+  const cartLineKey = `${sourceLineItemId}::source-${index}`;
 
   return {
-    id: line.lineItemId || line.id || `line-${index}`,
+    id: cartLineKey,
+    cartLineKey,
+    sourceLineItemId,
+    sourceItemId,
+    sourceLineIndex: index,
     title: `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`,
     status,
     helper: smartBarMobileHelperForLine(line, status),
@@ -258,9 +265,9 @@ export function smartBarMobileResultFromOrder(
   const baseLines = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const matchedLines = [...baseLines]
-    .reverse()
-    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index));
+  const matchedLines = baseLines
+    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index))
+    .reverse();
   const cannotMatchLines = (order.cannotMatchItems || [])
     .map((item, index): SmartBarMobileOrderLine => {
       const title = item.text || item.label || item.title || item.item || "Unmatched item";
@@ -291,11 +298,14 @@ export function smartBarMobileResultFromOrder(
 
 function smartBarMobileLineKeys(line: SmartBarMobileOrderLine) {
   return [
+    line.cartLineKey,
     line.id,
+    line.sourceLineItemId,
+    line.sourceItemId,
     line.title,
     line.title.replace(/^\s*\d+\s*[×x]\s*/i, ""),
   ]
-    .map((value) => smartBarMobileSelectionKey(value))
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
     .filter(Boolean);
 }
 
@@ -564,34 +574,56 @@ export function smartBarMobileRemoveReplacementFromCarryoutOrder(
 
 
 
-function smartBarMobileComparableVisibleLineTitle(value: string) {
-  return smartBarMobileSelectionKey(value.replace(/^\s*\d+\s*[×x]\s*/i, ""));
+function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
+  return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
 
-function smartBarMobileVisibleLinesAreSameEntry(
+function smartBarMobileVisibleLinesAreSameInstance(
   left: SmartBarMobileOrderLine,
   right: SmartBarMobileOrderLine,
 ) {
-  if (left.id && right.id) return left.id === right.id;
+  const leftKey = smartBarMobileLineInstanceKey(left);
+  const rightKey = smartBarMobileLineInstanceKey(right);
 
-  return Boolean(
-    smartBarMobileComparableVisibleLineTitle(left.title) === smartBarMobileComparableVisibleLineTitle(right.title) &&
-      smartBarMobileSelectionKey(left.price || "") === smartBarMobileSelectionKey(right.price || "") &&
-      left.status === right.status,
-  );
+  if (leftKey && rightKey) return leftKey === rightKey;
+
+  if (left.sourceLineIndex !== undefined && right.sourceLineIndex !== undefined) {
+    return left.sourceLineIndex === right.sourceLineIndex;
+  }
+
+  return Boolean(left.id && right.id && left.id === right.id);
+}
+
+function smartBarMobileComparableVisibleLineTitle(value: string) {
+  return smartBarMobileSelectionKey(value.replace(/^\s*\d+\s*[×x]\s*/i, ""));
 }
 
 export function smartBarMobileRemoveVisibleLine(
   lines: SmartBarMobileOrderLine[],
   lineToRemove: SmartBarMobileOrderLine,
 ) {
-  return lines.filter((line) => !smartBarMobileVisibleLinesAreSameEntry(line, lineToRemove));
+  const removeIndex = lines.findIndex((line) => smartBarMobileVisibleLinesAreSameInstance(line, lineToRemove));
+  if (removeIndex < 0) return lines;
+
+  const nextLines = [...lines];
+  nextLines.splice(removeIndex, 1);
+  return nextLines;
 }
 
 function smartBarMobileCarryoutLineMatchesVisibleLine(
   carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
   visibleLine: SmartBarMobileOrderLine,
+  carryoutIndex?: number,
 ) {
+  const visibleSourceIndex = visibleLine.sourceLineIndex;
+  if (typeof visibleSourceIndex === "number" && typeof carryoutIndex === "number") {
+    return visibleSourceIndex === carryoutIndex;
+  }
+
+  const visibleSourceLineItemId = smartBarMobileSelectionKey(String(visibleLine.sourceLineItemId || ""));
+  const carryoutLineItemId = smartBarMobileSelectionKey(String(carryoutLine.lineItemId || ""));
+  if (visibleSourceLineItemId && carryoutLineItemId) return visibleSourceLineItemId === carryoutLineItemId;
+
   const visibleId = smartBarMobileSelectionKey(visibleLine.id || "");
   const carryoutIds = [carryoutLine.lineItemId, carryoutLine.id]
     .map((value) => smartBarMobileSelectionKey(String(value || "")))
@@ -618,7 +650,11 @@ export function smartBarMobileRemoveLineFromCarryoutOrder(
   const sourceItems = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const items = sourceItems.filter((line) => !smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove));
+  const removeIndex = sourceItems.findIndex((line, index) => smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove, index));
+  const items = [...sourceItems];
+  if (removeIndex >= 0) {
+    items.splice(removeIndex, 1);
+  }
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
   const targetKey = smartBarMobileComparableVisibleLineTitle(lineToRemove.title || lineToRemove.id || "");
@@ -691,9 +727,9 @@ function smartBarMobileApplyChoiceToCarryoutLine(
   carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
   selectedLine: SmartBarMobileOrderLine,
   value: string,
+  carryoutIndex: number,
 ) {
-  const visibleLine = smartBarMobileLineFromCarryoutLine(carryoutLine, 0);
-  if (!smartBarMobileLinesMatch(visibleLine, selectedLine)) return carryoutLine;
+  if (!smartBarMobileCarryoutLineMatchesVisibleLine(carryoutLine, selectedLine, carryoutIndex)) return carryoutLine;
 
   const matchingQualifierIds = new Set<string>();
   const selectedOptionLabels = selectedLine.options || [];
@@ -791,7 +827,7 @@ export function smartBarMobileApplyChoiceToCarryoutOrder(
   const sourceItems = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const items = sourceItems.map((line) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value));
+  const items = sourceItems.map((line, index) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index));
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
   const nextCurrentStep = smartBarMobileNextCurrentStep(order, pendingItems);

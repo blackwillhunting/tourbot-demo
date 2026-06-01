@@ -29,6 +29,14 @@ export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unkno
 
 export type SmartBarMobileOrderLine = {
   id: string;
+  /** Unique, UI-only cart-row instance key. Use this for row identity/removal. */
+  cartLineKey?: string;
+  /** Backend cart line identity. This can differ from the UI id when duplicate items exist. */
+  sourceLineItemId?: string;
+  /** Original backend item id, preserved separately from the UI instance key. */
+  sourceItemId?: string;
+  /** Index of the backend source line before visual sorting/grouping. */
+  sourceLineIndex?: number;
   title: string;
   status: SmartBarMobileOrderStatus;
   helper: string;
@@ -363,6 +371,36 @@ function smartBarMobileShortTitle(value: string) {
     .trim()}`;
 }
 
+
+function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
+  return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
+}
+
+function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
+  const leftKey = smartBarMobileLineInstanceKey(left);
+  const rightKey = smartBarMobileLineInstanceKey(right);
+
+  if (leftKey && rightKey) return leftKey === rightKey;
+
+  if (left.sourceLineIndex !== undefined && right.sourceLineIndex !== undefined) {
+    return left.sourceLineIndex === right.sourceLineIndex;
+  }
+
+  return Boolean(left.id && right.id && left.id === right.id);
+}
+
+function smartBarMobileRemoveOneLineInstance(
+  lines: SmartBarMobileOrderLine[],
+  lineToRemove: SmartBarMobileOrderLine,
+) {
+  const removeIndex = lines.findIndex((candidate) => smartBarMobileLinesAreSameInstance(candidate, lineToRemove));
+  if (removeIndex < 0) return lines;
+
+  const nextLines = [...lines];
+  nextLines.splice(removeIndex, 1);
+  return nextLines;
+}
+
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
@@ -695,7 +733,7 @@ export default function SmartBarMobileShell({
     const parentResultPromise = onRemoveLine
       ? Promise.resolve(onRemoveLine(line))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
-    const fallbackLines = orderLines.filter((candidate) => candidate.id !== line.id);
+    const fallbackLines = smartBarMobileRemoveOneLineInstance(orderLines, line);
     const optimisticResult: SmartBarMobileOrderResult = {
       lines: fallbackLines,
       estimatedTotal: fallbackLines.length ? undefined : "—",
@@ -769,13 +807,13 @@ export default function SmartBarMobileShell({
 
     replacementPromise
       .then((result) => {
-        const replacementLines = result.lines.filter((line) => line.id !== selectedLine.id);
+        const replacementLines = smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
 
         if (replacementLines.length > 0) {
           setOrderLines(replacementLines);
           applyOrderResultEstimates(result);
         } else {
-          setOrderLines((current) => current.filter((line) => line.id !== selectedLine.id));
+          setOrderLines((current) => smartBarMobileRemoveOneLineInstance(current, selectedLine));
         }
 
         setRetryDraft("");
@@ -1257,7 +1295,7 @@ export default function SmartBarMobileShell({
                     >
                       {lines.map((line) => (
                         <motion.div
-                          key={line.id}
+                          key={smartBarMobileLineInstanceKey(line)}
                           role="button"
                           tabIndex={0}
                           animate={handoffLocked ? { x: 0, scale: 1 } : smartBarMobileRowAnimate(line.status)}
