@@ -1515,6 +1515,123 @@ function smartBarMobileRemoveReplacementFromCarryoutOrder(
   };
 }
 
+
+function smartBarMobileChoiceDetails(details: string[], value: string) {
+  const cleaned = (details || []).filter((detail) => {
+    return !/^(choice needed|size needed)$/i.test(String(detail || "").trim());
+  });
+
+  return Array.from(new Set([...cleaned, value]));
+}
+
+function smartBarMobileApplyChoiceToVisibleLines(
+  lines: SmartBarMobileOrderLine[],
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+) {
+  const nextLines = [...lines];
+  const existingIndex = smartBarMobileFindMatchingLineIndex(nextLines, selectedLine);
+
+  const resolvedLine: SmartBarMobileOrderLine = {
+    ...selectedLine,
+    status: "ready",
+    helper: `${value} selected`,
+    price: selectedLine.price && selectedLine.price !== "—" ? selectedLine.price : "—",
+    details: smartBarMobileChoiceDetails(selectedLine.details, value),
+    options: [],
+  };
+
+  if (existingIndex >= 0) {
+    nextLines[existingIndex] = smartBarMobileHydrateLineFromPrevious(resolvedLine, [nextLines[existingIndex]]);
+    return nextLines;
+  }
+
+  return [...nextLines, resolvedLine];
+}
+
+function smartBarMobileApplyChoiceToCarryoutLine(
+  carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+) {
+  const visibleLine = smartBarMobileLineFromCarryoutLine(carryoutLine, 0);
+  if (!smartBarMobileLinesMatch(visibleLine, selectedLine)) return carryoutLine;
+
+  const knownSelections = Array.from(new Set([...(carryoutLine.knownSelections || []), value]));
+  const missingQualifiers: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["missingQualifiers"]> = [];
+  const qualifierGroups = (carryoutLine.qualifierGroups || []).map((group) => {
+    const optionLabels = smartBarMobileGroupOptionLabels(group);
+    const groupMatchesChoice = optionLabels.some((option) => {
+      return smartBarMobileKeysMatch(
+        smartBarMobileSelectionKey(option),
+        smartBarMobileSelectionKey(value),
+      );
+    });
+
+    if (!group.missing && !groupMatchesChoice) return group;
+
+    return {
+      ...group,
+      missing: false,
+      selectedLabel: value,
+      selectedValue: value,
+    };
+  });
+
+  return {
+    ...carryoutLine,
+    status: "ready",
+    knownSelections,
+    missingQualifiers,
+    qualifierGroups,
+    priceLabel: smartBarMobileMoneyLabel(selectedLine.price) || carryoutLine.priceLabel,
+  };
+}
+
+function smartBarMobileNextCurrentStep(order: CarryoutOrder, pendingItems: NonNullable<CarryoutOrder["items"]>) {
+  const nextPending = pendingItems[0];
+  if (!nextPending) return undefined;
+
+  const activeGroup = (nextPending.qualifierGroups || []).find((group) => group.missing) ||
+    (nextPending.qualifierGroups || [])[0];
+  const activeMissing = (nextPending.missingQualifiers || [])[0];
+
+  return {
+    ...order.currentStep,
+    type: "qualifier",
+    itemId: nextPending.lineItemId || nextPending.id,
+    targetId: nextPending.targetId || activeMissing?.targetId || activeGroup?.targetId,
+    qualifierId: activeMissing?.qualifierId || activeGroup?.qualifierId,
+    question: activeGroup?.label || activeMissing?.label || "Choose required option",
+  };
+}
+
+function smartBarMobileApplyChoiceToCarryoutOrder(
+  order: CarryoutOrder | null,
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+): CarryoutOrder | null {
+  if (!order) return order;
+
+  const sourceItems = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const items = sourceItems.map((line) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value));
+  const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
+  const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+  const nextCurrentStep = smartBarMobileNextCurrentStep(order, pendingItems);
+
+  return {
+    ...order,
+    status: pendingItems.length ? order.status : "ready_cart",
+    nextAction: pendingItems.length ? order.nextAction : "show_cart",
+    items,
+    completeItems,
+    pendingItems,
+    currentStep: nextCurrentStep,
+  };
+}
+
 function smartBarMobileBuildGuideConfig() {
   return {
     mode: "commerce",
@@ -2496,6 +2613,30 @@ export default function SmartBarSpeedDemo({
     }
   }, []);
 
+  const handleMobileShellLineChoice = useCallback((line: SmartBarMobileOrderLine, value: string) => {
+    const previousEstimatedTotal = mobileEstimatedTotalRef.current;
+    const nextLines = smartBarMobileApplyChoiceToVisibleLines(
+      mobileOrderLinesRef.current,
+      line,
+      value,
+    );
+
+    mobileOrderLinesRef.current = nextLines;
+    mobileEstimatedTotalRef.current = previousEstimatedTotal && previousEstimatedTotal !== "—"
+      ? previousEstimatedTotal
+      : smartBarMobileEstimatedTotalFromLines(nextLines);
+    mobileCarryoutOrderRef.current = smartBarMobileApplyChoiceToCarryoutOrder(
+      mobileCarryoutOrderRef.current,
+      line,
+      value,
+    );
+
+    return {
+      lines: nextLines,
+      estimatedTotal: mobileEstimatedTotalRef.current,
+    };
+  }, []);
+
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -3157,6 +3298,7 @@ export default function SmartBarSpeedDemo({
         <SmartBarMobileShell
           mode="overlay"
           onSubmitPrompt={handleMobileShellSubmit}
+          onApplyLineChoice={handleMobileShellLineChoice}
           onResetCart={() => {
             mobileCarryoutOrderRef.current = null;
             mobileOrderLinesRef.current = [];
@@ -3218,6 +3360,7 @@ export default function SmartBarSpeedDemo({
         <SmartBarMobileShell
           mode="overlay"
           onSubmitPrompt={handleMobileShellSubmit}
+          onApplyLineChoice={handleMobileShellLineChoice}
           onResetCart={() => {
             mobileCarryoutOrderRef.current = null;
             mobileOrderLinesRef.current = [];
