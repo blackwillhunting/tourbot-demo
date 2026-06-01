@@ -127,6 +127,105 @@ function ThinkingText({ text }: { text: string }) {
   );
 }
 
+
+function smartBarMobileTitlePrefix(value: string) {
+  const match = value.match(/^\s*(\d+)\s*[×x]\s*(.+)$/i);
+  return match ? { prefix: `${match[1]} × `, body: match[2] } : { prefix: "", body: value };
+}
+
+function smartBarMobileShortLabel(value: string) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const key = text.toLowerCase();
+
+  const exact: Record<string, string> = {
+    chocolate: "Choc",
+    strawberry: "Straw",
+    vanilla: "Van",
+    caramel: "Caramel",
+    medium: "Med",
+    large: "Lrg",
+    small: "Sm",
+    "medium fries": "Med fries",
+    "large fries": "Lrg fries",
+    "small fries": "Sm fries",
+    "medium drink": "Med drink",
+    "large drink": "Lrg drink",
+    "small drink": "Sm drink",
+    "medium sprite": "Med Sprite",
+    "large sprite": "Lrg Sprite",
+    "medium coke": "Med Coke",
+    "large coke": "Lrg Coke",
+    "diet coke": "Diet Coke",
+    "root beer": "Root Beer",
+    "honey mustard": "Honey Must",
+    "no onions": "No onion",
+    "no pickles": "No pickle",
+    "extra cheese": "X cheese",
+    "add cheese": "Cheese",
+    "extra sauce": "X sauce",
+    "choice needed": "Choice",
+    "size needed": "Size",
+  };
+
+  if (exact[key]) return exact[key];
+
+  return text
+    .replace(/\bChocolate\b/gi, "Choc")
+    .replace(/\bStrawberry\b/gi, "Straw")
+    .replace(/\bMedium\b/gi, "Med")
+    .replace(/\bLarge\b/gi, "Lrg")
+    .replace(/\bSmall\b/gi, "Sm")
+    .replace(/\bHoney Mustard\b/gi, "Honey Must")
+    .replace(/\bExtra\b/gi, "X")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function smartBarMobileShortTitle(value: string) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  const { prefix, body } = smartBarMobileTitlePrefix(text);
+  const key = body.toLowerCase();
+
+  const exact: Record<string, string> = {
+    "classic burger combo": "Classic Combo",
+    "classic burger combo meal": "Classic Combo",
+    "burger combo meal": "Burger Combo",
+    "double stack combo": "Double Combo",
+    "double cheeseburger combo": "Double Combo",
+    "double cheeseburger combo meal": "Double Combo",
+    "spicy chicken combo": "Spicy Combo",
+    "nugget box combo": "Nugget Box",
+    "family bundle": "Family Bundle",
+    "medium onion rings": "Med Rings",
+    "large onion rings": "Lrg Rings",
+    "small onion rings": "Sm Rings",
+    "medium fries": "Med Fries",
+    "large fries": "Lrg Fries",
+    "small fries": "Sm Fries",
+    "medium diet coke": "Med Diet Coke",
+    "large diet coke": "Lrg Diet Coke",
+    "medium sprite": "Med Sprite",
+    "large sprite": "Lrg Sprite",
+    "chocolate milkshake": "Choc Shake",
+    "strawberry milkshake": "Straw Shake",
+  };
+
+  if (exact[key]) return `${prefix}${exact[key]}`;
+
+  return `${prefix}${body
+    .replace(/\bCombo Meal\b/gi, "Combo")
+    .replace(/\bClassic Burger Combo\b/gi, "Classic Combo")
+    .replace(/\bDouble Cheeseburger Combo\b/gi, "Double Combo")
+    .replace(/\bSpicy Chicken Combo\b/gi, "Spicy Combo")
+    .replace(/\bChocolate\b/gi, "Choc")
+    .replace(/\bStrawberry\b/gi, "Straw")
+    .replace(/\bMedium\b/gi, "Med")
+    .replace(/\bLarge\b/gi, "Lrg")
+    .replace(/\bSmall\b/gi, "Sm")
+    .replace(/\s+/g, " ")
+    .trim()}`;
+}
+
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
@@ -150,6 +249,7 @@ export default function SmartBarMobileShell({
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
   const [hasEditedEntryDraft, setHasEditedEntryDraft] = useState(false);
+  const [submittedPromptPreview, setSubmittedPromptPreview] = useState("");
   const [retryDraft, setRetryDraft] = useState("");
   const [orderLines, setOrderLines] = useState<SmartBarMobileOrderLine[]>(demoLines);
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
@@ -298,6 +398,7 @@ export default function SmartBarMobileShell({
     setSelectedLineId(null);
     setLineOverrides({});
     setCartExpanded(true);
+    setSubmittedPromptPreview(submittedDraft);
     setPhase("building_cart");
 
     const orderResultPromise = onSubmitPrompt
@@ -491,6 +592,7 @@ export default function SmartBarMobileShell({
     setPhase("rest");
     setEntryDraft("");
     setHasEditedEntryDraft(false);
+    setSubmittedPromptPreview("");
     setRetryDraft("");
     setOrderLines(demoLines);
     setOrderEstimatedTotal(estimatedTotal);
@@ -710,9 +812,24 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="h-full"
-                    aria-hidden="true"
-                  />
+                    className="flex h-full flex-col justify-center px-4 py-3"
+                    aria-live="polite"
+                  >
+                    <div className={`text-center text-[10px] font-black uppercase tracking-[0.16em] ${quietTextClass}`}>
+                      {hasCart ? "Adding this" : "Checking order"}
+                    </div>
+                    <div
+                      className={`mt-2 flex min-h-[64px] items-center justify-center rounded-[28px] border px-4 py-3 text-center text-[16px] font-black leading-5 ${
+                        isOverlay
+                          ? "border-slate-950/10 bg-slate-950/5 text-slate-500"
+                          : "border-white/10 bg-slate-950/28 text-white/62"
+                      }`}
+                    >
+                      <span className="max-h-[42px] overflow-hidden break-words">
+                        {submittedPromptPreview || "Checking menu..."}
+                      </span>
+                    </div>
+                  </motion.div>
                 )}
 
                 {phase === "cart" && cartExpanded && selectedLine && (
@@ -730,7 +847,7 @@ export default function SmartBarMobileShell({
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
                         </div>
                         <div className={`mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
-                          {selectedLine.title}
+                          {smartBarMobileShortTitle(selectedLine.title)}
                         </div>
                       </div>
                       <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
@@ -767,7 +884,7 @@ export default function SmartBarMobileShell({
                               className="inline-flex items-center gap-1 rounded-full bg-emerald-300/90 px-3 py-1.5 text-xs font-black text-slate-950 shadow-sm"
                             >
                               <Check className="h-3.5 w-3.5" />
-                              {detail}
+                              {smartBarMobileShortLabel(detail)}
                             </button>
                           ))}
                         </div>
@@ -802,7 +919,7 @@ export default function SmartBarMobileShell({
                                   >
                                     <span className="inline-flex items-center justify-center gap-1.5">
                                       {isSelected && <Check className="h-3.5 w-3.5" />}
-                                      {option}
+                                      {smartBarMobileShortLabel(option)}
                                     </span>
                                   </button>
                                 );
@@ -855,7 +972,7 @@ export default function SmartBarMobileShell({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className={`truncate text-base font-black ${line.status === "unknown" ? unknownTitleClass : ""}`}>
-                                {line.title}
+                                {smartBarMobileShortTitle(line.title)}
                               </div>
                               <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
                                 {line.helper}
