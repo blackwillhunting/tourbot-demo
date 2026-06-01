@@ -130,10 +130,16 @@ function ThinkingText({ text }: { text: string }) {
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
+  onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | void;
   onResetCart?: () => void;
 };
 
-export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onResetCart }: SmartBarMobileShellProps) {
+export default function SmartBarMobileShell({
+  mode = "lab",
+  onSubmitPrompt,
+  onApplyLineChoice,
+  onResetCart,
+}: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -341,18 +347,39 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
     const cleanedDetails = (line.details || []).filter((detail) => {
       return !/^(choice needed|size needed)$/i.test(detail.trim());
     });
+    const resolvedLine: SmartBarMobileOrderLine = {
+      ...line,
+      status: "ready",
+      helper: `${value} selected`,
+      details: Array.from(new Set([...cleanedDetails, value])),
+      options: [],
+    };
+    const parentResult = onApplyLineChoice?.(line, value);
 
+    // Keep the action buttons visible long enough for the selected tile to turn
+    // green with a checkmark. Commit the real cart update after that beat.
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
         ...(current[line.id] || {}),
         status: "ready",
-        helper: `${value} selected`,
-        details: Array.from(new Set([...cleanedDetails, value])),
-        options: [],
+        helper: resolvedLine.helper,
+        details: resolvedLine.details,
+        options: line.options || [],
       },
     }));
+
     window.setTimeout(() => {
+      const nextResult = parentResult && parentResult.lines.length > 0
+        ? parentResult
+        : {
+            lines: orderLines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
+            estimatedTotal: orderEstimatedTotal,
+          };
+
+      setOrderLines(nextResult.lines);
+      setOrderEstimatedTotal(nextResult.estimatedTotal || orderEstimatedTotal);
+      setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
       setSelectedLineId(null);
