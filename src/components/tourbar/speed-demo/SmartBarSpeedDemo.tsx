@@ -13,7 +13,11 @@ import { TourBarBookingHandoffSheet, TourBarNavigationControls, type TourBarBook
 import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
-import SmartBarMobileShell from "../smartbar-mobile/SmartBarMobileShell";
+import SmartBarMobileShell, {
+  type SmartBarMobileOrderLine,
+  type SmartBarMobileOrderResult,
+  type SmartBarMobileOrderStatus,
+} from "../smartbar-mobile/SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
 import {
@@ -55,6 +59,8 @@ const SPEED_DEMO_POINTER_SETTLE_FRAMES = 3;
 const SPEED_DEMO_POINTER_STABLE_RECT_ATTEMPTS = 34;
 const SPEED_DEMO_POINTER_LOCK_ATTEMPTS = 10;
 const SPEED_DEMO_POINTER_MIN_VISIBLE_RATIO = 0.82;
+const SMARTBAR_MOBILE_GUIDE_AI_URL = "/api/guide_ai";
+const SMARTBAR_MOBILE_AUTH_TOKEN_KEY = "tourbot_demo_token";
 
 // FLASHCARD SPEED CONTROLS
 // Bigger number = slower. Smaller number = faster.
@@ -1005,6 +1011,269 @@ function speedDemoFixtureThinkingMsForQuery(query: string) {
   return speedDemoFixtureThinkingMs(result, query);
 }
 
+function smartBarMobileMoney(value: unknown) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "";
+  return `$${value.toFixed(2)}`;
+}
+
+function smartBarMobileValuesFromLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  return [
+    ...(line.knownSelections || []),
+    ...(line.qualifiers || []).map((item) => item.valueLabel || item.label || item.value),
+    ...(line.modifiers || []).map((item) => item.label),
+    ...(line.upgrades || []).map((item) => item.label),
+  ].filter((value): value is string => Boolean(value));
+}
+
+function smartBarMobileOptionsFromLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  return (line.qualifierGroups || [])
+    .flatMap((group) => group.options || [])
+    .map((option) => option.label || option.value)
+    .filter((value): value is string => Boolean(value));
+}
+
+function smartBarMobileStatusForLine(line: NonNullable<CarryoutOrder["items"]>[number]): SmartBarMobileOrderStatus {
+  const rawStatus = String(line.status || "").toLowerCase();
+  const hasMissingQualifiers = Boolean(
+    line.missingQualifiers?.length ||
+      line.qualifierGroups?.some((group) => group.missing),
+  );
+  const hasOptionalControls = Boolean(
+    line.qualifierGroups?.some((group) => {
+      const kind = String(group.kind || "").toLowerCase();
+      const selectionMode = String(group.selectionMode || "").toLowerCase();
+      return group.required === false || kind === "modifier" || kind === "upgrade" || selectionMode === "multi";
+    }) ||
+      line.modifiers?.length ||
+      line.upgrades?.length,
+  );
+
+  if (rawStatus.includes("pending") || rawStatus.includes("need") || hasMissingQualifiers) return "pending";
+  if (hasOptionalControls) return "options";
+  return "ready";
+}
+
+function smartBarMobileHelperForLine(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  status: SmartBarMobileOrderStatus,
+) {
+  if (status === "pending") {
+    const missing = line.missingQualifiers?.[0]?.label ||
+      line.qualifierGroups?.find((group) => group.missing)?.label;
+    return missing ? `Choose ${missing.toLowerCase()}` : "Choose a required option";
+  }
+
+  if (status === "options") return "Options available";
+  return "Matched and ready";
+}
+
+function smartBarMobileLineFromCarryoutLine(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+  index: number,
+): SmartBarMobileOrderLine {
+  const status = smartBarMobileStatusForLine(line);
+  const details = smartBarMobileValuesFromLine(line);
+  const options = smartBarMobileOptionsFromLine(line);
+
+  return {
+    id: line.lineItemId || line.id || `line-${index}`,
+    title: `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`,
+    status,
+    helper: smartBarMobileHelperForLine(line, status),
+    price: line.priceLabel || smartBarMobileMoney(line.lineSubtotal) || "—",
+    details: details.length ? details : status === "pending" ? ["Choice needed"] : ["Ready"],
+    ...(options.length ? { options } : {}),
+  };
+}
+
+function smartBarMobileResultFromOrder(
+  order: CarryoutOrder | null,
+  fallbackQuery: string,
+): SmartBarMobileOrderResult {
+  if (!order) {
+    return {
+      lines: [
+        {
+          id: "fallback-unknown",
+          title: fallbackQuery || "Requested item",
+          status: "unknown",
+          helper: "Could not build cart from this response",
+          price: "—",
+          details: [],
+          retryPrompt: "Try the order again in plain English.",
+        },
+      ],
+      estimatedTotal: "—",
+    };
+  }
+
+  const baseLines = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const matchedLines = [...baseLines]
+    .reverse()
+    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index));
+  const cannotMatchLines = (order.cannotMatchItems || [])
+    .map((item, index): SmartBarMobileOrderLine => {
+      const title = item.text || item.label || item.title || item.item || "Unmatched item";
+      return {
+        id: `cannot-match-${index}-${title}`,
+        title,
+        status: "unknown",
+        helper: item.reason === "not_on_menu" ? "Not on the BurgerRush menu" : "Could not match item",
+        price: "—",
+        details: item.suggestion ? [item.suggestion] : [],
+        retryPrompt: "Re-enter the item so SmartBar can match it.",
+      };
+    });
+  const estimatedTotal = smartBarMobileMoney(order.totals?.estimatedTotal) ||
+    smartBarMobileMoney(order.totals?.subtotal) ||
+    "—";
+
+  return {
+    lines: [...matchedLines, ...cannotMatchLines],
+    estimatedTotal,
+  };
+}
+
+function smartBarMobileBuildGuideConfig() {
+  return {
+    mode: "commerce",
+    label: "BurgerRush Carryout",
+    catalogMode: "carryout_ordering",
+    features: {
+      refinementChips: true,
+      bookingActions: true,
+      navigation: true,
+    },
+    packIds: {
+      catalog: "carryout_cart_catalog",
+    },
+  };
+}
+
+function smartBarMobileGetDemoToken() {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(SMARTBAR_MOBILE_AUTH_TOKEN_KEY) || "";
+}
+
+function smartBarMobileBuildGuideAiHeaders() {
+  const token = smartBarMobileGetDemoToken();
+
+  return {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function smartBarMobileCompact(value: unknown, maxChars = 500) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxChars);
+}
+
+function smartBarMobileGetPageSections() {
+  if (typeof document === "undefined") return [];
+
+  return Array.from(document.querySelectorAll<HTMLElement>("section[id], [data-tour-id], [id]"))
+    .slice(0, 80)
+    .map((node) => {
+      const id = node.getAttribute("data-tour-id") || node.id;
+      const heading = node.querySelector("h1,h2,h3")?.textContent?.trim();
+      const summary = smartBarMobileCompact(node.innerText || node.textContent || "", 500);
+
+      return {
+        id: id || "",
+        label: heading || id || "Page section",
+        summary,
+      };
+    })
+    .filter((section) => section.id && section.summary);
+}
+
+function smartBarMobileApiErrorResult(query: string, error: unknown): SmartBarMobileOrderResult {
+  const message = error instanceof Error ? error.message : String(error || "Unknown guide API error");
+
+  return {
+    lines: [
+      {
+        id: "guide-ai-error",
+        title: query || "Guide API request",
+        status: "unknown",
+        helper: "Guide API blocked",
+        price: "—",
+        details: [message],
+        retryPrompt: "Check the Vite proxy, Functions host, and Network tab, then try again.",
+      },
+    ],
+    estimatedTotal: "—",
+  };
+}
+
+async function smartBarMobileResultFromGuideAi(query: string): Promise<SmartBarMobileOrderResult> {
+  const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: smartBarMobileBuildGuideAiHeaders(),
+    body: JSON.stringify({
+      mode: "commerce",
+      guideConfig: smartBarMobileBuildGuideConfig(),
+      message: query,
+      conversationContext: {
+        singleTurn: true,
+        lastUserMessage: query,
+        recentUserMessages: [query],
+        commerceContext: {
+          carryoutOrder: null,
+        },
+      },
+      visibleContext: {
+        carryoutOrder: null,
+      },
+      pageContext: {
+        url: typeof window !== "undefined" ? window.location.href : "",
+        title: typeof document !== "undefined" ? document.title : "BurgerRush Carryout",
+        sections: smartBarMobileGetPageSections(),
+      },
+    }),
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const body = contentType.includes("application/json")
+    ? ((await response.json().catch(() => ({}))) as GuideAiCarryoutResponse & { message?: string })
+    : ({ message: await response.text().catch(() => "") } as GuideAiCarryoutResponse & { message?: string });
+
+  if (!response.ok) {
+    const message = body.answer || body.message || body.body || `HTTP ${response.status}`;
+    throw new Error(`Guide API ${response.status}: ${smartBarMobileCompact(message, 260)}`);
+  }
+
+  const order = body.carryoutOrder ?? body.visibleContext?.carryoutOrder ?? null;
+  const result = smartBarMobileResultFromOrder(order, query);
+
+  if (!order) {
+    return {
+      lines: [
+        {
+          id: "guide-ai-no-order",
+          title: query || "Guide API response",
+          status: "unknown",
+          helper: "Guide API returned no cart",
+          price: "—",
+          details: [smartBarMobileCompact(body.answer || body.message || body.body || "No carryoutOrder found.", 260)],
+          retryPrompt: "Check the guide response shape before trying again.",
+        },
+      ],
+      estimatedTotal: "—",
+    };
+  }
+
+  return result;
+}
+
 function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
   const raw = carryoutRaw(order, options.commerceAction || "carryout_show_cart");
   return {
@@ -1732,6 +2001,14 @@ export default function SmartBarSpeedDemo({
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
+  const handleMobileShellSubmit = useCallback(async (query: string) => {
+    try {
+      return await smartBarMobileResultFromGuideAi(query);
+    } catch (error) {
+      console.warn("SmartBar mobile guide API failed", error);
+      return smartBarMobileApiErrorResult(query, error);
+    }
+  }, []);
 
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
@@ -2430,7 +2707,12 @@ export default function SmartBarSpeedDemo({
         <SmartBarSpeedTargetWall surface={toolbarSurface} />
       </div>
 
-      {mobileBurgerRushShell && <SmartBarMobileShell mode="overlay" />}
+      {mobileBurgerRushShell && (
+        <SmartBarMobileShell
+          mode="overlay"
+          onSubmitPrompt={handleMobileShellSubmit}
+        />
+      )}
 
       {!mobileBurgerRushShell && <SmartBarDemoScrubber
         index={stepIndex}
