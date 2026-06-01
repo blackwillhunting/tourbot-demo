@@ -132,10 +132,10 @@ function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOver
 
 function smartBarMobileRowAnimate(status: SmartBarMobileOrderStatus): TargetAndTransition {
   if (status === "pending" || status === "options") {
-    return { x: 0, scale: [1, 1.006, 1], opacity: [1, 0.94, 1] };
+    return { x: 0, scale: [1, 1.006, 1] };
   }
 
-  return { x: 0, scale: 1, opacity: 1 };
+  return { x: 0, scale: 1 };
 }
 
 function smartBarMobileRowTransition(status: SmartBarMobileOrderStatus): Transition {
@@ -143,7 +143,6 @@ function smartBarMobileRowTransition(status: SmartBarMobileOrderStatus): Transit
     return {
       x: { type: "spring", stiffness: 520, damping: 36 },
       scale: { duration: 1.45, repeat: Infinity, ease: "easeInOut" },
-      opacity: { duration: 1.45, repeat: Infinity, ease: "easeInOut" },
     };
   }
 
@@ -357,7 +356,7 @@ export default function SmartBarMobileShell({
   const checkoutReady = lines.length > 0 && issueCount === 0;
   const cartSummaryHeight = Math.min(
     maxCartPanelHeight,
-    Math.max(192, 112 + lines.length * 74 + Math.max(0, lines.length - 1) * 8),
+    Math.max(270, 172 + lines.length * 86 + Math.max(0, lines.length - 1) * 8),
   );
   const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
   const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 3);
@@ -1043,10 +1042,6 @@ export default function SmartBarMobileShell({
                     <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                       {lines.map((line) => (
                         <div key={line.id} className="relative overflow-hidden rounded-2xl">
-                          <div
-                            aria-hidden="true"
-                            className="absolute inset-y-0 right-0 w-[96px] rounded-2xl bg-rose-500/90"
-                          />
                           <motion.button
                             type="button"
                             animate={smartBarMobileRowAnimate(line.status)}
