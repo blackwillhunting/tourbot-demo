@@ -1199,6 +1199,187 @@ function smartBarMobileResultFromOrder(
   };
 }
 
+function smartBarMobileLineKeys(line: SmartBarMobileOrderLine) {
+  return [
+    line.id,
+    line.title,
+    line.title.replace(/^\s*\d+\s*[×x]\s*/i, ""),
+  ]
+    .map((value) => smartBarMobileSelectionKey(value))
+    .filter(Boolean);
+}
+
+function smartBarMobileLinesMatch(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
+  const leftKeys = smartBarMobileLineKeys(left);
+  const rightKeys = smartBarMobileLineKeys(right);
+
+  return leftKeys.some((leftKey) => rightKeys.some((rightKey) => leftKey === rightKey));
+}
+
+function smartBarMobileFindMatchingLineIndex(
+  lines: SmartBarMobileOrderLine[],
+  line: SmartBarMobileOrderLine,
+) {
+  return lines.findIndex((candidate) => smartBarMobileLinesMatch(candidate, line));
+}
+
+function smartBarMobileHydrateLineFromPrevious(
+  line: SmartBarMobileOrderLine,
+  previousLines: SmartBarMobileOrderLine[],
+) {
+  const previous = previousLines.find((candidate) => smartBarMobileLinesMatch(candidate, line));
+  if (!previous) return line;
+
+  return {
+    ...line,
+    price: line.price && line.price !== "—" ? line.price : previous.price,
+    details: line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
+      ? line.details
+      : previous.details,
+  };
+}
+
+function smartBarMobileParseMoney(value?: string) {
+  const parsed = Number(String(value || "").replace(/[^0-9.-]+/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function smartBarMobileMoneyFromNumber(value: number) {
+  return `$${value.toFixed(2)}`;
+}
+
+function smartBarMobileMergeOrderResults(
+  nextResult: SmartBarMobileOrderResult,
+  previousLines: SmartBarMobileOrderLine[],
+  previousEstimatedTotal: string,
+  shouldMergeWithPrevious: boolean,
+): SmartBarMobileOrderResult {
+  const hydratedNextLines = nextResult.lines.map((line) => smartBarMobileHydrateLineFromPrevious(line, previousLines));
+
+  if (!shouldMergeWithPrevious) {
+    return {
+      ...nextResult,
+      lines: hydratedNextLines,
+      estimatedTotal: nextResult.estimatedTotal || "—",
+    };
+  }
+
+  if (previousLines.length === 0) {
+    return {
+      ...nextResult,
+      lines: hydratedNextLines,
+      estimatedTotal: nextResult.estimatedTotal || previousEstimatedTotal,
+    };
+  }
+
+  const mergedLines = [...previousLines];
+  let appendedLineCount = 0;
+  let matchedPreviousLineCount = 0;
+
+  for (const line of hydratedNextLines) {
+    const existingIndex = smartBarMobileFindMatchingLineIndex(mergedLines, line);
+
+    if (existingIndex >= 0) {
+      matchedPreviousLineCount += 1;
+      mergedLines[existingIndex] = smartBarMobileHydrateLineFromPrevious(line, [mergedLines[existingIndex]]);
+      continue;
+    }
+
+    appendedLineCount += 1;
+    mergedLines.push(line);
+  }
+
+  const previousTotal = smartBarMobileParseMoney(previousEstimatedTotal);
+  const nextTotal = smartBarMobileParseMoney(nextResult.estimatedTotal);
+  const responseLooksLikeFullCart = matchedPreviousLineCount > 0;
+  const estimatedTotal = responseLooksLikeFullCart
+    ? nextResult.estimatedTotal || previousEstimatedTotal
+    : appendedLineCount > 0 && previousTotal !== null && nextTotal !== null
+      ? smartBarMobileMoneyFromNumber(previousTotal + nextTotal)
+      : nextResult.estimatedTotal || previousEstimatedTotal;
+
+  return {
+    ...nextResult,
+    lines: mergedLines,
+    estimatedTotal,
+  };
+}
+
+function smartBarMobileCarryoutLineKeys(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  return [
+    line.lineItemId,
+    line.id,
+    line.title,
+    line.title?.replace(/^\s*\d+\s*[×x]\s*/i, ""),
+  ]
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
+    .filter(Boolean);
+}
+
+function smartBarMobileCarryoutLinesMatch(
+  left: NonNullable<CarryoutOrder["items"]>[number],
+  right: NonNullable<CarryoutOrder["items"]>[number],
+) {
+  const leftKeys = smartBarMobileCarryoutLineKeys(left);
+  const rightKeys = smartBarMobileCarryoutLineKeys(right);
+
+  return leftKeys.some((leftKey) => rightKeys.some((rightKey) => leftKey === rightKey));
+}
+
+function smartBarMobileCarryoutLineIsPending(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  const status = String(line.status || "").toLowerCase();
+  return Boolean(
+    status.includes("pending") ||
+      status.includes("need") ||
+      line.missingQualifiers?.length ||
+      line.qualifierGroups?.some((group) => group.missing),
+  );
+}
+
+function smartBarMobileMergeCarryoutOrders(
+  previousOrder: CarryoutOrder | null,
+  nextOrder: CarryoutOrder | null,
+  shouldMergeWithPrevious: boolean,
+): CarryoutOrder | null {
+  if (!shouldMergeWithPrevious || !previousOrder) return nextOrder;
+  if (!nextOrder) return previousOrder;
+
+  const previousItems = Array.isArray(previousOrder.items)
+    ? previousOrder.items
+    : [...(previousOrder.completeItems || []), ...(previousOrder.pendingItems || [])];
+  const nextItems = Array.isArray(nextOrder.items)
+    ? nextOrder.items
+    : [...(nextOrder.completeItems || []), ...(nextOrder.pendingItems || [])];
+
+  const mergedItems = [...previousItems];
+
+  for (const line of nextItems) {
+    const existingIndex = mergedItems.findIndex((candidate) => smartBarMobileCarryoutLinesMatch(candidate, line));
+    if (existingIndex >= 0) {
+      mergedItems[existingIndex] = {
+        ...mergedItems[existingIndex],
+        ...line,
+        priceLabel: line.priceLabel || mergedItems[existingIndex].priceLabel,
+        lineSubtotal: line.lineSubtotal ?? mergedItems[existingIndex].lineSubtotal,
+      };
+      continue;
+    }
+
+    mergedItems.push(line);
+  }
+
+  const pendingItems = mergedItems.filter(smartBarMobileCarryoutLineIsPending);
+  const completeItems = mergedItems.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+
+  return {
+    ...previousOrder,
+    ...nextOrder,
+    items: mergedItems,
+    completeItems,
+    pendingItems,
+  };
+}
+
 function smartBarMobileBuildGuideConfig() {
   return {
     mode: "commerce",
@@ -2061,6 +2242,8 @@ export default function SmartBarSpeedDemo({
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
   const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
+  const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
+  const mobileEstimatedTotalRef = useRef("—");
   const demoSteps = useMemo(
     () => (variant === "burgerRushOnly" ? SMARTBAR_BURGERRUSH_ONLY_STEPS : SMARTBAR_SPEED_STEPS),
     [variant],
@@ -2069,16 +2252,47 @@ export default function SmartBarSpeedDemo({
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   const handleMobileShellSubmit = useCallback(async (query: string) => {
+    const shouldUseExistingCart = Boolean(
+      mobileCarryoutOrderRef.current && smartBarMobileQueryShouldUseExistingCart(query),
+    );
+    const carryoutOrderForPrompt = shouldUseExistingCart ? mobileCarryoutOrderRef.current : null;
+    const previousLines = mobileOrderLinesRef.current;
+    const previousEstimatedTotal = mobileEstimatedTotalRef.current;
+
     try {
-      const carryoutOrderForPrompt = smartBarMobileQueryShouldUseExistingCart(query)
-        ? mobileCarryoutOrderRef.current
-        : null;
       const result = await smartBarMobileResultFromGuideAi(query, carryoutOrderForPrompt);
-      mobileCarryoutOrderRef.current = result.carryoutOrder ?? (carryoutOrderForPrompt ? mobileCarryoutOrderRef.current : null);
-      return result;
+      const mergedResult = smartBarMobileMergeOrderResults(
+        result,
+        previousLines,
+        previousEstimatedTotal,
+        shouldUseExistingCart,
+      );
+
+      mobileOrderLinesRef.current = mergedResult.lines;
+      mobileEstimatedTotalRef.current = mergedResult.estimatedTotal || previousEstimatedTotal;
+      mobileCarryoutOrderRef.current = smartBarMobileMergeCarryoutOrders(
+        carryoutOrderForPrompt,
+        result.carryoutOrder ?? null,
+        shouldUseExistingCart,
+      );
+
+      return mergedResult;
     } catch (error) {
       console.warn("SmartBar mobile guide API failed", error);
-      return smartBarMobileApiErrorResult(query, error);
+      const errorResult = smartBarMobileApiErrorResult(query, error);
+      const mergedErrorResult = smartBarMobileMergeOrderResults(
+        errorResult,
+        previousLines,
+        previousEstimatedTotal,
+        shouldUseExistingCart,
+      );
+
+      if (shouldUseExistingCart) {
+        mobileOrderLinesRef.current = mergedErrorResult.lines;
+        mobileEstimatedTotalRef.current = mergedErrorResult.estimatedTotal || previousEstimatedTotal;
+      }
+
+      return mergedErrorResult;
     }
   }, []);
 
@@ -2785,6 +2999,8 @@ export default function SmartBarSpeedDemo({
           onSubmitPrompt={handleMobileShellSubmit}
           onResetCart={() => {
             mobileCarryoutOrderRef.current = null;
+            mobileOrderLinesRef.current = [];
+            mobileEstimatedTotalRef.current = "—";
           }}
         />
       )}
