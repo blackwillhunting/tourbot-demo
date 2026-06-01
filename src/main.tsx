@@ -6,6 +6,7 @@ import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
 import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
+import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -183,6 +184,10 @@ function ProtectedDemoRoute({ children }: { children: ReactNode }) {
 
 function Router() {
   const path = normalizedPath();
+
+  if (path === "/smartbar-mobile-lab") {
+    return <SmartBarMobileShell />;
+  }
 
   if (isSmartBarHostname()) {
     return <LaunchSelectorTourBar variant={smartBarSpeedVariantFromPath(path)} />;
