@@ -104,6 +104,57 @@ function statusClass(status: SmartBarMobileOrderStatus) {
   return "bg-slate-200 text-slate-700 ring-slate-300";
 }
 
+const SMARTBAR_MOBILE_TAX_RATE = 0.0825;
+
+function smartBarMobileParseMoney(value?: string) {
+  const cleaned = String(value || "").replace(/[^0-9.-]+/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === "." || cleaned === "-.") return null;
+
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function smartBarMobileMoneyFromNumber(value: number) {
+  return `$${value.toFixed(2)}`;
+}
+
+function smartBarMobileTotalsFromLines(lines: SmartBarMobileOrderLine[]) {
+  const subtotal = lines.reduce((sum, line) => {
+    const value = smartBarMobileParseMoney(line.price);
+    return value === null ? sum : sum + value;
+  }, 0);
+  const tax = subtotal > 0 ? subtotal * SMARTBAR_MOBILE_TAX_RATE : 0;
+  const total = subtotal + tax;
+
+  return {
+    subtotal,
+    tax,
+    total,
+    subtotalLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(subtotal) : "—",
+    taxLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(tax) : "—",
+    totalLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(total) : "—",
+  };
+}
+
+function SmartBarMobileOdometerText({ value, motionKey }: { value: string; motionKey?: string }) {
+  return (
+    <span className="relative inline-flex min-w-[70px] justify-end overflow-hidden tabular-nums">
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={motionKey || value}
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -10, opacity: 0 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="inline-block"
+        >
+          {value}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
+
 function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOverlay: boolean) {
   if (isOverlay) {
     if (status === "ready") {
@@ -351,12 +402,15 @@ export default function SmartBarMobileShell({
   const selectedLine = selectedLineId
     ? lines.find((line) => line.id === selectedLineId) || null
     : null;
-  const issueCount = lines.filter((line) => line.status === "pending" || line.status === "unknown").length;
+  const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
+  const unknownCount = lines.filter((line) => line.status === "unknown").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
-  const checkoutReady = lines.length > 0 && issueCount === 0;
+  const checkoutReady = lines.length > 0 && blockingIssueCount === 0;
+  const cartTotals = smartBarMobileTotalsFromLines(lines);
+  const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const cartSummaryHeight = Math.min(
     maxCartPanelHeight,
-    Math.max(270, 172 + lines.length * 86 + Math.max(0, lines.length - 1) * 8),
+    Math.max(360, 250 + lines.length * 92 + Math.max(0, lines.length - 1) * 10),
   );
   const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
   const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 3);
@@ -699,9 +753,9 @@ export default function SmartBarMobileShell({
       return retryCheckingLineId === selectedLine.id ? "Checking menu..." : "Re-enter";
     }
     if (phase === "cart" && selectedLine) return "Tap to reopen";
-    if (phase === "cart") return checkoutReady ? "Tap for checkout" : `${issueCount} need attention`;
-    if (checkoutReady) return `Ready checkout · ${orderEstimatedTotal}`;
-    return `${issueCount} need attention · ${orderEstimatedTotal}`;
+    if (phase === "cart") return checkoutReady ? "Tap for checkout" : `${blockingIssueCount} need attention`;
+    if (checkoutReady) return `Ready checkout · ${cartTotals.totalLabel}`;
+    return `${blockingIssueCount} need attention · ${cartTotals.totalLabel}`;
   })();
 
   const handleCompanionClick = () => {
@@ -1018,7 +1072,13 @@ export default function SmartBarMobileShell({
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div>
                         <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${greenEyebrowClass}`}>
-                          {checkoutReady ? (optionCount > 0 ? "Ready · options available" : "Ready for checkout") : "Needs attention"}
+                          {checkoutReady
+                            ? optionCount > 0
+                              ? "Ready · options available"
+                              : unknownCount > 0
+                                ? "Ready · retry optional"
+                                : "Ready for checkout"
+                            : "Needs attention"}
                         </div>
                         <div className="mt-1 text-xl font-black tracking-tight">
                           Review order
@@ -1031,7 +1091,7 @@ export default function SmartBarMobileShell({
                             <Check className="h-3.5 w-3.5" />
                             Complete
                           </>
-                        ) : `${issueCount} open`}
+                        ) : `${blockingIssueCount} open`}
                       </div>
                     </div>
 
@@ -1039,7 +1099,7 @@ export default function SmartBarMobileShell({
                       &lt;--- swipe to remove
                     </div>
 
-                    <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                    <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 pb-2">
                       {lines.map((line) => (
                         <div key={line.id} className="relative overflow-hidden rounded-2xl">
                           <motion.button
@@ -1047,13 +1107,15 @@ export default function SmartBarMobileShell({
                             animate={smartBarMobileRowAnimate(line.status)}
                             transition={smartBarMobileRowTransition(line.status)}
                             drag="x"
-                            dragConstraints={{ left: -96, right: 0 }}
-                            dragElastic={0.08}
+                            dragConstraints={{ left: -154, right: 0 }}
+                            dragElastic={0.42}
+                            dragMomentum={false}
+                            dragTransition={{ bounceStiffness: 160, bounceDamping: 14 }}
                             onDragStart={() => {
                               rowSwipeActiveRef.current = true;
                             }}
                             onDragEnd={(_, info) => {
-                              const shouldRemove = info.offset.x < -68 || info.velocity.x < -520;
+                              const shouldRemove = info.offset.x < -46 || info.velocity.x < -260;
                               window.setTimeout(() => {
                                 rowSwipeActiveRef.current = false;
                               }, 0);
@@ -1081,6 +1143,27 @@ export default function SmartBarMobileShell({
                           </motion.button>
                         </div>
                       ))}
+                    </div>
+
+                    <div
+                      className={
+                        isOverlay
+                          ? "mt-3 shrink-0 rounded-[24px] border border-slate-950/10 bg-white/84 px-4 py-3 text-slate-950 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80"
+                          : "mt-3 shrink-0 rounded-[24px] border border-white/10 bg-slate-950/44 px-4 py-3 text-white shadow-[0_-8px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/10"
+                      }
+                    >
+                      <div className="flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
+                        <span className={quietTextClass}>Subtotal</span>
+                        <span className="tabular-nums">{cartTotals.subtotalLabel}</span>
+                      </div>
+                      <div className="mt-1 flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
+                        <span className={quietTextClass}>Est. tax</span>
+                        <span className="tabular-nums">{cartTotals.taxLabel}</span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-950/10 pt-2 text-[17px] font-black tracking-[-0.02em]">
+                        <span>Total</span>
+                        <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
+                      </div>
                     </div>
                   </motion.div>
                 )}
