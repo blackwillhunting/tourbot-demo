@@ -204,7 +204,7 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
           220,
           150 +
             selectedDetailChipRows * 34 +
-            (selectedOptionRows > 0 ? 18 + selectedOptionRows * 54 : 0),
+            (selectedOptionRows > 0 ? 38 + selectedOptionRows * 54 : 0),
         ),
       );
   const fakeCartPanelHeight = phase === "cart"
@@ -622,9 +622,9 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
                     <div className="flex shrink-0 items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
-                          {selectedLine.status === "unknown" ? "Retry item" : "Editing item"}
+                          {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
                         </div>
-                        <div className={`mt-1 truncate text-xl font-black tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
+                        <div className={`mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
                           {selectedLine.title}
                         </div>
                       </div>
@@ -667,17 +667,22 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
                         </div>
 
                         {!!selectedLine.options?.length && (
-                          <div className="mt-4 grid grid-cols-3 gap-2">
-                            {selectedLine.options.map((option) => (
-                              <button
-                                key={option}
-                                type="button"
-                                onClick={() => applyLineChoice(selectedLine, option)}
-                                className="rounded-[22px] bg-white/88 px-3 py-3 text-sm font-black text-slate-950 shadow-lg"
-                              >
-                                {option}
-                              </button>
-                            ))}
+                          <div className="mt-4">
+                            <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
+                              Choose one
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {selectedLine.options.map((option) => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  onClick={() => applyLineChoice(selectedLine, option)}
+                                  className="rounded-[22px] bg-white/88 px-3 py-3 text-sm font-black text-slate-950 shadow-lg"
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
