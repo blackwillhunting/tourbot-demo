@@ -18,6 +18,7 @@ import {
 } from "./burgerRushMobileCartReducer";
 import {
   smartBarMobileApiErrorResult,
+  smartBarMobileRepriceCartFromGuideAi,
   smartBarMobileResultFromGuideAi,
 } from "./burgerRushMobileGuideAdapter";
 import { BurgerRushCarryoutSite } from "../../../../App-Carryout";
@@ -91,47 +92,93 @@ export default function BurgerRushMobileExperience() {
     }
   }, []);
 
-  const handleApplyLineChoice = useCallback((line: SmartBarMobileOrderLine, value: string) => {
+  const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string) => {
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
     const nextLines = smartBarMobileApplyChoiceToVisibleLines(
       mobileOrderLinesRef.current,
       line,
       value,
     );
-
-    mobileOrderLinesRef.current = nextLines;
-    mobileEstimatedTotalRef.current = previousEstimatedTotal && previousEstimatedTotal !== "—"
-      ? previousEstimatedTotal
-      : smartBarMobileEstimatedTotalFromLines(nextLines);
-    mobileCarryoutOrderRef.current = smartBarMobileApplyChoiceToCarryoutOrder(
+    const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
       mobileCarryoutOrderRef.current,
       line,
       value,
     );
+    const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "—"
+      ? previousEstimatedTotal
+      : smartBarMobileEstimatedTotalFromLines(nextLines);
 
-    return {
+    mobileOrderLinesRef.current = nextLines;
+    mobileEstimatedTotalRef.current = optimisticEstimatedTotal;
+    mobileCarryoutOrderRef.current = optimisticCarryoutOrder;
+
+    const optimisticResult = {
       lines: nextLines,
-      estimatedTotal: mobileEstimatedTotalRef.current,
+      estimatedTotal: optimisticEstimatedTotal,
     };
+
+    if (!optimisticCarryoutOrder) return optimisticResult;
+
+    try {
+      const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
+        optimisticCarryoutOrder,
+        `selected ${value} for ${line.title}`,
+      );
+
+      mobileOrderLinesRef.current = repricedResult.lines;
+      mobileEstimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
+      mobileCarryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
+
+      return {
+        ...repricedResult,
+        estimatedTotal: repricedResult.estimatedTotal || optimisticEstimatedTotal,
+      };
+    } catch (error) {
+      console.warn("SmartBar mobile reprice failed after choice", error);
+      return optimisticResult;
+    }
   }, []);
 
 
-  const handleRemoveLine = useCallback((line: SmartBarMobileOrderLine) => {
+  const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
     const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
     const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "—";
-
-    mobileOrderLinesRef.current = nextLines;
-    mobileEstimatedTotalRef.current = nextEstimatedTotal;
-    mobileCarryoutOrderRef.current = smartBarMobileRemoveLineFromCarryoutOrder(
+    const optimisticCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
       mobileCarryoutOrderRef.current,
       line,
     );
 
-    return {
+    mobileOrderLinesRef.current = nextLines;
+    mobileEstimatedTotalRef.current = nextEstimatedTotal;
+    mobileCarryoutOrderRef.current = optimisticCarryoutOrder;
+
+    const optimisticResult = {
       lines: nextLines,
       estimatedTotal: nextEstimatedTotal,
     };
+
+    if (!nextLines.length || !optimisticCarryoutOrder) return optimisticResult;
+
+    try {
+      const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
+        optimisticCarryoutOrder,
+        `removed ${line.title}`,
+      );
+
+      mobileOrderLinesRef.current = repricedResult.lines;
+      mobileEstimatedTotalRef.current = repricedResult.estimatedTotal || nextEstimatedTotal;
+      mobileCarryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
+
+      return {
+        ...repricedResult,
+        estimatedTotal: repricedResult.estimatedTotal || nextEstimatedTotal,
+      };
+    } catch (error) {
+      console.warn("SmartBar mobile reprice failed after remove", error);
+      return optimisticResult;
+    }
   }, []);
+
 
   const handleResetCart = useCallback(() => {
     mobileCarryoutOrderRef.current = null;

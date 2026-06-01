@@ -275,12 +275,16 @@ export function smartBarMobileResultFromOrder(
       };
     });
   const allLines = [...matchedLines, ...cannotMatchLines];
+  const estimatedSubtotal = smartBarMobileMoney(order.totals?.subtotal) || undefined;
+  const estimatedTax = smartBarMobileMoney(order.totals?.estimatedTax) || undefined;
   const estimatedTotal = smartBarMobileMoney(order.totals?.estimatedTotal) ||
-    smartBarMobileMoney(order.totals?.subtotal) ||
+    estimatedSubtotal ||
     smartBarMobileEstimatedTotalFromLines(allLines);
 
   return {
     lines: allLines,
+    estimatedSubtotal,
+    estimatedTax,
     estimatedTotal,
   };
 }
@@ -359,6 +363,8 @@ export function smartBarMobileMergeOrderResults(
     return {
       ...nextResult,
       lines: hydratedNextLines,
+      estimatedSubtotal: nextResult.estimatedSubtotal,
+      estimatedTax: nextResult.estimatedTax,
       estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
         ? nextResult.estimatedTotal
         : smartBarMobileEstimatedTotalFromLines(hydratedNextLines),
@@ -369,6 +375,8 @@ export function smartBarMobileMergeOrderResults(
     return {
       ...nextResult,
       lines: hydratedNextLines,
+      estimatedSubtotal: nextResult.estimatedSubtotal,
+      estimatedTax: nextResult.estimatedTax,
       estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
         ? nextResult.estimatedTotal
         : previousEstimatedTotal && previousEstimatedTotal !== "—"
@@ -413,6 +421,8 @@ export function smartBarMobileMergeOrderResults(
   return {
     ...nextResult,
     lines: mergedLines,
+    estimatedSubtotal: nextResult.estimatedSubtotal,
+    estimatedTax: nextResult.estimatedTax,
     estimatedTotal,
   };
 }

@@ -39,6 +39,8 @@ export type SmartBarMobileOrderLine = {
 
 export type SmartBarMobileOrderResult = {
   lines: SmartBarMobileOrderLine[];
+  estimatedSubtotal?: string;
+  estimatedTax?: string;
   estimatedTotal?: string;
 };
 
@@ -137,7 +139,10 @@ function smartBarMobileMoneyFromNumber(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
-function smartBarMobileTotalsFromLines(lines: SmartBarMobileOrderLine[]) {
+function smartBarMobileTotalsFromLines(
+  lines: SmartBarMobileOrderLine[],
+  authoritative?: { subtotal?: string; tax?: string; total?: string },
+) {
   const subtotal = lines.reduce((sum, line) => {
     const value = smartBarMobileParseMoney(line.price);
     return value === null ? sum : sum + value;
@@ -145,13 +150,23 @@ function smartBarMobileTotalsFromLines(lines: SmartBarMobileOrderLine[]) {
   const tax = subtotal > 0 ? subtotal * SMARTBAR_MOBILE_TAX_RATE : 0;
   const total = subtotal + tax;
 
+  const authoritativeSubtotal = smartBarMobileParseMoney(authoritative?.subtotal);
+  const authoritativeTax = smartBarMobileParseMoney(authoritative?.tax);
+  const authoritativeTotal = smartBarMobileParseMoney(authoritative?.total);
+
   return {
-    subtotal,
-    tax,
-    total,
-    subtotalLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(subtotal) : "—",
-    taxLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(tax) : "—",
-    totalLabel: subtotal > 0 ? smartBarMobileMoneyFromNumber(total) : "—",
+    subtotal: authoritativeSubtotal ?? subtotal,
+    tax: authoritativeTax ?? tax,
+    total: authoritativeTotal ?? total,
+    subtotalLabel: authoritativeSubtotal !== null
+      ? smartBarMobileMoneyFromNumber(authoritativeSubtotal)
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(subtotal) : "—",
+    taxLabel: authoritativeTax !== null
+      ? smartBarMobileMoneyFromNumber(authoritativeTax)
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(tax) : "—",
+    totalLabel: authoritativeTotal !== null
+      ? smartBarMobileMoneyFromNumber(authoritativeTotal)
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(total) : "—",
   };
 }
 
@@ -344,8 +359,8 @@ function smartBarMobileShortTitle(value: string) {
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
-  onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | void;
-  onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | void;
+  onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
+  onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onResetCart?: () => void;
 };
 
@@ -369,6 +384,8 @@ export default function SmartBarMobileShell({
   const [submittedPromptPreview, setSubmittedPromptPreview] = useState("");
   const [retryDraft, setRetryDraft] = useState("");
   const [orderLines, setOrderLines] = useState<SmartBarMobileOrderLine[]>(demoLines);
+  const [orderEstimatedSubtotal, setOrderEstimatedSubtotal] = useState<string | undefined>(undefined);
+  const [orderEstimatedTax, setOrderEstimatedTax] = useState<string | undefined>(undefined);
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
@@ -424,7 +441,11 @@ export default function SmartBarMobileShell({
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const checkoutReady = lines.length > 0 && blockingIssueCount === 0;
-  const cartTotals = smartBarMobileTotalsFromLines(lines);
+  const cartTotals = smartBarMobileTotalsFromLines(lines, {
+    subtotal: orderEstimatedSubtotal,
+    tax: orderEstimatedTax,
+    total: orderEstimatedTotal,
+  });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const cartSummaryHeight = Math.min(
     maxCartPanelHeight,
@@ -447,6 +468,12 @@ export default function SmartBarMobileShell({
     ? cartExpanded ? selectedLine ? cartDetailHeight : cartSummaryHeight : collapsedCartPanelHeight
     : buildPanelHeight;
   const fakeCartPanelRadius = phase === "cart" && !cartExpanded ? 999 : 30;
+
+  const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
+    setOrderEstimatedSubtotal(result.estimatedSubtotal);
+    setOrderEstimatedTax(result.estimatedTax);
+    setOrderEstimatedTotal(result.estimatedTotal || fallbackTotal);
+  };
 
   const clearCloseArmTimer = () => {
     if (closeArmTimeoutRef.current === null) return;
@@ -533,13 +560,15 @@ export default function SmartBarMobileShell({
         .then((result) => {
           if (result.lines.length > 0) {
             setOrderLines(result.lines);
-            setOrderEstimatedTotal(result.estimatedTotal || estimatedTotal);
+            applyOrderResultEstimates(result, estimatedTotal);
           }
           setHasCart(true);
           setPhase("cart");
         })
         .catch(() => {
           setOrderLines(demoLines);
+          setOrderEstimatedSubtotal(undefined);
+          setOrderEstimatedTax(undefined);
           setOrderEstimatedTotal(estimatedTotal);
           setHasCart(true);
           setPhase("cart");
@@ -581,10 +610,13 @@ export default function SmartBarMobileShell({
       details: Array.from(new Set([...cleanedDetails, value])),
       options: line.options || [],
     };
-    const parentResult = onApplyLineChoice?.(line, value);
+    const parentResultPromise = onApplyLineChoice
+      ? Promise.resolve(onApplyLineChoice(line, value))
+      : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
     // Keep the action buttons visible long enough for the selected tile to turn
-    // green with a checkmark. Commit the real cart update after that beat.
+    // green with a checkmark. Commit the optimistic cart update after that beat,
+    // then let the API reprice result reset the authoritative totals.
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
@@ -597,20 +629,27 @@ export default function SmartBarMobileShell({
     }));
 
     window.setTimeout(() => {
-      const nextResult = parentResult && parentResult.lines.length > 0
-        ? parentResult
-        : {
-            lines: orderLines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
-            estimatedTotal: orderEstimatedTotal,
-          };
+      const optimisticResult: SmartBarMobileOrderResult = {
+        lines: orderLines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
+      };
 
-      setOrderLines(nextResult.lines);
-      setOrderEstimatedTotal(nextResult.estimatedTotal || orderEstimatedTotal);
+      setOrderLines(optimisticResult.lines);
+      applyOrderResultEstimates(optimisticResult, "");
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
       setSelectedLineId(null);
       setCartExpanded(true);
+
+      parentResultPromise
+        .then((parentResult) => {
+          if (!parentResult || parentResult.lines.length === 0) return;
+          setOrderLines(parentResult.lines);
+          applyOrderResultEstimates(parentResult);
+        })
+        .catch(() => {
+          // Keep the optimistic cart if the pricing refresh fails.
+        });
     }, 360);
   };
 
@@ -621,29 +660,48 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
 
-    const parentResult = onRemoveLine?.(line);
+    const parentResultPromise = onRemoveLine
+      ? Promise.resolve(onRemoveLine(line))
+      : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
     const fallbackLines = orderLines.filter((candidate) => candidate.id !== line.id);
-    const nextResult = parentResult && parentResult.lines
-      ? parentResult
-      : {
-          lines: fallbackLines,
-          estimatedTotal: fallbackLines.length ? orderEstimatedTotal : "—",
-        };
+    const optimisticResult: SmartBarMobileOrderResult = {
+      lines: fallbackLines,
+      estimatedTotal: fallbackLines.length ? undefined : "—",
+    };
 
-    setOrderLines(nextResult.lines);
-    setOrderEstimatedTotal(nextResult.estimatedTotal || (nextResult.lines.length ? orderEstimatedTotal : "—"));
+    setOrderLines(optimisticResult.lines);
+    applyOrderResultEstimates(optimisticResult, optimisticResult.lines.length ? "" : "—");
     setLineOverrides({});
     setSelectedLineId(null);
     setCartExpanded(true);
 
-    if (nextResult.lines.length === 0) {
+    if (optimisticResult.lines.length === 0) {
       setHasCart(false);
       setEntryDraft("");
       setHasEditedEntryDraft(false);
       setSubmittedPromptPreview("");
       setPhase("entry");
     }
+
+    parentResultPromise
+      .then((parentResult) => {
+        if (!parentResult) return;
+        setOrderLines(parentResult.lines);
+        applyOrderResultEstimates(parentResult, parentResult.lines.length ? "" : "—");
+
+        if (parentResult.lines.length === 0) {
+          setHasCart(false);
+          setEntryDraft("");
+          setHasEditedEntryDraft(false);
+          setSubmittedPromptPreview("");
+          setPhase("entry");
+        }
+      })
+      .catch(() => {
+        // Keep the optimistic removal if the pricing refresh fails.
+      });
   };
+
 
   const submitRetry = () => {
     const submittedRetry = retryDraft.trim();
@@ -683,7 +741,7 @@ export default function SmartBarMobileShell({
 
         if (replacementLines.length > 0) {
           setOrderLines(replacementLines);
-          setOrderEstimatedTotal(result.estimatedTotal || orderEstimatedTotal);
+          applyOrderResultEstimates(result);
         } else {
           setOrderLines((current) => current.filter((line) => line.id !== selectedLine.id));
         }
@@ -748,6 +806,8 @@ export default function SmartBarMobileShell({
     setSubmittedPromptPreview("");
     setRetryDraft("");
     setOrderLines(demoLines);
+    setOrderEstimatedSubtotal(undefined);
+    setOrderEstimatedTax(undefined);
     setOrderEstimatedTotal(estimatedTotal);
     setLineOverrides({});
     choiceLockedLineIdRef.current = null;

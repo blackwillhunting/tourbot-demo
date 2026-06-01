@@ -146,3 +146,17 @@ export async function smartBarMobileResultFromGuideAi(
   return { ...result, carryoutOrder: order };
 }
 
+export async function smartBarMobileRepriceCartFromGuideAi(
+  carryoutOrder: CarryoutOrder,
+  reason: string,
+): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
+  const query = [
+    "Reprice the current BurgerRush carryout cart.",
+    "Do not add, remove, rename, or reinterpret items.",
+    "Use the provided carryoutOrder as the cart source of truth.",
+    "Return the same cart with authoritative item prices, subtotal, estimated tax, and estimated total.",
+    reason ? `Cart change: ${reason}.` : "",
+  ].filter(Boolean).join(" ");
+
+  return smartBarMobileResultFromGuideAi(query, carryoutOrder);
+}
