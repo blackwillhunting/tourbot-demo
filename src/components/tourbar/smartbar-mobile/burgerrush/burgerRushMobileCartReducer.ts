@@ -118,6 +118,19 @@ function smartBarMobileGroupOptionLabels(group: NonNullable<NonNullable<Carryout
   return labels;
 }
 
+
+function smartBarMobileGroupIsOptional(group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]) {
+  const kind = String(group.kind || "").toLowerCase();
+  const selectionMode = String(group.selectionMode || "").toLowerCase();
+  return Boolean(!group.required || kind === "modifier" || kind === "upgrade" || selectionMode === "multi");
+}
+
+function smartBarMobileOptionalGroupsForLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
+  return (line.qualifierGroups || []).filter((group) => {
+    return Boolean(smartBarMobileGroupIsOptional(group) && (group.options || []).length);
+  });
+}
+
 function smartBarMobileOptionsFromLine(
   line: NonNullable<CarryoutOrder["items"]>[number],
   status: SmartBarMobileOrderStatus,
@@ -139,11 +152,18 @@ function smartBarMobileOptionsFromLine(
     );
   });
 
+  const activeOptionalGroup = smartBarMobileOptionalGroupsForLine(line).find((group) => {
+    return Boolean((group.options || []).length);
+  });
+
   const selectedGroup = groups.find((group) => {
     return Boolean(
-      group.selectedValue ||
-        group.selectedLabel ||
-        (group.options || []).some((option) => option.selected || option.state === "selected"),
+      group.required &&
+        (
+          group.selectedValue ||
+          group.selectedLabel ||
+          (group.options || []).some((option) => option.selected || option.state === "selected")
+        )
     );
   });
 
@@ -152,6 +172,7 @@ function smartBarMobileOptionsFromLine(
   });
 
   const activeGroup = activeMissingGroup ||
+    (status === "options" ? activeOptionalGroup : undefined) ||
     selectedGroup ||
     (status === "ready" ? reusableRequiredGroup : undefined);
 
@@ -160,12 +181,14 @@ function smartBarMobileOptionsFromLine(
 
 function smartBarMobileStatusForLine(line: NonNullable<CarryoutOrder["items"]>[number]): SmartBarMobileOrderStatus {
   const rawStatus = String(line.status || "").toLowerCase();
+  const priceStatus = String((line as NonNullable<CarryoutOrder["items"]>[number] & { priceStatus?: string }).priceStatus || "").toLowerCase();
   const hasMissingQualifiers = Boolean(
     line.missingQualifiers?.length ||
       line.qualifierGroups?.some((group) => group.missing),
   );
 
-  if (rawStatus.includes("pending") || rawStatus.includes("need") || hasMissingQualifiers) return "pending";
+  if (rawStatus.includes("pending") || rawStatus.includes("need") || hasMissingQualifiers || priceStatus === "incomplete") return "pending";
+  if (smartBarMobileOptionalGroupsForLine(line).length > 0) return "options";
   return "ready";
 }
 
@@ -530,6 +553,51 @@ export function smartBarMobileRemoveReplacementFromCarryoutOrder(
 }
 
 
+
+export function smartBarMobileRemoveVisibleLine(
+  lines: SmartBarMobileOrderLine[],
+  lineToRemove: SmartBarMobileOrderLine,
+) {
+  return lines.filter((line) => !smartBarMobileLinesMatch(line, lineToRemove));
+}
+
+function smartBarMobileCarryoutLineMatchesVisibleLine(
+  carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
+  visibleLine: SmartBarMobileOrderLine,
+) {
+  return smartBarMobileLinesMatch(smartBarMobileLineFromCarryoutLine(carryoutLine, 0), visibleLine);
+}
+
+export function smartBarMobileRemoveLineFromCarryoutOrder(
+  order: CarryoutOrder | null,
+  lineToRemove: SmartBarMobileOrderLine,
+): CarryoutOrder | null {
+  if (!order) return order;
+
+  const sourceItems = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const items = sourceItems.filter((line) => !smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove));
+  const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
+  const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+  const targetKey = smartBarMobileSelectionKey(lineToRemove.title || lineToRemove.id || "");
+  const cannotMatchItems = (order.cannotMatchItems || []).filter((item) => {
+    const itemKey = smartBarMobileSelectionKey(String(item.text || item.label || item.title || item.item || ""));
+    return !itemKey || !targetKey || !smartBarMobileKeysMatch(itemKey, targetKey);
+  });
+
+  return {
+    ...order,
+    items,
+    completeItems,
+    pendingItems,
+    cannotMatchItems,
+    status: pendingItems.length ? "needs_qualifier" : items.length ? "ready_cart" : "ready_cart",
+    currentStep: smartBarMobileNextCurrentStep(order, pendingItems),
+  };
+}
+
+
 function smartBarMobileChoiceDetails(details: string[], value: string, optionLabels: string[] = []) {
   const valueKey = smartBarMobileSelectionKey(value);
   const optionKeys = new Set(
@@ -563,7 +631,7 @@ export function smartBarMobileApplyChoiceToVisibleLines(
 
   const resolvedLine: SmartBarMobileOrderLine = {
     ...selectedLine,
-    status: "ready",
+    status: selectedLine.status === "options" ? "options" : "ready",
     helper: `${value} selected`,
     price: selectedLine.price && selectedLine.price !== "—" ? selectedLine.price : "—",
     details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || []),
@@ -642,10 +710,11 @@ function smartBarMobileApplyChoiceToCarryoutLine(
 
   const stillMissingGroup = qualifierGroups.some((group) => Boolean(group.required && group.missing));
   const stillPending = missingQualifiers.length > 0 || stillMissingGroup;
+  const hasOptionalGroups = qualifierGroups.some((group) => smartBarMobileGroupIsOptional(group) && (group.options || []).length);
 
   return {
     ...carryoutLine,
-    status: stillPending ? "needs_qualifier" : "ready",
+    status: stillPending ? "needs_qualifier" : hasOptionalGroups ? "options" : "ready",
     knownSelections,
     missingQualifiers,
     qualifierGroups,

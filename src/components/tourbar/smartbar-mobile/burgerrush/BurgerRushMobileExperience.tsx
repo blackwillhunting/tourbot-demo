@@ -12,7 +12,9 @@ import {
   smartBarMobileMergeCarryoutOrders,
   smartBarMobileMergeOrderResults,
   smartBarMobileQueryShouldUseExistingCart,
+  smartBarMobileRemoveLineFromCarryoutOrder,
   smartBarMobileRemoveReplacementFromCarryoutOrder,
+  smartBarMobileRemoveVisibleLine,
 } from "./burgerRushMobileCartReducer";
 import {
   smartBarMobileApiErrorResult,
@@ -159,6 +161,24 @@ export default function BurgerRushMobileExperience() {
     };
   }, []);
 
+
+  const handleRemoveLine = useCallback((line: SmartBarMobileOrderLine) => {
+    const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
+    const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "—";
+
+    mobileOrderLinesRef.current = nextLines;
+    mobileEstimatedTotalRef.current = nextEstimatedTotal;
+    mobileCarryoutOrderRef.current = smartBarMobileRemoveLineFromCarryoutOrder(
+      mobileCarryoutOrderRef.current,
+      line,
+    );
+
+    return {
+      lines: nextLines,
+      estimatedTotal: nextEstimatedTotal,
+    };
+  }, []);
+
   const handleResetCart = useCallback(() => {
     mobileCarryoutOrderRef.current = null;
     mobileOrderLinesRef.current = [];
@@ -175,6 +195,7 @@ export default function BurgerRushMobileExperience() {
         mode="overlay"
         onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}
+        onRemoveLine={handleRemoveLine}
         onResetCart={handleResetCart}
       />
     </main>
