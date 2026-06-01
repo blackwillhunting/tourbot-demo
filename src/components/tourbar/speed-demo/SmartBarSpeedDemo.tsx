@@ -957,12 +957,22 @@ function speedDemoQueryLooksInternal(value?: string | null) {
   return speedDemoCompactText(value).startsWith("__");
 }
 
-function smartBarMobileQueryShouldUseExistingCart(value: string) {
+function smartBarMobileQueryStartsFreshCart(value: string) {
   const text = speedDemoCompactText(value);
   if (!text) return false;
 
-  return /^(add|also|plus|another|extra|include|throw in|put in|and add)\b/.test(text) ||
-    /\b(add|also add|plus|another|extra|throw in|put in)\b/.test(text);
+  return /^(new order|start over|start again|clear cart|clear order|reset cart|reset order|replace cart|replace order)\b/.test(text) ||
+    /\b(start over|clear the cart|clear my cart|reset the cart|replace the order)\b/.test(text);
+}
+
+function smartBarMobileQueryShouldUseExistingCart(value: string, hasExistingCart: boolean) {
+  if (!hasExistingCart) return false;
+  if (smartBarMobileQueryStartsFreshCart(value)) return false;
+
+  // On the separated mobile surface, the entry box reopens specifically so the
+  // visitor can add more food to the current cart. Treat follow-up food prompts
+  // as additive by default instead of requiring "add/also/plus" wording.
+  return true;
 }
 
 function speedOrderResultAllowsThinkingTheater(
@@ -2305,12 +2315,11 @@ export default function SmartBarSpeedDemo({
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   const handleMobileShellSubmit = useCallback(async (query: string) => {
-    const shouldUseExistingCart = Boolean(
-      mobileCarryoutOrderRef.current && smartBarMobileQueryShouldUseExistingCart(query),
-    );
-    const carryoutOrderForPrompt = shouldUseExistingCart ? mobileCarryoutOrderRef.current : null;
     const previousLines = mobileOrderLinesRef.current;
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
+    const hasExistingCart = Boolean(mobileCarryoutOrderRef.current || previousLines.length > 0);
+    const shouldUseExistingCart = smartBarMobileQueryShouldUseExistingCart(query, hasExistingCart);
+    const carryoutOrderForPrompt = shouldUseExistingCart ? mobileCarryoutOrderRef.current : null;
 
     try {
       const result = await smartBarMobileResultFromGuideAi(query, carryoutOrderForPrompt);
