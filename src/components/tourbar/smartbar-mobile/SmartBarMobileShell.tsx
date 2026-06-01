@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   Check,
   ChevronDown,
   ChevronUp,
   ShoppingBag,
   Sparkles,
-  Trash2,
   X,
 } from "lucide-react";
 
@@ -103,6 +102,52 @@ function statusClass(status: SmartBarMobileOrderStatus) {
   if (status === "pending") return "bg-rose-100 text-rose-900 ring-rose-200";
   if (status === "options") return "bg-amber-100 text-amber-950 ring-amber-200";
   return "bg-slate-200 text-slate-700 ring-slate-300";
+}
+
+function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOverlay: boolean) {
+  if (isOverlay) {
+    if (status === "ready") {
+      return "border-emerald-300/70 bg-emerald-50/94 text-slate-950 shadow-[0_10px_26px_rgba(16,185,129,0.18)] ring-1 ring-emerald-200/80";
+    }
+    if (status === "pending") {
+      return "border-rose-300/75 bg-rose-50/94 text-slate-950 shadow-[0_10px_30px_rgba(244,63,94,0.22)] ring-1 ring-rose-200/85";
+    }
+    if (status === "options") {
+      return "border-amber-300/80 bg-amber-50/94 text-slate-950 shadow-[0_10px_30px_rgba(245,158,11,0.22)] ring-1 ring-amber-200/85";
+    }
+    return "border-slate-300/85 bg-slate-100/94 text-slate-800 shadow-[0_10px_26px_rgba(100,116,139,0.18)] ring-1 ring-slate-200/85";
+  }
+
+  if (status === "ready") {
+    return "border-emerald-300/30 bg-emerald-300/18 text-white shadow-[0_12px_28px_rgba(16,185,129,0.16)] ring-1 ring-emerald-200/20";
+  }
+  if (status === "pending") {
+    return "border-rose-300/35 bg-rose-400/22 text-white shadow-[0_12px_30px_rgba(244,63,94,0.22)] ring-1 ring-rose-200/22";
+  }
+  if (status === "options") {
+    return "border-amber-300/35 bg-amber-300/22 text-white shadow-[0_12px_30px_rgba(245,158,11,0.20)] ring-1 ring-amber-200/22";
+  }
+  return "border-white/12 bg-slate-500/20 text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)] ring-1 ring-white/10";
+}
+
+function smartBarMobileRowAnimate(status: SmartBarMobileOrderStatus): TargetAndTransition {
+  if (status === "pending" || status === "options") {
+    return { x: 0, scale: [1, 1.006, 1], opacity: [1, 0.94, 1] };
+  }
+
+  return { x: 0, scale: 1, opacity: 1 };
+}
+
+function smartBarMobileRowTransition(status: SmartBarMobileOrderStatus): Transition {
+  if (status === "pending" || status === "options") {
+    return {
+      x: { type: "spring", stiffness: 520, damping: 36 },
+      scale: { duration: 1.45, repeat: Infinity, ease: "easeInOut" },
+      opacity: { duration: 1.45, repeat: Infinity, ease: "easeInOut" },
+    };
+  }
+
+  return { type: "spring", stiffness: 520, damping: 36 };
 }
 
 function ThinkingText({ text }: { text: string }) {
@@ -749,9 +794,7 @@ export default function SmartBarMobileShell({
     : isOverlay
       ? "bg-slate-950/7 text-slate-700 ring-1 ring-slate-950/10"
       : "bg-white/10 text-white ring-1 ring-white/12";
-  const lineButtonClass = isOverlay
-    ? "w-full rounded-2xl border border-slate-950/10 bg-white/66 p-3 text-left text-slate-950 shadow-sm transition active:scale-[0.99]"
-    : "w-full rounded-2xl border border-white/10 bg-slate-950/44 p-3 text-left transition active:scale-[0.99]";
+  const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
   const unknownTitleClass = isOverlay ? "italic text-slate-600" : "italic text-white/82";
 
   return (
@@ -1000,15 +1043,14 @@ export default function SmartBarMobileShell({
                     <div className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                       {lines.map((line) => (
                         <div key={line.id} className="relative overflow-hidden rounded-2xl">
-                          <div className="absolute inset-y-0 right-0 flex w-[96px] items-center justify-center rounded-2xl bg-rose-500 text-white">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.10em]">
-                              <Trash2 className="h-3.5 w-3.5" />
-                              Remove
-                            </span>
-                          </div>
+                          <div
+                            aria-hidden="true"
+                            className="absolute inset-y-0 right-0 w-[96px] rounded-2xl bg-rose-500/90"
+                          />
                           <motion.button
                             type="button"
-                            animate={{ x: 0 }}
+                            animate={smartBarMobileRowAnimate(line.status)}
+                            transition={smartBarMobileRowTransition(line.status)}
                             drag="x"
                             dragConstraints={{ left: -96, right: 0 }}
                             dragElastic={0.08}
@@ -1026,7 +1068,7 @@ export default function SmartBarMobileShell({
                               if (rowSwipeActiveRef.current) return;
                               selectLine(line);
                             }}
-                            className={lineButtonClass}
+                            className={`${lineButtonClass} ${smartBarMobileRowSurfaceClass(line.status, isOverlay)}`}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
@@ -1039,9 +1081,6 @@ export default function SmartBarMobileShell({
                               </div>
                               <div className="shrink-0 text-right">
                                 <div className="text-sm font-black">{line.price}</div>
-                                <div className={`mt-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(line.status)}`}>
-                                  {statusLabel(line.status)}
-                                </div>
                               </div>
                             </div>
                           </motion.button>
