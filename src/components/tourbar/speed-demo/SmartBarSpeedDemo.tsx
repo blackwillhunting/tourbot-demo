@@ -1212,7 +1212,10 @@ function smartBarMobileApiErrorResult(query: string, error: unknown): SmartBarMo
   };
 }
 
-async function smartBarMobileResultFromGuideAi(query: string): Promise<SmartBarMobileOrderResult> {
+async function smartBarMobileResultFromGuideAi(
+  query: string,
+  carryoutOrder: CarryoutOrder | null,
+): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
   const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
     method: "POST",
     credentials: "include",
@@ -1223,15 +1226,15 @@ async function smartBarMobileResultFromGuideAi(query: string): Promise<SmartBarM
       guideConfig: smartBarMobileBuildGuideConfig(),
       message: query,
       conversationContext: {
-        singleTurn: true,
+        singleTurn: !carryoutOrder,
         lastUserMessage: query,
         recentUserMessages: [query],
         commerceContext: {
-          carryoutOrder: null,
+          carryoutOrder,
         },
       },
       visibleContext: {
-        carryoutOrder: null,
+        carryoutOrder,
       },
       pageContext: {
         url: typeof window !== "undefined" ? window.location.href : "",
@@ -1271,7 +1274,7 @@ async function smartBarMobileResultFromGuideAi(query: string): Promise<SmartBarM
     };
   }
 
-  return result;
+  return { ...result, carryoutOrder: order };
 }
 
 function orderResult(order: CarryoutOrder, options: SpeedResultOptions = {}): TourBarShellResult {
@@ -1994,6 +1997,7 @@ export default function SmartBarSpeedDemo({
   const replayFallbackTimerRef = useRef<number | null>(null);
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
+  const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const demoSteps = useMemo(
     () => (variant === "burgerRushOnly" ? SMARTBAR_BURGERRUSH_ONLY_STEPS : SMARTBAR_SPEED_STEPS),
     [variant],
@@ -2003,7 +2007,9 @@ export default function SmartBarSpeedDemo({
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   const handleMobileShellSubmit = useCallback(async (query: string) => {
     try {
-      return await smartBarMobileResultFromGuideAi(query);
+      const result = await smartBarMobileResultFromGuideAi(query, mobileCarryoutOrderRef.current);
+      mobileCarryoutOrderRef.current = result.carryoutOrder ?? mobileCarryoutOrderRef.current;
+      return result;
     } catch (error) {
       console.warn("SmartBar mobile guide API failed", error);
       return smartBarMobileApiErrorResult(query, error);
@@ -2711,6 +2717,9 @@ export default function SmartBarSpeedDemo({
         <SmartBarMobileShell
           mode="overlay"
           onSubmitPrompt={handleMobileShellSubmit}
+          onResetCart={() => {
+            mobileCarryoutOrderRef.current = null;
+          }}
         />
       )}
 

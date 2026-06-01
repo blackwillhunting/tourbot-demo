@@ -124,9 +124,10 @@ function ThinkingText({ text }: { text: string }) {
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   onSubmitPrompt?: (query: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
+  onResetCart?: () => void;
 };
 
-export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt }: SmartBarMobileShellProps) {
+export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onResetCart }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -174,7 +175,8 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt }: Sm
   const launcherPillLeft = cartTogglePillSize + safariControlLeftGap;
   const realComposerHeight = 90;
   const buildPanelHeight = 154;
-  const stretchPanelHeight = Math.max(360, stableViewportHeight - 128);
+  const collapsedCartPanelHeight = 90;
+  const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
 
   const lines = useMemo(() => {
     return orderLines.map((line) => ({
@@ -188,9 +190,25 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt }: Sm
     : null;
   const issueCount = lines.filter((line) => line.status !== "ready").length;
   const checkoutReady = lines.length > 0 && issueCount === 0;
-  const cartDetailHeight = selectedLine?.status === "unknown" ? 230 : 284;
+  const cartSummaryHeight = Math.min(
+    maxCartPanelHeight,
+    Math.max(192, 112 + lines.length * 74 + Math.max(0, lines.length - 1) * 8),
+  );
+  const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
+  const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 3);
+  const cartDetailHeight = selectedLine?.status === "unknown"
+    ? 260
+    : Math.min(
+        maxCartPanelHeight,
+        Math.max(
+          220,
+          150 +
+            selectedDetailChipRows * 34 +
+            (selectedOptionRows > 0 ? 18 + selectedOptionRows * 54 : 0),
+        ),
+      );
   const fakeCartPanelHeight = phase === "cart"
-    ? cartExpanded ? selectedLine ? cartDetailHeight : stretchPanelHeight : 90
+    ? cartExpanded ? selectedLine ? cartDetailHeight : cartSummaryHeight : collapsedCartPanelHeight
     : buildPanelHeight;
   const fakeCartPanelRadius = phase === "cart" && !cartExpanded ? 999 : 30;
 
@@ -349,7 +367,8 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt }: Sm
     disarmClose();
     setSelectedLineId(null);
     setCartExpanded(true);
-    setHasEditedEntryDraft(Boolean(entryDraft.trim()));
+    setEntryDraft("");
+    setHasEditedEntryDraft(false);
     setPhase("entry");
   };
 
@@ -377,6 +396,7 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt }: Sm
     setOrderEstimatedTotal(estimatedTotal);
     setLineOverrides({});
     setHasCart(false);
+    onResetCart?.();
     disarmClose();
     setSelectedLineId(null);
     setCartExpanded(true);
