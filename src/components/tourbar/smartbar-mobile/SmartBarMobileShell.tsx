@@ -41,7 +41,13 @@ export type SmartBarMobileOrderResult = {
   estimatedTotal?: string;
 };
 
-type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details">>;
+export type SmartBarMobileSubmitMeta = {
+  intent?: "replace_unknown";
+  replaceLineId?: string;
+  replaceLineTitle?: string;
+};
+
+type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
   {
@@ -123,7 +129,7 @@ function ThinkingText({ text }: { text: string }) {
 
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
-  onSubmitPrompt?: (query: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
+  onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
   onResetCart?: () => void;
 };
 
@@ -133,6 +139,7 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
+  const choiceLockedLineIdRef = useRef<string | null>(null);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
@@ -145,6 +152,8 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
   const [closeArmed, setCloseArmed] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
+  const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
+  const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
   const [stableViewportWidth] = useState(() => {
     if (typeof window === "undefined") return 390;
@@ -312,52 +321,108 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
 
   const selectLine = (line: SmartBarMobileOrderLine) => {
     disarmClose();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
     setSelectedLineId(line.id);
     setCartExpanded(true);
     if (line.status === "unknown") {
       setRetryDraft("");
+      setRetryCheckingLineId(null);
     }
   };
 
   const applyLineChoice = (line: SmartBarMobileOrderLine, value: string) => {
+    if (choiceLockedLineIdRef.current === line.id) return;
+
+    choiceLockedLineIdRef.current = line.id;
+    setSelectedChoice({ lineId: line.id, value });
     disarmClose();
+
+    const cleanedDetails = (line.details || []).filter((detail) => {
+      return !/^(choice needed|size needed)$/i.test(detail.trim());
+    });
+
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
         ...(current[line.id] || {}),
         status: "ready",
         helper: `${value} selected`,
-        details: Array.from(new Set([...(line.details || []), value])),
+        details: Array.from(new Set([...cleanedDetails, value])),
+        options: [],
       },
     }));
     window.setTimeout(() => {
+      choiceLockedLineIdRef.current = null;
+      setSelectedChoice(null);
       setSelectedLineId(null);
       setCartExpanded(true);
-    }, 240);
+    }, 360);
   };
 
   const submitRetry = () => {
-    if (!selectedLine || selectedLine.status !== "unknown" || !retryDraft.trim()) return;
+    const submittedRetry = retryDraft.trim();
+    if (!selectedLine || selectedLine.status !== "unknown" || !submittedRetry || retryCheckingLineId) return;
 
     retryTextareaRef.current?.blur();
-
-    setLineOverrides((current) => ({
-      ...current,
-      [selectedLine.id]: {
-        ...(current[selectedLine.id] || {}),
-        status: "ready",
-        title: selectedLine.title,
-        helper: "Re-entered and matched",
-        price: "$5.49",
-        details: [retryDraft.trim()],
-      } as DemoLineOverride,
-    }));
-    setRetryDraft("");
     disarmClose();
-    window.setTimeout(() => {
-      setSelectedLineId(null);
-      setCartExpanded(true);
-    }, 240);
+    setRetryCheckingLineId(selectedLine.id);
+
+    const replacementPromise = onSubmitPrompt
+      ? Promise.resolve(
+          onSubmitPrompt(submittedRetry, {
+            intent: "replace_unknown",
+            replaceLineId: selectedLine.id,
+            replaceLineTitle: selectedLine.title,
+          }),
+        )
+      : Promise.resolve<SmartBarMobileOrderResult>({
+          lines: [
+            {
+              ...selectedLine,
+              id: `${selectedLine.id}-retry`,
+              title: submittedRetry,
+              status: "ready",
+              helper: "Re-entered and matched",
+              price: "$5.49",
+              details: [submittedRetry],
+              options: [],
+            },
+          ],
+          estimatedTotal: orderEstimatedTotal,
+        });
+
+    replacementPromise
+      .then((result) => {
+        const replacementLines = result.lines.filter((line) => line.id !== selectedLine.id);
+
+        if (replacementLines.length > 0) {
+          setOrderLines(replacementLines);
+          setOrderEstimatedTotal(result.estimatedTotal || orderEstimatedTotal);
+        } else {
+          setOrderLines((current) => current.filter((line) => line.id !== selectedLine.id));
+        }
+
+        setRetryDraft("");
+        setLineOverrides({});
+        setSelectedLineId(null);
+        setCartExpanded(true);
+      })
+      .catch(() => {
+        setLineOverrides((current) => ({
+          ...current,
+          [selectedLine.id]: {
+            ...(current[selectedLine.id] || {}),
+            status: "unknown",
+            helper: "Still could not match item",
+            details: [submittedRetry],
+            retryPrompt: "Try the item again with a BurgerRush menu name.",
+          } as DemoLineOverride,
+        }));
+      })
+      .finally(() => {
+        setRetryCheckingLineId(null);
+      });
   };
 
   const returnToEntryFromCart = () => {
@@ -365,6 +430,9 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
     retryTextareaRef.current?.blur();
     clearBuildTimer();
     disarmClose();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
     setSelectedLineId(null);
     setCartExpanded(true);
     setEntryDraft("");
@@ -395,6 +463,9 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
     setOrderLines(demoLines);
     setOrderEstimatedTotal(estimatedTotal);
     setLineOverrides({});
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
     setHasCart(false);
     onResetCart?.();
     disarmClose();
@@ -406,8 +477,10 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
     if (phase === "rest") return "SmartBar";
     if (closeArmed) return "Tap again...";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : "Type order";
-    if (phase === "building_cart") return "Building cart...";
-    if (phase === "cart" && selectedLine?.status === "unknown") return "Re-enter";
+    if (phase === "building_cart") return hasCart ? "Adding to cart..." : "Building cart...";
+    if (phase === "cart" && selectedLine?.status === "unknown") {
+      return retryCheckingLineId === selectedLine.id ? "Checking menu..." : "Re-enter";
+    }
     if (phase === "cart" && selectedLine) return "Tap to reopen";
     if (phase === "cart") return checkoutReady ? "Tap for checkout" : `${issueCount} need attention`;
     if (checkoutReady) return `Ready checkout · ${orderEstimatedTotal}`;
@@ -644,6 +717,7 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
                           onChange={(event) => {
                             setRetryDraft(event.target.value);
                           }}
+                          disabled={retryCheckingLineId === selectedLine.id}
                           className={retryInputClass}
                           placeholder=""
                         />
@@ -672,16 +746,31 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
                               Choose one
                             </div>
                             <div className="grid grid-cols-3 gap-2">
-                              {selectedLine.options.map((option) => (
-                                <button
-                                  key={option}
-                                  type="button"
-                                  onClick={() => applyLineChoice(selectedLine, option)}
-                                  className="rounded-[22px] bg-white/88 px-3 py-3 text-sm font-black text-slate-950 shadow-lg"
-                                >
-                                  {option}
-                                </button>
-                              ))}
+                              {selectedLine.options.map((option) => {
+                                const isSelected = selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option;
+                                const isLocked = selectedChoice?.lineId === selectedLine.id && !isSelected;
+
+                                return (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => applyLineChoice(selectedLine, option)}
+                                    disabled={Boolean(selectedChoice?.lineId === selectedLine.id)}
+                                    className={`rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
+                                      isSelected
+                                        ? "bg-emerald-300 text-slate-950 ring-2 ring-emerald-500/40"
+                                        : isLocked
+                                          ? "bg-white/50 text-slate-500"
+                                          : "bg-white/88 text-slate-950"
+                                    }`}
+                                  >
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                      {isSelected && <Check className="h-3.5 w-3.5" />}
+                                      {option}
+                                    </span>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
@@ -801,7 +890,7 @@ export default function SmartBarMobileShell({ mode = "lab", onSubmitPrompt, onRe
                   <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
               </>
-            ) : closeArmed || phase === "building_cart" ? (
+            ) : closeArmed || phase === "building_cart" || Boolean(retryCheckingLineId) ? (
               <span className="min-w-0 truncate text-center text-[16px] font-medium tracking-normal">
                 <ThinkingText text={companionLabel} />
               </span>
