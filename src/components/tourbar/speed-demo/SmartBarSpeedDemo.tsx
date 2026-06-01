@@ -1738,47 +1738,82 @@ export default function SmartBarSpeedDemo({
 
     const html = document.documentElement;
     const body = document.body;
-    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const root = document.getElementById("root");
 
     const previous = {
       htmlHeight: html.style.height,
+      htmlMinHeight: html.style.minHeight,
       htmlOverflow: html.style.overflow,
+      htmlOverflowX: html.style.overflowX,
+      htmlOverflowY: html.style.overflowY,
       htmlOverscrollBehavior: html.style.overscrollBehavior,
       bodyHeight: body.style.height,
+      bodyMinHeight: body.style.minHeight,
       bodyOverflow: body.style.overflow,
+      bodyOverflowX: body.style.overflowX,
+      bodyOverflowY: body.style.overflowY,
       bodyOverscrollBehavior: body.style.overscrollBehavior,
       bodyPosition: body.style.position,
       bodyTop: body.style.top,
       bodyLeft: body.style.left,
       bodyRight: body.style.right,
       bodyWidth: body.style.width,
+      rootHeight: root?.style.height || "",
+      rootMinHeight: root?.style.minHeight || "",
+      rootOverflow: root?.style.overflow || "",
     };
 
-    html.style.height = "100%";
-    html.style.overflow = "hidden";
-    html.style.overscrollBehavior = "none";
-    body.style.height = "100%";
-    body.style.overflow = "hidden";
-    body.style.overscrollBehavior = "none";
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
+    // BurgerRush mobile must behave like a normal web page. Earlier demo-mode
+    // code froze html/body to protect the scripted stage, but this direct
+    // mobile surface needs native document scrolling.
+    html.style.height = "auto";
+    html.style.minHeight = "100%";
+    html.style.overflow = "";
+    html.style.overflowX = "hidden";
+    html.style.overflowY = "auto";
+    html.style.overscrollBehavior = "auto";
+
+    body.style.height = "auto";
+    body.style.minHeight = "100%";
+    body.style.overflow = "";
+    body.style.overflowX = "hidden";
+    body.style.overflowY = "auto";
+    body.style.overscrollBehavior = "auto";
+    body.style.position = "";
+    body.style.top = "";
+    body.style.left = "";
+    body.style.right = "";
+    body.style.width = "";
+
+    if (root) {
+      root.style.height = "auto";
+      root.style.minHeight = "100%";
+      root.style.overflow = "visible";
+    }
 
     return () => {
       html.style.height = previous.htmlHeight;
+      html.style.minHeight = previous.htmlMinHeight;
       html.style.overflow = previous.htmlOverflow;
+      html.style.overflowX = previous.htmlOverflowX;
+      html.style.overflowY = previous.htmlOverflowY;
       html.style.overscrollBehavior = previous.htmlOverscrollBehavior;
       body.style.height = previous.bodyHeight;
+      body.style.minHeight = previous.bodyMinHeight;
       body.style.overflow = previous.bodyOverflow;
+      body.style.overflowX = previous.bodyOverflowX;
+      body.style.overflowY = previous.bodyOverflowY;
       body.style.overscrollBehavior = previous.bodyOverscrollBehavior;
       body.style.position = previous.bodyPosition;
       body.style.top = previous.bodyTop;
       body.style.left = previous.bodyLeft;
       body.style.right = previous.bodyRight;
       body.style.width = previous.bodyWidth;
-      window.scrollTo(0, scrollY);
+      if (root) {
+        root.style.height = previous.rootHeight;
+        root.style.minHeight = previous.rootMinHeight;
+        root.style.overflow = previous.rootOverflow;
+      }
     };
   }, [mobileBurgerRushShell]);
 
