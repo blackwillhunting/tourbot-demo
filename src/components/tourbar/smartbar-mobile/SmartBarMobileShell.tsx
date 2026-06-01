@@ -29,6 +29,8 @@ export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unkno
 
 export type SmartBarMobileOrderLine = {
   id: string;
+  /** Page target to scroll/focus when this known cart row is selected. */
+  targetId?: string;
   /** Unique, UI-only cart-row instance key. Use this for row identity/removal. */
   cartLineKey?: string;
   /** Backend cart line identity. This can differ from the UI id when duplicate items exist. */
@@ -406,6 +408,7 @@ type SmartBarMobileShellProps = {
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
+  onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onResetCart?: () => void;
 };
 
@@ -414,6 +417,7 @@ export default function SmartBarMobileShell({
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
+  onNavigateToLine,
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
@@ -650,6 +654,11 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setSelectedLineId(line.id);
     setCartExpanded(true);
+
+    if (line.status !== "unknown") {
+      onNavigateToLine?.(line);
+    }
+
     if (line.status === "unknown") {
       setRetryDraft("");
       setRetryCheckingLineId(null);

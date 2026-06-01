@@ -215,10 +215,12 @@ function smartBarMobileLineFromCarryoutLine(
   const options = smartBarMobileOptionsFromLine(line, status);
   const sourceLineItemId = String(line.lineItemId || line.id || `line-${index}`);
   const sourceItemId = String(line.id || "");
+  const targetId = String((line as typeof line & { targetId?: string }).targetId || sourceItemId || "");
   const cartLineKey = `${sourceLineItemId}::source-${index}`;
 
   return {
     id: cartLineKey,
+    ...(targetId ? { targetId } : {}),
     cartLineKey,
     sourceLineItemId,
     sourceItemId,
@@ -342,6 +344,7 @@ function smartBarMobileHydrateLineFromPrevious(
 
   return {
     ...line,
+    targetId: line.targetId || previous.targetId,
     price: line.price && line.price !== "—" ? line.price : previous.price,
     details: line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
       ? line.details
