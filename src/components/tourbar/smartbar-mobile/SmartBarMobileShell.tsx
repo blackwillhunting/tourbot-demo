@@ -867,7 +867,7 @@ export default function SmartBarMobileShell({
 
   return (
     <div
-      className={`fixed inset-0 z-[10080] overflow-hidden ${rootTextClass} ${
+      className={`fixed inset-0 z-[10080] overflow-visible ${rootTextClass} ${
         isOverlay
           ? "pointer-events-none bg-transparent"
           : "bg-[radial-gradient(circle_at_24%_16%,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_84%_74%,rgba(59,130,246,0.18),transparent_32%),linear-gradient(180deg,#07111f_0%,#020617_100%)]"
@@ -877,7 +877,7 @@ export default function SmartBarMobileShell({
         <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:38px_38px]" />
       )}
 
-      <main className={`relative z-[1] h-full min-h-0 overflow-hidden pb-[88px] ${isOverlay ? "pointer-events-none" : ""}`}>
+      <main className={`relative z-[1] min-h-0 pb-[88px] ${isOverlay ? "pointer-events-none overflow-visible" : "h-full overflow-hidden"}`}>
         <AnimatePresence mode="wait">
           {!isOverlay && phase === "rest" && (
             <motion.section
@@ -949,7 +949,7 @@ export default function SmartBarMobileShell({
           >
             <motion.div
               className={upperGlassClass}
-              style={{ width: entryPillWidth }}
+              style={{ width: entryPillWidth, maxHeight: `calc(100svh - ${88 + keyboardLift}px)` }}
               initial={{ height: realComposerHeight, borderRadius: 999 }}
               animate={{ height: fakeCartPanelHeight, borderRadius: fakeCartPanelRadius }}
               transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.9 }}
@@ -1015,7 +1015,10 @@ export default function SmartBarMobileShell({
                         />
                       </div>
                     ) : (
-                      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                      <div
+                        className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y"
+                        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
+                      >
                         <div className={`text-[12px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
                           Item page opened
                         </div>
@@ -1113,7 +1116,10 @@ export default function SmartBarMobileShell({
                       </div>
                     </div>
 
-                    <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 pb-2 overscroll-contain touch-pan-y">
+                    <div
+                      className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y"
+                      style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
+                    >
                       {lines.map((line) => (
                         <motion.div
                           key={line.id}
@@ -1129,6 +1135,7 @@ export default function SmartBarMobileShell({
                             }
                           }}
                           className={`${lineButtonClass} ${smartBarMobileRowSurfaceClass(line.status, isOverlay)} cursor-pointer`}
+                          style={{ touchAction: "pan-y" }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -1143,6 +1150,9 @@ export default function SmartBarMobileShell({
                               <div className="text-sm font-black">{line.price}</div>
                               <button
                                 type="button"
+                                onPointerDown={(event) => {
+                                  event.stopPropagation();
+                                }}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   removeLine(line);

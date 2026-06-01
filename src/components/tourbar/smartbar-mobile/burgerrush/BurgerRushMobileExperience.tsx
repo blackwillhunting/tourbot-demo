@@ -30,10 +30,10 @@ function BurgerRushMobileProductSurface() {
   ];
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#ffedd5_42%,#f8fafc_100%)] text-slate-950">
+    <div className="relative min-h-[135svh] overflow-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#ffedd5_42%,#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute -left-24 top-[-12%] h-64 w-64 rounded-full bg-orange-300/42 blur-3xl" />
       <div className="pointer-events-none absolute -right-20 bottom-[22%] h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl" />
-      <div className="relative z-[1] flex h-full flex-col px-5 pb-[180px] pt-5">
+      <div className="relative z-[1] flex min-h-[135svh] flex-col px-5 pb-[180px] pt-5">
         <header className="rounded-[30px] border border-orange-200/80 bg-white/82 p-4 shadow-[0_20px_48px_rgba(154,52,18,0.16)] ring-1 ring-white/80 backdrop-blur-xl">
           <div className="inline-flex rounded-full bg-orange-500 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white">
             BurgerRush Mobile Surface
@@ -188,7 +188,7 @@ export default function BurgerRushMobileExperience() {
   return (
     <main
       data-smartbar-mobile-separated="true"
-      className="relative h-[100svh] min-h-[100svh] overflow-hidden overscroll-none text-slate-950"
+      className="relative min-h-[100svh] overflow-x-hidden text-slate-950"
     >
       <BurgerRushMobileProductSurface />
       <SmartBarMobileShell
