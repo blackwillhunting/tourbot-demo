@@ -2227,7 +2227,7 @@ function BurgerRushMobileProductSurface() {
       <div className="relative z-[1] flex h-full flex-col px-5 pb-[180px] pt-5">
         <header className="rounded-[30px] border border-orange-200/80 bg-white/82 p-4 shadow-[0_20px_48px_rgba(154,52,18,0.16)] ring-1 ring-white/80 backdrop-blur-xl">
           <div className="inline-flex rounded-full bg-orange-500 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white">
-            BurgerRush Carryout
+            BurgerRush Mobile Surface
           </div>
           <h1 className="mt-3 text-[28px] font-black leading-[0.95] tracking-[-0.04em] text-slate-950">
             Say the order.
@@ -2235,7 +2235,7 @@ function BurgerRushMobileProductSurface() {
             SmartBar builds the cart.
           </h1>
           <p className="mt-3 max-w-[300px] text-sm font-semibold leading-5 text-slate-600">
-            Order burgers, nuggets, sides, drinks, and desserts in plain English.
+            This is the separated phone surface. The speed-demo wall, scrubber, pointer, toolbar, and flashcard rail are not mounted here.
           </p>
         </header>
 
@@ -2999,9 +2999,13 @@ export default function SmartBarSpeedDemo({
             />
   );
 
+
   if (mobileBurgerRushShell) {
     return (
-      <main className="relative h-[100svh] min-h-[100svh] overflow-hidden overscroll-none text-slate-950">
+      <main
+        data-smartbar-mobile-separated="true"
+        className="relative h-[100svh] min-h-[100svh] overflow-hidden overscroll-none text-slate-950"
+      >
         <BurgerRushMobileProductSurface />
         <SmartBarMobileShell
           mode="overlay"
