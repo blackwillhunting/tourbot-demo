@@ -118,7 +118,11 @@ function ThinkingText({ text }: { text: string }) {
   );
 }
 
-export default function SmartBarMobileShell() {
+type SmartBarMobileShellProps = {
+  mode?: "lab" | "overlay";
+};
+
+export default function SmartBarMobileShell({ mode = "lab" }: SmartBarMobileShellProps) {
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [draft, setDraft] = useState("");
   const [hasEditedDraft, setHasEditedDraft] = useState(false);
@@ -334,14 +338,58 @@ export default function SmartBarMobileShell() {
   };
 
   const cartToggleShowsUp = !cartExpanded;
+  const isOverlay = mode === "overlay";
+  const rootTextClass = isOverlay ? "text-slate-950" : "text-white";
+  const upperGlassClass = isOverlay
+    ? "overflow-hidden border border-slate-950/10 bg-white/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_16px_36px_rgba(15,23,42,0.18)] ring-1 ring-white/70 backdrop-blur-xl"
+    : "overflow-hidden border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl";
+  const chromePillClass = isOverlay
+    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-slate-950/10 bg-white/82 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_16px_36px_rgba(15,23,42,0.18)] ring-1 ring-white/70 backdrop-blur-xl transition active:scale-[0.985]"
+    : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl transition active:scale-[0.985]";
+  const chromeIconBubbleClass = isOverlay
+    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950/7 text-slate-950 shadow-sm ring-1 ring-slate-950/10"
+    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/10";
+  const mainMutedTextClass = isOverlay ? "text-slate-600" : "text-slate-300";
+  const softTextClass = isOverlay ? "text-slate-600" : "text-white/62";
+  const quietTextClass = isOverlay ? "text-slate-500" : "text-white/44";
+  const skyEyebrowClass = isOverlay ? "text-sky-700" : "text-sky-200";
+  const greenEyebrowClass = isOverlay ? "text-emerald-700" : "text-emerald-200";
+  const amberEyebrowClass = isOverlay ? "text-amber-700" : "text-amber-200";
+  const inputTextClass = isOverlay ? "text-slate-950 caret-slate-950" : "text-white caret-white";
+  const retryInputClass = isOverlay
+    ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-slate-950/10 bg-white/66 px-4 py-3 text-center text-[16px] font-bold leading-5 text-slate-950 outline-none ring-0 placeholder:text-slate-400 caret-slate-950"
+    : "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/10 bg-slate-950/28 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/28 caret-white";
+  const issuePillClass = checkoutReady
+    ? "bg-emerald-300 text-slate-950"
+    : isOverlay
+      ? "bg-slate-950/7 text-slate-700 ring-1 ring-slate-950/10"
+      : "bg-white/10 text-white ring-1 ring-white/12";
+  const lineButtonClass = isOverlay
+    ? "w-full rounded-2xl border border-slate-950/10 bg-white/66 p-3 text-left text-slate-950 shadow-sm transition active:scale-[0.99]"
+    : "w-full rounded-2xl border border-white/10 bg-slate-950/44 p-3 text-left transition active:scale-[0.99]";
+  const unknownTitleClass = isOverlay ? "italic text-slate-600" : "italic text-white/82";
+  const actionPanelClass = isOverlay
+    ? "mx-auto w-full max-w-[390px] rounded-[30px] border border-slate-950/10 bg-white/78 p-4 text-slate-950 shadow-2xl backdrop-blur-2xl"
+    : "mx-auto w-full max-w-[390px] rounded-[30px] border border-white/12 bg-white/[0.075] p-4 shadow-2xl backdrop-blur-2xl";
+  const totalBoxClass = isOverlay
+    ? "rounded-2xl bg-slate-950/7 px-3 py-2 text-right ring-1 ring-slate-950/10"
+    : "rounded-2xl bg-white/10 px-3 py-2 text-right ring-1 ring-white/10";
 
   return (
-    <div className="fixed inset-0 z-[10080] overflow-hidden bg-[radial-gradient(circle_at_24%_16%,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_84%_74%,rgba(59,130,246,0.18),transparent_32%),linear-gradient(180deg,#07111f_0%,#020617_100%)] text-white">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:38px_38px]" />
+    <div
+      className={`fixed inset-0 z-[10080] overflow-hidden ${rootTextClass} ${
+        isOverlay
+          ? "pointer-events-none bg-transparent"
+          : "bg-[radial-gradient(circle_at_24%_16%,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_84%_74%,rgba(59,130,246,0.18),transparent_32%),linear-gradient(180deg,#07111f_0%,#020617_100%)]"
+      }`}
+    >
+      {!isOverlay && (
+        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:38px_38px]" />
+      )}
 
-      <main className="relative z-[1] h-full min-h-0 overflow-hidden pb-[88px]">
+      <main className={`relative z-[1] h-full min-h-0 overflow-hidden pb-[88px] ${isOverlay ? "pointer-events-none" : ""}`}>
         <AnimatePresence mode="wait">
-          {phase === "rest" && (
+          {!isOverlay && phase === "rest" && (
             <motion.section
               key="rest"
               initial={{ opacity: 0 }}
@@ -371,10 +419,10 @@ export default function SmartBarMobileShell() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.985 }}
               transition={{ duration: 0.24, ease: "easeOut" }}
-              className="fixed inset-x-0 bottom-[76px] z-[10083] flex justify-center px-0"
+              className="pointer-events-auto fixed inset-x-0 bottom-[76px] z-[10083] flex justify-center px-0"
             >
               <motion.div
-                className="overflow-hidden border border-white/12 bg-white/[0.075] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl"
+                className={upperGlassClass}
                 style={{ width: entryPillWidth }}
                 animate={{ height: upperPanelHeight, borderRadius: upperPanelRadius }}
                 transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.9 }}
@@ -395,7 +443,7 @@ export default function SmartBarMobileShell() {
                           setDraft(event.target.value);
                           setHasEditedDraft(true);
                         }}
-                        className="h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-transparent caret-white"
+                        className={`h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-bold leading-5 outline-none ring-0 placeholder:text-transparent ${inputTextClass}`}
                         placeholder=""
                         autoFocus
                       />
@@ -425,7 +473,7 @@ export default function SmartBarMobileShell() {
                     >
                       <div className="flex shrink-0 items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-200">
+                          <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
                             {selectedLine.status === "unknown" ? "Retry item" : "Editing item"}
                           </div>
                           <div className={`mt-1 truncate text-xl font-black tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
@@ -439,7 +487,7 @@ export default function SmartBarMobileShell() {
 
                       {selectedLine.status === "unknown" ? (
                         <div className="mt-4 flex min-h-0 flex-1 flex-col">
-                          <div className="text-sm font-semibold leading-5 text-white/62">
+                          <div className={`text-sm font-semibold leading-5 ${softTextClass}`}>
                             {selectedLine.retryPrompt || "Re-enter this item."}
                           </div>
                           <textarea
@@ -448,14 +496,14 @@ export default function SmartBarMobileShell() {
                               setDraft(event.target.value);
                               setHasEditedDraft(true);
                             }}
-                            className="mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/10 bg-slate-950/28 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/28 caret-white"
+                            className={retryInputClass}
                             placeholder=""
                             autoFocus
                           />
                         </div>
                       ) : (
                         <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-                          <div className="text-[12px] font-black uppercase tracking-[0.14em] text-white/44">
+                          <div className={`text-[12px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
                             Item page opened
                           </div>
                           <div className="mt-2 flex flex-wrap gap-2">
@@ -501,7 +549,7 @@ export default function SmartBarMobileShell() {
                     >
                       <div className="flex shrink-0 items-center justify-between gap-3">
                         <div>
-                          <div className="text-[11px] font-black uppercase tracking-[0.16em] text-emerald-200">
+                          <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${greenEyebrowClass}`}>
                             {checkoutReady ? "Ready for checkout" : "Needs attention"}
                           </div>
                           <div className="mt-1 text-xl font-black tracking-tight">
@@ -509,7 +557,7 @@ export default function SmartBarMobileShell() {
                           </div>
                         </div>
 
-                        <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${checkoutReady ? "bg-emerald-300 text-slate-950" : "bg-white/10 text-white ring-1 ring-white/12"}`}>
+                        <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${issuePillClass}`}>
                           {checkoutReady ? (
                             <>
                               <Check className="h-3.5 w-3.5" />
@@ -525,14 +573,14 @@ export default function SmartBarMobileShell() {
                             key={line.id}
                             type="button"
                             onClick={() => selectLine(line)}
-                            className="w-full rounded-2xl border border-white/10 bg-slate-950/44 p-3 text-left transition active:scale-[0.99]"
+                            className={lineButtonClass}
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className={`truncate text-base font-black ${line.status === "unknown" ? "italic text-white/82" : ""}`}>
+                                <div className={`truncate text-base font-black ${line.status === "unknown" ? unknownTitleClass : ""}`}>
                                   {line.title}
                                 </div>
-                                <div className={`mt-1 text-sm font-semibold text-slate-300 ${line.status === "unknown" ? "italic" : ""}`}>
+                                <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
                                   {line.helper}
                                 </div>
                               </div>
@@ -562,25 +610,25 @@ export default function SmartBarMobileShell() {
               transition={{ duration: 0.28, ease: "easeOut" }}
               className="flex h-full flex-col justify-end px-4 pb-4"
             >
-              <div className="mx-auto w-full max-w-[390px] rounded-[30px] border border-white/12 bg-white/[0.075] p-4 shadow-2xl backdrop-blur-2xl">
+              <div className={actionPanelClass}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-200">
+                    <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${amberEyebrowClass}`}>
                       Needs choice
                     </div>
                     <div className="mt-1 text-xl font-black tracking-tight">
                       {activeLine?.title || "Order ready"}
                     </div>
-                    <div className="mt-1 text-sm font-semibold leading-6 text-slate-300">
+                    <div className={`mt-1 text-sm font-semibold leading-6 ${mainMutedTextClass}`}>
                       {activeLine?.helper || "Everything required is complete."}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-white/10 px-3 py-2 text-right ring-1 ring-white/10">
-                    <div className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                  <div className={totalBoxClass}>
+                    <div className={`text-[10px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
                       Total
                     </div>
-                    <div className="text-base font-black text-white">{estimatedTotal}</div>
+                    <div className="text-base font-black">{estimatedTotal}</div>
                   </div>
                 </div>
               </div>
@@ -590,7 +638,7 @@ export default function SmartBarMobileShell() {
         </AnimatePresence>
       </main>
 
-      <footer className="fixed inset-x-0 bottom-3 z-[10084] flex justify-center px-0">
+      <footer className="pointer-events-none fixed inset-x-0 bottom-3 z-[10084] flex justify-center px-0">
         <div
           className="relative h-[46px]"
           style={{ width: entryPillWidth }}
@@ -600,7 +648,7 @@ export default function SmartBarMobileShell() {
               <motion.button
                 type="button"
                 onClick={handleClosePillClick}
-                className="absolute left-0 top-0 flex items-center justify-center rounded-full border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl transition active:scale-[0.985]"
+                className={`${chromePillClass} left-0`}
                 style={{ width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -616,7 +664,7 @@ export default function SmartBarMobileShell() {
           <button
             type="button"
             onClick={handleCompanionClick}
-            className={`absolute top-0 flex h-[46px] min-w-0 items-center rounded-full border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl transition active:scale-[0.985] ${
+            className={`${chromePillClass} h-[46px] min-w-0 ${
               phase === "rest" ? "justify-between gap-2 px-2.5" : "justify-center px-4"
             }`}
             style={{ width: launcherPillWidth, left: launcherPillLeft }}
@@ -624,13 +672,13 @@ export default function SmartBarMobileShell() {
           >
             {phase === "rest" ? (
               <>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/10">
+                <span className={chromeIconBubbleClass}>
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
                 <span className="min-w-0 flex-1 truncate text-center text-[16px] font-medium tracking-normal">
                   {companionLabel}
                 </span>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/10">
+                <span className={chromeIconBubbleClass}>
                   <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
               </>
@@ -650,7 +698,7 @@ export default function SmartBarMobileShell() {
               <motion.button
                 type="button"
                 onClick={handleCartToggleClick}
-                className="absolute right-0 top-0 flex items-center justify-center rounded-full border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl transition active:scale-[0.985]"
+                className={`${chromePillClass} right-0`}
                 style={{ width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}

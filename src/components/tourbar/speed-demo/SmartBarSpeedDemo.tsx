@@ -13,6 +13,7 @@ import { TourBarBookingHandoffSheet, TourBarNavigationControls, type TourBarBook
 import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
+import SmartBarMobileShell from "../smartbar-mobile/SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
 import {
@@ -1729,6 +1730,57 @@ export default function SmartBarSpeedDemo({
     [variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
+  const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
+
+  useLayoutEffect(() => {
+    if (!mobileBurgerRushShell || typeof document === "undefined") return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+
+    const previous = {
+      htmlHeight: html.style.height,
+      htmlOverflow: html.style.overflow,
+      htmlOverscrollBehavior: html.style.overscrollBehavior,
+      bodyHeight: body.style.height,
+      bodyOverflow: body.style.overflow,
+      bodyOverscrollBehavior: body.style.overscrollBehavior,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+    };
+
+    html.style.height = "100%";
+    html.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.height = "100%";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+
+    return () => {
+      html.style.height = previous.htmlHeight;
+      html.style.overflow = previous.htmlOverflow;
+      html.style.overscrollBehavior = previous.htmlOverscrollBehavior;
+      body.style.height = previous.bodyHeight;
+      body.style.overflow = previous.bodyOverflow;
+      body.style.overscrollBehavior = previous.bodyOverscrollBehavior;
+      body.style.position = previous.bodyPosition;
+      body.style.top = previous.bodyTop;
+      body.style.left = previous.bodyLeft;
+      body.style.right = previous.bodyRight;
+      body.style.width = previous.bodyWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [mobileBurgerRushShell]);
 
   const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
     commandIdRef.current += 1;
@@ -1786,15 +1838,24 @@ export default function SmartBarSpeedDemo({
   }, [clearReplayFallbackTimer]);
 
   useEffect(() => {
-    if (!autoPlay || autoPlayStartedRef.current) return;
+    if (!effectiveAutoPlay || autoPlayStartedRef.current) return;
 
     autoPlayStartedRef.current = true;
     setReplayVisible(false);
     setStepIndex(0);
     setIsPlaying(true);
-  }, [autoPlay]);
+  }, [effectiveAutoPlay]);
 
   useEffect(() => {
+    if (mobileBurgerRushShell) {
+      setTutorBlocking(false);
+      setTutorStackCards([]);
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      return;
+    }
+
     let cancelled = false;
 
     const runOpeningTutorCards = async () => {
@@ -1887,7 +1948,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [clearReplayFallbackTimer, introRunId, openingTutorCards]);
+  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, openingTutorCards]);
 
   const showScriptCards = useCallback(
     async (
@@ -2186,6 +2247,7 @@ export default function SmartBarSpeedDemo({
   );
 
   useEffect(() => {
+    if (mobileBurgerRushShell) return;
     if (stepIndex < 0 || tutorBlocking || !isPlaying) return;
 
     let cancelled = false;
@@ -2225,7 +2287,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [demoSteps, isPlaying, runCommand, sendCommand, stepIndex, tutorBlocking]);
+  }, [demoSteps, isPlaying, mobileBurgerRushShell, runCommand, sendCommand, stepIndex, tutorBlocking]);
 
   const beforeResultReveal = async (result: TourBarShellResult) => {
     const targetId = speedDemoResultTarget(result);
@@ -2272,7 +2334,6 @@ export default function SmartBarSpeedDemo({
   const defaultSurface = variant === "burgerRushOnly" ? "ordering" : "info";
   const toolbarSurface = currentStep?.surface || defaultSurface;
   const isFinaleSurface = toolbarSurface === "finale";
-
   useLayoutEffect(() => {
     clearSmartBarFocusOverlay();
     resetSpeedDemoStageToTop(targetStageRef.current);
@@ -2293,7 +2354,7 @@ export default function SmartBarSpeedDemo({
     };
   }, [toolbarSurface]);
 
-  const smartBarNode = (
+  const smartBarNode = mobileBurgerRushShell ? null : (
     <TourBarShell
               appearance="light"
               primaryPlaceholder="Ask in plain English..."
@@ -2327,7 +2388,7 @@ export default function SmartBarSpeedDemo({
   }
 
   return (
-    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
+    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden overscroll-none bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
       <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
@@ -2360,15 +2421,18 @@ export default function SmartBarSpeedDemo({
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={toolbarSurface}
         className={isFinaleSurface
-          ? "relative z-10 h-[calc(100svh-106px)] overflow-hidden pb-32 pt-2"
-          : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
+          ? "relative z-10 h-[calc(100svh-106px)] overflow-hidden overscroll-none pb-32 pt-2"
+          : mobileBurgerRushShell
+            ? "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-none pb-32 pt-2 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
+            : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
         }
       >
         <SmartBarSpeedTargetWall surface={toolbarSurface} />
       </div>
 
+      {mobileBurgerRushShell && <SmartBarMobileShell mode="overlay" />}
 
-      <SmartBarDemoScrubber
+      {!mobileBurgerRushShell && <SmartBarDemoScrubber
         index={stepIndex}
         isPlaying={isPlaying}
         onSelect={(index) => {
@@ -2387,7 +2451,7 @@ export default function SmartBarSpeedDemo({
           if (stepIndex < 0) setStepIndex(0);
           setIsPlaying(true);
         }}
-      />
+      />}
     </main>
   );
 }
