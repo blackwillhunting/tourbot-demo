@@ -45,6 +45,7 @@ export type SmartBarMobileOrderLine = {
   price: string;
   details: string[];
   options?: string[];
+  optionSelectionMode?: "single" | "multi";
   retryPrompt?: string;
 };
 
@@ -61,7 +62,7 @@ export type SmartBarMobileSubmitMeta = {
   replaceLineTitle?: string;
 };
 
-type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "retryPrompt">>;
+type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionSelectionMode" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
   {
@@ -81,6 +82,7 @@ const demoLines: SmartBarMobileOrderLine[] = [
     price: "$4.49",
     details: ["Size needed"],
     options: ["Small", "Medium", "Large"],
+    optionSelectionMode: "single",
   },
   {
     id: "line-3",
@@ -90,6 +92,7 @@ const demoLines: SmartBarMobileOrderLine[] = [
     price: "$2.99",
     details: ["Medium suggested", "Ice normal"],
     options: ["Small", "Medium", "Large"],
+    optionSelectionMode: "multi",
   },
   {
     id: "line-4",
@@ -666,9 +669,10 @@ export default function SmartBarMobileShell({
   };
 
   const applyLineChoice = (line: SmartBarMobileOrderLine, value: string) => {
-    if (handoffLocked || choiceLockedLineIdRef.current === line.id) return;
+    const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
+    if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === line.id)) return;
 
-    choiceLockedLineIdRef.current = line.id;
+    if (!multiSelect) choiceLockedLineIdRef.current = line.id;
     setSelectedChoice({ lineId: line.id, value });
     disarmClose();
 
@@ -677,31 +681,33 @@ export default function SmartBarMobileShell({
     const cleanedDetails = (line.details || []).filter((detail) => {
       const detailKey = detail.trim().toLowerCase();
       if (/^(choice needed|size needed)$/i.test(detail.trim())) return false;
-      if (optionKeys.has(detailKey) && detailKey !== selectedOptionKey) return false;
+      if (!multiSelect && optionKeys.has(detailKey) && detailKey !== selectedOptionKey) return false;
       return true;
     });
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
-      status: "ready",
-      helper: `${value} selected`,
+      status: multiSelect ? "options" : "ready",
+      helper: multiSelect ? "Extras updated" : `${value} selected`,
       details: Array.from(new Set([...cleanedDetails, value])),
       options: line.options || [],
+      optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
       ? Promise.resolve(onApplyLineChoice(line, value))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
-    // Keep the action buttons visible long enough for the selected tile to turn
-    // green with a checkmark. Commit the optimistic cart update after that beat,
-    // then let the API reprice result reset the authoritative totals.
+    // Required choices are single-select and close the detail view after a short
+    // confirmation beat. Optional extras are multi-select, so keep the detail
+    // view open and let the visitor stack more extras.
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
         ...(current[line.id] || {}),
-        status: "ready",
+        status: resolvedLine.status,
         helper: resolvedLine.helper,
         details: resolvedLine.details,
         options: line.options || [],
+        optionSelectionMode: resolvedLine.optionSelectionMode,
       },
     }));
 
@@ -715,7 +721,7 @@ export default function SmartBarMobileShell({
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
-      setSelectedLineId(null);
+      setSelectedLineId(multiSelect ? line.id : null);
       setCartExpanded(true);
 
       parentResultPromise
@@ -723,6 +729,7 @@ export default function SmartBarMobileShell({
           if (!parentResult || parentResult.lines.length === 0) return;
           setOrderLines(parentResult.lines);
           applyOrderResultEstimates(parentResult);
+          if (multiSelect) setSelectedLineId(line.id);
         })
         .catch(() => {
           // Keep the optimistic cart if the pricing refresh fails.
@@ -1220,7 +1227,7 @@ export default function SmartBarMobileShell({
                         {!!selectedLine.options?.length && (
                           <div className="mt-4">
                             <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
-                              Choose one
+                              {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
                             </div>
                             <div className="grid grid-cols-3 gap-2">
                               {selectedLine.options.map((option) => {
@@ -1229,14 +1236,15 @@ export default function SmartBarMobileShell({
                                 });
                                 const isSelected = persistedSelected ||
                                   (selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option);
-                                const isLocked = selectedChoice?.lineId === selectedLine.id && !isSelected;
+                                const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
+                                const isLocked = !isMultiSelect && selectedChoice?.lineId === selectedLine.id && !isSelected;
 
                                 return (
                                   <button
                                     key={option}
                                     type="button"
                                     onClick={() => applyLineChoice(selectedLine, option)}
-                                    disabled={Boolean(selectedChoice?.lineId === selectedLine.id)}
+                                    disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
                                     className={`rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
                                       isSelected
                                         ? "bg-emerald-300 text-slate-950 ring-2 ring-emerald-500/40"
