@@ -564,18 +564,49 @@ export function smartBarMobileRemoveReplacementFromCarryoutOrder(
 
 
 
+function smartBarMobileComparableVisibleLineTitle(value: string) {
+  return smartBarMobileSelectionKey(value.replace(/^\s*\d+\s*[×x]\s*/i, ""));
+}
+
+function smartBarMobileVisibleLinesAreSameEntry(
+  left: SmartBarMobileOrderLine,
+  right: SmartBarMobileOrderLine,
+) {
+  if (left.id && right.id) return left.id === right.id;
+
+  return Boolean(
+    smartBarMobileComparableVisibleLineTitle(left.title) === smartBarMobileComparableVisibleLineTitle(right.title) &&
+      smartBarMobileSelectionKey(left.price || "") === smartBarMobileSelectionKey(right.price || "") &&
+      left.status === right.status,
+  );
+}
+
 export function smartBarMobileRemoveVisibleLine(
   lines: SmartBarMobileOrderLine[],
   lineToRemove: SmartBarMobileOrderLine,
 ) {
-  return lines.filter((line) => !smartBarMobileLinesMatch(line, lineToRemove));
+  return lines.filter((line) => !smartBarMobileVisibleLinesAreSameEntry(line, lineToRemove));
 }
 
 function smartBarMobileCarryoutLineMatchesVisibleLine(
   carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
   visibleLine: SmartBarMobileOrderLine,
 ) {
-  return smartBarMobileLinesMatch(smartBarMobileLineFromCarryoutLine(carryoutLine, 0), visibleLine);
+  const visibleId = smartBarMobileSelectionKey(visibleLine.id || "");
+  const carryoutIds = [carryoutLine.lineItemId, carryoutLine.id]
+    .map((value) => smartBarMobileSelectionKey(String(value || "")))
+    .filter(Boolean);
+
+  if (visibleId && carryoutIds.includes(visibleId)) return true;
+
+  const carryoutTitle = smartBarMobileComparableVisibleLineTitle(String(carryoutLine.title || carryoutLine.id || ""));
+  const visibleTitle = smartBarMobileComparableVisibleLineTitle(visibleLine.title || "");
+  if (!carryoutTitle || !visibleTitle || carryoutTitle !== visibleTitle) return false;
+
+  const carryoutPrice = smartBarMobileSelectionKey(smartBarMobilePriceFromLine(carryoutLine));
+  const visiblePrice = smartBarMobileSelectionKey(visibleLine.price || "");
+
+  return Boolean(!carryoutPrice || !visiblePrice || carryoutPrice === visiblePrice);
 }
 
 export function smartBarMobileRemoveLineFromCarryoutOrder(
@@ -590,10 +621,10 @@ export function smartBarMobileRemoveLineFromCarryoutOrder(
   const items = sourceItems.filter((line) => !smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove));
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
-  const targetKey = smartBarMobileSelectionKey(lineToRemove.title || lineToRemove.id || "");
+  const targetKey = smartBarMobileComparableVisibleLineTitle(lineToRemove.title || lineToRemove.id || "");
   const cannotMatchItems = (order.cannotMatchItems || []).filter((item) => {
-    const itemKey = smartBarMobileSelectionKey(String(item.text || item.label || item.title || item.item || ""));
-    return !itemKey || !targetKey || !smartBarMobileKeysMatch(itemKey, targetKey);
+    const itemKey = smartBarMobileComparableVisibleLineTitle(String(item.text || item.label || item.title || item.item || ""));
+    return !itemKey || !targetKey || itemKey !== targetKey;
   });
 
   return {

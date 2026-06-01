@@ -24,6 +24,7 @@ import {
  */
 
 type SmartBarMobilePhase = "rest" | "entry" | "building_cart" | "cart";
+type SmartBarMobileHandoffState = "idle" | "handing_off" | "complete";
 export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unknown";
 
 export type SmartBarMobileOrderLine = {
@@ -215,6 +216,12 @@ function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOver
   return "border-white/12 bg-slate-500/20 text-white shadow-[0_12px_28px_rgba(15,23,42,0.24)] ring-1 ring-white/10";
 }
 
+function smartBarMobileHandoffRowSurfaceClass(isOverlay: boolean) {
+  return isOverlay
+    ? "border-sky-300/75 bg-sky-50/94 text-sky-950 shadow-[0_10px_30px_rgba(14,165,233,0.22)] ring-1 ring-sky-200/85"
+    : "border-sky-300/35 bg-sky-400/24 text-sky-50 shadow-[0_12px_30px_rgba(14,165,233,0.20)] ring-1 ring-sky-200/22";
+}
+
 function smartBarMobileRowAnimate(status: SmartBarMobileOrderStatus): TargetAndTransition {
   if (status === "pending" || status === "options") {
     return { x: 0, scale: [1, 1.006, 1] };
@@ -376,6 +383,8 @@ export default function SmartBarMobileShell({
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
+  const handoffCollapseTimerRef = useRef<number | null>(null);
+  const handoffResetTimerRef = useRef<number | null>(null);
   const choiceLockedLineIdRef = useRef<string | null>(null);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
@@ -389,6 +398,7 @@ export default function SmartBarMobileShell({
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
+  const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
   const [closeArmed, setCloseArmed] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
@@ -441,6 +451,7 @@ export default function SmartBarMobileShell({
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const checkoutReady = lines.length > 0 && blockingIssueCount === 0;
+  const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
     subtotal: orderEstimatedSubtotal,
     tax: orderEstimatedTax,
@@ -464,10 +475,12 @@ export default function SmartBarMobileShell({
             (selectedOptionRows > 0 ? 38 + selectedOptionRows * 54 : 0),
         ),
       );
-  const fakeCartPanelHeight = phase === "cart"
-    ? cartExpanded ? selectedLine ? cartDetailHeight : cartSummaryHeight : collapsedCartPanelHeight
-    : buildPanelHeight;
-  const fakeCartPanelRadius = phase === "cart" && !cartExpanded ? 999 : 30;
+  const fakeCartPanelHeight = handoffState === "complete"
+    ? 0
+    : phase === "cart"
+      ? cartExpanded ? selectedLine ? cartDetailHeight : cartSummaryHeight : collapsedCartPanelHeight
+      : buildPanelHeight;
+  const fakeCartPanelRadius = handoffState === "complete" || (phase === "cart" && !cartExpanded) ? 999 : 30;
 
   const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
     setOrderEstimatedSubtotal(result.estimatedSubtotal);
@@ -489,6 +502,18 @@ export default function SmartBarMobileShell({
     buildTimerRef.current = null;
   };
 
+  const clearHandoffTimers = () => {
+    if (handoffCollapseTimerRef.current !== null) {
+      window.clearTimeout(handoffCollapseTimerRef.current);
+      handoffCollapseTimerRef.current = null;
+    }
+
+    if (handoffResetTimerRef.current !== null) {
+      window.clearTimeout(handoffResetTimerRef.current);
+      handoffResetTimerRef.current = null;
+    }
+  };
+
   const disarmClose = () => {
     clearCloseArmTimer();
     setCloseArmed(false);
@@ -498,6 +523,7 @@ export default function SmartBarMobileShell({
     return () => {
       clearCloseArmTimer();
       clearBuildTimer();
+      clearHandoffTimers();
     };
   }, []);
 
@@ -543,6 +569,8 @@ export default function SmartBarMobileShell({
 
     disarmClose();
     clearBuildTimer();
+    clearHandoffTimers();
+    setHandoffState("idle");
     setSelectedLineId(null);
     setLineOverrides({});
     setCartExpanded(true);
@@ -577,6 +605,8 @@ export default function SmartBarMobileShell({
   };
 
   const selectLine = (line: SmartBarMobileOrderLine) => {
+    if (handoffLocked) return;
+
     disarmClose();
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
@@ -589,7 +619,7 @@ export default function SmartBarMobileShell({
   };
 
   const applyLineChoice = (line: SmartBarMobileOrderLine, value: string) => {
-    if (choiceLockedLineIdRef.current === line.id) return;
+    if (handoffLocked || choiceLockedLineIdRef.current === line.id) return;
 
     choiceLockedLineIdRef.current = line.id;
     setSelectedChoice({ lineId: line.id, value });
@@ -655,6 +685,8 @@ export default function SmartBarMobileShell({
 
 
   const removeLine = (line: SmartBarMobileOrderLine) => {
+    if (handoffLocked) return;
+
     disarmClose();
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
@@ -705,7 +737,7 @@ export default function SmartBarMobileShell({
 
   const submitRetry = () => {
     const submittedRetry = retryDraft.trim();
-    if (!selectedLine || selectedLine.status !== "unknown" || !submittedRetry || retryCheckingLineId) return;
+    if (handoffLocked || !selectedLine || selectedLine.status !== "unknown" || !submittedRetry || retryCheckingLineId) return;
 
     retryTextareaRef.current?.blur();
     disarmClose();
@@ -769,6 +801,8 @@ export default function SmartBarMobileShell({
   };
 
   const returnToEntryFromCart = () => {
+    if (handoffLocked) return;
+
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
     clearBuildTimer();
@@ -785,7 +819,7 @@ export default function SmartBarMobileShell({
   };
 
   const openCartFromEntry = () => {
-    if (!hasCart) return;
+    if (handoffLocked || !hasCart) return;
 
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
@@ -800,6 +834,8 @@ export default function SmartBarMobileShell({
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
     clearBuildTimer();
+    clearHandoffTimers();
+    setHandoffState("idle");
     setPhase("rest");
     setEntryDraft("");
     setHasEditedEntryDraft(false);
@@ -820,9 +856,39 @@ export default function SmartBarMobileShell({
     setCartExpanded(true);
   };
 
+
+  const startCheckoutHandoff = () => {
+    if (!checkoutReady || handoffLocked) return;
+
+    entryTextareaRef.current?.blur();
+    retryTextareaRef.current?.blur();
+    clearBuildTimer();
+    clearHandoffTimers();
+    disarmClose();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
+    setSelectedLineId(null);
+    setCartExpanded(true);
+    setHandoffState("handing_off");
+
+    handoffCollapseTimerRef.current = window.setTimeout(() => {
+      handoffCollapseTimerRef.current = null;
+      setHandoffState("complete");
+      setCartExpanded(false);
+
+      handoffResetTimerRef.current = window.setTimeout(() => {
+        handoffResetTimerRef.current = null;
+        resetToRest();
+      }, 2000);
+    }, 3000);
+  };
+
   const companionLabel = (() => {
     if (phase === "rest") return "SmartBar";
     if (closeArmed) return "Tap again...";
+    if (handoffState === "handing_off") return "Handing off";
+    if (handoffState === "complete") return "Handoff complete";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : "Type order";
     if (phase === "building_cart") return hasCart ? "Adding to cart..." : "Building cart...";
     if (phase === "cart" && selectedLine?.status === "unknown") {
@@ -836,6 +902,8 @@ export default function SmartBarMobileShell({
 
   const handleCompanionClick = () => {
     if (closeArmed) disarmClose();
+
+    if (handoffLocked) return;
 
     if (phase === "rest") {
       setPhase("entry");
@@ -864,10 +932,14 @@ export default function SmartBarMobileShell({
       setCartExpanded(true);
       return;
     }
+
+    if (phase === "cart" && checkoutReady) {
+      startCheckoutHandoff();
+    }
   };
 
   const handleClosePillClick = () => {
-    if (phase === "rest") return;
+    if (phase === "rest" || handoffLocked) return;
 
     if (closeArmed) {
       resetToRest();
@@ -883,6 +955,8 @@ export default function SmartBarMobileShell({
   };
 
   const handleCartToggleClick = () => {
+    if (handoffLocked) return;
+
     if (phase === "cart") {
       returnToEntryFromCart();
       return;
@@ -897,7 +971,7 @@ export default function SmartBarMobileShell({
     setCartExpanded((expanded) => !expanded);
   };
 
-  const showCartToggle = hasCart && (phase === "entry" || phase === "cart");
+  const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
   const rootTextClass = isOverlay ? "text-slate-950" : "text-white";
   const upperGlassClass = isOverlay
@@ -924,6 +998,7 @@ export default function SmartBarMobileShell({
       : "bg-white/10 text-white ring-1 ring-white/12";
   const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
   const unknownTitleClass = isOverlay ? "italic text-slate-600" : "italic text-white/82";
+  const handoffTitleClass = isOverlay ? "italic text-sky-950" : "italic text-sky-50";
 
   return (
     <div
@@ -1185,21 +1260,23 @@ export default function SmartBarMobileShell({
                           key={line.id}
                           role="button"
                           tabIndex={0}
-                          animate={smartBarMobileRowAnimate(line.status)}
-                          transition={smartBarMobileRowTransition(line.status)}
-                          onClick={() => selectLine(line)}
+                          animate={handoffLocked ? { x: 0, scale: 1 } : smartBarMobileRowAnimate(line.status)}
+                          transition={handoffLocked ? { type: "spring", stiffness: 520, damping: 36 } : smartBarMobileRowTransition(line.status)}
+                          onClick={() => {
+                            if (!handoffLocked) selectLine(line);
+                          }}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
-                              selectLine(line);
+                              if (!handoffLocked) selectLine(line);
                             }
                           }}
-                          className={`${lineButtonClass} ${smartBarMobileRowSurfaceClass(line.status, isOverlay)} cursor-pointer`}
+                          className={`${lineButtonClass} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
                           style={{ touchAction: "pan-y" }}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <div className={`truncate text-base font-black ${line.status === "unknown" ? unknownTitleClass : ""}`}>
+                              <div className={`truncate text-base font-black ${handoffLocked ? handoffTitleClass : line.status === "unknown" ? unknownTitleClass : ""}`}>
                                 {smartBarMobileShortTitle(line.title)}
                               </div>
                               <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
@@ -1208,24 +1285,26 @@ export default function SmartBarMobileShell({
                             </div>
                             <div className="flex shrink-0 flex-col items-end gap-2 text-right">
                               <div className="text-sm font-black">{line.price}</div>
-                              <button
-                                type="button"
-                                onPointerDown={(event) => {
-                                  event.stopPropagation();
-                                }}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  removeLine(line);
-                                }}
-                                className={
-                                  isOverlay
-                                    ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/7 text-slate-600 ring-1 ring-slate-950/10 transition active:scale-95"
-                                    : "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/12 transition active:scale-95"
-                                }
-                                aria-label={`Remove ${line.title}`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              {!handoffLocked && (
+                                <button
+                                  type="button"
+                                  onPointerDown={(event) => {
+                                    event.stopPropagation();
+                                  }}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    removeLine(line);
+                                  }}
+                                  className={
+                                    isOverlay
+                                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/7 text-slate-600 ring-1 ring-slate-950/10 transition active:scale-95"
+                                      : "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/12 transition active:scale-95"
+                                  }
+                                  aria-label={`Remove ${line.title}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                             </div>
                           </div>
                         </motion.div>
@@ -1307,7 +1386,7 @@ export default function SmartBarMobileShell({
                   <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
               </>
-            ) : closeArmed || phase === "building_cart" || Boolean(retryCheckingLineId) ? (
+            ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
               <span className="min-w-0 truncate text-center text-[16px] font-medium tracking-normal">
                 <ThinkingText text={companionLabel} />
               </span>
