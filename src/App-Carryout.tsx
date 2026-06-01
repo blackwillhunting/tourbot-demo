@@ -849,31 +849,36 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
   );
 }
 
-export default function AppCarryout() {
-  const [activeTab, setActiveTab] = useState<MenuTab>("combos");
-  const selfDrive = useMemo(() => isSelfDriveEntry(), []);
-  const [demoStatus, setDemoStatus] = useState<DemoStatus>(() =>
-    selfDrive ? "running" : "idle",
-  );
-  const [guideDemoCommand, setGuideDemoCommand] =
-    useState<GuideShellDemoCommand | null>(null);
-  const [demoClosingOpen, setDemoClosingOpen] = useState(false);
+type BurgerRushCarryoutSiteProps = {
+  showTourBarOrdering?: boolean;
+  tourBarNode?: React.ReactNode;
+  children?: React.ReactNode;
+};
 
-  const closeCarryoutDemo = () => {
-    window.location.href = CARRYOUT_CLOSE_URL;
-  };
+export function BurgerRushCarryoutSite({
+  showTourBarOrdering = true,
+  tourBarNode,
+  children,
+}: BurgerRushCarryoutSiteProps) {
+  const [activeTab, setActiveTab] = useState<MenuTab>("combos");
 
   const goToTourBarOrderingFocus = (target: TourBarOrderingFocusTarget) => {
     const tab = menuTabForTargetId(target.targetId);
     if (tab) setActiveTab(tab);
   };
 
+  const resolvedTourBarNode = tourBarNode !== undefined
+    ? tourBarNode
+    : showTourBarOrdering
+      ? <TourBarOrdering onNavigateToFocus={goToTourBarOrderingFocus} />
+      : undefined;
+
   return (
     <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-white">
       <Header
         activeTab={activeTab}
         onTabClick={setActiveTab}
-        tourBarNode={!selfDrive ? <TourBarOrdering onNavigateToFocus={goToTourBarOrderingFocus} /> : undefined}
+        tourBarNode={resolvedTourBarNode}
       />
 
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:py-8">
@@ -975,6 +980,26 @@ export default function AppCarryout() {
         <CarryoutExplainerPanel />
       </main>
 
+      {children}
+    </div>
+  );
+}
+
+export default function AppCarryout() {
+  const selfDrive = useMemo(() => isSelfDriveEntry(), []);
+  const [demoStatus, setDemoStatus] = useState<DemoStatus>(() =>
+    selfDrive ? "running" : "idle",
+  );
+  const [guideDemoCommand, setGuideDemoCommand] =
+    useState<GuideShellDemoCommand | null>(null);
+  const [demoClosingOpen, setDemoClosingOpen] = useState(false);
+
+  const closeCarryoutDemo = () => {
+    window.location.href = CARRYOUT_CLOSE_URL;
+  };
+
+  return (
+    <BurgerRushCarryoutSite showTourBarOrdering={!selfDrive}>
       {selfDrive && (
         <GuideShellStatic
           demoCommand={guideDemoCommand}
@@ -1012,7 +1037,6 @@ export default function AppCarryout() {
       <AnimatePresence>
         {demoClosingOpen && <DemoClosingCard onClose={closeCarryoutDemo} />}
       </AnimatePresence>
-    </div>
+    </BurgerRushCarryoutSite>
   );
 }
-
