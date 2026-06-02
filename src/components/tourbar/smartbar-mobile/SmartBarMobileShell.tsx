@@ -1070,15 +1070,18 @@ export default function SmartBarMobileShell({
       </main>
 
       <AnimatePresence initial={false}>
-        {isOverlay && demoTransitionShield && phase === "building_cart" && (
+        {isOverlay && demoTransitionShield && (
+          phase === "building_cart" ||
+          (phase === "cart" && cartExpanded && !selectedLine && handoffState === "idle")
+        ) && (
           <motion.div
             key="demo-transition-shield"
             aria-hidden="true"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.12, ease: "easeOut" }}
-            className="pointer-events-none fixed inset-x-0 bottom-0 z-[10081] h-[48svh] bg-slate-950/58 backdrop-blur-[2px]"
+            transition={{ duration: 0.14, ease: "easeOut" }}
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[10081] h-[58svh] bg-slate-950/70 backdrop-blur-[2px]"
           />
         )}
       </AnimatePresence>
