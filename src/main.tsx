@@ -8,6 +8,7 @@ import LaunchSelector from "./LaunchSelector";
 import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
 import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
+import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -31,7 +32,10 @@ function isSmartBarHostname() {
 
 
 function smartBarSpeedVariantFromPath(path: string) {
-  return path === "/smartbar-burgerrush" || path === "/burger-rush" || path === "/direct-ordering"
+  return path === "/smartbar-burgerrush" ||
+    path === "/burger-rush" ||
+    path === "/burger-rush-play" ||
+    path === "/direct-ordering"
     ? "burgerRushOnly"
     : "full";
 }
@@ -190,13 +194,21 @@ function Router() {
     return <SmartBarMobileShell />;
   }
 
+  if (path === "/burger-rush-play") {
+    return (
+      <ProtectedDemoRoute>
+        <BurgerRushMobileExperience />
+      </ProtectedDemoRoute>
+    );
+  }
+
   if (isSmartBarHostname()) {
     const smartBarVariant = smartBarSpeedVariantFromPath(path);
 
     if (smartBarVariant === "burgerRushOnly" && getStoredTourBotDemoToken()) {
       return (
         <ProtectedDemoRoute>
-          <SmartBarSpeedDemo variant="burgerRushOnly" />
+          <SmartBarSpeedDemo variant="burgerRushOnly" autoPlay />
         </ProtectedDemoRoute>
       );
     }
