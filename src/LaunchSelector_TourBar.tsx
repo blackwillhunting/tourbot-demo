@@ -940,8 +940,17 @@ export default function LaunchSelectorTourBar({
     [clearNoticeLanes, getNextNoticeLane, isChecking, launchVisible, passcode, setActiveNoticeLaneState, startAcceptedFlow],
   );
 
+  const allowMobileBurgerRushPageScroll =
+    demoVisible && variant === "burgerRushOnly" && shouldSkipFitsAnywhereAnimationOnPhone();
+
   return (
-    <div className="relative h-[100dvh] min-h-[100dvh] overflow-hidden">
+    <div
+      className={
+        allowMobileBurgerRushPageScroll
+          ? "relative min-h-[100dvh] overflow-x-hidden"
+          : "relative h-[100dvh] min-h-[100dvh] overflow-hidden"
+      }
+    >
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} variant={variant} /> : <LaunchBackground />}
 <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
         <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
