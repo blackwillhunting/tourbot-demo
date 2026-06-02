@@ -1229,7 +1229,7 @@ export default function SmartBarMobileShell({
                             <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
                               {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-2 gap-2">
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = (selectedLine.details || []).some((detail) => {
                                   return detail.trim().toLowerCase() === option.trim().toLowerCase();
@@ -1245,7 +1245,7 @@ export default function SmartBarMobileShell({
                                     type="button"
                                     onClick={() => applyLineChoice(selectedLine, option)}
                                     disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
-                                    className={`rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
+                                    className={`min-w-0 rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
                                       isSelected
                                         ? "bg-emerald-300 text-slate-950 ring-2 ring-emerald-500/40"
                                         : isLocked
@@ -1253,9 +1253,9 @@ export default function SmartBarMobileShell({
                                           : "bg-white/88 text-slate-950"
                                     }`}
                                   >
-                                    <span className="inline-flex items-center justify-center gap-1.5">
-                                      {isSelected && <Check className="h-3.5 w-3.5" />}
-                                      {smartBarMobileShortLabel(option)}
+                                    <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
+                                      {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
+                                      <span className="min-w-0 truncate">{smartBarMobileShortLabel(option)}</span>
                                     </span>
                                   </button>
                                 );
@@ -1295,14 +1295,17 @@ export default function SmartBarMobileShell({
                     </div>
 
                     <div className="mt-3 grid shrink-0 grid-cols-3 gap-2">
-                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
-                        Complete {completeCount}
+                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
+                        <span className="text-[10px] leading-none tracking-[0.14em]">Complete</span>
+                        <span className="mt-1 text-[14px] leading-none tracking-normal">{completeCount}</span>
                       </div>
-                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}>
-                        Pending {blockingIssueCount}
+                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}>
+                        <span className="text-[10px] leading-none tracking-[0.14em]">Pending</span>
+                        <span className="mt-1 text-[14px] leading-none tracking-normal">{blockingIssueCount}</span>
                       </div>
-                      <div className={`rounded-full px-2.5 py-1.5 text-center text-[11px] font-black uppercase tracking-[0.12em] ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
-                        Extras {optionCount}
+                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
+                        <span className="text-[10px] leading-none tracking-[0.14em]">Extras</span>
+                        <span className="mt-1 text-[14px] leading-none tracking-normal">{optionCount}</span>
                       </div>
                     </div>
 
