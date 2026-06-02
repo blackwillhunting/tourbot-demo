@@ -7,6 +7,18 @@ const pageCardStyle: CSSProperties = {
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
 };
 
+const clarityTargetStyle: CSSProperties = {
+  background:
+    "linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.96) 13%, rgba(14,165,233,0.94) 13%, rgba(14,165,233,0.94) 26%, rgba(250,204,21,0.94) 26%, rgba(250,204,21,0.94) 39%, rgba(244,63,94,0.94) 39%, rgba(244,63,94,0.94) 52%, rgba(15,23,42,0.96) 52%, rgba(15,23,42,0.96) 65%, rgba(34,197,94,0.94) 65%, rgba(34,197,94,0.94) 78%, rgba(168,85,247,0.94) 78%, rgba(168,85,247,0.94) 100%)",
+  border: "1px solid rgba(255,255,255,0.26)",
+  boxShadow: "0 18px 48px rgba(0,0,0,0.34)",
+};
+
+const clarityStripeStyle: CSSProperties = {
+  background:
+    "repeating-linear-gradient(90deg, rgba(255,255,255,0.96) 0 10px, rgba(15,23,42,0.96) 10px 20px)",
+};
+
 const glassFrameStyle: CSSProperties = {
   background:
     "linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.075) 46%, rgba(255,255,255,0.032) 100%)",
@@ -203,6 +215,34 @@ export default function SmartBarMobileGlassLab() {
             body="The page stays visible under the assistant while solid cart objects remain readable."
             offset
           />
+        </section>
+
+        <section className="pointer-events-none absolute inset-x-0 bottom-[92px] z-[2] flex justify-center px-0" aria-hidden="true">
+          <div className="h-[620px] w-[342px] overflow-hidden rounded-[30px] opacity-95" style={clarityTargetStyle}>
+            <div className="flex h-[82px] items-center justify-center text-center text-[17px] font-black uppercase tracking-[0.18em] text-slate-950">
+              Under Glass Clarity Test
+            </div>
+            <div className="h-[24px]" style={clarityStripeStyle} />
+            <div className="grid grid-cols-3 gap-2 p-3 text-center text-[11px] font-black uppercase tracking-[0.12em] text-slate-950">
+              <div className="rounded-2xl bg-white/92 px-2 py-4">White text field</div>
+              <div className="rounded-2xl bg-cyan-300/92 px-2 py-4">Blue block</div>
+              <div className="rounded-2xl bg-lime-300/92 px-2 py-4">Green block</div>
+            </div>
+            <div className="mx-4 mt-1 rounded-[24px] bg-slate-950/92 px-4 py-5 text-center text-[24px] font-black leading-tight tracking-[-0.04em] text-white">
+              SEE THIS
+              <span className="block text-[13px] uppercase tracking-[0.26em] text-white/72">through the glass</span>
+            </div>
+            <div className="mt-4 grid grid-cols-4 gap-2 px-4">
+              <div className="h-14 rounded-2xl bg-white" />
+              <div className="h-14 rounded-2xl bg-sky-400" />
+              <div className="h-14 rounded-2xl bg-amber-300" />
+              <div className="h-14 rounded-2xl bg-rose-500" />
+            </div>
+            <div className="mx-4 mt-4 rounded-[22px] border border-slate-950/20 bg-white/92 px-4 py-4 text-center text-[15px] font-black uppercase tracking-[0.16em] text-slate-950">
+              If this is readable, glass is clear enough
+            </div>
+            <div className="mt-4 h-[120px]" style={clarityStripeStyle} />
+          </div>
         </section>
 
         <section className="pointer-events-none absolute inset-x-0 bottom-[92px] z-[3] flex justify-center px-0">
