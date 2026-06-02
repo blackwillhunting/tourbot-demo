@@ -124,18 +124,18 @@ function statusClass(status: SmartBarMobileOrderStatus) {
 function smartBarMobileRibbonPillClass(kind: "complete" | "pending" | "extras", isOverlay: boolean) {
   if (kind === "complete") {
     return isOverlay
-      ? "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200"
+      ? "bg-emerald-300/18 text-emerald-50 ring-1 ring-emerald-200/22"
       : "bg-emerald-300/18 text-emerald-100 ring-1 ring-emerald-200/20";
   }
 
   if (kind === "pending") {
     return isOverlay
-      ? "bg-rose-100 text-rose-900 ring-1 ring-rose-200"
+      ? "bg-rose-300/18 text-rose-50 ring-1 ring-rose-200/22"
       : "bg-rose-300/18 text-rose-100 ring-1 ring-rose-200/20";
   }
 
   return isOverlay
-    ? "bg-amber-100 text-amber-950 ring-1 ring-amber-200"
+    ? "bg-amber-300/18 text-amber-50 ring-1 ring-amber-200/22"
     : "bg-amber-300/18 text-amber-100 ring-1 ring-amber-200/20";
 }
 
@@ -206,15 +206,15 @@ function SmartBarMobileOdometerText({ value, motionKey }: { value: string; motio
 function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOverlay: boolean) {
   if (isOverlay) {
     if (status === "ready") {
-      return "border-emerald-300/70 bg-emerald-50/94 text-slate-950 shadow-[0_10px_26px_rgba(16,185,129,0.18)] ring-1 ring-emerald-200/80";
+      return "border-emerald-300/32 bg-emerald-300/16 text-white shadow-[0_12px_30px_rgba(16,185,129,0.18)] ring-1 ring-emerald-200/22";
     }
     if (status === "pending") {
-      return "border-rose-300/75 bg-rose-50/94 text-slate-950 shadow-[0_10px_30px_rgba(244,63,94,0.22)] ring-1 ring-rose-200/85";
+      return "border-rose-300/34 bg-rose-400/18 text-white shadow-[0_12px_32px_rgba(244,63,94,0.22)] ring-1 ring-rose-200/24";
     }
     if (status === "options") {
-      return "border-amber-300/80 bg-amber-50/94 text-slate-950 shadow-[0_10px_30px_rgba(245,158,11,0.22)] ring-1 ring-amber-200/85";
+      return "border-amber-300/34 bg-amber-300/18 text-white shadow-[0_12px_32px_rgba(245,158,11,0.20)] ring-1 ring-amber-200/24";
     }
-    return "border-slate-300/85 bg-slate-100/94 text-slate-800 shadow-[0_10px_26px_rgba(100,116,139,0.18)] ring-1 ring-slate-200/85";
+    return "border-white/14 bg-slate-500/22 text-white shadow-[0_12px_30px_rgba(2,6,23,0.28)] ring-1 ring-white/12";
   }
 
   if (status === "ready") {
@@ -231,7 +231,7 @@ function smartBarMobileRowSurfaceClass(status: SmartBarMobileOrderStatus, isOver
 
 function smartBarMobileHandoffRowSurfaceClass(isOverlay: boolean) {
   return isOverlay
-    ? "border-sky-300/75 bg-sky-50/94 text-sky-950 shadow-[0_10px_30px_rgba(14,165,233,0.22)] ring-1 ring-sky-200/85"
+    ? "border-sky-300/35 bg-sky-400/22 text-sky-50 shadow-[0_12px_32px_rgba(14,165,233,0.22)] ring-1 ring-sky-200/24"
     : "border-sky-300/35 bg-sky-400/24 text-sky-50 shadow-[0_12px_30px_rgba(14,165,233,0.20)] ring-1 ring-sky-200/22";
 }
 
@@ -1055,35 +1055,35 @@ export default function SmartBarMobileShell({
 
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
-  const rootTextClass = isOverlay ? "text-slate-950" : "text-white";
+  const rootTextClass = isOverlay ? "text-white" : "text-white";
   const upperGlassClass = isOverlay
-    ? "overflow-hidden border border-white/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.66)_0%,rgba(226,232,240,0.48)_48%,rgba(148,163,184,0.34)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.86),inset_0_-1px_3px_rgba(15,23,42,0.12),0_18px_42px_rgba(15,23,42,0.24)] ring-1 ring-slate-950/6 backdrop-blur-2xl backdrop-saturate-150"
+    ? "overflow-hidden border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(51,65,85,0.48)_38%,rgba(15,23,42,0.62)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.24),inset_0_-2px_6px_rgba(2,6,23,0.38),0_18px_46px_rgba(2,6,23,0.36)] ring-1 ring-white/12 backdrop-blur-2xl backdrop-saturate-150"
     : "overflow-hidden border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(148,163,184,0.12)_54%,rgba(15,23,42,0.18)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),inset_0_-1px_3px_rgba(2,6,23,0.28),0_16px_38px_rgba(2,6,23,0.34)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150";
   const chromePillClass = isOverlay
-    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.70)_0%,rgba(226,232,240,0.50)_46%,rgba(120,132,150,0.40)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.92),inset_0_-2px_5px_rgba(15,23,42,0.16),0_12px_28px_rgba(15,23,42,0.26)] ring-1 ring-slate-950/7 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]"
+    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(71,85,105,0.48)_42%,rgba(15,23,42,0.66)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.24),inset_0_-2px_6px_rgba(2,6,23,0.42),0_12px_30px_rgba(2,6,23,0.42)] ring-1 ring-white/12 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]"
     : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(148,163,184,0.12)_48%,rgba(15,23,42,0.22)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),inset_0_-2px_5px_rgba(2,6,23,0.30),0_12px_28px_rgba(2,6,23,0.34)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]";
   const chromeIconBubbleClass = isOverlay
-    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(203,213,225,0.34)_100%)] text-slate-950/95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.76),inset_0_-1px_2px_rgba(15,23,42,0.12),0_3px_8px_rgba(15,23,42,0.12)] ring-1 ring-white/55"
+    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(15,23,42,0.30)_100%)] text-white/95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.22),inset_0_-1px_3px_rgba(2,6,23,0.36),0_3px_10px_rgba(2,6,23,0.24)] ring-1 ring-white/14"
     : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(148,163,184,0.10)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),inset_0_-1px_2px_rgba(2,6,23,0.24)] ring-1 ring-white/12";
   const chromeLabelClass = isOverlay
-    ? "font-semibold text-slate-950/95 [text-shadow:0_1px_0_rgba(255,255,255,0.48)]"
+    ? "font-semibold text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]"
     : "font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.46)]";
-  const mainMutedTextClass = isOverlay ? "text-slate-700" : "text-slate-300";
-  const softTextClass = isOverlay ? "text-slate-700" : "text-white/62";
-  const quietTextClass = isOverlay ? "text-slate-700/95" : "text-white/44";
-  const skyEyebrowClass = isOverlay ? "text-blue-950/85" : "text-sky-200";
-  const inputTextClass = isOverlay ? "text-slate-950 caret-slate-950" : "text-white caret-white";
+  const mainMutedTextClass = isOverlay ? "text-white/72" : "text-slate-300";
+  const softTextClass = isOverlay ? "text-white/72" : "text-white/62";
+  const quietTextClass = isOverlay ? "text-white/58" : "text-white/44";
+  const skyEyebrowClass = isOverlay ? "text-sky-100/90" : "text-sky-200";
+  const inputTextClass = isOverlay ? "text-white caret-white" : "text-white caret-white";
   const retryInputClass = isOverlay
-    ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-slate-950/10 bg-white/66 px-4 py-3 text-center text-[16px] font-bold leading-5 text-slate-950 outline-none ring-0 placeholder:text-slate-400 caret-slate-950"
+    ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/12 bg-slate-950/30 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/38 caret-white"
     : "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/10 bg-slate-950/28 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/28 caret-white";
   const issuePillClass = checkoutReady
     ? "bg-emerald-300 text-slate-950"
     : isOverlay
-      ? "bg-slate-950/7 text-slate-700 ring-1 ring-slate-950/10"
+      ? "bg-white/12 text-white/78 ring-1 ring-white/14"
       : "bg-white/10 text-white ring-1 ring-white/12";
   const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
-  const unknownTitleClass = isOverlay ? "italic text-slate-700" : "italic text-white/82";
-  const handoffTitleClass = isOverlay ? "italic text-sky-950" : "italic text-sky-50";
+  const unknownTitleClass = isOverlay ? "italic text-white/78" : "italic text-white/82";
+  const handoffTitleClass = isOverlay ? "italic text-sky-50" : "italic text-sky-50";
 
   return (
     <div
@@ -1400,7 +1400,7 @@ export default function SmartBarMobileShell({
                                   }}
                                   className={
                                     isOverlay
-                                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/7 text-slate-600 ring-1 ring-slate-950/10 transition active:scale-95"
+                                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/12 transition active:scale-95"
                                       : "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 ring-1 ring-white/12 transition active:scale-95"
                                   }
                                   aria-label={`Remove ${line.title}`}
@@ -1417,7 +1417,7 @@ export default function SmartBarMobileShell({
                     <div
                       className={
                         isOverlay
-                          ? "mt-3 shrink-0 rounded-[24px] border border-slate-950/10 bg-white/84 px-4 py-3 text-slate-950 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] ring-1 ring-white/80"
+                          ? "mt-3 shrink-0 rounded-[24px] border border-white/12 bg-slate-950/34 px-4 py-3 text-white shadow-[0_-8px_24px_rgba(2,6,23,0.24)] ring-1 ring-white/10"
                           : "mt-3 shrink-0 rounded-[24px] border border-white/10 bg-slate-950/44 px-4 py-3 text-white shadow-[0_-8px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/10"
                       }
                     >
@@ -1429,7 +1429,7 @@ export default function SmartBarMobileShell({
                         <span className={quietTextClass}>Est. tax</span>
                         <span className="tabular-nums">{cartTotals.taxLabel}</span>
                       </div>
-                      <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-950/10 pt-2 text-[17px] font-black tracking-[-0.02em]">
+                      <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/12" : "border-slate-950/10"}`}>
                         <span>Total</span>
                         <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
                       </div>
