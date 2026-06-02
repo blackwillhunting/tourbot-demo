@@ -36,7 +36,7 @@ export function smartBarMobileRowSurfaceClass(status: SmartBarMobileStyleStatus,
     if (status === "options") {
       return "border-amber-100/68 bg-amber-300/88 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_12px_32px_rgba(245,158,11,0.20)] ring-1 ring-amber-100/34";
     }
-    return "border-white/24 bg-slate-700/72 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_30px_rgba(2,6,23,0.28)] ring-1 ring-white/14";
+    return "border-white/36 bg-slate-200/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_30px_rgba(2,6,23,0.22)] ring-1 ring-white/22";
   }
 
   if (status === "ready") {
@@ -48,7 +48,7 @@ export function smartBarMobileRowSurfaceClass(status: SmartBarMobileStyleStatus,
   if (status === "options") {
     return "border-amber-100/64 bg-amber-300/84 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_30px_rgba(245,158,11,0.18)] ring-1 ring-amber-100/32";
   }
-  return "border-white/22 bg-slate-700/68 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(15,23,42,0.26)] ring-1 ring-white/12";
+  return "border-white/32 bg-slate-200/72 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_12px_28px_rgba(15,23,42,0.22)] ring-1 ring-white/18";
 }
 
 export function smartBarMobileHandoffRowSurfaceClass(isOverlay: boolean) {
@@ -71,7 +71,7 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
   const chromeLabelClass = isOverlay
     ? "font-semibold text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]"
     : "font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.46)]";
-  const mainMutedTextClass = isOverlay ? "text-white/72" : "text-slate-300";
+  const mainMutedTextClass = isOverlay ? "text-slate-950/72 [text-shadow:0_1px_0_rgba(255,255,255,0.12)]" : "text-slate-950/68";
   const softTextClass = isOverlay ? "text-white/72" : "text-white/62";
   const quietTextClass = isOverlay ? "text-white/58" : "text-white/44";
   const skyEyebrowClass = isOverlay ? "text-sky-100/90" : "text-sky-200";
