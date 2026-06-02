@@ -750,7 +750,10 @@ export default function LaunchSelectorTourBar({
         setPreludeStackCards([]);
         setFitsAnimationVisible(false);
         setDemoVisible(true);
-        setDemoAutoPlay(false);
+        await wait(DEMO_HANDOFF_SETTLE_MS);
+        if (runIdRef.current !== runId) return;
+
+        setDemoAutoPlay(true);
         return;
       }
 

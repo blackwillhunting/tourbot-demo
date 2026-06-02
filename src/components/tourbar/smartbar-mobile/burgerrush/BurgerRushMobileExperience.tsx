@@ -356,6 +356,7 @@ export default function BurgerRushMobileExperience() {
       className="relative min-h-[100dvh] overflow-x-hidden text-slate-950"
     >
       <BurgerRushMobileProductSurface />
+      <div aria-hidden="true" className="h-[420px] sm:hidden" />
       <SmartBarMobileShell
         mode="overlay"
         onSubmitPrompt={handleSubmitPrompt}
