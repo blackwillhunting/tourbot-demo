@@ -2428,8 +2428,8 @@ export default function SmartBarSpeedDemo({
 
     return (
       <main className="relative min-h-[100svh] overflow-x-hidden bg-white text-slate-950">
-        <BurgerRushMobileExperience />
-        <SmartBarFlashCardRail className="!top-[42%]">
+        <BurgerRushMobileExperience demoFixtureMode />
+        <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
           <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
           <SmartBarFlashCardLane active={activeTutorLane === "a"}>
             <SmartBarFlashCard notice={tutorNoticeA} />

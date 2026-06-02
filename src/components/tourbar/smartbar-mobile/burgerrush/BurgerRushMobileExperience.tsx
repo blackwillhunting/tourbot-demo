@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { CarryoutOrder } from "../../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileOrderLine,
+  type SmartBarMobileOrderResult,
   type SmartBarMobileSubmitMeta,
 } from "../SmartBarMobileShell";
 import {
@@ -98,15 +99,10 @@ function smartBarMobileFindPageTarget(line: SmartBarMobileOrderLine) {
 }
 
 function smartBarMobileTopAnchorY() {
-  if (typeof document === "undefined") return 24;
-
-  const header = document.querySelector<HTMLElement>("#burger-rush-app header");
-  const headerBottom = header?.getBoundingClientRect().bottom ?? 0;
-
-  // Phone navigation should park the target at the top of the usable content
-  // area, not centered like desktop spotlighting. Respect the sticky site header
-  // so the focused card is not hidden underneath it.
-  return Math.max(18, Math.min(142, headerBottom + 10));
+  // The scripted mobile demo should make the clicked product feel like a true
+  // page navigation: target at the top of the viewport, then highlight.
+  // Keep only a tiny breathing gap instead of parking below the sticky header.
+  return 8;
 }
 
 function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
@@ -122,8 +118,129 @@ function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
 
 
 
+type BurgerRushMobileExperienceProps = {
+  demoFixtureMode?: boolean;
+};
 
-export default function BurgerRushMobileExperience() {
+function smartBarMobileDemoFixtureLine(
+  line: SmartBarMobileOrderLine,
+): SmartBarMobileOrderLine {
+  return line;
+}
+
+function smartBarMobileDemoFixtureInitialResult(): SmartBarMobileOrderResult {
+  return {
+    lines: [
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-cheeseburger",
+        cartLineKey: "fixture-cheeseburger",
+        targetId: "item-cheeseburger",
+        sourceItemId: "item-cheeseburger",
+        title: "Cheeseburger",
+        status: "options",
+        helper: "Options available",
+        price: "$5.49",
+        details: ["No onions"],
+        options: ["Bacon", "Extra sauce", "Pickles"],
+        optionSelectionMode: "multi",
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-fries",
+        cartLineKey: "fixture-fries",
+        targetId: "side-fries",
+        sourceItemId: "side-fries",
+        title: "Large fries",
+        status: "ready",
+        helper: "Matched and ready",
+        price: "$3.49",
+        details: ["Large"],
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-milkshake",
+        cartLineKey: "fixture-milkshake",
+        targetId: "drink-milkshake",
+        sourceItemId: "drink-milkshake",
+        title: "Milkshake",
+        status: "pending",
+        helper: "Choose flavor",
+        price: "$4.29",
+        details: ["Flavor needed"],
+        options: ["Vanilla", "Chocolate", "Strawberry"],
+        optionSelectionMode: "single",
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-lava-tacos",
+        cartLineKey: "fixture-lava-tacos",
+        title: "lava tacos",
+        status: "unknown",
+        helper: "Not on the BurgerRush menu",
+        price: "—",
+        details: [],
+        retryPrompt: "Re-enter the item so SmartBar can match it.",
+      }),
+    ],
+    estimatedSubtotal: "$13.27",
+    estimatedTax: "$1.09",
+    estimatedTotal: "$14.36",
+  };
+}
+
+function smartBarMobileDemoFixtureRetryResult(query: string): SmartBarMobileOrderResult {
+  const text = query.replace(/\s+/g, " ").trim().toLowerCase();
+  const isOnionRings = text.includes("ring");
+
+  if (isOnionRings) {
+    return {
+      lines: [
+        smartBarMobileDemoFixtureLine({
+          id: "fixture-medium-onion-rings",
+          cartLineKey: "fixture-medium-onion-rings",
+          targetId: "side-onion-rings",
+          sourceItemId: "side-onion-rings",
+          title: "Medium onion rings",
+          status: "ready",
+          helper: "Re-entered and matched",
+          price: "$3.99",
+          details: ["Medium"],
+        }),
+      ],
+      estimatedSubtotal: "$3.99",
+      estimatedTax: "$0.33",
+      estimatedTotal: "$4.32",
+    };
+  }
+
+  return {
+    lines: [
+      smartBarMobileDemoFixtureLine({
+        id: `fixture-retry-${text || "item"}`,
+        cartLineKey: `fixture-retry-${text || "item"}`,
+        title: query || "Replacement item",
+        status: "unknown",
+        helper: "Still could not match item",
+        price: "—",
+        details: query ? [query] : [],
+        retryPrompt: "Try the item again with a BurgerRush menu name.",
+      }),
+    ],
+    estimatedTotal: "—",
+  };
+}
+
+function smartBarMobileDemoFixtureResult(
+  query: string,
+  meta?: SmartBarMobileSubmitMeta,
+): SmartBarMobileOrderResult {
+  if (meta?.intent === "replace_unknown") {
+    return smartBarMobileDemoFixtureRetryResult(query);
+  }
+
+  return smartBarMobileDemoFixtureInitialResult();
+}
+
+
+
+export default function BurgerRushMobileExperience({ demoFixtureMode = false }: BurgerRushMobileExperienceProps = {}) {
   const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const mobileEstimatedTotalRef = useRef("—");
@@ -215,6 +332,26 @@ export default function BurgerRushMobileExperience() {
       ? `replace ${meta.replaceLineTitle} with ${query}`
       : query;
 
+    if (demoFixtureMode) {
+      const fixtureResult = smartBarMobileDemoFixtureResult(query, meta);
+      const resultForMerge = {
+        ...fixtureResult,
+        lines: smartBarMobileFilterReplacementLine(fixtureResult.lines, meta),
+      };
+      const mergedResult = smartBarMobileMergeOrderResults(
+        resultForMerge,
+        previousLines,
+        previousEstimatedTotal,
+        shouldUseExistingCart,
+      );
+
+      mobileOrderLinesRef.current = mergedResult.lines;
+      mobileEstimatedTotalRef.current = mergedResult.estimatedTotal || previousEstimatedTotal;
+      mobileCarryoutOrderRef.current = null;
+
+      return mergedResult;
+    }
+
     try {
       const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt);
       const resultForMerge = {
@@ -254,7 +391,7 @@ export default function BurgerRushMobileExperience() {
 
       return mergedErrorResult;
     }
-  }, []);
+  }, [demoFixtureMode]);
 
   const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string) => {
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
@@ -281,7 +418,7 @@ export default function BurgerRushMobileExperience() {
       estimatedTotal: optimisticEstimatedTotal,
     };
 
-    if (!optimisticCarryoutOrder) return optimisticResult;
+    if (demoFixtureMode || !optimisticCarryoutOrder) return optimisticResult;
 
     try {
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
@@ -301,7 +438,7 @@ export default function BurgerRushMobileExperience() {
       console.warn("SmartBar mobile reprice failed after choice", error);
       return optimisticResult;
     }
-  }, []);
+  }, [demoFixtureMode]);
 
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
@@ -321,7 +458,7 @@ export default function BurgerRushMobileExperience() {
       estimatedTotal: nextEstimatedTotal,
     };
 
-    if (!nextLines.length || !optimisticCarryoutOrder) return optimisticResult;
+    if (demoFixtureMode || !nextLines.length || !optimisticCarryoutOrder) return optimisticResult;
 
     try {
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
@@ -341,7 +478,7 @@ export default function BurgerRushMobileExperience() {
       console.warn("SmartBar mobile reprice failed after remove", error);
       return optimisticResult;
     }
-  }, []);
+  }, [demoFixtureMode]);
 
 
   const handleResetCart = useCallback(() => {
