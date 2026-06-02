@@ -124,27 +124,6 @@ function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
 
 
 export default function BurgerRushMobileExperience() {
-  useEffect(() => {
-    if (typeof document === "undefined") return undefined;
-
-    const html = document.documentElement;
-    const body = document.body;
-    const root = document.getElementById("root");
-    const previousHtmlBackground = html.style.background;
-    const previousBodyBackground = body.style.background;
-    const previousRootBackground = root?.style.background || "";
-
-    html.style.background = "#020617";
-    body.style.background = "#020617";
-    if (root) root.style.background = "#020617";
-
-    return () => {
-      html.style.background = previousHtmlBackground;
-      body.style.background = previousBodyBackground;
-      if (root) root.style.background = previousRootBackground;
-    };
-  }, []);
-
   const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const mobileEstimatedTotalRef = useRef("—");
@@ -374,7 +353,7 @@ export default function BurgerRushMobileExperience() {
   return (
     <main
       data-smartbar-mobile-separated="true"
-      className="relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-slate-950"
+      className="relative min-h-[100lvh] overflow-x-hidden text-slate-950"
     >
       <BurgerRushMobileProductSurface />
       <SmartBarMobileShell
