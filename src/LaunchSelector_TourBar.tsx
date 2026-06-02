@@ -109,6 +109,19 @@ function redirectToTourBotDemoPath(demoPath?: string | null) {
   if (typeof window === "undefined") return false;
 
   const cleanPath = normalizeTourBotDemoPath(demoPath);
+
+  // Emergency containment: keep passcode success on the page/variant the visitor
+  // already opened. If the backend/table has multiple passcodes mapped to the
+  // food-only path, do not let that route hijack the general SmartBar demos.
+  if (
+    cleanPath === "/burger-rush" ||
+    cleanPath === "/burger-rush-play" ||
+    cleanPath === "/smartbar-burgerrush" ||
+    cleanPath === "/direct-ordering"
+  ) {
+    return false;
+  }
+
   if (!cleanPath || currentTourBotDemoPath() === cleanPath) return false;
 
   window.location.assign(cleanPath);
