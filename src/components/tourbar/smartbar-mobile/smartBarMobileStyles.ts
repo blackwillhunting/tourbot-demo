@@ -60,14 +60,14 @@ export function smartBarMobileHandoffRowSurfaceClass(isOverlay: boolean) {
 export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: boolean) {
   const rootTextClass = isOverlay ? "text-white" : "text-white";
   const upperGlassClass = isOverlay
-    ? "overflow-hidden border border-white/46 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.055)_34%,rgba(255,255,255,0.025)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.54),inset_0_-1px_3px_rgba(255,255,255,0.07),0_18px_46px_rgba(2,6,23,0.14)] ring-1 ring-white/28 backdrop-blur-xl backdrop-saturate-200"
-    : "overflow-hidden border border-white/38 bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.05)_42%,rgba(255,255,255,0.02)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.40),inset_0_-1px_3px_rgba(255,255,255,0.06),0_16px_38px_rgba(2,6,23,0.16)] ring-1 ring-white/24 backdrop-blur-xl backdrop-saturate-200";
+    ? "overflow-hidden border border-white/48 bg-[linear-gradient(180deg,rgba(255,255,255,0.38)_0%,rgba(255,255,255,0.18)_42%,rgba(255,255,255,0.07)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.56),inset_0_-1px_4px_rgba(255,255,255,0.10),0_18px_46px_rgba(2,6,23,0.16)] ring-1 ring-white/34 backdrop-blur-3xl backdrop-saturate-200"
+    : "overflow-hidden border border-white/40 bg-[linear-gradient(180deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.16)_52%,rgba(255,255,255,0.06)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.42),inset_0_-1px_3px_rgba(255,255,255,0.08),0_16px_38px_rgba(2,6,23,0.18)] ring-1 ring-white/28 backdrop-blur-3xl backdrop-saturate-200";
   const chromePillClass = isOverlay
-    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/44 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(255,255,255,0.055)_44%,rgba(255,255,255,0.025)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.50),inset_0_-1px_3px_rgba(255,255,255,0.07),0_12px_30px_rgba(2,6,23,0.16)] ring-1 ring-white/26 backdrop-blur-xl backdrop-saturate-200 transition active:scale-[0.985]"
-    : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/34 bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(255,255,255,0.05)_46%,rgba(255,255,255,0.02)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.36),inset_0_-1px_3px_rgba(255,255,255,0.05),0_12px_28px_rgba(2,6,23,0.16)] ring-1 ring-white/22 backdrop-blur-xl backdrop-saturate-200 transition active:scale-[0.985]";
+    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/46 bg-[linear-gradient(180deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.16)_46%,rgba(255,255,255,0.07)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.52),inset_0_-1px_4px_rgba(255,255,255,0.08),0_12px_30px_rgba(2,6,23,0.18)] ring-1 ring-white/32 backdrop-blur-3xl backdrop-saturate-200 transition active:scale-[0.985]"
+    : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/38 bg-[linear-gradient(180deg,rgba(255,255,255,0.30)_0%,rgba(255,255,255,0.14)_48%,rgba(255,255,255,0.06)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.38),inset_0_-1px_4px_rgba(255,255,255,0.06),0_12px_28px_rgba(2,6,23,0.18)] ring-1 ring-white/26 backdrop-blur-3xl backdrop-saturate-200 transition active:scale-[0.985]";
   const chromeIconBubbleClass = isOverlay
-    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0.045)_100%)] text-white/95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.44),inset_0_-1px_2px_rgba(255,255,255,0.06),0_3px_10px_rgba(2,6,23,0.10)] ring-1 ring-white/26"
-    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.15)_0%,rgba(255,255,255,0.04)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.32),inset_0_-1px_2px_rgba(255,255,255,0.05)] ring-1 ring-white/22";
+    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.10)_100%)] text-white/95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.46),inset_0_-1px_3px_rgba(255,255,255,0.08),0_3px_10px_rgba(2,6,23,0.12)] ring-1 ring-white/30"
+    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.30)_0%,rgba(255,255,255,0.09)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.34),inset_0_-1px_2px_rgba(255,255,255,0.06)] ring-1 ring-white/24";
   const chromeLabelClass = isOverlay
     ? "font-semibold text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]"
     : "font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.46)]";
@@ -82,8 +82,8 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
   const issuePillClass = checkoutReady
     ? "bg-emerald-300 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_8px_18px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/36"
     : isOverlay
-      ? "bg-white/[0.13] text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ring-1 ring-white/24 backdrop-blur-xl backdrop-saturate-200"
-      : "bg-white/[0.11] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] ring-1 ring-white/20 backdrop-blur-xl backdrop-saturate-200";
+      ? "bg-white/[0.24] text-white/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] ring-1 ring-white/28"
+      : "bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.26)] ring-1 ring-white/22";
   const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
   const unknownTitleClass = isOverlay ? "italic text-white/78" : "italic text-white/82";
   const handoffTitleClass = isOverlay ? "italic text-sky-50" : "italic text-sky-50";
