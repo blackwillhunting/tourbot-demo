@@ -1046,10 +1046,10 @@ export default function SmartBarMobileShell({
   const chromeIconBubbleClass = isOverlay
     ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(203,213,225,0.34)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.76),inset_0_-1px_2px_rgba(15,23,42,0.12),0_3px_8px_rgba(15,23,42,0.12)] ring-1 ring-white/55"
     : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(148,163,184,0.10)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),inset_0_-1px_2px_rgba(2,6,23,0.24)] ring-1 ring-white/12";
-  const mainMutedTextClass = isOverlay ? "text-slate-600" : "text-slate-300";
-  const softTextClass = isOverlay ? "text-slate-600" : "text-white/62";
-  const quietTextClass = isOverlay ? "text-slate-500" : "text-white/44";
-  const skyEyebrowClass = isOverlay ? "text-sky-700" : "text-sky-200";
+  const mainMutedTextClass = isOverlay ? "text-slate-700" : "text-slate-300";
+  const softTextClass = isOverlay ? "text-slate-700" : "text-white/62";
+  const quietTextClass = isOverlay ? "text-slate-700/95" : "text-white/44";
+  const skyEyebrowClass = isOverlay ? "text-blue-950/85" : "text-sky-200";
   const inputTextClass = isOverlay ? "text-slate-950 caret-slate-950" : "text-white caret-white";
   const retryInputClass = isOverlay
     ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-slate-950/10 bg-white/66 px-4 py-3 text-center text-[16px] font-bold leading-5 text-slate-950 outline-none ring-0 placeholder:text-slate-400 caret-slate-950"
@@ -1060,7 +1060,7 @@ export default function SmartBarMobileShell({
       ? "bg-slate-950/7 text-slate-700 ring-1 ring-slate-950/10"
       : "bg-white/10 text-white ring-1 ring-white/12";
   const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
-  const unknownTitleClass = isOverlay ? "italic text-slate-600" : "italic text-white/82";
+  const unknownTitleClass = isOverlay ? "italic text-slate-700" : "italic text-white/82";
   const handoffTitleClass = isOverlay ? "italic text-sky-950" : "italic text-sky-50";
 
   return (
