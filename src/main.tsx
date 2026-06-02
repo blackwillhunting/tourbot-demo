@@ -7,6 +7,7 @@ import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
 import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
 import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
+import SmartBarMobileGlassLab from "./components/tourbar/smartbar-mobile/SmartBarMobileGlassLab";
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import "./index.css";
 
@@ -191,6 +192,10 @@ function Router() {
 
   if (path === "/smartbar-mobile-lab") {
     return <SmartBarMobileShell />;
+  }
+
+  if (path === "/burger-rush-glass-lab") {
+    return <SmartBarMobileGlassLab />;
   }
 
   if (path === "/burger-rush-play") {
