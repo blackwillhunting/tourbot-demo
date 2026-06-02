@@ -353,7 +353,7 @@ export default function BurgerRushMobileExperience() {
   return (
     <main
       data-smartbar-mobile-separated="true"
-      className="relative min-h-[100lvh] overflow-x-hidden text-slate-950"
+      className="relative min-h-[100dvh] overflow-x-hidden text-slate-950"
     >
       <BurgerRushMobileProductSurface />
       <SmartBarMobileShell
@@ -367,3 +367,4 @@ export default function BurgerRushMobileExperience() {
     </main>
   );
 }
+

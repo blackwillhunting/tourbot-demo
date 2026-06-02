@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
@@ -130,8 +130,8 @@ const burgers: Offer[] = [
     id: "item-spicy-deluxe-burger",
     title: "Spicy Deluxe Burger",
     price: "$7.79",
-    description: "Pepper jack, jalapeÃ±os, shredded lettuce, tomato, and spicy rush sauce.",
-    chips: ["Spicy", "Pepper jack", "JalapeÃ±os"],
+    description: "Pepper jack, jalapeños, shredded lettuce, tomato, and spicy rush sauce.",
+    chips: ["Spicy", "Pepper jack", "Jalapeños"],
   },
   {
     id: "item-veggie-burger",
@@ -874,7 +874,7 @@ export function BurgerRushCarryoutSite({
       : undefined;
 
   return (
-    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-[100lvh] bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-white">
+    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-[100dvh] bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-white">
       <Header
         activeTab={activeTab}
         onTabClick={setActiveTab}
@@ -967,7 +967,7 @@ export function BurgerRushCarryoutSite({
                 </div>
                 <h2 className="mt-2 text-3xl font-black tracking-tight">Order completion ends at checkout handoff.</h2>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-                  The future carryout router should build the validated cart, ask qualifier chips only when needed, then hand the completed order to checkout as one full order â€” not the currently active spotlight item.
+                  The future carryout router should build the validated cart, ask qualifier chips only when needed, then hand the completed order to checkout as one full order — not the currently active spotlight item.
                 </p>
               </div>
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[24px] bg-white/10">
@@ -1040,3 +1040,4 @@ export default function AppCarryout() {
     </BurgerRushCarryoutSite>
   );
 }
+
