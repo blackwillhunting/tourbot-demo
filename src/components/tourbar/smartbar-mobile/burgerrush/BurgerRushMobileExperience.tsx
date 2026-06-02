@@ -29,8 +29,8 @@ function BurgerRushMobileProductSurface() {
 }
 
 // Mobile navigation speed controls. Tune these first for demo pacing.
-const SMARTBAR_MOBILE_NAV_SCROLL_MS = 1200;
-const SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS = 140;
+const SMARTBAR_MOBILE_NAV_SCROLL_MS = 1850;
+const SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS = 160;
 const SMARTBAR_MOBILE_NAV_FOCUS_HOLD_MS = 2100;
 
 function smartBarMobileNavEase(progress: number) {
@@ -100,9 +100,9 @@ function smartBarMobileFindPageTarget(line: SmartBarMobileOrderLine) {
 
 function smartBarMobileTopAnchorY() {
   // The scripted mobile demo should make the clicked product feel like a true
-  // page navigation: target at the top of the viewport, then highlight.
-  // Keep only a tiny breathing gap instead of parking below the sticky header.
-  return 8;
+  // page navigation: target near the top of the viewport, then highlight.
+  // Keep only a small breathing gap instead of parking below the sticky header.
+  return 18;
 }
 
 function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
