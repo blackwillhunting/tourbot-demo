@@ -234,8 +234,8 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         holdMs: 950,
         finalHoldMs: 1400,
         cards: [
-          "Example 2: **BurgerRush Carryout**",
-          "Online ordering site",
+          "Example 2: **BurgerRush**",
+          "Direct ordering site",
           "Turns intent into checkout",
         ],
       },
@@ -713,8 +713,8 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
         holdMs: 950,
         finalHoldMs: 1400,
         cards: [
-          "Example 2: **BurgerRush Carryout**",
-          "Online ordering site",
+          "Food stop: **BurgerRush**",
+          "Direct ordering site",
           "Turns intent into checkout",
         ],
       },
@@ -1090,8 +1090,8 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         holdMs: 950,
         finalHoldMs: 1350,
         cards: [
-          "Example 2: **BurgerRush Carryout**",
-          "Online ordering site",
+          "Food stop: **BurgerRush**",
+          "Direct ordering site",
           "Turns intent into checkout",
         ],
       },
