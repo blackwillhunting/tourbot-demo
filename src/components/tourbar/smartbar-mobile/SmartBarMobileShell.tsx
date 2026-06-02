@@ -1063,8 +1063,11 @@ export default function SmartBarMobileShell({
     ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.70)_0%,rgba(226,232,240,0.50)_46%,rgba(120,132,150,0.40)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.92),inset_0_-2px_5px_rgba(15,23,42,0.16),0_12px_28px_rgba(15,23,42,0.26)] ring-1 ring-slate-950/7 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]"
     : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(148,163,184,0.12)_48%,rgba(15,23,42,0.22)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),inset_0_-2px_5px_rgba(2,6,23,0.30),0_12px_28px_rgba(2,6,23,0.34)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]";
   const chromeIconBubbleClass = isOverlay
-    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(203,213,225,0.34)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.76),inset_0_-1px_2px_rgba(15,23,42,0.12),0_3px_8px_rgba(15,23,42,0.12)] ring-1 ring-white/55"
+    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(203,213,225,0.34)_100%)] text-slate-950/95 shadow-[inset_0_1px_1px_rgba(255,255,255,0.76),inset_0_-1px_2px_rgba(15,23,42,0.12),0_3px_8px_rgba(15,23,42,0.12)] ring-1 ring-white/55"
     : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(148,163,184,0.10)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),inset_0_-1px_2px_rgba(2,6,23,0.24)] ring-1 ring-white/12";
+  const chromeLabelClass = isOverlay
+    ? "font-semibold text-slate-950/95 [text-shadow:0_1px_0_rgba(255,255,255,0.48)]"
+    : "font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.46)]";
   const mainMutedTextClass = isOverlay ? "text-slate-700" : "text-slate-300";
   const softTextClass = isOverlay ? "text-slate-700" : "text-white/62";
   const quietTextClass = isOverlay ? "text-slate-700/95" : "text-white/44";
@@ -1485,7 +1488,7 @@ export default function SmartBarMobileShell({
                 <span className={chromeIconBubbleClass}>
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
-                <span className="min-w-0 flex-1 truncate text-center text-[16px] font-medium tracking-normal">
+                <span className={`min-w-0 flex-1 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
                   {companionLabel}
                 </span>
                 <span className={chromeIconBubbleClass}>
@@ -1493,11 +1496,11 @@ export default function SmartBarMobileShell({
                 </span>
               </>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
-              <span className="min-w-0 truncate text-center text-[16px] font-medium tracking-normal">
+              <span className={`min-w-0 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
                 <ThinkingText text={companionLabel} />
               </span>
             ) : (
-              <span className="min-w-0 truncate text-center text-[16px] font-medium tracking-normal">
+              <span className={`min-w-0 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
                 {companionLabel}
               </span>
             )}
