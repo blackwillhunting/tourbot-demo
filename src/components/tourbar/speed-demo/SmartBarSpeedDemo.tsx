@@ -35,7 +35,7 @@ import {
   type SmartBarFlashCardNotice,
   type SmartBarTutorCard,
 } from "./SmartBarFlashCardRail";
-import { SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const MOBILE_TYPE_DELAY_MS = 42;
@@ -1726,12 +1726,15 @@ export default function SmartBarSpeedDemo({
   const replayFallbackTimerRef = useRef<number | null>(null);
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
+  const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const demoSteps = useMemo(
-    () => (variant === "burgerRushOnly" ? SMARTBAR_BURGERRUSH_ONLY_STEPS : SMARTBAR_SPEED_STEPS),
-    [variant],
+    () => {
+      if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
+      return mobileBurgerRushShell ? SMARTBAR_BURGERRUSH_MOBILE_STEPS : SMARTBAR_BURGERRUSH_ONLY_STEPS;
+    },
+    [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const effectiveAutoPlay = autoPlay;
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
