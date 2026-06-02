@@ -24,8 +24,13 @@ import {
 } from "./burgerRushMobileGuideAdapter";
 import { BurgerRushCarryoutSite } from "../../../../App-Carryout";
 
-function BurgerRushMobileProductSurface() {
-  return <BurgerRushCarryoutSite showTourBarOrdering={false} />;
+function BurgerRushMobileProductSurface({ hideMobileBrowseControls = false }: { hideMobileBrowseControls?: boolean }) {
+  return (
+    <BurgerRushCarryoutSite
+      showTourBarOrdering={false}
+      hideMobileBrowseControls={hideMobileBrowseControls}
+    />
+  );
 }
 
 // Mobile navigation speed controls. Tune these first for demo pacing.
@@ -613,7 +618,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       data-smartbar-mobile-separated="true"
       className="relative min-h-[100dvh] overflow-x-hidden text-slate-950"
     >
-      <BurgerRushMobileProductSurface />
+      <BurgerRushMobileProductSurface hideMobileBrowseControls={demoFixtureMode} />
       <div aria-hidden="true" className="h-[420px] sm:hidden" />
       <SmartBarMobileShell
         mode="overlay"

@@ -539,10 +539,12 @@ function Header({
   activeTab,
   onTabClick,
   tourBarNode,
+  hideMobileBrowseControls = false,
 }: {
   activeTab: MenuTab;
   onTabClick: (tab: MenuTab) => void;
   tourBarNode?: React.ReactNode;
+  hideMobileBrowseControls?: boolean;
 }) {
   return (
     <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/90 text-white shadow-xl shadow-slate-950/20 backdrop-blur-xl">
@@ -558,7 +560,11 @@ function Header({
         </div>
 
         <div className="flex w-full items-center justify-between gap-3 lg:w-auto lg:justify-end">
-          <nav data-tour-id="menu-category-tabs" data-spotlight-mode="navigation" className="min-w-0 flex-1 overflow-x-auto rounded-full bg-slate-900/90 p-1 ring-1 ring-white/10 lg:flex-none">
+          <nav
+            data-tour-id="menu-category-tabs"
+            data-spotlight-mode="navigation"
+            className={`min-w-0 flex-1 overflow-x-auto rounded-full bg-slate-900/90 p-1 ring-1 ring-white/10 lg:flex-none ${hideMobileBrowseControls ? "max-sm:hidden" : ""}`}
+          >
             <div className="flex gap-2">
               {menuTabs.map((tab) => (
                 <a
@@ -583,7 +589,7 @@ function Header({
   );
 }
 
-function Hero() {
+function Hero({ hideMobileBrowseControls = false }: { hideMobileBrowseControls?: boolean }) {
   return (
     <section
       id="carryout-hero"
@@ -605,7 +611,7 @@ function Hero() {
             BurgerRush is built to show a realistic fast-food menu: combos, independent sides,
             drinks, modifiers, required choices, and a cart handoff that can be driven by plain English.
           </p>
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div className={`${hideMobileBrowseControls ? "hidden sm:flex" : "flex"} mt-7 flex-wrap gap-3`}>
             <a href="#section-combos" className="inline-flex items-center rounded-full bg-white px-5 py-3 text-sm font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5">
               Browse combos
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -853,12 +859,14 @@ type BurgerRushCarryoutSiteProps = {
   showTourBarOrdering?: boolean;
   tourBarNode?: React.ReactNode;
   children?: React.ReactNode;
+  hideMobileBrowseControls?: boolean;
 };
 
 export function BurgerRushCarryoutSite({
   showTourBarOrdering = true,
   tourBarNode,
   children,
+  hideMobileBrowseControls = false,
 }: BurgerRushCarryoutSiteProps) {
   const [activeTab, setActiveTab] = useState<MenuTab>("combos");
 
@@ -879,11 +887,12 @@ export function BurgerRushCarryoutSite({
         activeTab={activeTab}
         onTabClick={setActiveTab}
         tourBarNode={resolvedTourBarNode}
+        hideMobileBrowseControls={hideMobileBrowseControls}
       />
 
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:py-8">
         <div className="space-y-8">
-          <Hero />
+          <Hero hideMobileBrowseControls={hideMobileBrowseControls} />
 
           <QualifierPanel />
 
