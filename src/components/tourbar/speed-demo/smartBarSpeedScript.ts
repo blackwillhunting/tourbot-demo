@@ -1092,7 +1092,7 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         cards: [
           "Food stop: **BurgerRush**",
           "Direct ordering site",
-          "Turns intent into checkout",
+          "Words become checkout",
         ],
       },
       ...MOBILE_BURGERRUSH_OPEN_COMMANDS,
@@ -1120,8 +1120,8 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         cards: [
           "Plain English",
           "Typos included",
-          "Cart loaded",
-          "Checkout-ready",
+          // "Cart loaded",
+          // "Checkout-ready",
         ],
       },
       {
@@ -1131,6 +1131,19 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         click: true,
         delayMs: 250,
         pulseMs: 820,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1400,
+        cards: [
+          "Green items",
+          "All set",
+          // "Cart loaded",
+          // "Checkout-ready",
+        ],
       },
       { kind: "pause", delayMs: 2400 },
       {
@@ -1142,6 +1155,16 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         aimMs: 900,
         pulseMs: 900,
         anchorY: 0.68,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        finalHoldMs: 1400,
+        cards: [
+          "Prefills your cart",
+          "POS takes over",
+        ],
       },
       { kind: "pause", delayMs: 5600 },
     ],
@@ -1168,8 +1191,8 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1500,
         cards: [
           "Missing choices",
-          "Only blockers are flagged",
-          "Cart stays intact",
+          // "Only blockers are flagged",
+          // "Cart stays intact",
         ],
       },
       {
@@ -1197,9 +1220,9 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "One choice at a time",
-          "Cart updates live",
-          "Checkout unlocks when ready",
+          "Red items",
+          "Choices required",
+          // "Checkout unlocks when ready",
         ],
       },
       {
@@ -1212,6 +1235,19 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 850,
       },
       { kind: "pause", delayMs: 1300 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1400,
+        cards: [
+          "Takes you to item",
+          "Presents choices",
+          // "Cart loaded",
+          // "Checkout-ready",
+        ],
+      },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-option-key="no-onions"]',
@@ -1293,9 +1329,9 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Extras stay optional",
-          "Add bacon",
-          "Checkout stays open",
+          "Yellow items",
+          "All set",
+          "but options available",
         ],
       },
       {
@@ -1369,9 +1405,9 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "Bad item isolated",
-          "Matched items stay ready",
-          "Retry replaces the gray row",
+          "Lava tacos not on menu",
+          // "Matched items stay ready",
+          // "Retry replaces the gray row",
         ],
       },
       {
@@ -1383,6 +1419,19 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 820,
       },
       { kind: "pause", delayMs: 2400 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1400,
+        cards: [
+          "Gray items",
+          "Unknwn item",
+          "Chance to retry",
+          // "Checkout-ready",
+        ],
+      },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-line-status="unknown"]',
@@ -1467,7 +1516,7 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
           "Setup is simple.",
           "Site scan.",
           "Code snippet.",
-          "Menu insert.",
+          "Menu cheat sheet.",
           "Go live.",
         ],
       },
