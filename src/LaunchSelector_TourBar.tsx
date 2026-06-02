@@ -81,6 +81,12 @@ function normalizeTourBotDemoPath(value?: string | null) {
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("://")) return "";
 
   const cleanPath = path.split("?")[0].split("#")[0].replace(/\/+$/, "");
+
+  // The playground is a manual inspection surface, not a passcode destination.
+  // If an older session or table row points at it, keep the food-facing
+  // passcode coordinated with the scripted sales demo route.
+  if (cleanPath === "/burger-rush-play") return "/burger-rush";
+
   return cleanPath || "/";
 }
 

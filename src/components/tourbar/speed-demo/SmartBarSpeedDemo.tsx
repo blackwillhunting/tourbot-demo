@@ -1882,15 +1882,9 @@ export default function SmartBarSpeedDemo({
   }, [effectiveAutoPlay]);
 
   useEffect(() => {
-    if (mobileBurgerRushShell) {
-      setTutorBlocking(false);
-      setTutorStackCards([]);
-      setActiveTutorLane(null);
-      setTutorNoticeA(null);
-      setTutorNoticeB(null);
-      return;
-    }
-
+    // Mobile BurgerRush is still a scripted sales demo on /burger-rush. Do not
+    // clear the tutor/cards layer just because the demo uses the real mobile
+    // SmartBar shell; those cards are the handoff into autoplay.
     let cancelled = false;
 
     const runOpeningTutorCards = async () => {
