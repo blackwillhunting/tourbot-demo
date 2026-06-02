@@ -874,7 +874,7 @@ export function BurgerRushCarryoutSite({
       : undefined;
 
   return (
-    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] text-white">
+    <div id="burger-rush-app" data-tour-id="burger-rush-app" className="min-h-[100svh] bg-[radial-gradient(circle_at_top_left,_rgba(251,146,60,0.22),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(127,29,29,0.28),_transparent_34%),linear-gradient(135deg,_#020617_0%,_#111827_45%,_#1f1308_100%)] pb-[env(safe-area-inset-bottom)] text-white">
       <Header
         activeTab={activeTab}
         onTabClick={setActiveTab}
