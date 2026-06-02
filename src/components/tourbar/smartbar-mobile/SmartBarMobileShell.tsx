@@ -367,6 +367,8 @@ function smartBarMobileRemoveOneLineInstance(
 
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
+  /** Demo-only underlay guard to prevent page controls from flashing through the scripted submit transition. */
+  demoTransitionShield?: boolean;
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
@@ -376,6 +378,7 @@ type SmartBarMobileShellProps = {
 
 export default function SmartBarMobileShell({
   mode = "lab",
+  demoTransitionShield = false,
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
@@ -1065,6 +1068,20 @@ export default function SmartBarMobileShell({
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence initial={false}>
+        {isOverlay && demoTransitionShield && phase === "building_cart" && (
+          <motion.div
+            key="demo-transition-shield"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-[10081] h-[48svh] bg-slate-950/58 backdrop-blur-[2px]"
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
         {phase === "entry" && (

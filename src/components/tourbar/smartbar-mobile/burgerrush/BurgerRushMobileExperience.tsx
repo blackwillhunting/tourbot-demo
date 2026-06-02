@@ -622,6 +622,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       <div aria-hidden="true" className="h-[420px] sm:hidden" />
       <SmartBarMobileShell
         mode="overlay"
+        demoTransitionShield={demoFixtureMode}
         onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}
         onRemoveLine={handleRemoveLine}
