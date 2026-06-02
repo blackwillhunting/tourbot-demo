@@ -8,8 +8,8 @@
       :root {
         color-scheme: dark;
         --ink: #fff;
-        --glass-border: rgba(255,255,255,.64);
-        --glass-ring: rgba(255,255,255,.30);
+        --glass-border: rgba(255,255,255,.82);
+        --glass-ring: rgba(255,255,255,.18);
         --green: #82e7a7;
         --yellow: #f4d34f;
         --red: #e93660;
@@ -81,14 +81,15 @@
         border-radius: 30px;
         border: 1px solid var(--glass-border);
         color: white;
-        background: linear-gradient(180deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.075) 42%, rgba(255,255,255,.028) 100%);
-        -webkit-backdrop-filter: blur(22px) saturate(190%);
-        backdrop-filter: blur(22px) saturate(190%);
+        background: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.020) 44%, rgba(255,255,255,.006) 100%);
+        -webkit-backdrop-filter: blur(8px) saturate(185%);
+        backdrop-filter: blur(8px) saturate(185%);
         box-shadow:
-          inset 0 1px 1px rgba(255,255,255,.58),
-          inset 0 -1px 5px rgba(255,255,255,.10),
-          0 22px 58px rgba(2,6,23,.28),
-          0 0 0 1px var(--glass-ring);
+          inset 0 1px 1px rgba(255,255,255,.78),
+          inset 0 -1px 3px rgba(255,255,255,.08),
+          0 22px 58px rgba(2,6,23,.20),
+          0 0 0 1px var(--glass-ring),
+          0 0 0 6px rgba(255,255,255,.045);
         z-index: 10;
       }
       .smartbar::before {
@@ -96,13 +97,14 @@
         position: absolute; inset: 0;
         pointer-events: none;
         background:
-          radial-gradient(circle at 18% 0%, rgba(255,255,255,.22), transparent 30%),
-          linear-gradient(90deg, rgba(255,255,255,.05), transparent 24% 76%, rgba(255,255,255,.04));
+          linear-gradient(180deg, rgba(255,255,255,.105), transparent 34%, rgba(255,255,255,.018) 100%),
+          linear-gradient(90deg, rgba(255,255,255,.035), transparent 24% 76%, rgba(255,255,255,.028));
+        opacity: .78;
       }
       .inner { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 16px; }
       .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       .title { font-size: 22px; font-weight: 1000; letter-spacing: -.055em; text-shadow: 0 1px 2px rgba(0,0,0,.52); }
-      .open { border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.28); color: white; font-size: 13px; font-weight: 1000; box-shadow: inset 0 1px 0 rgba(255,255,255,.34); }
+      .open { border-radius: 999px; padding: 8px 12px; background: rgba(255,255,255,.13); color: white; font-size: 13px; font-weight: 1000; box-shadow: inset 0 1px 0 rgba(255,255,255,.42), 0 0 0 1px rgba(255,255,255,.22); }
 
       .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
       .stat { min-height: 51px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 999px; font-weight: 1000; box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 8px 18px rgba(0,0,0,.12); }
@@ -122,13 +124,13 @@
       .row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 9px; font-weight: 1000; }
       .trash { display: grid; place-items: center; width: 29px; height: 29px; border-radius: 999px; background: rgba(255,255,255,.26); }
 
-      .totals { margin-top: 4px; border-radius: 24px; border: 1px solid rgba(255,255,255,.28); background: rgba(3,7,18,.30); -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%); padding: 13px 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), 0 -8px 24px rgba(2,6,23,.12); }
+      .totals { margin-top: 4px; border-radius: 24px; border: 1px solid rgba(255,255,255,.34); background: rgba(3,7,18,.36); -webkit-backdrop-filter: blur(10px) saturate(175%); backdrop-filter: blur(10px) saturate(175%); padding: 13px 15px; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 -8px 24px rgba(2,6,23,.10); }
       .total-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: rgba(255,255,255,.78); font-size: 12px; font-weight: 1000; letter-spacing: .12em; text-transform: uppercase; }
       .total-line + .total-line { margin-top: 5px; }
       .grand { margin-top: 9px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.16); color: white; font-size: 18px; letter-spacing: -.02em; text-transform: none; }
 
       .footer { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); width: var(--panel-w); height: 46px; transform: translateX(-50%); z-index: 11; }
-      .pill { position: absolute; top: 0; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid rgba(255,255,255,.56); background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.055)); -webkit-backdrop-filter: blur(18px) saturate(190%); backdrop-filter: blur(18px) saturate(190%); box-shadow: inset 0 1px 1px rgba(255,255,255,.50), 0 12px 28px rgba(2,6,23,.24), 0 0 0 1px rgba(255,255,255,.22); color: white; font-weight: 950; text-shadow: 0 1px 2px rgba(0,0,0,.50); }
+      .pill { position: absolute; top: 0; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 999px; border: 1px solid rgba(255,255,255,.72); background: linear-gradient(180deg, rgba(255,255,255,.070), rgba(255,255,255,.016)); -webkit-backdrop-filter: blur(8px) saturate(185%); backdrop-filter: blur(8px) saturate(185%); box-shadow: inset 0 1px 1px rgba(255,255,255,.68), 0 12px 28px rgba(2,6,23,.22), 0 0 0 1px rgba(255,255,255,.18); color: white; font-weight: 950; text-shadow: 0 1px 2px rgba(0,0,0,.54); }
       .small { width: 46px; font-size: 28px; }
       .left { left: 0; }
       .right { right: 0; }
@@ -164,6 +166,6 @@
     </section>
 
     <div class="footer"><div class="pill small left">×</div><div class="pill main">2 need attention</div><div class="pill small right">⌄</div></div>
-    <div class="mock-tag">static visual mockup</div>
+    <div class="mock-tag">clear-glass static mockup</div>
   </body>
 </html>
