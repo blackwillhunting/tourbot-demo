@@ -105,24 +105,36 @@ function currentTourBotDemoPath() {
   return normalizeTourBotDemoPath(window.location.pathname) || "/";
 }
 
-function redirectToTourBotDemoPath(demoPath?: string | null) {
-  if (typeof window === "undefined") return false;
-
-  const cleanPath = normalizeTourBotDemoPath(demoPath);
-
-  // Emergency containment: keep passcode success on the page/variant the visitor
-  // already opened. If the backend/table has multiple passcodes mapped to the
-  // food-only path, do not let that route hijack the general SmartBar demos.
-  if (
+function tourBotDemoPathIsFoodRoute(cleanPath: string) {
+  return (
     cleanPath === "/burger-rush" ||
     cleanPath === "/burger-rush-play" ||
     cleanPath === "/smartbar-burgerrush" ||
     cleanPath === "/direct-ordering"
+  );
+}
+
+function redirectToTourBotDemoPath(
+  demoPath?: string | null,
+  options: { allowFoodRouteSteering?: boolean } = {},
+) {
+  if (typeof window === "undefined") return false;
+
+  const cleanPath = normalizeTourBotDemoPath(demoPath);
+  if (!cleanPath) return false;
+
+  const currentPath = currentTourBotDemoPath();
+  if (currentPath === cleanPath) return false;
+
+  // Food passcodes may steer only as a one-time fresh login from the root
+  // launch page. Existing sessions must only unlock the current URL, otherwise
+  // stale demoPath state can keep dragging general-demo visitors into BurgerRush.
+  if (
+    tourBotDemoPathIsFoodRoute(cleanPath) &&
+    !(options.allowFoodRouteSteering === true && currentPath === "/")
   ) {
     return false;
   }
-
-  if (!cleanPath || currentTourBotDemoPath() === cleanPath) return false;
 
   window.location.assign(cleanPath);
   return true;
@@ -851,8 +863,8 @@ export default function LaunchSelectorTourBar({
       if (cancelled) return;
 
       if (sessionResult.accepted) {
-        if (redirectToTourBotDemoPath(sessionResult.demoPath)) return;
-
+        // Session restore only unlocks the current URL. Fresh passcode login is
+        // the only place demoPath is allowed to steer visitors between demos.
         const runId = runIdRef.current + 1;
         runIdRef.current = runId;
         await startAcceptedFlow(runId, { showAccessGranted: false });
@@ -918,7 +930,7 @@ export default function LaunchSelectorTourBar({
         return;
       }
 
-      if (redirectToTourBotDemoPath(loginResult.demoPath)) return;
+      if (redirectToTourBotDemoPath(loginResult.demoPath, { allowFoodRouteSteering: true })) return;
 
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
