@@ -377,6 +377,15 @@ function smartBarMobileShortTitle(value: string) {
 }
 
 
+function smartBarMobileDemoKey(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/^\s*\d+\s*[×x]\s*/i, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+
 function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
   return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
@@ -508,7 +517,7 @@ export default function SmartBarMobileShell({
     Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
   );
   const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
-  const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 3);
+  const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 2);
   const cartDetailHeight = selectedLine?.status === "unknown"
     ? 260
     : Math.min(
@@ -1056,6 +1065,9 @@ export default function SmartBarMobileShell({
 
   return (
     <div
+      data-smartbar-mobile-shell="true"
+      data-smartbar-mobile-phase={phase}
+      data-smartbar-mobile-cart-open={phase === "cart" ? "true" : undefined}
       className={`fixed inset-0 z-[10080] overflow-visible ${rootTextClass} ${
         isOverlay
           ? "pointer-events-none bg-transparent"
@@ -1110,6 +1122,7 @@ export default function SmartBarMobileShell({
             >
               <div className="h-full px-3 py-2">
                 <textarea
+                  data-smartbar-mobile-entry-input="true"
                   ref={entryTextareaRef}
                   value={entryDraft}
                   onChange={(event) => {
@@ -1193,6 +1206,7 @@ export default function SmartBarMobileShell({
                           {selectedLine.retryPrompt || "Re-enter this item."}
                         </div>
                         <textarea
+                          data-smartbar-mobile-retry-input="true"
                           ref={retryTextareaRef}
                           value={retryDraft}
                           onChange={(event) => {
@@ -1243,6 +1257,10 @@ export default function SmartBarMobileShell({
                                   <button
                                     key={option}
                                     type="button"
+                                    data-smartbar-mobile-option="true"
+                                    data-smartbar-mobile-option-key={smartBarMobileDemoKey(option)}
+                                    data-smartbar-mobile-option-selected={isSelected ? "true" : undefined}
+                                    data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
                                     disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
                                     className={`min-w-0 rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
@@ -1318,6 +1336,10 @@ export default function SmartBarMobileShell({
                           key={smartBarMobileLineInstanceKey(line)}
                           role="button"
                           tabIndex={0}
+                          data-smartbar-mobile-cart-line="true"
+                          data-smartbar-mobile-line-title-key={smartBarMobileDemoKey(line.title)}
+                          data-smartbar-mobile-line-status={line.status}
+                          data-smartbar-mobile-line-target={line.targetId || line.sourceItemId || undefined}
                           animate={handoffLocked ? { x: 0, scale: 1 } : smartBarMobileRowAnimate(line.status)}
                           transition={handoffLocked ? { type: "spring", stiffness: 520, damping: 36 } : smartBarMobileRowTransition(line.status)}
                           onClick={() => {
@@ -1346,6 +1368,7 @@ export default function SmartBarMobileShell({
                               {!handoffLocked && (
                                 <button
                                   type="button"
+                                  data-smartbar-mobile-remove-line="true"
                                   onPointerDown={(event) => {
                                     event.stopPropagation();
                                   }}
@@ -1425,6 +1448,12 @@ export default function SmartBarMobileShell({
 
           <button
             type="button"
+            data-smartbar-mobile-companion="true"
+            data-smartbar-mobile-launcher={phase === "rest" ? "true" : undefined}
+            data-smartbar-mobile-submit={phase === "entry" && entryDraft.trim() ? "true" : undefined}
+            data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
+            data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
+            data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
             className={`${chromePillClass} h-[46px] min-w-0 ${
               phase === "rest" ? "justify-between gap-2 px-2.5" : "justify-center px-4"
@@ -1459,6 +1488,7 @@ export default function SmartBarMobileShell({
             {showCartToggle && (
               <motion.button
                 type="button"
+                data-smartbar-mobile-cart-toggle="true"
                 onClick={handleCartToggleClick}
                 className={`${chromePillClass} right-0`}
                 style={{ width: cartTogglePillSize, height: cartTogglePillSize }}

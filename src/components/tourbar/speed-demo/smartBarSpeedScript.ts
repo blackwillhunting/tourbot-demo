@@ -966,46 +966,284 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
   },
 ];
 
-const BURGERRUSH_ONLY_STEP_IDS = [
-  "open",
-  "complete-order",
-  "checkout",
-  "incomplete-order",
-  "qualifiers",
-  "optional-extras",
-  "unmatched-order",
-  "ordering-closeout",
+const MOBILE_BURGERRUSH_OPEN_COMMANDS: SmartBarSpeedCommand[] = [
+  {
+    kind: "pointerClick",
+    targetSelector: '[data-smartbar-mobile-launcher="true"]',
+    label: "",
+    click: true,
+    delayMs: 250,
+    pulseMs: 820,
+  },
+  { kind: "pause", delayMs: 420 },
 ];
 
-export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = SMARTBAR_SPEED_STEPS
-  .filter((step) => BURGERRUSH_ONLY_STEP_IDS.includes(step.id))
-  .map((step) => {
-    if (step.id === "open") {
-      return {
-        ...step,
-        chapter: "BurgerRush",
-        surface: "ordering",
-      };
-    }
-
-    if (step.id === "complete-order") {
-      return {
-        ...step,
-        chapter: "BurgerRush",
-        label: "Complete order",
-        commands: step.commands.filter((command) => {
-          if (command.kind !== "cards") return true;
-          return !command.cards.some((card) => {
-            const title = typeof card === "string" ? card : card.title;
-            return title.includes("Example 2:");
-          });
-        }),
-      };
-    }
-
-    return {
-      ...step,
-      chapter: "BurgerRush",
-    };
-  });
-
+export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
+  {
+    id: "mobile-open",
+    chapter: "BurgerRush",
+    label: "Open SmartBar",
+    helper: "Real mobile shell.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 1100,
+        finalHoldMs: 1400,
+        cards: [
+          "BurgerRush Carryout",
+          "Order in plain English",
+          "SmartBar builds the cart",
+        ],
+      },
+      ...MOBILE_BURGERRUSH_OPEN_COMMANDS,
+    ],
+  },
+  {
+    id: "mobile-build-cart",
+    chapter: "BurgerRush",
+    label: "Build mixed cart",
+    helper: "Required choice, optional extras, and bad item in one cart.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "typeInput",
+        targetSelector: '[data-smartbar-mobile-entry-input="true"]',
+        value: "cheeseburger no onions, large fries, milkshake, lava tacos, show burger options",
+        delayMs: 250,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1300,
+        cards: [
+          "Plain English",
+          "Missing choice isolated",
+          "Bad item held out",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-submit="true"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 2400 },
+    ],
+  },
+  {
+    id: "mobile-extras",
+    chapter: "BurgerRush",
+    label: "Add optional extras",
+    helper: "Extras are multi-select and checkout stays available.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1350,
+        cards: [
+          "Known item opens page",
+          "Extras stay optional",
+          "Multi-select works",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-line-title-key*="cheeseburger"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        aimMs: 900,
+        pulseMs: 850,
+      },
+      { kind: "pause", delayMs: 1550 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-option-key="bacon"]',
+        label: "",
+        click: true,
+        delayMs: 240,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 650 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-option-key="extra-sauce"]',
+        label: "",
+        click: true,
+        delayMs: 220,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 950 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-detail-close="true"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 720,
+      },
+      { kind: "pause", delayMs: 650 },
+    ],
+  },
+  {
+    id: "mobile-required-choice",
+    chapter: "BurgerRush",
+    label: "Resolve required choice",
+    helper: "Required choices stay single-select.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1300,
+        cards: [
+          "Required choices block checkout",
+          "One tap resolves the row",
+          "Cart reprices live",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-line-title-key*="milkshake"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        aimMs: 900,
+        pulseMs: 850,
+      },
+      { kind: "pause", delayMs: 950 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-option-key="chocolate"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 1350 },
+    ],
+  },
+  {
+    id: "mobile-retry-bad-item",
+    chapter: "BurgerRush",
+    label: "Retry bad item",
+    helper: "Gray item is replaced without disturbing matched items.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1300,
+        cards: [
+          "Bad item isolated",
+          "Good items stay ready",
+          "Retry replaces the row",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-line-status="unknown"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 650 },
+      {
+        kind: "typeInput",
+        targetSelector: '[data-smartbar-mobile-retry-input="true"]',
+        value: "med rings",
+        delayMs: 160,
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-retry-submit="true"]',
+        label: "",
+        click: true,
+        delayMs: 260,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 2700 },
+    ],
+  },
+  {
+    id: "mobile-checkout",
+    chapter: "BurgerRush",
+    label: "Checkout handoff",
+    helper: "Final mobile handoff sequence.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1400,
+        cards: [
+          "Cart complete",
+          "Tap for checkout",
+          "Handoff animation",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-checkout="true"]',
+        label: "",
+        click: true,
+        delayMs: 350,
+        aimMs: 900,
+        pulseMs: 900,
+        anchorY: 0.68,
+      },
+      { kind: "pause", delayMs: 5600 },
+    ],
+  },
+  {
+    id: "mobile-closeout",
+    chapter: "BurgerRush",
+    label: "Closeout",
+    helper: "Why this is bigger than a burger demo.",
+    surface: "finale",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1350,
+        cards: [
+          "Not a burger-shop toy.",
+          "Real menu complexity.",
+          "Direct checkout path.",
+        ],
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 900,
+        finalHoldMs: 1500,
+        cards: [
+          "Same pattern.",
+          "Any ordering site.",
+          "Any booking site.",
+          "Any choice-heavy site.",
+        ],
+      },
+    ],
+  },
+];

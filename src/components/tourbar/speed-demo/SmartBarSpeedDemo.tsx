@@ -1732,7 +1732,7 @@ export default function SmartBarSpeedDemo({
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
-  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
+  const effectiveAutoPlay = autoPlay;
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -2282,7 +2282,6 @@ export default function SmartBarSpeedDemo({
   );
 
   useEffect(() => {
-    if (mobileBurgerRushShell) return;
     if (stepIndex < 0 || tutorBlocking || !isPlaying) return;
 
     let cancelled = false;
@@ -2420,7 +2419,25 @@ export default function SmartBarSpeedDemo({
 
 
   if (mobileBurgerRushShell) {
-    return <BurgerRushMobileExperience />;
+    if (replayVisible) {
+      return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+    }
+
+    return (
+      <main className="relative min-h-[100svh] overflow-x-hidden bg-white text-slate-950">
+        <BurgerRushMobileExperience />
+        <SmartBarFlashCardRail className="!top-[42%]">
+          <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
+          <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+            <SmartBarFlashCard notice={tutorNoticeA} />
+          </SmartBarFlashCardLane>
+          <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+            <SmartBarFlashCard notice={tutorNoticeB} />
+          </SmartBarFlashCardLane>
+        </SmartBarFlashCardRail>
+        <SmartBarFakePointerOverlay pointer={fakePointer} />
+      </main>
+    );
   }
 
   if (replayVisible) {
