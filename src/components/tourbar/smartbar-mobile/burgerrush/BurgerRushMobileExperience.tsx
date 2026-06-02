@@ -128,12 +128,104 @@ function smartBarMobileDemoFixtureLine(
   return line;
 }
 
-function smartBarMobileDemoFixtureInitialResult(): SmartBarMobileOrderResult {
+function smartBarMobileDemoFixtureReadyOrderResult(): SmartBarMobileOrderResult {
   return {
     lines: [
       smartBarMobileDemoFixtureLine({
-        id: "fixture-cheeseburger",
-        cartLineKey: "fixture-cheeseburger",
+        id: "fixture-double-cheeseburger-combo",
+        cartLineKey: "fixture-double-cheeseburger-combo",
+        targetId: "combo-double-stack",
+        sourceItemId: "combo-double-stack",
+        title: "Double cheeseburger combo",
+        status: "ready",
+        helper: "Matched and ready",
+        price: "$11.99",
+        details: ["Large fries", "Large Diet Coke", "No onions"],
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-apple-pie",
+        cartLineKey: "fixture-apple-pie",
+        targetId: "dessert-apple-pie",
+        sourceItemId: "dessert-apple-pie",
+        title: "Apple pie",
+        status: "ready",
+        helper: "Matched and ready",
+        price: "$2.49",
+        details: ["Warm"],
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-large-diet-coke",
+        cartLineKey: "fixture-large-diet-coke",
+        targetId: "drink-soda",
+        sourceItemId: "drink-soda",
+        title: "Large Diet Coke",
+        status: "ready",
+        helper: "Matched and ready",
+        price: "$2.19",
+        details: ["Large", "Diet Coke"],
+      }),
+    ],
+    estimatedSubtotal: "$16.67",
+    estimatedTax: "$1.33",
+    estimatedTotal: "$18.00",
+  };
+}
+
+function smartBarMobileDemoFixtureRequiredChoiceResult(): SmartBarMobileOrderResult {
+  return {
+    lines: [
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-required-cheeseburger",
+        cartLineKey: "fixture-required-cheeseburger",
+        targetId: "item-cheeseburger",
+        sourceItemId: "item-cheeseburger",
+        title: "Cheeseburger",
+        status: "pending",
+        helper: "Choose burger setup",
+        price: "$5.49",
+        details: ["Choice needed"],
+        options: ["No onions", "No pickles", "Extra sauce"],
+        optionSelectionMode: "single",
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-required-fries",
+        cartLineKey: "fixture-required-fries",
+        targetId: "side-fries",
+        sourceItemId: "side-fries",
+        title: "Fries",
+        status: "pending",
+        helper: "Choose size",
+        price: "$3.49",
+        details: ["Size needed"],
+        options: ["Small", "Medium", "Large"],
+        optionSelectionMode: "single",
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-required-milkshake",
+        cartLineKey: "fixture-required-milkshake",
+        targetId: "drink-milkshake",
+        sourceItemId: "drink-milkshake",
+        title: "Milkshake",
+        status: "pending",
+        helper: "Choose flavor",
+        price: "$4.29",
+        details: ["Flavor needed"],
+        options: ["Vanilla", "Chocolate", "Strawberry"],
+        optionSelectionMode: "single",
+      }),
+    ],
+    estimatedSubtotal: "$13.27",
+    estimatedTax: "$1.06",
+    estimatedTotal: "$14.33",
+  };
+}
+
+function smartBarMobileDemoFixtureOptionalExtrasResult(): SmartBarMobileOrderResult {
+  return {
+    lines: [
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-optional-cheeseburger",
+        cartLineKey: "fixture-optional-cheeseburger",
         targetId: "item-cheeseburger",
         sourceItemId: "item-cheeseburger",
         title: "Cheeseburger",
@@ -144,9 +236,30 @@ function smartBarMobileDemoFixtureInitialResult(): SmartBarMobileOrderResult {
         options: ["Bacon", "Extra sauce", "Pickles"],
         optionSelectionMode: "multi",
       }),
+    ],
+    estimatedSubtotal: "$5.49",
+    estimatedTax: "$0.44",
+    estimatedTotal: "$5.93",
+  };
+}
+
+function smartBarMobileDemoFixtureUnmatchedItemResult(): SmartBarMobileOrderResult {
+  return {
+    lines: [
       smartBarMobileDemoFixtureLine({
-        id: "fixture-fries",
-        cartLineKey: "fixture-fries",
+        id: "fixture-unmatched-cheeseburger",
+        cartLineKey: "fixture-unmatched-cheeseburger",
+        targetId: "item-cheeseburger",
+        sourceItemId: "item-cheeseburger",
+        title: "Cheeseburger",
+        status: "ready",
+        helper: "Matched and ready",
+        price: "$5.49",
+        details: ["No onions"],
+      }),
+      smartBarMobileDemoFixtureLine({
+        id: "fixture-unmatched-fries",
+        cartLineKey: "fixture-unmatched-fries",
         targetId: "side-fries",
         sourceItemId: "side-fries",
         title: "Large fries",
@@ -154,19 +267,6 @@ function smartBarMobileDemoFixtureInitialResult(): SmartBarMobileOrderResult {
         helper: "Matched and ready",
         price: "$3.49",
         details: ["Large"],
-      }),
-      smartBarMobileDemoFixtureLine({
-        id: "fixture-milkshake",
-        cartLineKey: "fixture-milkshake",
-        targetId: "drink-milkshake",
-        sourceItemId: "drink-milkshake",
-        title: "Milkshake",
-        status: "pending",
-        helper: "Choose flavor",
-        price: "$4.29",
-        details: ["Flavor needed"],
-        options: ["Vanilla", "Chocolate", "Strawberry"],
-        optionSelectionMode: "single",
       }),
       smartBarMobileDemoFixtureLine({
         id: "fixture-lava-tacos",
@@ -179,9 +279,9 @@ function smartBarMobileDemoFixtureInitialResult(): SmartBarMobileOrderResult {
         retryPrompt: "Re-enter the item so SmartBar can match it.",
       }),
     ],
-    estimatedSubtotal: "$13.27",
-    estimatedTax: "$1.09",
-    estimatedTotal: "$14.36",
+    estimatedSubtotal: "$8.98",
+    estimatedTax: "$0.72",
+    estimatedTotal: "$9.70",
   };
 }
 
@@ -227,6 +327,10 @@ function smartBarMobileDemoFixtureRetryResult(query: string): SmartBarMobileOrde
   };
 }
 
+function smartBarMobileDemoFixtureText(query: string) {
+  return query.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 function smartBarMobileDemoFixtureResult(
   query: string,
   meta?: SmartBarMobileSubmitMeta,
@@ -235,9 +339,26 @@ function smartBarMobileDemoFixtureResult(
     return smartBarMobileDemoFixtureRetryResult(query);
   }
 
-  return smartBarMobileDemoFixtureInitialResult();
-}
+  const text = smartBarMobileDemoFixtureText(query);
 
+  if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez")) {
+    return smartBarMobileDemoFixtureReadyOrderResult();
+  }
+
+  if (text.includes("lava tacos")) {
+    return smartBarMobileDemoFixtureUnmatchedItemResult();
+  }
+
+  if (text.includes("show burger options") || text.includes("optional extras")) {
+    return smartBarMobileDemoFixtureOptionalExtrasResult();
+  }
+
+  if (text.includes("cheeseburger") && text.includes("fries") && text.includes("milkshake")) {
+    return smartBarMobileDemoFixtureRequiredChoiceResult();
+  }
+
+  return smartBarMobileDemoFixtureReadyOrderResult();
+}
 
 
 export default function BurgerRushMobileExperience({ demoFixtureMode = false }: BurgerRushMobileExperienceProps = {}) {
