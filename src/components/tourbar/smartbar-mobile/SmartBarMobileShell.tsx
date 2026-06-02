@@ -1038,14 +1038,14 @@ export default function SmartBarMobileShell({
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
   const rootTextClass = isOverlay ? "text-slate-950" : "text-white";
   const upperGlassClass = isOverlay
-    ? "overflow-hidden border border-slate-950/10 bg-white/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_16px_36px_rgba(15,23,42,0.18)] ring-1 ring-white/70 backdrop-blur-xl"
-    : "overflow-hidden border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl";
+    ? "overflow-hidden border border-white/45 bg-[linear-gradient(180deg,rgba(255,255,255,0.66)_0%,rgba(226,232,240,0.48)_48%,rgba(148,163,184,0.34)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.86),inset_0_-1px_3px_rgba(15,23,42,0.12),0_18px_42px_rgba(15,23,42,0.24)] ring-1 ring-slate-950/6 backdrop-blur-2xl backdrop-saturate-150"
+    : "overflow-hidden border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(148,163,184,0.12)_54%,rgba(15,23,42,0.18)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),inset_0_-1px_3px_rgba(2,6,23,0.28),0_16px_38px_rgba(2,6,23,0.34)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150";
   const chromePillClass = isOverlay
-    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-slate-950/10 bg-white/82 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_16px_36px_rgba(15,23,42,0.18)] ring-1 ring-white/70 backdrop-blur-xl transition active:scale-[0.985]"
-    : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/12 bg-white/[0.075] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_16px_36px_rgba(2,6,23,0.28)] ring-1 ring-white/10 backdrop-blur-xl transition active:scale-[0.985]";
+    ? "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/50 bg-[linear-gradient(180deg,rgba(255,255,255,0.70)_0%,rgba(226,232,240,0.50)_46%,rgba(120,132,150,0.40)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.92),inset_0_-2px_5px_rgba(15,23,42,0.16),0_12px_28px_rgba(15,23,42,0.26)] ring-1 ring-slate-950/7 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]"
+    : "pointer-events-auto absolute top-0 flex items-center justify-center rounded-full border border-white/14 bg-[linear-gradient(180deg,rgba(255,255,255,0.16)_0%,rgba(148,163,184,0.12)_48%,rgba(15,23,42,0.22)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.14),inset_0_-2px_5px_rgba(2,6,23,0.30),0_12px_28px_rgba(2,6,23,0.34)] ring-1 ring-white/10 backdrop-blur-2xl backdrop-saturate-150 transition active:scale-[0.985]";
   const chromeIconBubbleClass = isOverlay
-    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950/7 text-slate-950 shadow-sm ring-1 ring-slate-950/10"
-    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/10";
+    ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.58)_0%,rgba(203,213,225,0.34)_100%)] text-slate-950 shadow-[inset_0_1px_1px_rgba(255,255,255,0.76),inset_0_-1px_2px_rgba(15,23,42,0.12),0_3px_8px_rgba(15,23,42,0.12)] ring-1 ring-white/55"
+    : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.14)_0%,rgba(148,163,184,0.10)_100%)] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),inset_0_-1px_2px_rgba(2,6,23,0.24)] ring-1 ring-white/12";
   const mainMutedTextClass = isOverlay ? "text-slate-600" : "text-slate-300";
   const softTextClass = isOverlay ? "text-slate-600" : "text-white/62";
   const quietTextClass = isOverlay ? "text-slate-500" : "text-white/44";
