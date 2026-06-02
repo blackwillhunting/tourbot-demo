@@ -582,30 +582,49 @@ export default function SmartBarMobileShell({
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) {
+    if (typeof window === "undefined" || typeof document === "undefined" || !window.visualViewport) {
       setKeyboardLift(0);
       return;
     }
 
     const viewport = window.visualViewport;
+    const smartBarKeyboardEditableIsFocused = () => {
+      const activeElement = document.activeElement;
+      return activeElement === entryTextareaRef.current || activeElement === retryTextareaRef.current;
+    };
     const updateKeyboardLift = () => {
+      if (!smartBarKeyboardEditableIsFocused()) {
+        setKeyboardLift(0);
+        return;
+      }
+
       const lift = Math.max(
         0,
         Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
       );
 
-      setKeyboardLift(lift > 24 ? lift : 0);
+      // iOS Safari can report a small visualViewport delta when the browser
+      // toolbar settles. That is not the keyboard. Only lift SmartBar when one
+      // of our textareas is focused and the delta is keyboard-sized.
+      setKeyboardLift(lift > 96 ? lift : 0);
+    };
+    const clearKeyboardLiftAfterBlur = () => {
+      window.setTimeout(updateKeyboardLift, 60);
     };
 
     updateKeyboardLift();
     viewport.addEventListener("resize", updateKeyboardLift);
     viewport.addEventListener("scroll", updateKeyboardLift);
     window.addEventListener("orientationchange", updateKeyboardLift);
+    document.addEventListener("focusin", updateKeyboardLift);
+    document.addEventListener("focusout", clearKeyboardLiftAfterBlur);
 
     return () => {
       viewport.removeEventListener("resize", updateKeyboardLift);
       viewport.removeEventListener("scroll", updateKeyboardLift);
       window.removeEventListener("orientationchange", updateKeyboardLift);
+      document.removeEventListener("focusin", updateKeyboardLift);
+      document.removeEventListener("focusout", clearKeyboardLiftAfterBlur);
     };
   }, []);
 
