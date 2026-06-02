@@ -823,7 +823,7 @@ export default function LaunchSelectorTourBar({
       await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
       if (runIdRef.current !== runId) return;
 
-      if (shouldSkipFitsAnywhereAnimationOnPhone()) {
+      if (variant === "burgerRushOnly" || shouldSkipFitsAnywhereAnimationOnPhone()) {
         setFitsAnimationVisible(false);
         setDemoVisible(true);
         await wait(DEMO_HANDOFF_SETTLE_MS);

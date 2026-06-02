@@ -6,7 +6,6 @@ import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
 import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
-import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import "./index.css";
@@ -204,14 +203,6 @@ function Router() {
 
   if (isSmartBarHostname()) {
     const smartBarVariant = smartBarSpeedVariantFromPath(path);
-
-    if (smartBarVariant === "burgerRushOnly" && getStoredTourBotDemoToken()) {
-      return (
-        <ProtectedDemoRoute>
-          <SmartBarSpeedDemo variant="burgerRushOnly" autoPlay />
-        </ProtectedDemoRoute>
-      );
-    }
 
     return <LaunchSelectorTourBar variant={smartBarVariant} />;
   }
