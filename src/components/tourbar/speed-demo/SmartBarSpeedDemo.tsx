@@ -127,31 +127,117 @@ const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
 
 type MobileBurgerRushStage = "intro" | "placement" | "demo" | "outro";
 
-const BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS: SmartBarTutorCard[] = [
-  {
-    title: "Phone-sized ordering",
-    cascadeGroup: "burger-rush-mobile-outro",
+const MOBILE_BURGERRUSH_OUTRO_TUTOR_CARDS: SmartBarTutorCard[] = [
+{
+    title: "Give it plain English.",
+    cascadeGroup: "mobile-burger-rush-outro-1",
     cascadeMode: "standard",
     density: "normal",
-    holdMs: 1300,
+    holdMs: 900,
   },
   {
-    title: "No menu maze",
-    cascadeGroup: "burger-rush-mobile-outro",
+    title: "Get back a cart.",
+    cascadeGroup: "mobile-burger-rush-outro-1",
     cascadeMode: "standard",
     density: "normal",
-    holdMs: 1300,
+    holdMs: 900,
   },
   {
-    title: "Direct checkout stays yours",
-    cascadeGroup: "burger-rush-mobile-outro",
+    title: "Grabs missing detail.",
+    cascadeGroup: "mobile-burger-rush-outro-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Offers extras.",
+    cascadeGroup: "mobile-burger-rush-outro-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Flags bad matches.",
+    cascadeGroup: "mobile-burger-rush-outro-1",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 1500,
+    clearCascade: true,
   },
   {
-    title: "SmartBar fits the mobile web",
-    cascadeGroup: "burger-rush-mobile-outro",
+    title: "One burger.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Office lunches.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Team meals.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Catering requests.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Paste the list.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Build the cart.",
+    cascadeGroup: "mobile-burger-rush-outro-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+    clearCascade: true,
+  },
+  {
+    title: "Setup is simple.",
+    cascadeGroup: "mobile-burger-rush-outro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Site scan.",
+    cascadeGroup: "mobile-burger-rush-outro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Code snippet.",
+    cascadeGroup: "mobile-burger-rush-outro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Menu cheat sheet.",
+    cascadeGroup: "mobile-burger-rush-outro-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Go live.",
+    cascadeGroup: "mobile-burger-rush-outro-3",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 1800,
@@ -2164,8 +2250,8 @@ export default function SmartBarSpeedDemo({
       await wait(DEMO_TUTOR_INITIAL_DELAY_MS);
       if (cancelled) return;
 
-      for (let index = 0; index < BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS.length; index += 1) {
-        const card = BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS[index];
+      for (let index = 0; index < MOBILE_BURGERRUSH_OUTRO_TUTOR_CARDS.length; index += 1) {
+        const card = MOBILE_BURGERRUSH_OUTRO_TUTOR_CARDS[index];
         setTutorStackCards((items) => [
           ...items,
           {
@@ -2749,4 +2835,5 @@ export default function SmartBarSpeedDemo({
     </main>
   );
 }
+
 
