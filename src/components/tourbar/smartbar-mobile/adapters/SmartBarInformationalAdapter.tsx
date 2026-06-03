@@ -219,6 +219,20 @@ function actionsFor(result: TourBarResult): SmartBarMobileGenericAction[] {
   return actions;
 }
 
+function renderInlineEmphasis(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return (
+        <strong key={`${part}-${index}`} className="font-black text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return <span key={`${part}-${index}`}>{part}</span>;
+  });
+}
+
 function contentFor(result: TourBarResult): ReactNode | undefined {
   const body = resultBody(result);
   const metadata = [
@@ -229,14 +243,14 @@ function contentFor(result: TourBarResult): ReactNode | undefined {
   if (!body && !metadata.length) return undefined;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       {body && (
-        <div className="rounded-[24px] border border-sky-100/42 bg-sky-400/78 px-4 py-3 text-[15px] font-bold leading-6 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/30">
-          {body}
+        <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-3 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+          {renderInlineEmphasis(body)}
         </div>
       )}
       {!!metadata.length && (
-        <div className="rounded-[22px] border border-white/24 bg-slate-950/86 px-4 py-3 text-xs font-semibold leading-5 text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14">
+        <div className="rounded-[22px] border border-white/16 bg-white/[0.10] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.10em] text-white/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
           {metadata.map((item) => (
             <div key={item}>{item}</div>
           ))}
@@ -255,9 +269,9 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     title: resultTitle(result),
     body: contentFor(result) ? undefined : resultBody(result),
     helper: helperText(result),
-    statusLabel: hasNavigation(result) ? "Opened" : result.action === "CLARIFY" ? "Clarify" : "Answer",
+    statusLabel: hasNavigation(result) ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
     actions,
-    height: actions.length ? 500 : 390,
+    height: actions.length ? 460 : 360,
     content: contentFor(result),
   };
 }

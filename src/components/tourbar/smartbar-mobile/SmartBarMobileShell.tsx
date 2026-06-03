@@ -1486,16 +1486,16 @@ export default function SmartBarMobileShell({
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
-                        <div className="space-y-3">{genericResult.content}</div>
+                        <div className="space-y-3 text-[15px] leading-6 text-white/86">{genericResult.content}</div>
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (
-                            <div className="rounded-[24px] border border-sky-100/42 bg-sky-400/78 px-4 py-3 text-[15px] font-bold leading-6 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/30">
+                            <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-3 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
                               {genericResult.body}
                             </div>
                           )}
                           {genericResult.helper && (
-                            <div className="rounded-[22px] border border-white/24 bg-slate-950/86 px-4 py-3 text-sm font-semibold leading-5 text-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14">
+                            <div className="rounded-[22px] border border-white/16 bg-white/[0.10] px-4 py-3 text-sm font-semibold leading-5 text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
                               {genericResult.helper}
                             </div>
                           )}
@@ -1513,8 +1513,8 @@ export default function SmartBarMobileShell({
                             disabled={action.disabled}
                             onClick={() => handleGenericActionClick(action, genericResult)}
                             className={action.variant === "secondary"
-                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/24 bg-slate-950/88 px-4 py-3 text-left text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-                              : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-300/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_24px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                              : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
                             }
                           >
                             <span className="min-w-0">
