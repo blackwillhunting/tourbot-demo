@@ -224,12 +224,6 @@ function Router() {
     );
   }
 
-  if (isSmartBarHostname()) {
-    const smartBarVariant = smartBarSpeedVariantFromPath(path);
-
-    return <LaunchSelectorTourBar variant={smartBarVariant} />;
-  }
-
   if (path === "/transactional") {
     return (
       <ProtectedDemoRoute>
@@ -284,6 +278,12 @@ function Router() {
         <LaunchSelectorTourBar variant="burgerRushOnly" />
       </ProtectedDemoRoute>
     );
+  }
+
+  if (isSmartBarHostname()) {
+    const smartBarVariant = smartBarSpeedVariantFromPath(path);
+
+    return <LaunchSelectorTourBar variant={smartBarVariant} />;
   }
 
   if (path === "/") {
