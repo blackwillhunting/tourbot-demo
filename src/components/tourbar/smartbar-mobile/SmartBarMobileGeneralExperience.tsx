@@ -28,11 +28,14 @@ type MobileFocusSnapshot = {
 
 const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS = [
   { delayMs: 900, query: "we're a hedge fund, need help with IT and setting up copilots" },
-  { delayMs: 7800, query: "Perfect, can I talk to someone?" },
-  { delayMs: 14600, query: "dbl chzbrger combo lg friez diet coke pie" },
-  { delayMs: 21800, query: "Aug 4 to 9, nice room with a view and breakfast, just me" },
-  { delayMs: 28800, query: "add breakfast" },
-  { delayMs: 35800, query: "prepare booking summary" },
+  { delayMs: 7800, query: "that doesn't say what you actually do" },
+  { delayMs: 13200, query: "Perfect, can I talk to someone?" },
+  { delayMs: 19800, query: "dbl chzbrger combo lg friez diet coke pie" },
+  { delayMs: 26200, query: "Aug 4 to 9, nice room with a view and breakfast, just me" },
+  { delayMs: 32600, query: "__booking_next" },
+  { delayMs: 38800, query: "__booking_next" },
+  { delayMs: 45000, query: "add breakfast" },
+  { delayMs: 51200, query: "prepare booking summary" },
 ];
 
 function smartBarGeneralCssEscape(value: string) {
@@ -200,14 +203,14 @@ function ChatPreviewContent() {
         role="consultant"
         eyebrow="Consultant desk"
         title="Handoff accepted"
-        body="Hi there — You’re interested in Copilots? I have the hedge-fund context SmartBar captured."
+        body="Hi there — I have the hedge-fund Copilot context SmartBar captured."
         icon={<MessageSquare className="h-4 w-4" />}
       />
       <GeneralChatBubble
         role="visitor"
         eyebrow="Visitor"
         title="Follow-up"
-        body="Yes, curious about pricing and what setup would look like."
+        body="Yes — curious about pricing and setup."
       />
     </div>
   );
@@ -251,23 +254,23 @@ const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
 
 function BookingContextPills() {
   const pills = [
-    ["Dates", "Aug 4–9", "sky"],
-    ["Guests", "1 guest", "violet"],
-    ["View", "Ocean", "emerald"],
-    ["Meal", "Breakfast", "amber"],
-  ] as const;
+    ["Dates", "Aug 4–9"],
+    ["Guests", "1 guest"],
+    ["View", "Nice view"],
+    ["Breakfast", "Wanted"],
+  ];
 
   return (
     <div className="grid grid-cols-2 gap-2">
-      {pills.map(([label, value, tone]) => {
-        const toneClass = GENERAL_MOBILE_TONE_CLASS[tone];
-        return (
-          <div key={label} className={`rounded-full border px-3 py-2 text-center ring-1 ${toneClass.card}`}>
-            <div className={`text-[9px] font-black uppercase tracking-[0.14em] ${toneClass.eyebrow}`}>{label}</div>
-            <div className={`mt-0.5 truncate text-[12px] font-black ${toneClass.title}`}>{value}</div>
-          </div>
-        );
-      })}
+      {pills.map(([label, value]) => (
+        <div
+          key={label}
+          className="rounded-full bg-slate-950/82 px-3 py-2 text-center text-white ring-1 ring-white/14"
+        >
+          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-white/44">{label}</div>
+          <div className="mt-0.5 text-[11px] font-semibold leading-none text-white/88">{value}</div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -625,35 +628,24 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const handleSubmitPrompt = useCallback((query: string): SmartBarMobileSubmitResult => {
     const text = smartBarGeneralCompact(query);
 
-    if (text.includes("__nexa_proof") || text.includes("proof")) return buildInfoResult("proof");
+    if (
+      text.includes("__nexa_proof") ||
+      text.includes("proof") ||
+      text.includes("specific") ||
+      text.includes("actually do") ||
+      text.includes("doesn't say") ||
+      text.includes("doesnt say")
+    ) return buildInfoResult("proof");
     if (text.includes("consultant") || text.includes("pricing") || text.includes("talk to someone")) return buildChatResult();
     if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez") || text.includes("burger")) return buildOrderResult();
-    if (text.includes("__booking_back") || text.includes("previous room") || text.includes("back room")) {
-      return buildBookingTourResult(bookingStep - 1);
-    }
-    if (text.includes("__booking_next") || text.includes("next room")) {
-      return buildBookingTourResult(bookingStep + 1);
-    }
-    if (text.includes("add breakfast") || text.includes("breakfast added") || text.includes("package") || text.includes("add-on") || text.includes("addon")) {
-      return buildBookingBreakfastResult();
-    }
-    if (text.includes("prepare") || text.includes("reserve") || text.includes("book") || text.includes("summary")) {
-      return buildBookingSummaryResult();
-    }
-    if (text.includes("villa") || text.includes("premium") || text.includes("expensive")) return buildBookingTourResult(2);
-    if (text.includes("garden") || text.includes("cheap") || text.includes("value")) return buildBookingTourResult(0);
-    if (text.includes("room") || text.includes("view") || text.includes("aug") || text.includes("hotel")) return buildBookingTourResult(1);
+    if (text.includes("__booking_back")) return buildBookingTourResult(bookingStep - 1);
+    if (text.includes("__booking_next")) return buildBookingTourResult(bookingStep + 1);
+    if (text.includes("prepare booking") || text.includes("booking summary") || text.includes("summary")) return buildBookingSummaryResult();
+    if (text.includes("breakfast") || text.includes("package")) return buildBookingBreakfastResult();
+    if (text.includes("room") || text.includes("view") || text.includes("aug") || text.includes("hotel")) return buildBookingTourResult(0);
 
     return buildInfoResult("primary");
-  }, [
-    bookingStep,
-    buildBookingBreakfastResult,
-    buildBookingSummaryResult,
-    buildBookingTourResult,
-    buildChatResult,
-    buildInfoResult,
-    buildOrderResult,
-  ]);
+  }, [bookingStep, buildBookingBreakfastResult, buildBookingSummaryResult, buildBookingTourResult, buildChatResult, buildInfoResult, buildOrderResult]);
 
   const handleGenericAction = useCallback((action: SmartBarMobileGenericAction) => {
     if (action.disabled) return;
@@ -662,6 +654,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     if (action.id === "start-order") submitDemoQuery("dbl chzbrger combo lg friez diet coke pie");
     if (action.id === "booking-back") submitDemoQuery("__booking_back");
     if (action.id === "booking-next") submitDemoQuery("__booking_next");
+    if (action.id === "booking-summary") submitDemoQuery("prepare booking summary");
     if (action.id === "add-breakfast") submitDemoQuery("add breakfast");
     if (action.id === "prepare-booking") submitDemoQuery("prepare booking summary");
     if (action.id === "show-rooms") submitDemoQuery("show ocean view room");
