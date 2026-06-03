@@ -1447,9 +1447,9 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="flex h-full min-h-0 flex-col p-4"
+                    className={genericResult?.surfaceKind === "info" ? "flex h-full min-h-0 flex-col px-4 pb-4 pt-0" : "flex h-full min-h-0 flex-col p-4"}
                   >
-                    <div className="flex shrink-0 items-start justify-between gap-3">
+                    <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
                         {genericResult.eyebrow && (
                           <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>

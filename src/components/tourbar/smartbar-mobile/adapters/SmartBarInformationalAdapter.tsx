@@ -237,7 +237,7 @@ function contentFor(result: TourBarResult): ReactNode | undefined {
   const body = resultBody(result);
   const metadata: string[] = [];
 
-  if (!body && !metadata.length) return undefined;
+  if (!body) return undefined;
 
   return (
     <div className="space-y-0">
