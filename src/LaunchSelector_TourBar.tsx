@@ -927,13 +927,13 @@ export default function LaunchSelectorTourBar({
     [clearNoticeLanes, getNextNoticeLane, isChecking, launchVisible, passcode, setActiveNoticeLaneState, startAcceptedFlow],
   );
 
-  const allowMobileBurgerRushPageScroll =
-    demoVisible && variant === "burgerRushOnly" && shouldSkipFitsAnywhereAnimationOnPhone();
+  const allowMobileDemoPageScroll =
+    demoVisible && shouldSkipFitsAnywhereAnimationOnPhone();
 
   return (
     <div
       className={
-        allowMobileBurgerRushPageScroll
+        allowMobileDemoPageScroll
           ? "relative min-h-[100dvh] overflow-x-hidden"
           : "relative h-[100dvh] min-h-[100dvh] overflow-hidden"
       }
