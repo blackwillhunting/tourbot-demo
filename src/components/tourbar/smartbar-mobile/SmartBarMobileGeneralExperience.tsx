@@ -213,38 +213,47 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   }, []);
 
   const focusTarget = useCallback((targetId: string) => {
-    if (typeof document === "undefined") return;
-
-    const escaped = smartBarGeneralCssEscape(targetId);
-    const target = document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
-    if (!target) return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
 
     clearFocus();
-    target.scrollIntoView({ block: "start", behavior: "smooth" });
 
-    focusTimerRef.current = window.setTimeout(() => {
-      focusTimerRef.current = null;
-      focusSnapshotRef.current = {
-        element: target,
-        outline: target.style.outline,
-        outlineOffset: target.style.outlineOffset,
-        boxShadow: target.style.boxShadow,
-        position: target.style.position,
-        zIndex: target.style.zIndex,
-        transition: target.style.transition,
-        scrollMarginTop: target.style.scrollMarginTop,
-      };
+    // Surface changes are state-driven. When the script moves from NexaPath to
+    // BurgerRush or Domi, the new target wall does not exist until React commits
+    // the next surface. Defer the lookup so the page does not clamp to the old
+    // scroll range and feel like it has been truncated.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const escaped = smartBarGeneralCssEscape(targetId);
+        const target = document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
+        if (!target) return;
 
-      if (!target.style.position) target.style.position = "relative";
-      target.style.zIndex = "60";
-      target.style.scrollMarginTop = "18px";
-      target.style.transition = target.style.transition
-        ? `${target.style.transition}, outline 180ms ease, box-shadow 180ms ease`
-        : "outline 180ms ease, box-shadow 180ms ease";
-      target.style.outline = "3px solid rgba(14,165,233,0.92)";
-      target.style.outlineOffset = "4px";
-      target.style.boxShadow = "0 0 0 7px rgba(14,165,233,0.18), 0 22px 50px rgba(2,6,23,0.28)";
-    }, 760);
+        target.scrollIntoView({ block: "start", behavior: "smooth" });
+
+        focusTimerRef.current = window.setTimeout(() => {
+          focusTimerRef.current = null;
+          focusSnapshotRef.current = {
+            element: target,
+            outline: target.style.outline,
+            outlineOffset: target.style.outlineOffset,
+            boxShadow: target.style.boxShadow,
+            position: target.style.position,
+            zIndex: target.style.zIndex,
+            transition: target.style.transition,
+            scrollMarginTop: target.style.scrollMarginTop,
+          };
+
+          if (!target.style.position) target.style.position = "relative";
+          target.style.zIndex = "60";
+          target.style.scrollMarginTop = "18px";
+          target.style.transition = target.style.transition
+            ? `${target.style.transition}, outline 180ms ease, box-shadow 180ms ease`
+            : "outline 180ms ease, box-shadow 180ms ease";
+          target.style.outline = "3px solid rgba(14,165,233,0.92)";
+          target.style.outlineOffset = "4px";
+          target.style.boxShadow = "0 0 0 7px rgba(14,165,233,0.18), 0 22px 50px rgba(2,6,23,0.28)";
+        }, 760);
+      });
+    });
   }, [clearFocus]);
 
   const submitDemoQuery = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
@@ -398,7 +407,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={surface}
-        className="relative z-10 min-h-[100dvh] overflow-x-hidden px-3 pb-[430px] pt-3"
+        className="relative z-10 min-h-[3600px] overflow-x-hidden px-3 pb-[520px] pt-3"
       >
         <SmartBarSpeedTargetWall surface={surface} />
       </section>
