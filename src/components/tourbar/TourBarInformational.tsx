@@ -1,4 +1,4 @@
-import TourBarShell, {
+﻿import TourBarShell, {
   type TourBarInvitation,
   type TourBarNextMove,
   type TourBarShellResult,
@@ -203,7 +203,7 @@ export default function TourBarInformational({
         title: "Talk to a consultant",
         placeholder: "Tell us what you would like help with...",
         waitingMessage: "Hold for next consultant...",
-        confirmationMessage: "Thanks — someone will be with you shortly.",
+        confirmationMessage: "Thanks â€” someone will be with you shortly.",
       }}
       buildThreadMessage={messageFromResult}
       getNextMoveTurnKind={(nextMove, currentResult) =>
