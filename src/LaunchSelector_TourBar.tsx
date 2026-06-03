@@ -4,6 +4,7 @@ import { ArrowRight, Search } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
+import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -700,6 +701,7 @@ export default function LaunchSelectorTourBar({
   const runIdRef = useRef(0);
   const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
   const isNexaPathMobilePlayground = currentTourBotDemoPath() === "/nexapath-play";
+  const isDomiMobilePlayground = currentTourBotDemoPath() === "/domi-play";
 
   const setActiveNoticeLaneState = useCallback((lane: SmartBarFlashCardLaneName | null) => {
     activeNoticeLaneRef.current = lane;
@@ -843,7 +845,7 @@ export default function LaunchSelectorTourBar({
     let cancelled = false;
 
     const loadAccessState = async () => {
-      if (isNexaPathMobilePlayground) {
+      if (isNexaPathMobilePlayground || isDomiMobilePlayground) {
         setLaunchVisible(false);
         setDemoVisible(true);
         return;
@@ -878,7 +880,7 @@ export default function LaunchSelectorTourBar({
       cancelled = true;
       runIdRef.current += 1;
     };
-  }, [isNexaPathMobilePlayground, startAcceptedFlow]);
+  }, [isDomiMobilePlayground, isNexaPathMobilePlayground, startAcceptedFlow]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -940,6 +942,10 @@ export default function LaunchSelectorTourBar({
 
   if (isNexaPathMobilePlayground) {
     return <NexaPathMobileExperience />;
+  }
+
+  if (isDomiMobilePlayground) {
+    return <DomiMobileExperience />;
   }
 
   return (

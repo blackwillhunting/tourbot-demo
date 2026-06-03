@@ -10,6 +10,7 @@ import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMo
 import SmartBarMobileGlassLab from "./components/tourbar/smartbar-mobile/SmartBarMobileGlassLab";
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
+import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -211,6 +212,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <NexaPathMobileExperience />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/domi-play") {
+    return (
+      <ProtectedDemoRoute>
+        <DomiMobileExperience />
       </ProtectedDemoRoute>
     );
   }

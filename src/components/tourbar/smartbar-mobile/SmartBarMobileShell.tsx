@@ -483,7 +483,10 @@ export default function SmartBarMobileShell({
     );
   });
 
-  const entryPillWidth = Math.min(Math.max(stableViewportWidth - 64, 240), 430);
+  const mobileShellSideInset = 36;
+  const mobileShellMaxWidth = 390;
+  const entryPillWidth = Math.min(Math.max(stableViewportWidth - mobileShellSideInset * 2, 240), mobileShellMaxWidth);
+
   const cartTogglePillSize = 46;
   const safariControlLeftGap = 8;
   const safariControlRightGap = 8;
@@ -494,7 +497,7 @@ export default function SmartBarMobileShell({
       safariControlRightGap,
     260,
   );
-  const launcherPillLeft = cartTogglePillSize + safariControlLeftGap;
+  const launcherPillLeft = Math.max(0, (entryPillWidth - launcherPillWidth) / 2);
   const realComposerHeight = 90;
   const buildPanelHeight = realComposerHeight;
   const collapsedCartPanelHeight = 90;
@@ -1112,9 +1115,10 @@ export default function SmartBarMobileShell({
     rootTextClass,
     upperGlassClass,
     chromePillClass,
-chromeBlueBadgeClass,
+    chromeBlueBadgeClass,
     chromeBlueIconClass,
     chromeBlueLabelClass,
+    inputDraftCapsuleClass,
     mainMutedTextClass,
     softTextClass,
     quietTextClass,
@@ -1202,7 +1206,7 @@ chromeBlueBadgeClass,
               className={upperGlassClass}
               style={{ width: entryPillWidth, height: realComposerHeight, borderRadius: 999 }}
             >
-              <div className="h-full px-3 py-2">
+              <div className="relative h-full px-3 py-2">
                 <textarea
                   data-smartbar-mobile-entry-input="true"
                   ref={entryTextareaRef}
@@ -1211,9 +1215,26 @@ chromeBlueBadgeClass,
                     setEntryDraft(event.target.value);
                     setHasEditedEntryDraft(true);
                   }}
-                  className={`h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-bold leading-5 outline-none ring-0 placeholder:text-transparent ${inputTextClass}`}
+                  className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent caret-white selection:bg-white/20"
                   placeholder=""
                 />
+                <AnimatePresence initial={false}>
+                  {entryDraft.trim() && (
+                    <motion.div
+                      key="smartbar-live-entry-capsule"
+                      initial={{ opacity: 0, y: 3, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 2, scale: 0.99 }}
+                      transition={{ duration: 0.14, ease: "easeOut" }}
+                      className="pointer-events-none absolute inset-x-5 top-1/2 z-[1] flex -translate-y-1/2 justify-center"
+                      aria-hidden="true"
+                    >
+                      <div className={inputDraftCapsuleClass}>
+                        {entryDraft}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </motion.section>
