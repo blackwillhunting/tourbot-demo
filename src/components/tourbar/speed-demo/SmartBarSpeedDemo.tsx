@@ -125,6 +125,40 @@ const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
   },
 ];
 
+type MobileBurgerRushStage = "intro" | "placement" | "demo" | "outro";
+
+const BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS: SmartBarTutorCard[] = [
+  {
+    title: "Phone-sized ordering",
+    cascadeGroup: "burger-rush-mobile-outro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1300,
+  },
+  {
+    title: "No menu maze",
+    cascadeGroup: "burger-rush-mobile-outro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1300,
+  },
+  {
+    title: "Direct checkout stays yours",
+    cascadeGroup: "burger-rush-mobile-outro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1500,
+  },
+  {
+    title: "SmartBar fits the mobile web",
+    cascadeGroup: "burger-rush-mobile-outro",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1800,
+    clearCascade: true,
+  },
+];
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -1692,6 +1726,95 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
   );
 }
 
+function SmartBarMobilePlacementIntro({ onComplete }: { onComplete: () => void }) {
+  useEffect(() => {
+    const timer = window.setTimeout(onComplete, 5600);
+    return () => window.clearTimeout(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden text-slate-950">
+      <div className="absolute inset-x-6 top-[18%] text-center">
+        <motion.div
+          initial={{ y: 18, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.42, ease: "easeOut" }}
+          className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-700/70"
+        >
+          Mobile placement
+        </motion.div>
+        <motion.div
+          initial={{ y: 18, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.18, duration: 0.42, ease: "easeOut" }}
+          className="mx-auto mt-3 max-w-[320px] text-3xl font-black leading-tight tracking-tight text-slate-950"
+        >
+          SmartBar lives where thumbs already are.
+        </motion.div>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-[74px] flex justify-center px-4">
+        <motion.div
+          initial={{ width: 188, height: 54, borderRadius: 999, y: 18, opacity: 0 }}
+          animate={{
+            width: [188, 188, 322, 322, 188],
+            height: [54, 54, 98, 98, 54],
+            borderRadius: [999, 999, 30, 30, 999],
+            y: 0,
+            opacity: 1,
+          }}
+          transition={{
+            y: { duration: 0.42, ease: "easeOut" },
+            opacity: { duration: 0.42, ease: "easeOut" },
+            width: { duration: 4.8, times: [0, 0.22, 0.46, 0.76, 1], ease: "easeInOut" },
+            height: { duration: 4.8, times: [0, 0.22, 0.46, 0.76, 1], ease: "easeInOut" },
+            borderRadius: { duration: 4.8, times: [0, 0.22, 0.46, 0.76, 1], ease: "easeInOut" },
+          }}
+          className="relative overflow-hidden border border-white/70 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.92),0_24px_70px_rgba(15,23,42,0.22)] ring-1 ring-sky-200/80 backdrop-blur-2xl"
+        >
+          <motion.div
+            initial={{ opacity: 1 }}
+            animate={{ opacity: [1, 1, 0, 0, 1] }}
+            transition={{ duration: 4.8, times: [0, 0.24, 0.38, 0.78, 1], ease: "easeInOut" }}
+            className="absolute inset-0 flex items-center justify-center gap-2 px-5"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-950 text-xs font-black text-white shadow-lg">S</span>
+            <span className="text-sm font-black tracking-tight text-slate-950">SmartBar</span>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0, 1, 1, 0] }}
+            transition={{ duration: 4.8, times: [0, 0.34, 0.48, 0.78, 1], ease: "easeInOut" }}
+            className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center"
+          >
+            <div className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-700/70">Tap opens input</div>
+            <div className="mt-1 text-base font-black leading-tight text-slate-950">Say the order in plain English</div>
+          </motion.div>
+        </motion.div>
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.82, y: 18 }}
+        animate={{ opacity: [0, 1, 1, 0], scale: [0.82, 1, 0.92, 0.92], y: [18, 0, 0, 0] }}
+        transition={{ duration: 2.1, delay: 0.92, times: [0, 0.34, 0.72, 1], ease: "easeOut" }}
+        className="absolute bottom-[118px] left-1/2 z-30 h-12 w-12 -translate-x-1/2 rounded-full border border-sky-200 bg-white/92 shadow-2xl shadow-slate-950/18 ring-4 ring-sky-300/30"
+      />
+    </div>
+  );
+}
+
+function SmartBarMobileDemoBackdrop({ children }: { children?: any }) {
+  return (
+    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
+      {children}
+    </main>
+  );
+}
+
 
 
 
@@ -1717,6 +1840,7 @@ export default function SmartBarSpeedDemo({
   const [introRunId, setIntroRunId] = useState(0);
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
+  const [mobileBurgerRushStage, setMobileBurgerRushStage] = useState<MobileBurgerRushStage>("intro");
   const commandIdRef = useRef(0);
   const fakePointerIdRef = useRef(0);
   const targetStageRef = useRef<HTMLDivElement | null>(null);
@@ -1735,7 +1859,7 @@ export default function SmartBarSpeedDemo({
     [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const effectiveAutoPlay = autoPlay;
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -1848,6 +1972,15 @@ export default function SmartBarSpeedDemo({
     clearSmartBarFocusOverlay();
     resetSpeedDemoStageToTop(targetStageRef.current);
     sendCommand({ type: "closeAll" });
+
+    if (mobileBurgerRushShell) {
+      autoPlayStartedRef.current = false;
+      replayStartPendingRef.current = false;
+      setMobileBurgerRushStage("intro");
+      setIntroRunId((runId) => runId + 1);
+      return;
+    }
+
     replayStartPendingRef.current = true;
     setIntroRunId((runId) => runId + 1);
 
@@ -1865,7 +1998,7 @@ export default function SmartBarSpeedDemo({
       setStepIndex(0);
       setIsPlaying(true);
     }, 9000);
-  }, [clearReplayFallbackTimer, sendCommand]);
+  }, [clearReplayFallbackTimer, mobileBurgerRushShell, sendCommand]);
 
   useEffect(() => {
     resetSpeedDemoStageToTop(targetStageRef.current);
@@ -1885,7 +2018,18 @@ export default function SmartBarSpeedDemo({
   }, [effectiveAutoPlay]);
 
   useEffect(() => {
-    if (mobileBurgerRushShell) {
+    if (!mobileBurgerRushShell || mobileBurgerRushStage !== "demo" || !autoPlay || autoPlayStartedRef.current) return;
+
+    autoPlayStartedRef.current = true;
+    setReplayVisible(false);
+    setTutorBlocking(false);
+    resetSpeedDemoStageToTop(targetStageRef.current);
+    setStepIndex(0);
+    setIsPlaying(true);
+  }, [autoPlay, mobileBurgerRushShell, mobileBurgerRushStage]);
+
+  useEffect(() => {
+    if (mobileBurgerRushShell && mobileBurgerRushStage !== "intro") {
       setTutorBlocking(false);
       setTutorStackCards([]);
       setActiveTutorLane(null);
@@ -1972,6 +2116,11 @@ export default function SmartBarSpeedDemo({
 
       setTutorBlocking(false);
 
+      if (mobileBurgerRushShell) {
+        setMobileBurgerRushStage("placement");
+        return;
+      }
+
       if (replayStartPendingRef.current) {
         replayStartPendingRef.current = false;
         clearReplayFallbackTimer();
@@ -1986,7 +2135,71 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, openingTutorCards]);
+  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, mobileBurgerRushStage, openingTutorCards]);
+
+  const completeMobilePlacementIntro = useCallback(() => {
+    if (!mobileBurgerRushShell) return;
+
+    setTutorBlocking(false);
+    setTutorStackCards([]);
+    setActiveTutorLane(null);
+    setTutorNoticeA(null);
+    setTutorNoticeB(null);
+    resetSpeedDemoStageToTop(targetStageRef.current);
+    setMobileBurgerRushStage("demo");
+  }, [mobileBurgerRushShell]);
+
+  useEffect(() => {
+    if (!mobileBurgerRushShell || mobileBurgerRushStage !== "outro") return;
+
+    let cancelled = false;
+
+    const runMobileOutroCards = async () => {
+      setTutorBlocking(true);
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      setTutorStackCards([]);
+      setActiveTutorStackMode("standard");
+      await wait(DEMO_TUTOR_INITIAL_DELAY_MS);
+      if (cancelled) return;
+
+      for (let index = 0; index < BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS.length; index += 1) {
+        const card = BURGERRUSH_MOBILE_OUTRO_TUTOR_CARDS[index];
+        setTutorStackCards((items) => [
+          ...items,
+          {
+            id: `burger-rush-mobile-outro-${index}`,
+            variant: "prelude",
+            title: card.title,
+            detail: card.detail,
+            density: card.density || "normal",
+          },
+        ]);
+        await wait(card.holdMs ?? FLASHCARD_SPEED_CONTROLS.slowCascadeNextCardMs);
+        if (cancelled) return;
+
+        if (card.clearCascade) {
+          setTutorStackCards([]);
+          await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+          if (cancelled) return;
+        }
+      }
+
+      setTutorStackCards([]);
+      setTutorBlocking(false);
+      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+      if (cancelled) return;
+
+      setReplayVisible(true);
+    };
+
+    void runMobileOutroCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mobileBurgerRushShell, mobileBurgerRushStage]);
 
   const showScriptCards = useCallback(
     async (
@@ -2313,6 +2526,13 @@ export default function SmartBarSpeedDemo({
           sendCommand({ type: "closeAll" });
           await wait(DEMO_REPLAY_SETTLE_MS);
           if (cancelled) return;
+
+          if (mobileBurgerRushShell) {
+            setIsPlaying(false);
+            setMobileBurgerRushStage("outro");
+            return;
+          }
+
           setReplayVisible(true);
           setIsPlaying(false);
         }
@@ -2426,18 +2646,33 @@ export default function SmartBarSpeedDemo({
       return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
     }
 
+    const mobileCards = (
+      <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
+        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
+        <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+          <SmartBarFlashCard notice={tutorNoticeA} />
+        </SmartBarFlashCardLane>
+        <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+          <SmartBarFlashCard notice={tutorNoticeB} />
+        </SmartBarFlashCardLane>
+      </SmartBarFlashCardRail>
+    );
+
+    if (mobileBurgerRushStage !== "demo") {
+      return (
+        <SmartBarMobileDemoBackdrop>
+          {mobileCards}
+          {mobileBurgerRushStage === "placement" && (
+            <SmartBarMobilePlacementIntro onComplete={completeMobilePlacementIntro} />
+          )}
+        </SmartBarMobileDemoBackdrop>
+      );
+    }
+
     return (
       <main className="relative min-h-[100svh] overflow-x-hidden bg-white text-slate-950">
         <BurgerRushMobileExperience demoFixtureMode />
-        <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
-          <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
-          <SmartBarFlashCardLane active={activeTutorLane === "a"}>
-            <SmartBarFlashCard notice={tutorNoticeA} />
-          </SmartBarFlashCardLane>
-          <SmartBarFlashCardLane active={activeTutorLane === "b"}>
-            <SmartBarFlashCard notice={tutorNoticeB} />
-          </SmartBarFlashCardLane>
-        </SmartBarFlashCardRail>
+        {mobileCards}
         <SmartBarFakePointerOverlay pointer={fakePointer} />
       </main>
     );
