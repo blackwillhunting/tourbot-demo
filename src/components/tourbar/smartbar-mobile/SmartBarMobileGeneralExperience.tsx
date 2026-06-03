@@ -9,6 +9,11 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitResult,
 } from "./SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "../speed-demo/SmartBarSpeedTargetWall";
+import {
+  SmartBarFakePointerOverlay,
+  makeSmartBarFakePointerState,
+  type SmartBarFakePointerState,
+} from "../speed-demo/SmartBarFakePointer";
 import type { SmartBarSpeedSurface } from "../speed-demo/smartBarSpeedScript";
 
 type SmartBarMobileGeneralExperienceProps = {
@@ -26,16 +31,78 @@ type MobileFocusSnapshot = {
   scrollMarginTop: string;
 };
 
-const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS = [
-  { delayMs: 900, query: "we're a hedge fund, need help with IT and setting up copilots" },
-  { delayMs: 7800, query: "that doesn't say what you actually do" },
-  { delayMs: 13200, query: "Perfect, can I talk to someone?" },
-  { delayMs: 19800, query: "dbl chzbrger combo lg friez diet coke pie" },
-  { delayMs: 26200, query: "Aug 4 to 9, nice room with a view and breakfast, just me" },
-  { delayMs: 32600, query: "__booking_next" },
-  { delayMs: 38800, query: "__booking_next" },
-  { delayMs: 45000, query: "add breakfast" },
-  { delayMs: 51200, query: "prepare booking summary" },
+type SmartBarGeneralMobileAutoStep = {
+  delayMs: number;
+  query: string;
+  pointerSelector?: string;
+  pointerLabel?: string;
+  pointerLeadMs?: number;
+  pointerAnchorX?: number;
+  pointerAnchorY?: number;
+  pointerOffsetX?: number;
+  pointerOffsetY?: number;
+};
+
+const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
+  {
+    delayMs: 1500,
+    query: "we're a hedge fund, need help with IT and setting up copilots",
+    pointerSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
+    pointerLabel: "Open SmartBar",
+    pointerLeadMs: 820,
+    pointerAnchorY: 0.64,
+    pointerOffsetY: 8,
+  },
+  {
+    delayMs: 9000,
+    query: "that doesn't say what you actually do",
+    pointerSelector: '[data-smartbar-mobile-generic-action="show-proof"]:not(:disabled)',
+    pointerLabel: "Ask for proof",
+  },
+  {
+    delayMs: 15000,
+    query: "Perfect, can I talk to someone?",
+    pointerSelector: '[data-smartbar-mobile-generic-action="consultant"]:not(:disabled)',
+    pointerLabel: "Talk to consultant",
+  },
+  {
+    delayMs: 21800,
+    query: "dbl chzbrger combo lg friez diet coke pie",
+    pointerSelector: '[data-smartbar-mobile-generic-action="start-order"]:not(:disabled), [data-smartbar-mobile-companion="true"]',
+    pointerLabel: "Next example",
+  },
+  {
+    delayMs: 28800,
+    query: "Aug 4 to 9, nice room with a view and breakfast, just me",
+    pointerSelector: '[data-smartbar-mobile-companion="true"]',
+    pointerLabel: "Booking example",
+    pointerAnchorY: 0.62,
+    pointerOffsetY: 6,
+  },
+  {
+    delayMs: 35600,
+    query: "__booking_next",
+    pointerSelector: '[data-smartbar-mobile-generic-action="booking-next"]:not(:disabled)',
+    pointerLabel: "Next room",
+  },
+  {
+    delayMs: 42400,
+    query: "__booking_next",
+    pointerSelector: '[data-smartbar-mobile-generic-action="booking-next"]:not(:disabled)',
+    pointerLabel: "Next room",
+  },
+  {
+    delayMs: 49200,
+    query: "add breakfast",
+    pointerSelector: '[data-smartbar-mobile-generic-action="add-breakfast"]:not(:disabled)',
+    pointerLabel: "Add breakfast",
+  },
+  {
+    delayMs: 56000,
+    query: "prepare booking summary",
+    pointerSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]:not(:disabled), [data-smartbar-mobile-generic-action="booking-summary"]:not(:disabled)',
+    pointerLabel: "Prepare summary",
+  },
 ];
 
 function smartBarGeneralCssEscape(value: string) {
@@ -401,6 +468,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const autoPlayStartedRef = useRef(false);
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
   const focusTimerRef = useRef<number | null>(null);
+  const pointerIdRef = useRef(0);
+  const pointerClearTimerRef = useRef<number | null>(null);
+  const pointerPulseTimerRef = useRef<number | null>(null);
+  const [pointer, setPointer] = useState<SmartBarFakePointerState | null>(null);
 
   const clearFocus = useCallback(() => {
     if (focusTimerRef.current !== null) {
@@ -478,23 +549,100 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     });
   }, [clearFocus]);
 
+  const clearPointer = useCallback(() => {
+    if (pointerClearTimerRef.current !== null) {
+      window.clearTimeout(pointerClearTimerRef.current);
+      pointerClearTimerRef.current = null;
+    }
+
+    if (pointerPulseTimerRef.current !== null) {
+      window.clearTimeout(pointerPulseTimerRef.current);
+      pointerPulseTimerRef.current = null;
+    }
+
+    setPointer(null);
+  }, []);
+
+  const showPointer = useCallback((step: SmartBarGeneralMobileAutoStep) => {
+    if (typeof document === "undefined" || typeof window === "undefined" || !step.pointerSelector) return;
+
+    if (pointerClearTimerRef.current !== null) {
+      window.clearTimeout(pointerClearTimerRef.current);
+      pointerClearTimerRef.current = null;
+    }
+
+    if (pointerPulseTimerRef.current !== null) {
+      window.clearTimeout(pointerPulseTimerRef.current);
+      pointerPulseTimerRef.current = null;
+    }
+
+    window.requestAnimationFrame(() => {
+      const target = document.querySelector<HTMLElement>(step.pointerSelector || "");
+      if (!target) return;
+
+      pointerIdRef.current += 1;
+      const id = pointerIdRef.current;
+      const pointerOptions = {
+        id,
+        label: step.pointerLabel,
+        anchorX: step.pointerAnchorX ?? 0.56,
+        anchorY: step.pointerAnchorY ?? 0.50,
+        offsetX: step.pointerOffsetX ?? 0,
+        offsetY: step.pointerOffsetY ?? 0,
+      };
+
+      setPointer(makeSmartBarFakePointerState(target, pointerOptions));
+
+      pointerPulseTimerRef.current = window.setTimeout(() => {
+        pointerPulseTimerRef.current = null;
+        setPointer(makeSmartBarFakePointerState(target, {
+          ...pointerOptions,
+          phase: "pulse",
+        }));
+      }, 260);
+
+      pointerClearTimerRef.current = window.setTimeout(() => {
+        pointerClearTimerRef.current = null;
+        setPointer(null);
+      }, 1180);
+    });
+  }, []);
+
   const submitDemoQuery = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
     submissionIdRef.current += 1;
     setDemoSubmission({ id: submissionIdRef.current, query, meta });
   }, []);
 
-  useEffect(() => () => clearFocus(), [clearFocus]);
+  useEffect(() => () => {
+    clearFocus();
+    clearPointer();
+  }, [clearFocus, clearPointer]);
 
   useEffect(() => {
     if (!autoPlay || autoPlayStartedRef.current) return;
     autoPlayStartedRef.current = true;
 
-    const timers = SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.map((step) =>
-      window.setTimeout(() => submitDemoQuery(step.query), step.delayMs),
-    );
+    const timers = SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.flatMap((step) => {
+      const submitTimer = window.setTimeout(() => {
+        clearPointer();
+        submitDemoQuery(step.query);
+      }, step.delayMs);
 
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [autoPlay, submitDemoQuery]);
+      if (!step.pointerSelector) return [submitTimer];
+
+      const pointerTimer = window.setTimeout(
+        () => showPointer(step),
+        Math.max(0, step.delayMs - (step.pointerLeadMs ?? 900)),
+      );
+
+      return [pointerTimer, submitTimer];
+    });
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      clearPointer();
+    };
+  }, [autoPlay, clearPointer, showPointer, submitDemoQuery]);
 
   const buildInfoResult = useCallback((kind: "primary" | "proof" = "primary"): SmartBarMobileGenericResult => {
     setSurface("info");
@@ -674,6 +822,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       >
         <SmartBarSpeedTargetWall surface={surface} />
       </section>
+      <SmartBarFakePointerOverlay pointer={pointer} />
       <SmartBarMobileShell
         mode="overlay"
         entryModeLabel="Ask SmartBar"
