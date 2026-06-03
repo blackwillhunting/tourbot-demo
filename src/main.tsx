@@ -9,6 +9,7 @@ import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
 import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
 import SmartBarMobileGlassLab from "./components/tourbar/smartbar-mobile/SmartBarMobileGlassLab";
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
+import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -202,6 +203,14 @@ function Router() {
     return (
       <ProtectedDemoRoute>
         <BurgerRushMobileExperience />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/nexapath-play") {
+    return (
+      <ProtectedDemoRoute>
+        <NexaPathMobileExperience />
       </ProtectedDemoRoute>
     );
   }
