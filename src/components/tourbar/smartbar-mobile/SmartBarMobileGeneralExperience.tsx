@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BedDouble, CalendarDays, CreditCard, MessageSquare, Sparkles, Users } from "lucide-react";
+import { BedDouble, CalendarDays, Coffee, CreditCard, MessageSquare, Sparkles, Users } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
   type SmartBarMobileGenericAction,
@@ -32,6 +32,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS = [
   { delayMs: 14600, query: "dbl chzbrger combo lg friez diet coke pie" },
   { delayMs: 21800, query: "Aug 4 to 9, nice room with a view and breakfast, just me" },
   { delayMs: 28800, query: "add breakfast" },
+  { delayMs: 35800, query: "prepare booking summary" },
 ];
 
 function smartBarGeneralCssEscape(value: string) {
@@ -122,72 +123,182 @@ function GeneralMiniCard({
   );
 }
 
+type GeneralChatRole = "smartbar" | "consultant" | "visitor";
+
+const GENERAL_CHAT_ROLE_CLASS: Record<GeneralChatRole, {
+  shell: string;
+  icon: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+}> = {
+  smartbar: {
+    shell: "border-sky-100/42 bg-sky-400/80 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(14,165,233,0.20)] ring-sky-100/32",
+    icon: "bg-slate-950/88 text-sky-200 ring-slate-950/18",
+    eyebrow: "text-slate-950/52",
+    title: "text-slate-950",
+    body: "text-slate-950/78",
+  },
+  consultant: {
+    shell: "border-violet-100/34 bg-violet-500/84 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(124,58,237,0.24)] ring-violet-100/24",
+    icon: "bg-white/14 text-white ring-white/18",
+    eyebrow: "text-white/56",
+    title: "text-white",
+    body: "text-white/78",
+  },
+  visitor: {
+    shell: "border-white/24 bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_26px_rgba(1,33,105,0.30)] ring-white/20",
+    icon: "bg-white/12 text-white ring-white/18",
+    eyebrow: "text-white/52",
+    title: "text-white",
+    body: "text-white/78",
+  },
+};
+
+function GeneralChatBubble({
+  role,
+  eyebrow,
+  title,
+  body,
+  icon,
+}: {
+  role: GeneralChatRole;
+  eyebrow: string;
+  title: string;
+  body: string;
+  icon?: ReactNode;
+}) {
+  const roleClass = GENERAL_CHAT_ROLE_CLASS[role];
+
+  return (
+    <div className={`rounded-[26px] border px-3.5 py-3 ring-1 ${roleClass.shell}`}>
+      <div className="flex items-start gap-3">
+        {icon ? <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${roleClass.icon}`}>{icon}</div> : null}
+        <div className="min-w-0">
+          <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleClass.eyebrow}`}>
+            {eyebrow}
+          </div>
+          <div className={`text-sm font-semibold leading-5 ${roleClass.title}`}>{title}</div>
+          <div className={`mt-1 text-xs font-normal leading-5 ${roleClass.body}`}>{body}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ChatPreviewContent() {
   return (
     <div className="space-y-2.5">
-      <GeneralMiniCard
+      <GeneralChatBubble
+        role="smartbar"
         eyebrow="SmartBar"
         title="Context brief"
         body="Context received — handing this to a consultant."
-        tone="sky"
         icon={<Sparkles className="h-4 w-4" />}
       />
-      <GeneralMiniCard
+      <GeneralChatBubble
+        role="consultant"
         eyebrow="Consultant desk"
         title="Handoff accepted"
         body="Hi there — You’re interested in Copilots? I have the hedge-fund context SmartBar captured."
-        tone="violet"
         icon={<MessageSquare className="h-4 w-4" />}
       />
-      <GeneralMiniCard
+      <GeneralChatBubble
+        role="visitor"
         eyebrow="Visitor"
         title="Follow-up"
         body="Yes, curious about pricing and what setup would look like."
-        tone="slate"
       />
     </div>
   );
 }
 
+type GeneralDomiRoom = {
+  id: string;
+  label: string;
+  title: string;
+  body: string;
+  tone: GeneralMobileTone;
+  price: string;
+};
+
+const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
+  {
+    id: "garden",
+    label: "Value fit",
+    title: "Garden Terrace King",
+    body: "Comfortable and breakfast-compatible, but not the strongest view for this request.",
+    tone: "emerald",
+    price: "$239/night",
+  },
+  {
+    id: "ocean",
+    label: "Best fit",
+    title: "Ocean View Suite",
+    body: "Best balance of view, comfort, and breakfast compatibility without jumping to villa pricing.",
+    tone: "sky",
+    price: "$379/night",
+  },
+  {
+    id: "villa",
+    label: "Premium",
+    title: "Coastal Villa Suite",
+    body: "The strongest view and most space, but more room than this solo stay probably needs.",
+    tone: "violet",
+    price: "$549/night",
+  },
+];
+
+function BookingContextPills() {
+  const pills = [
+    ["Dates", "Aug 4–9", "sky"],
+    ["Guests", "1 guest", "violet"],
+    ["View", "Ocean", "emerald"],
+    ["Meal", "Breakfast", "amber"],
+  ] as const;
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {pills.map(([label, value, tone]) => {
+        const toneClass = GENERAL_MOBILE_TONE_CLASS[tone];
+        return (
+          <div key={label} className={`rounded-full border px-3 py-2 text-center ring-1 ${toneClass.card}`}>
+            <div className={`text-[9px] font-black uppercase tracking-[0.14em] ${toneClass.eyebrow}`}>{label}</div>
+            <div className={`mt-0.5 truncate text-[12px] font-black ${toneClass.title}`}>{value}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BookingTourContent({ step }: { step: number }) {
-  const steps = [
-    {
-      title: "Garden Terrace King",
-      body: "Best value recommendation. Good comfort and breakfast-compatible, but not the strongest view.",
-    },
-    {
-      title: "Ocean View Suite",
-      body: "Best fit for view + breakfast without jumping to villa pricing.",
-    },
-    {
-      title: "Coastal Villa Suite",
-      body: "Premium view and space, but a higher price tier than the request needs.",
-    },
-  ];
-  const active = steps[Math.min(Math.max(step, 0), steps.length - 1)];
+  const activeRoomIndex = Math.min(Math.max(step, 0), GENERAL_DOMI_ROOMS.length - 1);
+  const room = GENERAL_DOMI_ROOMS[activeRoomIndex];
 
   return (
     <div className="space-y-3">
       <GeneralMiniCard
-        eyebrow="Recommended room"
-        title={active.title}
-        body={active.body}
-        tone={step === 0 ? "emerald" : step === 1 ? "sky" : "violet"}
+        eyebrow={room.label}
+        title={room.title}
+        body={`${room.body} ${room.price}.`}
+        tone={room.tone}
         icon={<BedDouble className="h-4 w-4" />}
       />
+      <BookingContextPills />
       <div className="grid grid-cols-3 gap-2">
-        {steps.map((item, index) => (
+        {GENERAL_DOMI_ROOMS.map((item, index) => (
           <div
-            key={item.title}
+            key={item.id}
             className={`rounded-[18px] px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${
-              index === step
+              index === activeRoomIndex
                 ? "bg-sky-300 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_8px_18px_rgba(14,165,233,0.20)] ring-sky-100/40"
                 : "bg-slate-950/82 text-white/72 ring-white/14"
             }`}
             aria-label={item.title}
           >
             <span className="block text-[11px] leading-none">{index + 1}</span>
-            <span className="mt-1 block truncate text-[8px] leading-none opacity-70">{index === 0 ? "Value" : index === 1 ? "View" : "Villa"}</span>
+            <span className="mt-1 block truncate text-[8px] leading-none opacity-70">{item.label}</span>
           </div>
         ))}
       </div>
@@ -195,12 +306,27 @@ function BookingTourContent({ step }: { step: number }) {
   );
 }
 
+function BookingBreakfastContent() {
+  return (
+    <div className="space-y-3">
+      <GeneralMiniCard
+        eyebrow="Package attached"
+        title="Breakfast Flex Plan"
+        body="Breakfast is attached to the Ocean View Suite without losing the room, date, or guest context. +$32/night."
+        tone="amber"
+        icon={<Coffee className="h-4 w-4" />}
+      />
+      <BookingContextPills />
+    </div>
+  );
+}
+
 function BookingSummaryContent() {
   const rows: Array<[string, string, GeneralMobileTone, ReactNode]> = [
     ["Room", "Ocean View Suite", "sky", <BedDouble className="h-3.5 w-3.5" />],
-    ["Add-on", "Breakfast Flex Plan", "emerald", <Sparkles className="h-3.5 w-3.5" />],
+    ["Add-on", "Breakfast Flex Plan", "amber", <Coffee className="h-3.5 w-3.5" />],
     ["Dates", "Aug 4–9, 2026", "violet", <CalendarDays className="h-3.5 w-3.5" />],
-    ["Guests", "1 guest", "amber", <Users className="h-3.5 w-3.5" />],
+    ["Guests", "1 guest", "emerald", <Users className="h-3.5 w-3.5" />],
     ["Estimate", "$379/night + $32/night", "slate", <CreditCard className="h-3.5 w-3.5" />],
   ];
 
@@ -266,6 +392,7 @@ function readyGeneralCarryoutOrder(): SmartBarMobileOrderResult {
 export default function SmartBarMobileGeneralExperience({ autoPlay = false }: SmartBarMobileGeneralExperienceProps) {
   const [surface, setSurface] = useState<SmartBarSpeedSurface>("info");
   const [bookingStep, setBookingStep] = useState(1);
+  const [breakfastAdded, setBreakfastAdded] = useState(false);
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
   const submissionIdRef = useRef(0);
   const autoPlayStartedRef = useRef(false);
@@ -420,36 +547,67 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
   const buildOrderResult = useCallback((): SmartBarMobileOrderResult => {
     setSurface("ordering");
-    focusTarget("section-combos", { resetToTop: true });
+    focusTarget("smartbar-order-combo", { resetToTop: true });
     return readyGeneralCarryoutOrder();
   }, [focusTarget]);
 
   const buildBookingTourResult = useCallback((nextStep = bookingStep): SmartBarMobileGenericResult => {
-    const safeStep = Math.min(Math.max(nextStep, 0), 2);
+    const safeStep = Math.min(Math.max(nextStep, 0), GENERAL_DOMI_ROOMS.length - 1);
     setBookingStep(safeStep);
     setSurface("booking");
-    focusTarget(safeStep === 0 ? "room-finder" : safeStep === 1 ? "package-breakfast-flex" : "booking-summary-card", { resetToTop: true });
+    focusTarget("smartbar-booking-rooms", { resetToTop: true });
+
+    const activeRoom = GENERAL_DOMI_ROOMS[safeStep];
 
     return {
       surfaceKind: "booking_tour",
       eyebrow: "Domi Hotel",
-      title: "Room path ranked",
-      statusLabel: "Tour mode",
-      progressLabel: "Tour",
+      title: activeRoom.title,
+      statusLabel: activeRoom.label,
+      progressLabel: "Rooms",
       progressCurrent: safeStep + 1,
-      progressTotal: 3,
+      progressTotal: GENERAL_DOMI_ROOMS.length,
       content: <BookingTourContent step={safeStep} />,
+      helper: "SmartBar keeps room, view, breakfast, dates, and guest context together while you compare options.",
       actions: [
-        { id: "booking-back", label: "Back", variant: "secondary", disabled: safeStep === 0 },
-        { id: "booking-next", label: safeStep >= 2 ? "Prepare booking summary" : "Next room", helper: safeStep >= 2 ? "Package the choice" : "Continue tour" },
+        { id: "booking-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
+        { id: "booking-next", label: "Next room", disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1 },
+        { id: "add-breakfast", label: breakfastAdded ? "Breakfast already added" : "Add breakfast", variant: breakfastAdded ? "secondary" : "primary" },
+        { id: "prepare-booking", label: "Prepare booking summary", variant: "secondary" },
       ],
-      height: 530,
+      height: 570,
     };
-  }, [bookingStep, focusTarget]);
+  }, [bookingStep, breakfastAdded, focusTarget]);
+
+  const buildBookingBreakfastResult = useCallback((): SmartBarMobileGenericResult => {
+    setBreakfastAdded(true);
+    setBookingStep(1);
+    setSurface("booking");
+    focusTarget("smartbar-booking-breakfast", { resetToTop: true });
+
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Domi Hotel",
+      title: "Breakfast added",
+      statusLabel: "Add-on",
+      progressLabel: "Package",
+      progressCurrent: 2,
+      progressTotal: 3,
+      content: <BookingBreakfastContent />,
+      helper: "The add-on attaches to the active stay plan instead of replacing the room recommendation.",
+      actions: [
+        { id: "show-rooms", label: "Review rooms", variant: "secondary" },
+        { id: "prepare-booking", label: "Prepare booking summary" },
+      ],
+      height: 500,
+    };
+  }, [focusTarget]);
 
   const buildBookingSummaryResult = useCallback((): SmartBarMobileGenericResult => {
+    setBreakfastAdded(true);
+    setBookingStep(1);
     setSurface("booking");
-    focusTarget("booking-summary-card", { resetToTop: true });
+    focusTarget("smartbar-booking-summary", { resetToTop: true });
 
     return {
       surfaceKind: "booking_summary",
@@ -470,23 +628,43 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     if (text.includes("__nexa_proof") || text.includes("proof")) return buildInfoResult("proof");
     if (text.includes("consultant") || text.includes("pricing") || text.includes("talk to someone")) return buildChatResult();
     if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez") || text.includes("burger")) return buildOrderResult();
-    if (text.includes("__booking_back")) return buildBookingTourResult(bookingStep - 1);
-    if (text.includes("__booking_next")) {
-      if (bookingStep >= 2) return buildBookingSummaryResult();
+    if (text.includes("__booking_back") || text.includes("previous room") || text.includes("back room")) {
+      return buildBookingTourResult(bookingStep - 1);
+    }
+    if (text.includes("__booking_next") || text.includes("next room")) {
       return buildBookingTourResult(bookingStep + 1);
     }
-    if (text.includes("breakfast") || text.includes("book") || text.includes("summary")) return buildBookingSummaryResult();
+    if (text.includes("add breakfast") || text.includes("breakfast added") || text.includes("package") || text.includes("add-on") || text.includes("addon")) {
+      return buildBookingBreakfastResult();
+    }
+    if (text.includes("prepare") || text.includes("reserve") || text.includes("book") || text.includes("summary")) {
+      return buildBookingSummaryResult();
+    }
+    if (text.includes("villa") || text.includes("premium") || text.includes("expensive")) return buildBookingTourResult(2);
+    if (text.includes("garden") || text.includes("cheap") || text.includes("value")) return buildBookingTourResult(0);
     if (text.includes("room") || text.includes("view") || text.includes("aug") || text.includes("hotel")) return buildBookingTourResult(1);
 
     return buildInfoResult("primary");
-  }, [bookingStep, buildBookingSummaryResult, buildBookingTourResult, buildChatResult, buildInfoResult, buildOrderResult]);
+  }, [
+    bookingStep,
+    buildBookingBreakfastResult,
+    buildBookingSummaryResult,
+    buildBookingTourResult,
+    buildChatResult,
+    buildInfoResult,
+    buildOrderResult,
+  ]);
 
   const handleGenericAction = useCallback((action: SmartBarMobileGenericAction) => {
+    if (action.disabled) return;
     if (action.id === "show-proof") submitDemoQuery("__nexa_proof");
     if (action.id === "consultant") submitDemoQuery("Perfect, can I talk to someone?");
     if (action.id === "start-order") submitDemoQuery("dbl chzbrger combo lg friez diet coke pie");
     if (action.id === "booking-back") submitDemoQuery("__booking_back");
     if (action.id === "booking-next") submitDemoQuery("__booking_next");
+    if (action.id === "add-breakfast") submitDemoQuery("add breakfast");
+    if (action.id === "prepare-booking") submitDemoQuery("prepare booking summary");
+    if (action.id === "show-rooms") submitDemoQuery("show ocean view room");
     if (action.id === "restart-info") submitDemoQuery("we're a hedge fund, need help with IT and setting up copilots");
   }, [submitDemoQuery]);
 
