@@ -247,8 +247,19 @@ function contentFor(result: TourBarResult): ReactNode | undefined {
   );
 }
 
+function estimateInfoResultHeight(body: string, actionCount: number) {
+  const cleanBody = compactText(body);
+  const estimatedLines = Math.max(1, Math.ceil(cleanBody.length / 48));
+  const answerBlockHeight = 46 + estimatedLines * 26;
+  const actionBlockHeight = actionCount > 0 ? 18 + actionCount * 68 : 0;
+
+  return Math.min(620, Math.max(actionCount > 0 ? 340 : 280, answerBlockHeight + actionBlockHeight + 42));
+}
+
 function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
   const actions = actionsFor(result);
+  const body = resultBody(result);
+  const estimatedHeight = estimateInfoResultHeight(body, actions.length);
 
   return {
     surfaceKind: "info",
@@ -258,7 +269,7 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     helper: helperText(result),
     statusLabel: hasNavigation(result) ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
     actions,
-    height: actions.length ? 250 : 200,
+    height: estimatedHeight,
     content: contentFor(result),
   };
 }

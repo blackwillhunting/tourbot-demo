@@ -525,10 +525,9 @@ export default function SmartBarMobileShell({
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const genericPanelHeight = genericResult
-    ? Math.min(
-        maxCartPanelHeight,
-        Math.max(genericResult.surfaceKind === "info" ? 180 : 260, genericResult.height ?? 388),
-      )
+    ? genericResult.surfaceKind === "info"
+      ? Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 320))
+      : Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 388))
     : 0;
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
