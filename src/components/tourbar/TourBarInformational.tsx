@@ -196,6 +196,7 @@ export default function TourBarInformational({
 }) {
   return (
     <TourBarShell
+      smartBarMobileChrome
       consultantChat={{
         enabled: true,
         eyebrow: "Consultant handoff",
