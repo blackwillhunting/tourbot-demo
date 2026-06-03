@@ -268,7 +268,7 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     helper: helperText(result),
     statusLabel: hasNavigation(result) ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
     actions,
-    height: actions.length ? 410 : 320,
+    height: actions.length ? 360 : 300,
     content: contentFor(result),
   };
 }
