@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import {
@@ -304,7 +304,7 @@ function MarkdownLite({ text }: { text: string }) {
       continue;
     }
 
-    const bulletMatch = line.match(/^[-*â€¢]\s+(.+)$/);
+    const bulletMatch = line.match(/^[-*•]\s+(.+)$/);
     const orderedMatch = line.match(/^\d+[.)]\s+(.+)$/);
 
     if (bulletMatch || orderedMatch) {
@@ -386,7 +386,7 @@ function shouldUseMobileActionResult(result?: TourBarShellResult | null) {
 function stripMobileMarkdownText(text: string) {
   return normalizeMarkdownLite(text)
     .split("\n")
-    .map((line) => line.replace(/^[-*â€¢]\s+/, "").replace(/^\d+[.)]\s+/, "").trim())
+    .map((line) => line.replace(/^[-*•]\s+/, "").replace(/^\d+[.)]\s+/, "").trim())
     .filter(Boolean)
     .join(" ")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
@@ -402,9 +402,9 @@ function compactMobileResultText(text: string) {
   const firstTwoSentences = sentences.slice(0, 2).join(" ").replace(/\s+/g, " ").trim();
 
   if (firstTwoSentences && firstTwoSentences.length <= 260) return firstTwoSentences;
-  if (firstTwoSentences) return `${firstTwoSentences.slice(0, 257).trim()}â€¦`;
+  if (firstTwoSentences) return `${firstTwoSentences.slice(0, 257).trim()}…`;
 
-  return `${clean.slice(0, 237).trim()}â€¦`;
+  return `${clean.slice(0, 237).trim()}…`;
 }
 
 function MobilePlainText({ text, appearance = "dark" }: { text: string; appearance?: TourBarShellAppearance }) {
@@ -468,8 +468,8 @@ export default function TourBarShell({
   launcherTitle = "TourBar natural-language search",
   launcherAriaLabel = "Open TourBar natural-language search",
   resultEyebrow = "Focus result",
-  initialLoadingMessage = "Finding the right part of this siteâ€¦",
-  followUpLoadingMessage = "Thinking through that follow-upâ€¦",
+  initialLoadingMessage = "Finding the right part of this site…",
+  followUpLoadingMessage = "Thinking through that follow-up…",
   requireBookingContext = false,
   appearance = "dark",
   smartBarMobileChrome = false,
@@ -608,9 +608,9 @@ export default function TourBarShell({
 
     consultantChatAutoStartedRef.current = true;
     const handoffStatusMessage =
-      consultantChat?.autoStartMessage || "Context received â€” handing this to a consultant.";
+      consultantChat?.autoStartMessage || "Context received — handing this to a consultant.";
     const consultantOpeningMessage =
-      consultantChat?.autoStartConsultantMessage || "Hi there â€” Youâ€™re interested in Copilot support?";
+      consultantChat?.autoStartConsultantMessage || "Hi there — You’re interested in Copilot support?";
     const statusId = makeConsultantChatId();
 
     setConsultantChatThread([
@@ -1224,7 +1224,7 @@ export default function TourBarShell({
     }
   }, [demoCommand?.id]);
 
-  const showLoadingSheet = isLoading && (!isPhoneShellViewport || smartBarMobileChrome);
+  const showLoadingSheet = isLoading && !isPhoneShellViewport;
   const sheetVisible = showLoadingSheet || Boolean(error) || Boolean(result) || Boolean(standaloneResult);
   const consultantChatVisible = consultantChatIsEnabled(consultantChat) && consultantChatOpen;
   const regularSheetVisible = sheetVisible && !consultantChatVisible;
@@ -1315,20 +1315,16 @@ export default function TourBarShell({
   const mobileConsultantSheetTitle = isPhoneShellViewport
     ? consultantChat?.title || "Consultant chat"
     : "";
-  const mobileGlassChrome = isPhoneShellViewport && smartBarMobileChrome;
-  const mobileSheetMaxHeight = mobileGlassChrome
-    ? "min(calc(100svh - 24px), 720px)"
-    : activeCollectionField === "dates"
-      ? "min(82svh, 680px)"
-      : activeCollectionField === "guests"
-        ? "min(82svh, 640px)"
-        : "min(78svh, 680px)";
-  const mobileSheetInnerMaxHeight = mobileGlassChrome
-    ? `calc(${mobileSheetMaxHeight} - 128px)`
-    : `calc(${mobileSheetMaxHeight} - 56px)`;
+  const mobileSheetMaxHeight = activeCollectionField === "dates"
+    ? "min(82svh, 680px)"
+    : activeCollectionField === "guests"
+      ? "min(82svh, 640px)"
+      : "min(78svh, 680px)";
+  const mobileSheetInnerMaxHeight = `calc(${mobileSheetMaxHeight} - 56px)`;
 
   const resolvedAppearance = resolveTourBarShellAppearance(appearance, isPhoneShellViewport);
   const isLightShell = resolvedAppearance === "light";
+  const mobileGlassChrome = isPhoneShellViewport && smartBarMobileChrome;
   const mobileVisualAppearance: TourBarShellAppearance = mobileGlassChrome ? "dark" : resolvedAppearance;
   const mobileShellStyles = getSmartBarMobileShellStyles(true, false);
 
@@ -1348,13 +1344,13 @@ export default function TourBarShell({
 
   const shellSheetAnchorClass = isPhoneShellViewport
     ? mobileGlassChrome
-      ? "pointer-events-auto absolute left-0 right-0 bottom-0 z-0 min-h-0 overflow-hidden rounded-[30px]"
+      ? "pointer-events-auto absolute left-0 right-0 bottom-[calc(100%+8px)] max-h-[78svh] min-h-0 overflow-hidden rounded-[30px]"
       : "absolute left-0 right-0 bottom-[calc(100%-1px)] max-h-[78svh] min-h-0 overflow-hidden"
     : "absolute left-0 right-0 top-[calc(100%-1px)] overflow-hidden";
 
   const shellSheetPanelClass = isPhoneShellViewport
     ? mobileGlassChrome
-      ? `${mobileShellStyles.upperGlassClass} min-h-0 rounded-[30px] p-2 pb-[82px]`
+      ? `${mobileShellStyles.upperGlassClass} max-h-[78svh] min-h-0 rounded-[30px] p-2`
       : isLightShell
         ? "max-h-[78svh] min-h-0 overflow-hidden border border-slate-200/80 bg-white/96 p-2 text-slate-950 shadow-[0_28px_76px_rgba(15,23,42,0.18)] ring-1 ring-white/90 backdrop-blur-xl"
         : "max-h-[78svh] min-h-0 overflow-hidden bg-slate-950 p-2 text-white shadow-[0_28px_76px_rgba(2,6,23,0.50)]"
@@ -1374,7 +1370,7 @@ export default function TourBarShell({
 
   const shellSheetBodyClass = isPhoneShellViewport
     ? mobileGlassChrome
-      ? "min-h-0 space-y-2 overflow-y-auto overscroll-contain px-3 pb-3 pt-1"
+      ? "min-h-0 space-y-2 overflow-y-auto overscroll-contain px-2 pb-3 pt-1"
       : "min-h-0 space-y-2 overflow-y-auto overscroll-contain p-2 pb-3"
     : "space-y-3 px-4 py-3";
 
@@ -1502,7 +1498,7 @@ export default function TourBarShell({
                     data-smartbar-launcher="true"
                     data-smartbar-pointer-kind="launcher"
                     className={mobileGlassChrome
-                      ? `${mobileShellStyles.chromePillClass} left-0 right-0 z-20 h-[60px] px-5`
+                      ? `${mobileShellStyles.chromePillClass} left-0 right-0 h-[60px] px-5`
                       : isLightShell
                         ? "flex h-[76px] w-full items-center justify-center overflow-hidden border-t border-slate-200/80 bg-white/96 px-4 text-slate-600 shadow-[0_-14px_32px_rgba(15,23,42,0.12)] transition hover:bg-white hover:text-slate-950"
                         : "flex h-[76px] w-full items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 transition hover:bg-slate-900 hover:text-white/90"
@@ -1536,7 +1532,7 @@ export default function TourBarShell({
                     key="tourbar-mobile-entry-composer"
                     initial={false}
                   >
-                    <div className={isPhoneShellViewport ? mobileGlassChrome ? `pointer-events-auto relative z-20 min-h-[76px] overflow-visible rounded-[30px] ${mobileShellStyles.upperGlassClass}` : `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
+                    <div className={isPhoneShellViewport ? mobileGlassChrome ? `pointer-events-auto min-h-[76px] overflow-visible rounded-[30px] ${mobileShellStyles.upperGlassClass}` : `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
                   <div className={isPhoneShellViewport ? "flex min-h-[76px] items-start gap-2 px-3 pb-2 pt-3" : "flex items-end gap-2 px-3 py-2"}>
                     <span className={isPhoneShellViewport ? mobileGlassChrome ? `mt-1 ${mobileShellStyles.chromeIconBubbleClass}` : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center ${isLightShell ? "text-orange-500" : "text-white/85"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
                       <Search className="h-4 w-4" />
@@ -1802,4 +1798,3 @@ export default function TourBarShell({
 
   return isPhoneShellViewport ? createPortal(shellMarkup, document.body) : shellMarkup;
 }
-

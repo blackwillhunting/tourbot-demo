@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
@@ -318,7 +318,7 @@ function linePrice(line: CarryoutLine) {
 }
 
 function lineLabel(line: CarryoutLine) {
-  return `${(line.quantity || 1) > 1 ? `${line.quantity} Ã— ` : ""}${line.title || line.id || "Item"}`;
+  return `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`;
 }
 
 function targetForLine(line: CarryoutLine, narrative?: StepNarrative, fallbackTarget?: string) {
@@ -1064,7 +1064,7 @@ function cannotMatchReason(item: CannotMatchItem, notOnMenuLabel = DEFAULT_NOT_O
 }
 
 function formatLinePrice(line: CarryoutLine) {
-  return linePrice(line) || "â€”";
+  return linePrice(line) || "—";
 }
 
 function lineHasOptionalChoices(entry: ReviewItem) {
@@ -1550,7 +1550,7 @@ export function OrderReview({
   };
 
   const renderCartLine = (entry: ReviewItem, state: Exclude<CartLineState, "unrecognized">, index = 0) => {
-    const qty = typeof entry.line.quantity === "number" && entry.line.quantity > 1 ? `${entry.line.quantity} Ã— ` : "";
+    const qty = typeof entry.line.quantity === "number" && entry.line.quantity > 1 ? `${entry.line.quantity} × ` : "";
     const details = lineDetails(entry.line, entry.groups);
     const missingSummary = lineMissingSummary(entry.line, entry.groups);
     const helperText =
@@ -1731,7 +1731,7 @@ export function OrderReview({
                     )}
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px] ${cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
-                    â€”
+                    —
                   </span>
                 </div>
               </button>
@@ -1780,7 +1780,7 @@ export function OrderReview({
                   aria-label="Close retry panel"
                   className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
                 >
-                  Ã—
+                  ×
                 </button>
               </div>
               <label className={`mt-3 block text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-slate-400 md:text-slate-500"}`}>
@@ -1869,7 +1869,7 @@ export function OrderReview({
                 aria-label="Close cart action panel"
                 className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
               >
-                Ã—
+                ×
               </button>
             </div>
 
@@ -1904,7 +1904,7 @@ export function OrderReview({
                               aria-pressed={selected}
                               className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
                             >
-                              {selected ? "âœ“ " : ""}
+                              {selected ? "✓ " : ""}
                               {displayLabel}
                               {formatPriceDelta((option as { priceDelta?: number | null }).priceDelta)}
                             </button>
@@ -2073,8 +2073,8 @@ export default function TourBarOrdering({
   launcherTitle = "TourBar carryout ordering",
   launcherAriaLabel = "Open TourBar carryout ordering",
   resultEyebrow = "BurgerRush order",
-  initialLoadingMessage = "Building your BurgerRush draft cartâ€¦",
-  followUpLoadingMessage = "Updating your orderâ€¦",
+  initialLoadingMessage = "Building your BurgerRush draft cart…",
+  followUpLoadingMessage = "Updating your order…",
 }: TourBarOrderingProps) {
   const [carryoutOrder, setCarryoutOrderState] = useState<CarryoutOrder | null>(null);
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);

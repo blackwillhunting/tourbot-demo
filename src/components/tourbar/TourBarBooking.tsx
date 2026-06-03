@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import { commerceGuideConfig } from "../../commerce/commerceGuideConfig";
 import TourBarShell, {
@@ -471,7 +471,7 @@ export function TourBarNavigationControls({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-200/65 md:text-cyan-700/70">
-            Guided stops Â· {activeIndex + 1} of {state.steps.length}
+            Guided stops · {activeIndex + 1} of {state.steps.length}
           </div>
           <div className="mt-1 truncate font-semibold text-white md:text-cyan-950">
             {active.targetText || active.targetId}
@@ -1448,8 +1448,8 @@ export default function TourBarBooking({ site }: TourBarBookingProps) {
       launcherTitle="Open TourBar hotel booking"
       launcherAriaLabel="Open TourBar hotel booking"
       resultEyebrow="TourBar booking"
-      initialLoadingMessage="Resolving the lowest valid room setupâ€¦"
-      followUpLoadingMessage="Rechecking the matrixâ€¦"
+      initialLoadingMessage="Resolving the lowest valid room setup…"
+      followUpLoadingMessage="Rechecking the matrix…"
       onPrimarySubmit={submitTourBarHotelBooking}
       onFollowUpSubmit={submitTourBarHotelBooking}
       onResult={focusTourBarTarget}
