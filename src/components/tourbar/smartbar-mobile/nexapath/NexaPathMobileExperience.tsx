@@ -100,28 +100,91 @@ function NexaPathMiniCard({
   );
 }
 
+type NexaPathChatRole = "smartbar" | "consultant" | "visitor";
+
+const NEXAPATH_CHAT_ROLE_CLASS: Record<NexaPathChatRole, {
+  shell: string;
+  icon: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+}> = {
+  smartbar: {
+    shell: "border-sky-100/42 bg-sky-400/80 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(14,165,233,0.20)] ring-sky-100/32",
+    icon: "bg-slate-950/88 text-sky-200 ring-slate-950/18",
+    eyebrow: "text-slate-950/52",
+    title: "text-slate-950",
+    body: "text-slate-950/78",
+  },
+  consultant: {
+    shell: "border-violet-100/34 bg-violet-500/84 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(124,58,237,0.24)] ring-violet-100/24",
+    icon: "bg-white/14 text-white ring-white/18",
+    eyebrow: "text-white/56",
+    title: "text-white",
+    body: "text-white/78",
+  },
+  visitor: {
+    shell: "border-white/24 bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_26px_rgba(1,33,105,0.30)] ring-white/20",
+    icon: "bg-white/12 text-white ring-white/18",
+    eyebrow: "text-white/52",
+    title: "text-white",
+    body: "text-white/78",
+  },
+};
+
+function NexaPathChatBubble({
+  role,
+  eyebrow,
+  title,
+  body,
+  icon,
+}: {
+  role: NexaPathChatRole;
+  eyebrow: string;
+  title: string;
+  body: string;
+  icon?: ReactNode;
+}) {
+  const roleClass = NEXAPATH_CHAT_ROLE_CLASS[role];
+
+  return (
+    <div className={`rounded-[26px] border px-3.5 py-3 ring-1 ${roleClass.shell}`}>
+      <div className="flex items-start gap-3">
+        {icon ? <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${roleClass.icon}`}>{icon}</div> : null}
+        <div className="min-w-0">
+          <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleClass.eyebrow}`}>
+            {eyebrow}
+          </div>
+          <div className={`text-sm font-semibold leading-5 ${roleClass.title}`}>{title}</div>
+          <div className={`mt-1 text-xs font-normal leading-5 ${roleClass.body}`}>{body}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NexaPathChatPreviewContent() {
   return (
     <div className="space-y-2.5">
-      <NexaPathMiniCard
+      <NexaPathChatBubble
+        role="smartbar"
         eyebrow="SmartBar"
         title="Context brief"
         body="Context received — handing this to a consultant."
-        tone="sky"
         icon={<Sparkles className="h-4 w-4" />}
       />
-      <NexaPathMiniCard
+      <NexaPathChatBubble
+        role="consultant"
         eyebrow="Consultant desk"
         title="Handoff accepted"
         body="Hi there — You’re interested in Copilots? I have the hedge-fund context SmartBar captured."
-        tone="violet"
         icon={<MessageSquare className="h-4 w-4" />}
       />
-      <NexaPathMiniCard
+      <NexaPathChatBubble
+        role="visitor"
         eyebrow="Visitor"
         title="Follow-up"
         body="Yes, curious about pricing and what setup would look like."
-        tone="slate"
       />
     </div>
   );
