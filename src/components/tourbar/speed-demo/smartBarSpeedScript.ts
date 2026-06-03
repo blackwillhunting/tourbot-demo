@@ -1163,10 +1163,10 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         finalHoldMs: 1400,
         cards: [
           "Prefills your POS",
-          "You handle the money",
+          "You handle the rest",
         ],
       },
-      { kind: "pause", delayMs: 5600 },
+      { kind: "pause", delayMs: 3600 },
     ],
   },
   {
@@ -1183,18 +1183,18 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         value: "cheeseburger, fries and a milkshake",
         delayMs: 250,
       },
-      {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1500,
-        cards: [
-          // "Missing choices",
-          // "Only blockers are flagged",
-          // "Cart stays intact",
-        ],
-      },
+      // {
+      //   kind: "cards",
+      //   mode: "standard",
+      //   density: "normal",
+      //   holdMs: 1000,
+      //   finalHoldMs: 1500,
+      //   cards: [
+      //     // "Missing choices",
+      //     // "Only blockers are flagged",
+      //     // "Cart stays intact",
+      //   ],
+      // },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-submit="true"]',
@@ -1214,17 +1214,17 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
     surface: "ordering",
     commands: [
       {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1500,
-        cards: [
-          "Red items",
-          "Choices required",
-          // "Checkout unlocks when ready",
-        ],
-      },
+         kind: "cards",
+         mode: "standard",
+         density: "normal",
+         holdMs: 1000,
+         finalHoldMs: 1500,
+         cards: [
+           "Red items",
+           "Choices required",
+           // "Checkout unlocks when ready",
+         ],
+       },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-line-title-key*="cheeseburger"]',
@@ -1323,6 +1323,15 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
         delayMs: 250,
       },
       {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-submit="true"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 2400 },
+      {
         kind: "cards",
         mode: "standard",
         density: "normal",
@@ -1334,15 +1343,6 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
           "but options available",
         ],
       },
-      {
-        kind: "pointerClick",
-        targetSelector: '[data-smartbar-mobile-submit="true"]',
-        label: "",
-        click: true,
-        delayMs: 250,
-        pulseMs: 820,
-      },
-      { kind: "pause", delayMs: 2400 },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-line-title-key*="cheeseburger"]',
