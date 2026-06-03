@@ -11,6 +11,7 @@ import SmartBarMobileGlassLab from "./components/tourbar/smartbar-mobile/SmartBa
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
+import SmartBarLiveMobileRuntime from "./components/tourbar/smartbar-mobile/SmartBarLiveMobileRuntime";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -198,6 +199,14 @@ function Router() {
 
   if (path === "/burger-rush-glass-lab") {
     return <SmartBarMobileGlassLab />;
+  }
+
+  if (path === "/smartbar-mobile-live-test") {
+    return (
+      <ProtectedDemoRoute>
+        <SmartBarLiveMobileRuntime lane="informational" />
+      </ProtectedDemoRoute>
+    );
   }
 
   if (path === "/burger-rush-play") {
