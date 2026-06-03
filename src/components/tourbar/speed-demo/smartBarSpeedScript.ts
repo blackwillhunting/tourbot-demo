@@ -785,18 +785,18 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       { kind: "typePrimary", value: "cheeseburger, fries and a milkshake", delayMs: 250 },
-      {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1600,
-        cards: [
-          "Missing choices",
-          "Only blockers are flagged",
-          "Cart stays intact",
-        ],
-      },
+      // {
+      //   kind: "cards",
+      //   mode: "standard",
+      //   density: "normal",
+      //   holdMs: 1000,
+      //   finalHoldMs: 1600,
+      //   cards: [
+      //     "Missing choices",
+      //     "Only blockers are flagged",
+      //     "Cart stays intact",
+      //   ],
+      // },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-primary-submit="true"]',
@@ -822,9 +822,9 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
         holdMs: 1000,
         finalHoldMs: 1500,
         cards: [
-          "One choice at a time",
-          "Cart updates live",
-          "Checkout unlocks when ready",
+          "Red items",
+          "Choices required",
+          // "Checkout unlocks when ready",
         ],
       },
       {
@@ -879,18 +879,18 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       { kind: "typePrimary", value: "cheeseburger no onions, show burger options", delayMs: 250 },
-      {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1500,
-        cards: [
-          "Extras stay optional",
-          "Add bacon",
-          "Checkout stays open",
-        ],
-      },
+      // {
+      //   kind: "cards",
+      //   mode: "standard",
+      //   density: "normal",
+      //   holdMs: 1000,
+      //   finalHoldMs: 1500,
+      //   cards: [
+      //     "Extras stay optional",
+      //     "Add bacon",
+      //     "Checkout stays open",
+      //   ],
+      // },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-primary-submit="true"]',
@@ -900,6 +900,18 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       },
       { kind: "submitPrimary", delayMs: 650 },
       { kind: "pause", delayMs: 1050 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 1000,
+        finalHoldMs: 1600,
+        cards: [
+          "Yelow items",
+          "All set",
+          "but options available",
+        ],
+      },
       {
         kind: "pointerClick",
         targetSelector: '[data-tourbar-cart-line-state="optional"] button',
@@ -950,18 +962,18 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "shell", type: "closeChat", delayMs: 80 },
       { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 900 },
       { kind: "typePrimary", value: "cheeseburger, large fries, lava tacos", delayMs: 250 },
-      {
-        kind: "cards",
-        mode: "standard",
-        density: "normal",
-        holdMs: 1000,
-        finalHoldMs: 1500,
-        cards: [
-          "Bad item isolated",
-          "Matched items stay ready",
-          "Retry replaces the gray row",
-        ],
-      },
+      // {
+      //   kind: "cards",
+      //   mode: "standard",
+      //   density: "normal",
+      //   holdMs: 1000,
+      //   finalHoldMs: 1500,
+      //   cards: [
+      //     "Bad item isolated",
+      //     "Matched items stay ready",
+      //     "Retry replaces the gray row",
+      //   ],
+      // },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-primary-submit="true"]',
@@ -971,6 +983,18 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       },
       { kind: "submitPrimary", delayMs: 650 },
       { kind: "pause", delayMs: 1100 },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 1000,
+        finalHoldMs: 1600,
+        cards: [
+          "Gray item",
+          "Not on the menu",
+          // "Cart stays intact",
+        ],
+      },
       {
         kind: "pointerClick",
         targetSelector: '[data-tourbar-cart-line-state="unrecognized"]',
@@ -1022,8 +1046,8 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
         holdMs: 900,
         finalHoldMs: 1500,
         cards: [
-          "Not a burger-shop toy.",
-          "Real menu complexity.",
+          // "Not a burger-shop toy.",
+          "Any menu.",
           "Modifiers.",
           "Sizes.",
           "Missing choices.",
