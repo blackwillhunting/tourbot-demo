@@ -509,7 +509,6 @@ export default function TourBarShell({
   const consultantChatAutoStartedRef = useRef(false);
   const [isPhoneShellViewport, setIsPhoneShellViewport] = useState(() => isSmartBarPhoneViewport());
   const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(false);
-  const [mobileSubmittedPrompt, setMobileSubmittedPrompt] = useState("");
 
   useEffect(() => {
     const viewportQuery = window.matchMedia("(max-width: 767px)");
@@ -532,10 +531,6 @@ export default function TourBarShell({
   const openComposer = () => {
     setIsOpen(true);
     setMobileComposerCollapsed(false);
-
-    if (isPhoneShellViewport && !result && !standaloneResult && !error && !isLoading) {
-      setMobileSubmittedPrompt("");
-    }
 
     if (isPhoneShellViewport) {
       window.requestAnimationFrame(() => {
@@ -769,7 +764,6 @@ export default function TourBarShell({
 
     setBookingContextReturnResult(null);
     setIsOpen(true);
-    if (isPhoneShellViewport) setMobileSubmittedPrompt(cleanQuery);
     setQuery(isPhoneShellViewport ? "" : cleanQuery);
     setFollowUp("");
     collapseMobileComposer();
@@ -851,7 +845,6 @@ export default function TourBarShell({
 
     setBookingContextReturnResult(null);
     setIsOpen(true);
-    if (isPhoneShellViewport) setMobileSubmittedPrompt(cleanFollowUp);
     setError("");
     setFollowUp("");
     collapseMobileComposer();
@@ -965,7 +958,6 @@ export default function TourBarShell({
     setError("");
     setResult(null);
     setStandaloneResult(null);
-    setMobileSubmittedPrompt("");
     setFollowUp("");
     setIsLoading(false);
     setIsAnswering(false);
@@ -986,7 +978,6 @@ export default function TourBarShell({
     setIsOpen(false);
     setMobileComposerCollapsed(false);
     setQuery("");
-    setMobileSubmittedPrompt("");
   };
 
   const runNextMove = async () => {
@@ -1440,233 +1431,6 @@ export default function TourBarShell({
       </div>
     ) : null;
 
-  const mobileStretchShellMarkup = mobileGlassChrome ? (
-    <div
-      data-tourbar-shell-root="true"
-      data-tourbar-appearance="dark"
-      data-tourbar-viewport="phone"
-      data-smartbar-mobile-footer-mode={mobileFooterMode || undefined}
-      data-smartbar-mobile-stretch-shell="true"
-      className="pointer-events-none fixed bottom-3 left-1/2 z-[10060] w-[calc(100vw-24px)] max-w-[430px] -translate-x-1/2 text-white"
-    >
-      <AnimatePresence mode="wait">
-        {!isOpen ? (
-          <motion.button
-            key="smartbar-stretch-launcher"
-            type="button"
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: 0.18, ease: "easeInOut" }}
-            onClick={openComposer}
-            data-smartbar-launcher="true"
-            data-smartbar-pointer-kind="launcher"
-            className={`${mobileShellStyles.chromePillClass} relative left-auto right-auto h-[60px] w-full px-5`}
-            aria-label={launcherAriaLabel}
-            title={launcherTitle}
-          >
-            <span data-smartbar-launcher-hotspot="true" className="pointer-events-none inline-flex items-center justify-center gap-2">
-              <Sparkles className="h-4 w-4 animate-pulse text-white/88" />
-              <span className={`text-[13px] font-black uppercase tracking-[0.14em] ${mobileShellStyles.chromeLabelClass}`}>SmartBar</span>
-            </span>
-          </motion.button>
-        ) : (
-          <motion.div
-            key="smartbar-stretch-open"
-            initial={{ opacity: 0, y: 10, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.985 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            data-tourbar-open-panel="true"
-            data-smartbar-mobile-stretch-panel="true"
-            className={`pointer-events-auto overflow-hidden rounded-[32px] ${mobileShellStyles.upperGlassClass}`}
-          >
-            <AnimatePresence initial={false} mode="sync">
-              {(regularSheetVisible || consultantChatVisible) && (
-                <motion.div
-                  key={consultantChatVisible ? "smartbar-stretch-chat" : regularSheetKey}
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: sheetTransitionSeconds, ease: "easeInOut" }}
-                  className="min-h-0 overflow-hidden border-b border-white/12"
-                >
-                  <div className="min-h-0 overflow-y-auto overscroll-contain px-3 pb-3 pt-3" style={{ maxHeight: mobileSheetInnerMaxHeight }}>
-                    {consultantChatVisible ? (
-                      <>
-                        <MobileSheetTitleRail title={mobileConsultantSheetTitle} appearance="dark" />
-                        <TourBarConsultantChat
-                          copy={consultantChat}
-                          draft={consultantChatDraft}
-                          isWaiting={consultantChatWaiting}
-                          thread={consultantChatThread}
-                          onDraftChange={setConsultantChatDraft}
-                          onSubmit={() => submitConsultantChatMessage()}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        {isLoading && (
-                          <div className="rounded-[24px] px-4 py-4 text-center text-[15px] font-semibold leading-6 text-white/88">
-                            <ThinkingText body={loadingMessage} />
-                          </div>
-                        )}
-
-                        {error && (
-                          <div className="rounded-[24px] bg-rose-950/50 px-4 py-4 text-center text-[15px] font-semibold leading-6 text-rose-100 ring-1 ring-rose-200/20">
-                            {error}
-                          </div>
-                        )}
-
-                        {(result || standaloneResult) && !isLoading && !error && (
-                          <div className="space-y-3">
-                            <MobileSheetTitleRail title={mobileRegularSheetTitle} appearance="dark" />
-
-                            {isStandaloneSheet ? (
-                              <>
-                                {standaloneSheet}
-                                {mobileControls}
-                              </>
-                            ) : (
-                              <>
-                                {shouldShowResultBody && (
-                                  <MobilePlainText text={resultBodyForDisplay} appearance="dark" />
-                                )}
-
-                                {activeCollectionField ? (
-                                  <TourBarBookingContextPanel
-                                    controller={bookingContextController}
-                                    field={activeCollectionField}
-                                    pendingQuery={activeCollectionPendingQuery}
-                                    mode={activeCollectionPendingQuery ? "required" : "edit"}
-                                    onResume={(pendingQuery, bookingContext) => {
-                                      completeBookingContextCollection(pendingQuery, bookingContext);
-                                    }}
-                                  />
-                                ) : answerOnlyResult ? null : (
-                                  renderResultExtras?.(result!, shellActions)
-                                )}
-
-                                {mobileControls}
-
-                                {result!.invitation?.text && (result!.nextMove?.query || result!.nextMove?.focusAreaId) && (
-                                  <button
-                                    type="button"
-                                    data-tourbar-nextmove-button="true"
-                                    data-tourbar-nextmove-label={result!.nextMove?.label || result!.invitation!.text}
-                                    data-tourbar-nextmove-query={result!.nextMove?.query || ""}
-                                    data-tourbar-nextmove-invitation={result!.invitation!.text}
-                                    onClick={() => void runNextMove()}
-                                    disabled={isLoading || isAnswering}
-                                    className="group flex w-full items-center justify-between gap-3 rounded-[22px] bg-white/[0.16] px-4 py-3 text-left text-[14px] font-semibold leading-5 text-white ring-1 ring-white/18 transition hover:bg-white/[0.22] disabled:cursor-not-allowed disabled:opacity-55"
-                                  >
-                                    <span>{result!.invitation!.text}</span>
-                                    <ArrowRight className="h-4 w-4 shrink-0 text-white/70 transition group-hover:translate-x-0.5" />
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="relative z-20 px-3 py-3">
-              {mobileComposerCollapsed ? (
-                <button
-                  type="button"
-                  onClick={openComposer}
-                  data-smartbar-launcher="true"
-                  data-smartbar-pointer-kind="launcher"
-                  className="flex min-h-[52px] w-full items-center justify-center rounded-full bg-white/[0.12] px-5 py-2 text-center text-[13px] font-semibold leading-5 text-white/88 ring-1 ring-white/18 transition active:scale-[0.99]"
-                  aria-label={launcherAriaLabel}
-                  title={launcherTitle}
-                >
-                  {mobileFooterHasStatus ? (
-                    mobileFooterStatusIsThinking ? (
-                      <ThinkingText body={mobileFooterStatusText} />
-                    ) : (
-                      <span className="block max-w-[360px] whitespace-normal">{mobileFooterStatusText}</span>
-                    )
-                  ) : mobileSubmittedPrompt ? (
-                    <span className={mobileShellStyles.inputDraftCapsuleClass}>{mobileSubmittedPrompt}</span>
-                  ) : (
-                    <span className="inline-flex items-center justify-center gap-2">
-                      <Sparkles className="h-4 w-4 text-white/76" />
-                      <span>SmartBar</span>
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <div className="flex min-h-[56px] items-start gap-2 rounded-[28px] bg-white/[0.10] px-3 py-2 ring-1 ring-white/16">
-                  <span className={mobileShellStyles.chromeIconBubbleClass}>
-                    <Search className="h-4 w-4" />
-                  </span>
-                  <textarea
-                    ref={queryRef}
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        submitPrimaryComposer();
-                      }
-                    }}
-                    placeholder={primaryComposerPlaceholder}
-                    rows={2}
-                    className={`max-h-32 min-h-[44px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1 text-[16px] font-semibold leading-6 outline-none placeholder:text-white/38 md:text-sm ${mobileShellStyles.inputTextClass}`}
-                  />
-                  <button
-                    type="button"
-                    data-smartbar-primary-submit={canUseMobilePrimaryFollowUp ? undefined : "true"}
-                    data-smartbar-followup-submit={canUseMobilePrimaryFollowUp ? "true" : undefined}
-                    data-smartbar-pointer-kind="submit"
-                    onClick={submitPrimaryComposer}
-                    disabled={!canSubmit}
-                    className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.18] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.26)] ring-1 ring-white/22 transition hover:bg-white/[0.24] disabled:cursor-not-allowed disabled:opacity-45"
-                    aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
-                  </button>
-                  {consultantChatIsEnabled(consultantChat) && consultantChatAvailable && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openComposer();
-                        setConsultantChatOpen((open) => {
-                          const nextOpen = !open;
-                          if (nextOpen) startConsultantChatWithContext(standaloneResult || result);
-                          return nextOpen;
-                        });
-                      }}
-                      className={`mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition ${consultantChatOpen ? "text-white" : "text-white/62 hover:text-white"}`}
-                      aria-label={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
-                      title={consultantChatOpen ? "Close consultant chat" : "Open consultant chat"}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setMobileComposerCollapsed(true)}
-                    className="mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.10] text-white/58 ring-1 ring-white/14 transition hover:bg-white/[0.18] hover:text-white"
-                    aria-label="Close TourBar"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  ) : null;
-
   const shellMarkup = (
     <div
       data-tourbar-shell-root="true"
@@ -2035,10 +1799,6 @@ export default function TourBarShell({
       </AnimatePresence>
     </div>
   );
-
-  if (mobileStretchShellMarkup) {
-    return createPortal(mobileStretchShellMarkup, document.body);
-  }
 
   return isPhoneShellViewport ? createPortal(shellMarkup, document.body) : shellMarkup;
 }
