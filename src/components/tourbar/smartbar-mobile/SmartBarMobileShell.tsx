@@ -1372,7 +1372,7 @@ export default function SmartBarMobileShell({
                       </div>
                     ) : (
                       <div
-                        className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y"
+                        className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
                         <div className={`text-[12px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
@@ -1482,7 +1482,7 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y"
+                      className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
@@ -1571,7 +1571,7 @@ export default function SmartBarMobileShell({
                     </div>
 
                     <div
-                      className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y"
+                      className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {lines.map((line) => (
@@ -1754,3 +1754,4 @@ export default function SmartBarMobileShell({
     </div>
   );
 }
+
