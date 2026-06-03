@@ -281,7 +281,7 @@ function smartBarMobileDemoFixtureUnmatchedItemResult(): SmartBarMobileOrderResu
         helper: "Not on the BurgerRush menu",
         price: "—",
         details: [],
-        retryPrompt: "Re-enter the item so SmartBar can match it.",
+        retryPrompt: "Re-enter unrecognizd item.",
       }),
     ],
     estimatedSubtotal: "$8.98",
