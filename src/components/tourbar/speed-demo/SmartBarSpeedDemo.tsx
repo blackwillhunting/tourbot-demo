@@ -1769,7 +1769,7 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
 
           <span className="min-w-0">
             <span className="block truncate text-sm font-black tracking-tight text-slate-950 sm:text-base">Demo complete</span>
-            <span className="block truncate text-xs font-semibold text-slate-600">Swipe down to replay.</span>
+            <span className="block truncate text-xs font-semibold text-slate-600">Refresh page to replay.</span>
           </span>
 
           <span className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white shadow-lg shadow-slate-950/12 transition group-hover:bg-slate-800 sm:h-12 sm:w-auto sm:px-5 sm:text-xs sm:font-black sm:uppercase sm:tracking-[0.14em]">
