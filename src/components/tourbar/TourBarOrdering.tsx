@@ -2191,7 +2191,6 @@ export default function TourBarOrdering({
 
   return (
     <TourBarShell
-      smartBarMobileChrome
       primaryPlaceholder={primaryPlaceholder}
       followUpPlaceholder={followUpPlaceholder}
       launcherTitle={launcherTitle}

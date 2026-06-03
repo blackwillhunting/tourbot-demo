@@ -1442,7 +1442,6 @@ export default function TourBarBooking({ site }: TourBarBookingProps) {
 
   return (
     <TourBarShell
-      smartBarMobileChrome
       primaryPlaceholder="Ask TourBar to find the right stay..."
       followUpPlaceholder="Refine this stay..."
       launcherTitle="Open TourBar hotel booking"
