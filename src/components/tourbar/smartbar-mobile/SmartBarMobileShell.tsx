@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
+  ArrowRight,
   Check,
   ChevronDown,
   ChevronUp,
@@ -63,6 +64,33 @@ export type SmartBarMobileOrderResult = {
   estimatedTotal?: string;
 };
 
+export type SmartBarMobileGenericAction = {
+  id: string;
+  label: string;
+  helper?: string;
+  variant?: "primary" | "secondary";
+  disabled?: boolean;
+};
+
+export type SmartBarMobileGenericResult = {
+  surfaceKind: "info" | "chat" | "booking_tour" | "booking_summary";
+  eyebrow?: string;
+  title: string;
+  body?: string;
+  helper?: string;
+  statusLabel?: string;
+  actions?: SmartBarMobileGenericAction[];
+  progressLabel?: string;
+  progressCurrent?: number;
+  progressTotal?: number;
+  /** Optional preferred expanded height for the shared SmartBar stretch surface. */
+  height?: number;
+  /** Optional custom content for non-cart SmartBar templates. */
+  content?: ReactNode;
+};
+
+export type SmartBarMobileSubmitResult = SmartBarMobileOrderResult | SmartBarMobileGenericResult;
+
 export type SmartBarMobileSubmitMeta = {
   intent?: "replace_unknown";
   replaceLineId?: string;
@@ -113,6 +141,16 @@ const demoLines: SmartBarMobileOrderLine[] = [
 ];
 
 const estimatedTotal = "$19.46";
+
+function smartBarMobileResultIsGeneric(
+  result: SmartBarMobileSubmitResult,
+): result is SmartBarMobileGenericResult {
+  return Boolean(
+    result &&
+      typeof result === "object" &&
+      "surfaceKind" in result,
+  );
+}
 
 function statusLabel(status: SmartBarMobileOrderStatus) {
   if (status === "ready") return "Ready";
@@ -369,20 +407,28 @@ type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   /** Demo-only underlay guard to prevent page controls from flashing through the scripted submit transition. */
   demoTransitionShield?: boolean;
-  onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult>;
+  /** Label shown in the companion pill when the entry box is empty. */
+  entryModeLabel?: string;
+  /** Label shown in the companion pill while the shared surface is being prepared. */
+  buildingLabel?: string;
+  onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
+  onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => void;
   onResetCart?: () => void;
 };
 
 export default function SmartBarMobileShell({
   mode = "lab",
   demoTransitionShield = false,
+  entryModeLabel = "Type order",
+  buildingLabel = "Building cart...",
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
   onNavigateToLine,
+  onGenericAction,
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
@@ -403,6 +449,7 @@ export default function SmartBarMobileShell({
   const [orderEstimatedSubtotal, setOrderEstimatedSubtotal] = useState<string | undefined>(undefined);
   const [orderEstimatedTax, setOrderEstimatedTax] = useState<string | undefined>(undefined);
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
+  const [genericResult, setGenericResult] = useState<SmartBarMobileGenericResult | null>(null);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
@@ -457,7 +504,7 @@ export default function SmartBarMobileShell({
   const completeCount = lines.filter((line) => line.status === "ready").length;
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
-  const checkoutReady = lines.length > 0 && blockingIssueCount === 0;
+  const checkoutReady = !genericResult && lines.length > 0 && blockingIssueCount === 0;
   const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
     subtotal: orderEstimatedSubtotal,
@@ -465,10 +512,15 @@ export default function SmartBarMobileShell({
     total: orderEstimatedTotal,
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
-  const cartSummaryHeight = Math.min(
-    maxCartPanelHeight,
-    Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
-  );
+  const genericPanelHeight = genericResult
+    ? Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 388))
+    : 0;
+  const cartSummaryHeight = genericResult
+    ? genericPanelHeight
+    : Math.min(
+        maxCartPanelHeight,
+        Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
+      );
   const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
   const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 2);
   const cartDetailHeight = selectedLine?.status === "unknown"
@@ -599,27 +651,38 @@ export default function SmartBarMobileShell({
     setHandoffState("idle");
     setSelectedLineId(null);
     setLineOverrides({});
+    setGenericResult(null);
     setCartExpanded(true);
     setSubmittedPromptPreview(submittedDraft);
     setPhase("building_cart");
 
     const orderResultPromise = onSubmitPrompt
       ? Promise.resolve(onSubmitPrompt(submittedDraft))
-      : Promise.resolve<SmartBarMobileOrderResult>({ lines: demoLines, estimatedTotal });
+      : Promise.resolve<SmartBarMobileSubmitResult>({ lines: demoLines, estimatedTotal });
 
     buildTimerRef.current = window.setTimeout(() => {
       buildTimerRef.current = null;
 
       orderResultPromise
         .then((result) => {
-          if (result.lines.length > 0) {
-            setOrderLines(result.lines);
-            applyOrderResultEstimates(result, estimatedTotal);
+          if (smartBarMobileResultIsGeneric(result)) {
+            setGenericResult(result);
+            setOrderLines([]);
+            setOrderEstimatedSubtotal(undefined);
+            setOrderEstimatedTax(undefined);
+            setOrderEstimatedTotal("—");
+          } else {
+            setGenericResult(null);
+            if (result.lines.length > 0) {
+              setOrderLines(result.lines);
+              applyOrderResultEstimates(result, estimatedTotal);
+            }
           }
           setHasCart(true);
           setPhase("cart");
         })
         .catch(() => {
+          setGenericResult(null);
           setOrderLines(demoLines);
           setOrderEstimatedSubtotal(undefined);
           setOrderEstimatedTax(undefined);
@@ -804,9 +867,23 @@ export default function SmartBarMobileShell({
 
     replacementPromise
       .then((result) => {
+        if (smartBarMobileResultIsGeneric(result)) {
+          setGenericResult(result);
+          setOrderLines([]);
+          setOrderEstimatedSubtotal(undefined);
+          setOrderEstimatedTax(undefined);
+          setOrderEstimatedTotal("—");
+          setRetryDraft("");
+          setLineOverrides({});
+          setSelectedLineId(null);
+          setCartExpanded(true);
+          return;
+        }
+
         const replacementLines = smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
 
         if (replacementLines.length > 0) {
+          setGenericResult(null);
           setOrderLines(replacementLines);
           applyOrderResultEstimates(result);
         } else {
@@ -880,6 +957,7 @@ export default function SmartBarMobileShell({
     setOrderEstimatedSubtotal(undefined);
     setOrderEstimatedTax(undefined);
     setOrderEstimatedTotal(estimatedTotal);
+    setGenericResult(null);
     setLineOverrides({});
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
@@ -924,8 +1002,9 @@ export default function SmartBarMobileShell({
     if (closeArmed) return "Tap again...";
     if (handoffState === "handing_off") return "Handing off";
     if (handoffState === "complete") return "Handoff complete";
-    if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : "Type order";
-    if (phase === "building_cart") return hasCart ? "Adding to cart..." : "Building cart...";
+    if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
+    if (phase === "building_cart") return hasCart ? "Updating SmartBar..." : buildingLabel;
+    if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLine.id ? "Checking menu..." : "Re-enter";
     }
@@ -956,6 +1035,8 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "building_cart") return;
+
+    if (phase === "cart" && genericResult) return;
 
     if (phase === "cart" && selectedLine?.status === "unknown") {
       submitRetry();
@@ -1267,7 +1348,97 @@ export default function SmartBarMobileShell({
                   </motion.div>
                 )}
 
-                {phase === "cart" && cartExpanded && !selectedLine && (
+                {phase === "cart" && cartExpanded && !selectedLine && genericResult && (
+                  <motion.div
+                    key={`fake-generic-content-${genericResult.surfaceKind}`}
+                    data-smartbar-mobile-generic-surface={genericResult.surfaceKind}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="flex h-full min-h-0 flex-col p-4"
+                  >
+                    <div className="flex shrink-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {genericResult.eyebrow && (
+                          <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
+                            {genericResult.eyebrow}
+                          </div>
+                        )}
+                        <div className="mt-1 text-xl font-black leading-tight tracking-tight">
+                          {genericResult.title}
+                        </div>
+                      </div>
+
+                      {genericResult.progressLabel && (
+                        <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ${issuePillClass}`}>
+                          {genericResult.progressLabel}
+                        </div>
+                      )}
+                    </div>
+
+                    {(genericResult.progressCurrent !== undefined && genericResult.progressTotal !== undefined) && (
+                      <div className="mt-3 grid shrink-0 grid-cols-2 gap-2">
+                        <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
+                          <span className="text-[10px] leading-none tracking-[0.14em]">Step</span>
+                          <span className="mt-1 text-[14px] leading-none tracking-normal">{genericResult.progressCurrent}</span>
+                        </div>
+                        <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
+                          <span className="text-[10px] leading-none tracking-[0.14em]">Total</span>
+                          <span className="mt-1 text-[14px] leading-none tracking-normal">{genericResult.progressTotal}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div
+                      className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y"
+                      style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
+                    >
+                      {genericResult.content ? (
+                        <div className="space-y-3">{genericResult.content}</div>
+                      ) : (
+                        <div className="space-y-3">
+                          {genericResult.body && (
+                            <p className={`text-[15px] font-semibold leading-6 ${softTextClass}`}>
+                              {genericResult.body}
+                            </p>
+                          )}
+                          {genericResult.helper && (
+                            <div className="rounded-[24px] border border-white/16 bg-slate-950/30 px-4 py-3 text-sm font-semibold leading-5 text-white/78 ring-1 ring-white/10">
+                              {genericResult.helper}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {!!genericResult.actions?.length && (
+                      <div className="mt-3 shrink-0 space-y-2">
+                        {genericResult.actions.map((action) => (
+                          <button
+                            key={action.id}
+                            type="button"
+                            data-smartbar-mobile-generic-action={action.id}
+                            disabled={action.disabled}
+                            onClick={() => onGenericAction?.(action, genericResult)}
+                            className={action.variant === "secondary"
+                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/16 bg-white/[0.08] px-4 py-3 text-left text-sm font-black text-white/86 ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                              : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-300/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_24px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                            }
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate">{action.label}</span>
+                              {action.helper && <span className="mt-0.5 block truncate text-xs font-semibold opacity-72">{action.helper}</span>}
+                            </span>
+                            <ArrowRight className="h-4 w-4 shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {phase === "cart" && cartExpanded && !selectedLine && !genericResult && (
                   <motion.div
                     key="fake-cart-content"
                     initial={{ opacity: 0, y: 10 }}
