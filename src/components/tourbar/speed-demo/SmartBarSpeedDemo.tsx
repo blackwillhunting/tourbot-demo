@@ -2670,6 +2670,7 @@ export default function SmartBarSpeedDemo({
   const smartBarNode = mobileBurgerRushShell ? null : (
     <TourBarShell
               appearance="light"
+              smartBarMobileChrome={variant !== "burgerRushOnly"}
               primaryPlaceholder="Ask in plain English..."
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"
