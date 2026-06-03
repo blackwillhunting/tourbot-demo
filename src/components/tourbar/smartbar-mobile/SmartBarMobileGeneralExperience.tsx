@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BedDouble, MessageSquare, Sparkles } from "lucide-react";
+import { BedDouble, CalendarDays, CreditCard, MessageSquare, Sparkles, Users } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
   type SmartBarMobileGenericAction,
@@ -43,14 +43,79 @@ function smartBarGeneralCompact(value: string) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function GeneralMiniCard({ title, body, icon }: { title: string; body: string; icon?: ReactNode }) {
+type GeneralMobileTone = "sky" | "slate" | "emerald" | "violet" | "amber";
+
+const GENERAL_MOBILE_TONE_CLASS: Record<GeneralMobileTone, {
+  card: string;
+  icon: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+}> = {
+  sky: {
+    card: "border-sky-100/44 bg-sky-400/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-sky-100/30",
+    icon: "bg-slate-950/88 text-sky-200 ring-slate-950/18",
+    eyebrow: "text-slate-950/58",
+    title: "text-slate-950",
+    body: "text-slate-950/76",
+  },
+  slate: {
+    card: "border-white/24 bg-slate-950/88 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_30px_rgba(2,6,23,0.24)] ring-white/14",
+    icon: "bg-white/12 text-white ring-white/18",
+    eyebrow: "text-white/46",
+    title: "text-white",
+    body: "text-white/72",
+  },
+  emerald: {
+    card: "border-emerald-100/42 bg-emerald-300/84 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(16,185,129,0.20)] ring-emerald-100/30",
+    icon: "bg-slate-950/88 text-emerald-200 ring-slate-950/18",
+    eyebrow: "text-slate-950/58",
+    title: "text-slate-950",
+    body: "text-slate-950/76",
+  },
+  violet: {
+    card: "border-violet-100/36 bg-violet-500/82 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(124,58,237,0.24)] ring-violet-100/24",
+    icon: "bg-white/14 text-white ring-white/18",
+    eyebrow: "text-white/56",
+    title: "text-white",
+    body: "text-white/76",
+  },
+  amber: {
+    card: "border-amber-100/48 bg-amber-300/88 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_28px_rgba(245,158,11,0.20)] ring-amber-100/34",
+    icon: "bg-slate-950/88 text-amber-200 ring-slate-950/18",
+    eyebrow: "text-slate-950/58",
+    title: "text-slate-950",
+    body: "text-slate-950/76",
+  },
+};
+
+function GeneralMiniCard({
+  eyebrow,
+  title,
+  body,
+  icon,
+  tone = "slate",
+}: {
+  eyebrow?: string;
+  title: string;
+  body: string;
+  icon?: ReactNode;
+  tone?: GeneralMobileTone;
+}) {
+  const toneClass = GENERAL_MOBILE_TONE_CLASS[tone];
+
   return (
-    <div className="rounded-[22px] px-3.5 py-3 text-white">
+    <div className={`rounded-[24px] border px-3.5 py-3 ring-1 ${toneClass.card}`}>
       <div className="flex items-start gap-3">
-        {icon ? <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.075] text-sky-100 ring-1 ring-white/12">{icon}</div> : null}
+        {icon ? <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${toneClass.icon}`}>{icon}</div> : null}
         <div className="min-w-0">
-          <div className="text-sm font-black leading-5 text-white">{title}</div>
-          <div className="mt-1 text-xs font-semibold leading-5 text-white/64">{body}</div>
+          {eyebrow && (
+            <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${toneClass.eyebrow}`}>
+              {eyebrow}
+            </div>
+          )}
+          <div className={`text-sm font-black leading-5 ${toneClass.title}`}>{title}</div>
+          <div className={`mt-1 text-xs font-semibold leading-5 ${toneClass.body}`}>{body}</div>
         </div>
       </div>
     </div>
@@ -61,18 +126,24 @@ function ChatPreviewContent() {
   return (
     <div className="space-y-2.5">
       <GeneralMiniCard
-        title="SmartBar"
+        eyebrow="SmartBar"
+        title="Context brief"
         body="Context received — handing this to a consultant."
+        tone="sky"
         icon={<Sparkles className="h-4 w-4" />}
       />
       <GeneralMiniCard
-        title="Consultant desk"
+        eyebrow="Consultant desk"
+        title="Handoff accepted"
         body="Hi there — You’re interested in Copilots? I have the hedge-fund context SmartBar captured."
+        tone="violet"
         icon={<MessageSquare className="h-4 w-4" />}
       />
       <GeneralMiniCard
-        title="Visitor"
+        eyebrow="Visitor"
+        title="Follow-up"
         body="Yes, curious about pricing and what setup would look like."
+        tone="slate"
       />
     </div>
   );
@@ -98,21 +169,25 @@ function BookingTourContent({ step }: { step: number }) {
   return (
     <div className="space-y-3">
       <GeneralMiniCard
+        eyebrow="Recommended room"
         title={active.title}
         body={active.body}
+        tone={step === 0 ? "emerald" : step === 1 ? "sky" : "violet"}
         icon={<BedDouble className="h-4 w-4" />}
       />
       <div className="grid grid-cols-3 gap-2">
         {steps.map((item, index) => (
           <div
             key={item.title}
-            className={`rounded-full px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${
+            className={`rounded-[18px] px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${
               index === step
-                ? "bg-sky-300 text-slate-950 ring-sky-100/40"
-                : "bg-white/[0.045] text-white/58 ring-white/10"
+                ? "bg-sky-300 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_8px_18px_rgba(14,165,233,0.20)] ring-sky-100/40"
+                : "bg-slate-950/82 text-white/72 ring-white/14"
             }`}
+            aria-label={item.title}
           >
-            {index + 1}
+            <span className="block text-[11px] leading-none">{index + 1}</span>
+            <span className="mt-1 block truncate text-[8px] leading-none opacity-70">{index === 0 ? "Value" : index === 1 ? "View" : "Villa"}</span>
           </div>
         ))}
       </div>
@@ -121,21 +196,25 @@ function BookingTourContent({ step }: { step: number }) {
 }
 
 function BookingSummaryContent() {
-  const rows = [
-    ["Room", "Ocean View Suite"],
-    ["Add-on", "Breakfast Flex Plan"],
-    ["Dates", "Aug 4–9, 2026"],
-    ["Guests", "1 guest"],
-    ["Estimate", "$379/night + $32/night"],
+  const rows: Array<[string, string, GeneralMobileTone, ReactNode]> = [
+    ["Room", "Ocean View Suite", "sky", <BedDouble className="h-3.5 w-3.5" />],
+    ["Add-on", "Breakfast Flex Plan", "emerald", <Sparkles className="h-3.5 w-3.5" />],
+    ["Dates", "Aug 4–9, 2026", "violet", <CalendarDays className="h-3.5 w-3.5" />],
+    ["Guests", "1 guest", "amber", <Users className="h-3.5 w-3.5" />],
+    ["Estimate", "$379/night + $32/night", "slate", <CreditCard className="h-3.5 w-3.5" />],
   ];
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.045] text-white ring-1 ring-white/10">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-2.5 last:border-b-0">
-          <span className="text-xs font-black uppercase tracking-[0.12em] text-white/46">{label}</span>
-          <strong className="text-right text-sm font-black text-white">{value}</strong>
-        </div>
+    <div className="space-y-2">
+      {rows.map(([label, value, tone, icon]) => (
+        <GeneralMiniCard
+          key={label}
+          eyebrow={label}
+          title={value}
+          body={label === "Estimate" ? "Ready for booking handoff" : "Confirmed for this stay"}
+          tone={tone}
+          icon={icon}
+        />
       ))}
     </div>
   );
@@ -303,7 +382,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
           { id: "consultant", label: "Talk to consultant", helper: "Open the handoff surface" },
           { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
         ],
-        height: 420,
+        height: 450,
       };
     }
 
@@ -318,7 +397,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         { id: "show-proof", label: "Show proof points", helper: "Drill into concrete examples" },
         { id: "consultant", label: "Talk to consultant", variant: "secondary" },
       ],
-      height: 420,
+      height: 450,
     };
   }, [focusTarget]);
 
@@ -335,7 +414,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       actions: [
         { id: "start-order", label: "Next: ordering demo", helper: "Move to BurgerRush" },
       ],
-      height: 470,
+      height: 510,
     };
   }, [focusTarget]);
 
@@ -364,7 +443,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         { id: "booking-back", label: "Back", variant: "secondary", disabled: safeStep === 0 },
         { id: "booking-next", label: safeStep >= 2 ? "Prepare booking summary" : "Next room", helper: safeStep >= 2 ? "Package the choice" : "Continue tour" },
       ],
-      height: 500,
+      height: 530,
     };
   }, [bookingStep, focusTarget]);
 
@@ -381,7 +460,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       actions: [
         { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
       ],
-      height: 470,
+      height: 510,
     };
   }, [focusTarget]);
 

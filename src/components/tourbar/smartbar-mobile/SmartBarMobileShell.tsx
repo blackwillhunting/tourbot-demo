@@ -1418,12 +1418,12 @@ export default function SmartBarMobileShell({
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (
-                            <p className={`text-[15px] font-semibold leading-6 ${softTextClass}`}>
+                            <div className="rounded-[24px] border border-sky-100/42 bg-sky-400/78 px-4 py-3 text-[15px] font-bold leading-6 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/30">
                               {genericResult.body}
-                            </p>
+                            </div>
                           )}
                           {genericResult.helper && (
-                            <div className="rounded-[24px] border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold leading-5 text-white/72 ring-1 ring-white/10">
+                            <div className="rounded-[22px] border border-white/24 bg-slate-950/86 px-4 py-3 text-sm font-semibold leading-5 text-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14">
                               {genericResult.helper}
                             </div>
                           )}
@@ -1441,7 +1441,7 @@ export default function SmartBarMobileShell({
                             disabled={action.disabled}
                             onClick={() => onGenericAction?.(action, genericResult)}
                             className={action.variant === "secondary"
-                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/16 bg-white/[0.08] px-4 py-3 text-left text-sm font-black text-white/86 ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/24 bg-slate-950/88 px-4 py-3 text-left text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
                               : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-300/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_24px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
                             }
                           >
