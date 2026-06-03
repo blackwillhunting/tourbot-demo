@@ -1524,8 +1524,8 @@ export default function SmartBarMobileShell({
                               : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
                             }
                           >
-                            <span className="min-w-0">
-                              <span className="block truncate">{action.label}</span>
+                            <span className="min-w-0 flex-1 pr-2">
+                              <span className="block whitespace-normal break-words leading-5">{action.label}</span>
                               {action.helper && <span className="mt-0.5 block truncate text-xs font-semibold opacity-72">{action.helper}</span>}
                             </span>
                             <ArrowRight className="h-4 w-4 shrink-0" />
