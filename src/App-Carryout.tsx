@@ -737,18 +737,18 @@ function DrinksRack() {
         </div>
         <Card>
           <div id="drink-qualifiers" data-tour-id="drink-qualifiers" data-spotlight-mode="card" className="p-5 sm:p-6">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-orange-600">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-orange-300">
               <Coffee className="h-4 w-4" />
               Drink qualifiers
             </div>
-            <div id="qualifier-drink-size" data-tour-id="qualifier-drink-size" className="mt-5 rounded-3xl bg-slate-50 p-4">
-              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Size</div>
+            <div id="qualifier-drink-size" data-tour-id="qualifier-drink-size" className="mt-5 rounded-3xl border border-white/10 bg-slate-950/70 p-4 ring-1 ring-white/[0.04]">
+              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Size</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {['Small', 'Medium', 'Large'].map((item) => <Chip key={item}>{item}</Chip>)}
               </div>
             </div>
-            <div id="qualifier-drink-flavor" data-tour-id="qualifier-drink-flavor" className="mt-4 rounded-3xl bg-slate-50 p-4">
-              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Flavor</div>
+            <div id="qualifier-drink-flavor" data-tour-id="qualifier-drink-flavor" className="mt-4 rounded-3xl border border-white/10 bg-slate-950/70 p-4 ring-1 ring-white/[0.04]">
+              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Flavor</div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {['Coke', 'Diet Coke', 'Sprite', 'Root Beer'].map((item) => <Chip key={item}>{item}</Chip>)}
               </div>
