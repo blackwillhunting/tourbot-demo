@@ -1123,7 +1123,6 @@ export default function SmartBarMobileShell({
     softTextClass,
     quietTextClass,
     skyEyebrowClass,
-    inputTextClass,
     retryInputClass,
     issuePillClass,
     lineButtonClass,
@@ -1270,13 +1269,11 @@ export default function SmartBarMobileShell({
                     className="h-full px-3 py-2"
                     aria-live="polite"
                   >
-                    <textarea
-                      value={submittedPromptPreview}
-                      readOnly
-                      disabled
-                      className={`pointer-events-none h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-bold leading-5 outline-none ring-0 placeholder:text-transparent disabled:opacity-100 ${inputTextClass}`}
-                      placeholder=""
-                    />
+                    <div className="flex h-full items-center justify-center px-3 py-2">
+                      <div className={inputDraftCapsuleClass}>
+                        {submittedPromptPreview}
+                      </div>
+                    </div>
                   </motion.div>
                 )}
 
