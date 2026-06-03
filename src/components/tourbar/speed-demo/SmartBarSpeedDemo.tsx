@@ -14,6 +14,7 @@ import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
 import BurgerRushMobileExperience from "../smartbar-mobile/burgerrush/BurgerRushMobileExperience";
+import SmartBarMobileGeneralExperience from "../smartbar-mobile/SmartBarMobileGeneralExperience";
 import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
 import {
@@ -1907,6 +1908,7 @@ export default function SmartBarSpeedDemo({
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
+  const mobileFullShell = variant === "full" && speedDemoIsPhoneViewport();
   const demoSteps = useMemo(
     () => {
       if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
@@ -1915,7 +1917,7 @@ export default function SmartBarSpeedDemo({
     [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && !mobileFullShell;
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -2667,10 +2669,9 @@ export default function SmartBarSpeedDemo({
     };
   }, [toolbarSurface]);
 
-  const smartBarNode = mobileBurgerRushShell ? null : (
+  const smartBarNode = mobileBurgerRushShell || mobileFullShell ? null : (
     <TourBarShell
               appearance="light"
-              smartBarMobileChrome={variant !== "burgerRushOnly"}
               primaryPlaceholder="Ask in plain English..."
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"
@@ -2697,6 +2698,14 @@ export default function SmartBarSpeedDemo({
             />
   );
 
+
+  if (mobileFullShell) {
+    if (replayVisible) {
+      return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+    }
+
+    return <SmartBarMobileGeneralExperience autoPlay={autoPlay} />;
+  }
 
   if (mobileBurgerRushShell) {
     if (replayVisible) {

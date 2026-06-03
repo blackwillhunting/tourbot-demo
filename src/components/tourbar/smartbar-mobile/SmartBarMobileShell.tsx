@@ -97,6 +97,12 @@ export type SmartBarMobileSubmitMeta = {
   replaceLineTitle?: string;
 };
 
+export type SmartBarMobileDemoSubmission = {
+  id: number;
+  query: string;
+  meta?: SmartBarMobileSubmitMeta;
+};
+
 type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionSelectionMode" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
@@ -411,6 +417,8 @@ type SmartBarMobileShellProps = {
   entryModeLabel?: string;
   /** Label shown in the companion pill while the shared surface is being prepared. */
   buildingLabel?: string;
+  /** Demo-only command hook for scripted mobile replays. Omit in normal use. */
+  demoSubmission?: SmartBarMobileDemoSubmission | null;
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
@@ -424,6 +432,7 @@ export default function SmartBarMobileShell({
   demoTransitionShield = false,
   entryModeLabel = "Type order",
   buildingLabel = "Building cart...",
+  demoSubmission = null,
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
@@ -633,8 +642,8 @@ export default function SmartBarMobileShell({
     };
   }, []);
 
-  const submitPrompt = () => {
-    const submittedDraft = entryDraft.trim();
+  const submitPromptValue = (submittedDraftValue: string, meta?: SmartBarMobileSubmitMeta) => {
+    const submittedDraft = submittedDraftValue.trim();
     if (!submittedDraft) return;
 
     entryTextareaRef.current?.blur();
@@ -657,7 +666,7 @@ export default function SmartBarMobileShell({
     setPhase("building_cart");
 
     const orderResultPromise = onSubmitPrompt
-      ? Promise.resolve(onSubmitPrompt(submittedDraft))
+      ? Promise.resolve(onSubmitPrompt(submittedDraft, meta))
       : Promise.resolve<SmartBarMobileSubmitResult>({ lines: demoLines, estimatedTotal });
 
     buildTimerRef.current = window.setTimeout(() => {
@@ -692,6 +701,16 @@ export default function SmartBarMobileShell({
         });
     }, 900);
   };
+
+  const submitPrompt = () => {
+    submitPromptValue(entryDraft);
+  };
+
+  useEffect(() => {
+    if (!demoSubmission) return;
+    submitPromptValue(demoSubmission.query, demoSubmission.meta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoSubmission?.id]);
 
   const selectLine = (line: SmartBarMobileOrderLine) => {
     if (handoffLocked) return;
