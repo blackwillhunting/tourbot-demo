@@ -744,19 +744,6 @@ export default function LaunchSelectorTourBar({
       }
 
       cleanupResetAccessUrl();
-
-      if (variant === "burgerRushOnly" && shouldSkipFitsAnywhereAnimationOnPhone()) {
-        setActiveNoticeLaneState(null);
-        setPreludeStackCards([]);
-        setFitsAnimationVisible(false);
-        setDemoVisible(true);
-        await wait(DEMO_HANDOFF_SETTLE_MS);
-        if (runIdRef.current !== runId) return;
-
-        setDemoAutoPlay(true);
-        return;
-      }
-
       let activeCascadeGroup: string | null = null;
       const activePreludeSlips = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_PRELUDE_SLIPS : PRELUDE_SLIPS;
 
@@ -978,4 +965,5 @@ export default function LaunchSelectorTourBar({
     </div>
   );
 }
+
 
