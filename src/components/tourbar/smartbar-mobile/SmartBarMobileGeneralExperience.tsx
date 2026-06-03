@@ -32,91 +32,188 @@ type MobileFocusSnapshot = {
 };
 
 type SmartBarGeneralMobileAutoStep = {
-  query: string;
+  /** Desktop scene id from SMARTBAR_SPEED_STEPS / opening tutor cards. */
+  desktopStepId: string;
+  query?: string;
   cards: string[];
   targetSelector?: string;
   label?: string;
   introMs?: number;
   cardMs?: number;
   afterSubmitMs?: number;
+  surface?: SmartBarSpeedSurface;
 };
 
 const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
   {
-    query: "we're a hedge fund, need help with IT and setting up copilots",
-    cards: ["Example 1: NexaPath Advisory", "Managed IT for finance", "SmartBar returns an answer"],
+    desktopStepId: "open",
+    cards: ["Example 1: **NexaPath Advisory**", "Managed IT for finance", "SmartBar generates a lead"],
     targetSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
-    label: "Ask",
+    label: "Open",
     introMs: 900,
-    cardMs: 2200,
-    afterSubmitMs: 5200,
+    cardMs: 4200,
+    afterSubmitMs: 700,
+    surface: "info",
   },
   {
+    desktopStepId: "hedge-fund-ask",
+    query: "we're a hedge fund, need help wih IT and setting up copilots",
+    cards: ["Reads intent", "moves visitor to the answer"],
+    targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Ask",
+    cardMs: 3300,
+    afterSubmitMs: 5200,
+    surface: "info",
+  },
+  {
+    desktopStepId: "prove-it",
     query: "that doesn't say what you actually do",
-    cards: ["Visitor challenges the answer", "SmartBar drills into proof points"],
+    cards: ["Summarizes focus area", "Visitor asks for specifics"],
+    targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Ask",
+    cardMs: 5100,
+    afterSubmitMs: 4200,
+    surface: "info",
+  },
+  {
+    desktopStepId: "case-studies",
+    query: "__case_studies",
+    cards: ["Surfaces proof points", "Offers next step"],
     targetSelector: '[data-smartbar-mobile-generic-action="show-proof"]',
     label: "Proof",
-    cardMs: 2100,
-    afterSubmitMs: 5200,
+    cardMs: 3000,
+    afterSubmitMs: 4800,
+    surface: "info",
   },
   {
+    desktopStepId: "consultant-chat",
     query: "Perfect, can I talk to someone?",
-    cards: ["Visitor wants a person", "SmartBar hands off the context"],
-    targetSelector: '[data-smartbar-mobile-generic-action="consultant"]',
+    cards: ["Provides direct chat surface", "Hands off context"],
+    targetSelector: '[data-smartbar-mobile-generic-action="consultant"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Handoff",
-    cardMs: 2100,
-    afterSubmitMs: 5600,
-  },
-  {
-    query: "dbl chzbrger combo lg friez diet coke pie",
-    cards: ["Example 2: BurgerRush", "Messy food shorthand", "SmartBar builds a cart"],
-    targetSelector: '[data-smartbar-mobile-generic-action="start-order"], [data-smartbar-mobile-companion="true"]',
-    label: "Order",
-    cardMs: 2400,
+    cardMs: 3000,
     afterSubmitMs: 6200,
+    surface: "info",
   },
   {
-    query: "Aug 4 to 9, nice room with a view and breakfast, just me",
-    cards: ["Example 3: Domi Hotel", "Choice-heavy booking site", "SmartBar ranks the best fit"],
-    targetSelector: '[data-smartbar-mobile-companion="true"]',
-    label: "Booking",
-    cardMs: 2400,
+    desktopStepId: "complete-order",
+    query: "dbl chzbrger combo lg friez diet coke pie",
+    cards: ["Example 2: **BurgerRush**", "Direct ordering site", "Turns intent into checkout"],
+    targetSelector: '[data-smartbar-mobile-generic-action="start-order"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Order",
+    cardMs: 3350,
     afterSubmitMs: 5600,
+    surface: "ordering",
   },
   {
+    desktopStepId: "checkout",
+    cards: ["Plain English", "Typos included", "Cart loaded", "Checkout-ready"],
+    targetSelector: '[data-smartbar-mobile-checkout="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Checkout",
+    cardMs: 4300,
+    afterSubmitMs: 2600,
+    surface: "ordering",
+  },
+  {
+    desktopStepId: "booking-complete",
+    query: "Aug 4 to 9, nice room with a view and breakfast, just me",
+    cards: ["Example 3: **Domi Hotel**", "Choice-heavy booking site", "Ranks best fit", "Room request has tradeoffs", "Ranks options", "stores room context"],
+    targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Booking",
+    cardMs: 6500,
+    afterSubmitMs: 4200,
+    surface: "booking",
+  },
+  {
+    desktopStepId: "booking-next-ocean",
     query: "__booking_next",
-    cards: ["Room request has tradeoffs", "SmartBar steps through options"],
+    cards: [],
     targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
     label: "Next",
-    cardMs: 1900,
-    afterSubmitMs: 4800,
+    cardMs: 400,
+    afterSubmitMs: 3600,
+    surface: "booking",
   },
   {
+    desktopStepId: "booking-next-villa",
     query: "__booking_next",
-    cards: ["Keeps the stay context", "Compares premium option"],
+    cards: [],
     targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
     label: "Next",
-    cardMs: 1900,
-    afterSubmitMs: 4800,
+    cardMs: 400,
+    afterSubmitMs: 3800,
+    surface: "booking",
   },
   {
+    desktopStepId: "booking-breakfast",
     query: "add breakfast",
-    cards: ["Visitor changes the plan", "SmartBar keeps the room context"],
-    targetSelector: '[data-smartbar-mobile-generic-action="add-breakfast"]',
+    cards: ["Package attaches to active room"],
+    targetSelector: '[data-smartbar-mobile-generic-action="add-breakfast"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Add",
-    cardMs: 2100,
-    afterSubmitMs: 5200,
+    cardMs: 2700,
+    afterSubmitMs: 4600,
+    surface: "booking",
   },
   {
+    desktopStepId: "booking-summary",
     query: "prepare booking summary",
-    cards: ["Package attaches to active room", "SmartBar prepares the handoff"],
+    cards: ["Package attaches to active room"],
     targetSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]',
     label: "Summary",
-    cardMs: 2100,
-    afterSubmitMs: 5600,
+    cardMs: 2600,
+    afterSubmitMs: 5200,
+    surface: "booking",
+  },
+  {
+    desktopStepId: "booking-incomplete",
+    query: "need a family room",
+    cards: ["Travel dates missing", "Who's staying missing"],
+    targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Dates",
+    cardMs: 3000,
+    afterSubmitMs: 4400,
+    surface: "booking",
+  },
+  {
+    desktopStepId: "booking-selectors",
+    query: "__booking_selectors",
+    cards: ["Selectors easier than typing"],
+    targetSelector: '[data-smartbar-mobile-generic-action="select-dates"]',
+    label: "Select",
+    cardMs: 2500,
+    afterSubmitMs: 4400,
+    surface: "booking",
+  },
+  {
+    desktopStepId: "booking-family-summary",
+    query: "show family recommendation",
+    cards: ["Context becomes booking"],
+    targetSelector: '[data-smartbar-mobile-generic-action="show-family-recommendation"]',
+    label: "Book",
+    cardMs: 2500,
+    afterSubmitMs: 5200,
+    surface: "booking",
+  },
+  {
+    desktopStepId: "finale-setup",
+    cards: ["Same bar. Different jobs.", "Think of SmartBar like a caddy", "with a bag full of clubs.", "The visitor describes the shot.", "SmartBar picks the right tool."],
+    targetSelector: '[data-smartbar-mobile-companion="true"]',
+    label: "Toolbelt",
+    cardMs: 6500,
+    afterSubmitMs: 900,
+    surface: "finale",
+  },
+  {
+    desktopStepId: "finale",
+    query: "show me the short version",
+    cards: ["Search bar with a toolbelt"],
+    targetSelector: '[data-smartbar-mobile-companion="true"]',
+    label: "Finale",
+    cardMs: 1800,
+    afterSubmitMs: 5200,
+    surface: "finale",
   },
 ];
-
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -318,7 +415,7 @@ function ChatPreviewContent() {
         role="visitor"
         eyebrow="Visitor"
         title="Follow-up"
-        body="Yes — curious about pricing and setup."
+        body="Hi — curious about pricing."
       />
     </div>
   );
@@ -453,6 +550,106 @@ function BookingSummaryContent() {
           icon={icon}
         />
       ))}
+    </div>
+  );
+}
+
+function BookingMissingContextContent() {
+  return (
+    <div className="space-y-3">
+      <GeneralMiniCard
+        eyebrow="Missing context"
+        title="Need dates and guests"
+        body="SmartBar does not guess. It pauses the booking path and asks for the fields needed before recommending a family room."
+        tone="violet"
+        icon={<CalendarDays className="h-4 w-4" />}
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <GeneralMiniCard
+          eyebrow="Dates"
+          title="Not set"
+          body="Choose check-in and check-out."
+          tone="amber"
+          icon={<CalendarDays className="h-4 w-4" />}
+        />
+        <GeneralMiniCard
+          eyebrow="Guests"
+          title="Not set"
+          body="Adults and children needed."
+          tone="slate"
+          icon={<Users className="h-4 w-4" />}
+        />
+      </div>
+    </div>
+  );
+}
+
+function BookingSelectorsContent() {
+  return (
+    <div className="space-y-3">
+      <GeneralMiniCard
+        eyebrow="Dates selected"
+        title="June 12–15, 2026"
+        body="The mobile equivalent of the desktop calendar clicks: check-in and check-out are now attached to the stay."
+        tone="sky"
+        icon={<CalendarDays className="h-4 w-4" />}
+      />
+      <GeneralMiniCard
+        eyebrow="Guests selected"
+        title="2 adults · 2 children"
+        body="The mobile equivalent of the desktop guest controls: SmartBar can now filter for family-capable rooms."
+        tone="emerald"
+        icon={<Users className="h-4 w-4" />}
+      />
+    </div>
+  );
+}
+
+function FamilyRecommendationContent() {
+  return (
+    <div className="space-y-3">
+      <GeneralMiniCard
+        eyebrow="Family fit"
+        title="Family Double Room"
+        body="With dates and guests resolved, SmartBar turns the missing-context path into a recommendation."
+        tone="sky"
+        icon={<BedDouble className="h-4 w-4" />}
+      />
+      <GeneralMiniCard
+        eyebrow="Context becomes booking"
+        title="Family Comfort Bundle"
+        body="The summary can now carry room, dates, guests, and package context forward."
+        tone="amber"
+        icon={<CreditCard className="h-4 w-4" />}
+      />
+    </div>
+  );
+}
+
+function FinaleToolbeltContent() {
+  return (
+    <div className="space-y-2">
+      <GeneralMiniCard
+        eyebrow="Answer"
+        title="Short version"
+        body="SmartBar can answer directly when the visitor needs a concise explanation."
+        tone="sky"
+        icon={<Sparkles className="h-4 w-4" />}
+      />
+      <GeneralMiniCard
+        eyebrow="Action choices"
+        title="Next-step buttons"
+        body="It can return choices when the right answer is an action path."
+        tone="emerald"
+        icon={<MessageSquare className="h-4 w-4" />}
+      />
+      <GeneralMiniCard
+        eyebrow="Commerce"
+        title="Cart / booking / handoff"
+        body="It can switch tools without changing the bar: cart, dates, guests, summaries, and chat."
+        tone="violet"
+        icon={<CreditCard className="h-4 w-4" />}
+      />
     </div>
   );
 }
@@ -639,6 +836,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         await wait(step.introMs ?? 0);
         if (cancelled) return;
 
+        if (step.surface) setSurface(step.surface);
         setNarratorCards(step.cards);
         await wait(step.cardMs ?? 2000);
         if (cancelled) return;
@@ -646,7 +844,9 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         await pointToStep(step);
         if (cancelled) return;
 
-        submitDemoQuery(step.query);
+        if (step.query) {
+          submitDemoQuery(step.query);
+        }
         await wait(step.afterSubmitMs ?? 5000);
         if (cancelled) return;
 
@@ -666,23 +866,39 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     };
   }, [autoPlay, pointToStep, submitDemoQuery]);
 
-  const buildInfoResult = useCallback((kind: "primary" | "proof" = "primary"): SmartBarMobileGenericResult => {
+  const buildInfoResult = useCallback((kind: "primary" | "specifics" | "proof" = "primary"): SmartBarMobileGenericResult => {
     setSurface("info");
-    focusTarget(kind === "proof" ? "hedgefund-contact-cta" : "hedgefund-copilot");
+    focusTarget(kind === "primary" ? "hedgefund-copilot" : "hedgefund-contact-cta");
+
+    if (kind === "specifics") {
+      return {
+        surfaceKind: "info",
+        eyebrow: "NexaPath Advisory",
+        title: "What we would actually do",
+        statusLabel: "Use cases",
+        body: "For a hedge fund, practical Copilot and agent work usually means readiness review, use-case selection, agent design, and a controlled pilot.",
+        helper: "This is the phone equivalent of the desktop follow-up sheet before the case-study next move.",
+        actions: [
+          { id: "show-proof", label: "Show relevant case studies", helper: "Surface proof points" },
+          { id: "consultant", label: "Talk to consultant", variant: "secondary" },
+        ],
+        height: 470,
+      };
+    }
 
     if (kind === "proof") {
       return {
         surfaceKind: "info",
         eyebrow: "NexaPath Advisory",
-        title: "Proof points surfaced",
+        title: "Relevant case studies",
         statusLabel: "Proof ready",
-        body: "SmartBar moves from a vague hedge-fund IT question into concrete service areas, proof points, and a sales-ready next step.",
-        helper: "This is still the same response bubble — just filled with advisory-site content instead of cart rows.",
+        body: "Hedge-fund operations assistant. Compliance evidence helper. Copilot adoption sprint.",
+        helper: "SmartBar moves from an advisory answer to proof points, then offers the same consultant handoff as the desktop demo.",
         actions: [
-          { id: "consultant", label: "Talk to consultant", helper: "Open the handoff surface" },
+          { id: "consultant", label: "Talk to someone about Copilot support", helper: "Open the handoff surface" },
           { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
         ],
-        height: 450,
+        height: 470,
       };
     }
 
@@ -795,27 +1011,113 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     };
   }, [focusTarget]);
 
+  const buildBookingMissingContextResult = useCallback((): SmartBarMobileGenericResult => {
+    setSurface("booking");
+    focusTarget("smartbar-booking-context", { resetToTop: true });
+
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Domi Hotel",
+      title: "Need dates and guests",
+      statusLabel: "Missing context",
+      content: <BookingMissingContextContent />,
+      helper: "This is the phone equivalent of the desktop selector setup: SmartBar asks for the fields required before continuing.",
+      actions: [
+        { id: "select-dates", label: "Set dates and guests" },
+      ],
+      height: 500,
+    };
+  }, [focusTarget]);
+
+  const buildBookingSelectorsResult = useCallback((): SmartBarMobileGenericResult => {
+    setSurface("booking");
+    focusTarget("smartbar-booking-context", { resetToTop: true });
+
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Domi Hotel",
+      title: "Dates and guests selected",
+      statusLabel: "Selectors",
+      content: <BookingSelectorsContent />,
+      helper: "Calendar taps and guest controls are represented as selected booking context inside the mobile stretch box.",
+      actions: [
+        { id: "show-family-recommendation", label: "Show family recommendation" },
+      ],
+      height: 520,
+    };
+  }, [focusTarget]);
+
+  const buildFamilyRecommendationResult = useCallback((): SmartBarMobileGenericResult => {
+    setSurface("booking");
+    focusTarget("smartbar-booking-summary", { resetToTop: true });
+
+    return {
+      surfaceKind: "booking_summary",
+      eyebrow: "Domi Hotel",
+      title: "Family recommendation ready",
+      statusLabel: "Family fit",
+      content: <FamilyRecommendationContent />,
+      actions: [
+        { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
+      ],
+      height: 520,
+    };
+  }, [focusTarget]);
+
+  const buildFinaleResult = useCallback((): SmartBarMobileGenericResult => {
+    setSurface("finale");
+    focusTarget("smartbar-booking-toolbelt", { resetToTop: true });
+
+    return {
+      surfaceKind: "info",
+      eyebrow: "Finale",
+      title: "Search bar with a toolbelt",
+      statusLabel: "Toolbelt",
+      content: <FinaleToolbeltContent />,
+      helper: "Same bar, different jobs: answer, action choices, cart, selectors, summary, lead capture, and chat handoff.",
+      actions: [
+        { id: "restart-info", label: "Replay from the top", variant: "secondary" },
+      ],
+      height: 560,
+    };
+  }, [focusTarget]);
+
   const handleSubmitPrompt = useCallback((query: string): SmartBarMobileSubmitResult => {
     const text = smartBarGeneralCompact(query);
 
+    if (text.includes("__case_studies") || text.includes("__nexa_proof") || text.includes("proof")) return buildInfoResult("proof");
     if (
-      text.includes("__nexa_proof") ||
-      text.includes("proof") ||
       text.includes("specific") ||
       text.includes("actually do") ||
       text.includes("doesn't say") ||
       text.includes("doesnt say")
-    ) return buildInfoResult("proof");
+    ) return buildInfoResult("specifics");
     if (text.includes("consultant") || text.includes("pricing") || text.includes("talk to someone")) return buildChatResult();
     if (text.includes("dbl") || text.includes("chzbrger") || text.includes("friez") || text.includes("burger")) return buildOrderResult();
     if (text.includes("__booking_back")) return buildBookingTourResult(bookingStep - 1);
     if (text.includes("__booking_next")) return buildBookingTourResult(bookingStep + 1);
+    if (text.includes("__booking_selectors")) return buildBookingSelectorsResult();
+    if (text.includes("need a family room")) return buildBookingMissingContextResult();
+    if (text.includes("show family recommendation")) return buildFamilyRecommendationResult();
     if (text.includes("prepare booking") || text.includes("booking summary") || text.includes("summary")) return buildBookingSummaryResult();
     if (text.includes("breakfast") || text.includes("package")) return buildBookingBreakfastResult();
+    if (text.includes("show me the short version") || text.includes("toolbelt")) return buildFinaleResult();
     if (text.includes("room") || text.includes("view") || text.includes("aug") || text.includes("hotel")) return buildBookingTourResult(0);
 
     return buildInfoResult("primary");
-  }, [bookingStep, buildBookingBreakfastResult, buildBookingSummaryResult, buildBookingTourResult, buildChatResult, buildInfoResult, buildOrderResult]);
+  }, [
+    bookingStep,
+    buildBookingBreakfastResult,
+    buildBookingMissingContextResult,
+    buildBookingSelectorsResult,
+    buildBookingSummaryResult,
+    buildBookingTourResult,
+    buildChatResult,
+    buildFamilyRecommendationResult,
+    buildFinaleResult,
+    buildInfoResult,
+    buildOrderResult,
+  ]);
 
   const handleGenericAction = useCallback((action: SmartBarMobileGenericAction) => {
     if (action.disabled) return;
@@ -828,6 +1130,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     if (action.id === "add-breakfast") submitDemoQuery("add breakfast");
     if (action.id === "prepare-booking") submitDemoQuery("prepare booking summary");
     if (action.id === "show-rooms") submitDemoQuery("show ocean view room");
+    if (action.id === "select-dates") submitDemoQuery("__booking_selectors");
+    if (action.id === "show-family-recommendation") submitDemoQuery("show family recommendation");
     if (action.id === "restart-info") submitDemoQuery("we're a hedge fund, need help with IT and setting up copilots");
   }, [submitDemoQuery]);
 
