@@ -1675,6 +1675,8 @@ export default function TourBarShell({
       consultantChatVisible
   );
 
+  void mobileStretchShellMarkup;
+
   const mobileStretchMarkup = (
     <div
       data-smartbar-mobile-stretch-branch="true"
@@ -2228,14 +2230,10 @@ export default function TourBarShell({
       </AnimatePresence>
     </div>
   );
-
-  if (mobileStretchShellMarkup) {
-    return createPortal(mobileStretchShellMarkup, document.body);
-  }
-
   const renderedShellMarkup = mobileGlassChrome ? mobileStretchMarkup : shellMarkup;
 
   return isPhoneShellViewport ? createPortal(renderedShellMarkup, document.body) : renderedShellMarkup;
 }
+
 
 
