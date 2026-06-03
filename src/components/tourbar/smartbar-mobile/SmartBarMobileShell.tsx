@@ -423,7 +423,7 @@ type SmartBarMobileShellProps = {
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
-  onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => void;
+  onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onResetCart?: () => void;
 };
 
@@ -1109,6 +1109,59 @@ export default function SmartBarMobileShell({
     setCartExpanded((expanded) => !expanded);
   };
 
+  const handleGenericActionClick = (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => {
+    if (handoffLocked || action.disabled) return;
+
+    const actionResult = onGenericAction?.(action, result);
+    if (!actionResult) return;
+
+    entryTextareaRef.current?.blur();
+    retryTextareaRef.current?.blur();
+    clearBuildTimer();
+    clearHandoffTimers();
+    disarmClose();
+    setHandoffState("idle");
+    setSelectedLineId(null);
+    setLineOverrides({});
+    setCartExpanded(true);
+    setSubmittedPromptPreview(action.label);
+    setGenericResult(null);
+    setPhase("building_cart");
+
+    Promise.resolve(actionResult)
+      .then((nextResult) => {
+        if (smartBarMobileResultIsGeneric(nextResult)) {
+          setGenericResult(nextResult);
+          setOrderLines([]);
+          setOrderEstimatedSubtotal(undefined);
+          setOrderEstimatedTax(undefined);
+          setOrderEstimatedTotal("—");
+        } else {
+          setGenericResult(null);
+          setOrderLines(nextResult.lines);
+          applyOrderResultEstimates(nextResult, estimatedTotal);
+        }
+        setHasCart(true);
+        setPhase("cart");
+      })
+      .catch(() => {
+        setGenericResult({
+          surfaceKind: "info",
+          eyebrow: "SmartBar",
+          title: "Could not continue",
+          body: "SmartBar could not complete that next step. Try typing your request instead.",
+          statusLabel: "Retry",
+          height: 320,
+        });
+        setOrderLines([]);
+        setOrderEstimatedSubtotal(undefined);
+        setOrderEstimatedTax(undefined);
+        setOrderEstimatedTotal("—");
+        setHasCart(true);
+        setPhase("cart");
+      });
+  };
+
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
   const {
@@ -1458,7 +1511,7 @@ export default function SmartBarMobileShell({
                             type="button"
                             data-smartbar-mobile-generic-action={action.id}
                             disabled={action.disabled}
-                            onClick={() => onGenericAction?.(action, genericResult)}
+                            onClick={() => handleGenericActionClick(action, genericResult)}
                             className={action.variant === "secondary"
                               ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/24 bg-slate-950/88 px-4 py-3 text-left text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
                               : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-300/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_24px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import SmartBarMobileShell, {
+  type SmartBarMobileGenericAction,
   type SmartBarMobileGenericResult,
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
@@ -15,6 +16,13 @@ type TourBarFocusTarget = {
   label?: string;
 };
 
+type TourBarNextMove = {
+  type?: string;
+  label?: string;
+  query?: string;
+  focusAreaId?: string;
+};
+
 type TourBarResult = {
   ok?: boolean;
   mode?: "route" | "answer";
@@ -28,17 +36,19 @@ type TourBarResult = {
   answer?: string;
   answerMode?: string;
   suggestions?: string[];
-  nextMove?: {
-    type?: string;
-    label?: string;
-    query?: string;
-    focusAreaId?: string;
-  };
+  nextMove?: TourBarNextMove;
   invitation?: {
     kind?: string;
     text: string;
   };
   handoffRecommended?: boolean;
+};
+
+type SmartBarInformationalThreadMessage = {
+  role: "visitor" | "tourbar";
+  content: string;
+  focusAreaId?: string;
+  answerMode?: string;
 };
 
 type DomOutlineItem = {
@@ -111,7 +121,7 @@ function collectDomOutline(): DomOutlineItem[] {
         id,
         label: compactText(heading),
         selector: selectorForElement(element),
-        textSample: compactText(element.innerText || element.textContent || "").slice(0, 420),
+        textSample: compactText(element.innerText || element.textContent || "").slice(0, 720),
         tagName: element.tagName.toLowerCase(),
       };
     })
@@ -155,50 +165,99 @@ function resultTitle(result: TourBarResult | null) {
 
 function resultBody(result: TourBarResult | null) {
   if (!result) return "";
-  return result.answer || result.responseText || "";
+  return compactText(result.answer || result.responseText || "");
+}
+
+function messageFromResult(result: TourBarResult) {
+  const invitation = result.invitation?.text || result.nextMove?.label || "";
+  return [resultTitle(result), resultBody(result), invitation].filter(Boolean).join("\n");
+}
+
+function queryLooksLikeNewRoute(query: string) {
+  return /\b(show|find|open|go to|where|pricing|services|implementation|consultation|contact|support|options|plans?)\b/i.test(query);
 }
 
 function helperText(result: TourBarResult) {
   if (result.action === "CLARIFY") return "SmartBar needs one more detail before it can point you to the right section.";
   if (result.action === "OUT_OF_SCOPE") return "This SmartBar is scoped to this site.";
   if (hasNavigation(result)) return "SmartBar opened the matching part of the page.";
+  if (result.nextMove?.label || result.invitation?.text || result.suggestions?.length) return "Use a suggested next step or ask another question.";
   return "Ask another question to continue.";
 }
 
+function actionId(prefix: string, value: string, index = 0) {
+  return `${prefix}-${index}-${value}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function actionsFor(result: TourBarResult): SmartBarMobileGenericAction[] {
+  const actions: SmartBarMobileGenericAction[] = [];
+  const nextLabel = result.nextMove?.label || result.invitation?.text || "";
+  const nextQuery = result.nextMove?.query || result.nextMove?.label || result.invitation?.text || "";
+
+  if (nextLabel && nextQuery) {
+    actions.push({
+      id: actionId("next", nextQuery),
+      label: nextLabel,
+      helper: "Continue with SmartBar",
+      variant: "primary",
+    });
+  }
+
+  (result.suggestions || []).slice(0, 3).forEach((suggestion, index) => {
+    actions.push({
+      id: actionId("suggestion", suggestion, index),
+      label: suggestion,
+      helper: "Ask this next",
+      variant: actions.length ? "secondary" : "primary",
+    });
+  });
+
+  return actions;
+}
+
 function contentFor(result: TourBarResult): ReactNode | undefined {
-  const suggestions = result.suggestions || [];
-  if (!suggestions.length) return undefined;
+  const body = resultBody(result);
+  const metadata = [
+    hasNavigation(result) && result.label ? `Matched: ${result.label}` : "",
+    result.action ? `Mode: ${result.action.replace(/_/g, " ").toLowerCase()}` : "",
+  ].filter(Boolean);
+
+  if (!body && !metadata.length) return undefined;
 
   return (
     <div className="space-y-2">
-      {resultBody(result) && (
+      {body && (
         <div className="rounded-[24px] border border-sky-100/42 bg-sky-400/78 px-4 py-3 text-[15px] font-bold leading-6 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/30">
-          {resultBody(result)}
+          {body}
         </div>
       )}
-      <div className="rounded-[22px] border border-white/24 bg-slate-950/86 px-4 py-3 text-sm font-semibold leading-5 text-white/76 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14">
-        <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/48">Suggested next questions</div>
-        <div className="mt-2 space-y-1.5">
-          {suggestions.slice(0, 3).map((suggestion) => (
-            <div key={suggestion} className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold text-white/82">
-              {suggestion}
-            </div>
+      {!!metadata.length && (
+        <div className="rounded-[22px] border border-white/24 bg-slate-950/86 px-4 py-3 text-xs font-semibold leading-5 text-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/14">
+          {metadata.map((item) => (
+            <div key={item}>{item}</div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
+  const actions = actionsFor(result);
+
   return {
     surfaceKind: "info",
-    eyebrow: hasNavigation(result) ? "Site match" : "SmartBar answer",
+    eyebrow: hasNavigation(result) ? "Site match" : result.action === "ANSWER_ONLY" ? "SmartBar answer" : "SmartBar guide",
     title: resultTitle(result),
     body: contentFor(result) ? undefined : resultBody(result),
     helper: helperText(result),
-    statusLabel: hasNavigation(result) ? "Opened" : "Answer",
-    height: result.suggestions?.length ? 430 : 360,
+    statusLabel: hasNavigation(result) ? "Opened" : result.action === "CLARIFY" ? "Clarify" : "Answer",
+    actions,
+    height: actions.length ? 500 : 390,
     content: contentFor(result),
   };
 }
@@ -229,18 +288,49 @@ export default function SmartBarInformationalAdapter({
   currentPageId,
   onNavigateToFocus,
 }: SmartBarInformationalAdapterProps) {
+  const activeResultRef = useRef<TourBarResult | null>(null);
+  const threadRef = useRef<SmartBarInformationalThreadMessage[]>([]);
+
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
-    const response = await postTourBar({
-      mode: "route",
-      siteId,
-      query,
-      currentPageId,
-      domOutline: collectDomOutline(),
-      url: window.location.href,
-    });
+    const activeResult = activeResultRef.current;
+    const shouldAnswerFollowUp = Boolean(activeResult?.focusAreaId && !queryLooksLikeNewRoute(query));
+    const response = shouldAnswerFollowUp
+      ? await postTourBar({
+          mode: "answer",
+          siteId,
+          query,
+          focusAreaId: activeResult?.focusAreaId,
+          answerMode: activeResult?.answerMode,
+          thread: threadRef.current.slice(-8),
+          url: window.location.href,
+        })
+      : await postTourBar({
+          mode: "route",
+          siteId,
+          query,
+          currentPageId,
+          domOutline: collectDomOutline(),
+          url: window.location.href,
+        });
+
+    activeResultRef.current = response;
+    threadRef.current = [
+      ...threadRef.current.slice(-6),
+      { role: "visitor", content: query },
+      {
+        role: "tourbar",
+        content: messageFromResult(response),
+        focusAreaId: response.focusAreaId,
+        answerMode: response.answerMode,
+      },
+    ];
 
     focusResult(response, currentPageId, onNavigateToFocus);
     return toGenericResult(response);
+  };
+
+  const submitGenericAction = (action: SmartBarMobileGenericAction) => {
+    return submitPrompt(action.label);
   };
 
   return (
@@ -249,6 +339,11 @@ export default function SmartBarInformationalAdapter({
       entryModeLabel="Ask SmartBar"
       buildingLabel="Searching site..."
       onSubmitPrompt={submitPrompt}
+      onGenericAction={submitGenericAction}
+      onResetCart={() => {
+        activeResultRef.current = null;
+        threadRef.current = [];
+      }}
     />
   );
 }
