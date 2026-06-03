@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import SmartBarPhoneMountAnimation, { SMARTBAR_PHONE_MOUNT_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarPhoneMountAnimation";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -694,6 +695,7 @@ export default function LaunchSelectorTourBar({
   const [activePreludeStackMode, setActivePreludeStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
   const [preludeStackCards, setPreludeStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
   const [fitsAnimationVisible, setFitsAnimationVisible] = useState(false);
+  const [phoneMountAnimationVisible, setPhoneMountAnimationVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
@@ -721,6 +723,7 @@ export default function LaunchSelectorTourBar({
   const startAcceptedFlow = useCallback(
     async (runId: number, options: { showAccessGranted?: boolean } = {}) => {
       setDemoAutoPlay(false);
+      setPhoneMountAnimationVisible(false);
       setLaunchVisible(false);
       setIsChecking(false);
 
@@ -815,10 +818,15 @@ export default function LaunchSelectorTourBar({
 
       if (shouldSkipFitsAnywhereAnimationOnPhone()) {
         setFitsAnimationVisible(false);
+        setPhoneMountAnimationVisible(true);
+        await wait(SMARTBAR_PHONE_MOUNT_ANIMATION_MS);
+        if (runIdRef.current !== runId) return;
+
         setDemoVisible(true);
         await wait(DEMO_HANDOFF_SETTLE_MS);
         if (runIdRef.current !== runId) return;
 
+        setPhoneMountAnimationVisible(false);
         setDemoAutoPlay(true);
         return;
       }
@@ -961,6 +969,7 @@ export default function LaunchSelectorTourBar({
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
 
+      <AnimatePresence>{phoneMountAnimationVisible ? <SmartBarPhoneMountAnimation /> : null}</AnimatePresence>
       <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
     </div>
   );
