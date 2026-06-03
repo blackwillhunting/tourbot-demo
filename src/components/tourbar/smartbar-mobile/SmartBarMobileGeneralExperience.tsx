@@ -212,20 +212,33 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     focusSnapshotRef.current = null;
   }, []);
 
-  const focusTarget = useCallback((targetId: string) => {
+  const focusTarget = useCallback((targetId: string, options: { resetToTop?: boolean } = {}) => {
     if (typeof document === "undefined" || typeof window === "undefined") return;
 
     clearFocus();
 
+    if (options.resetToTop) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+
     // Surface changes are state-driven. When the script moves from NexaPath to
     // BurgerRush or Domi, the new target wall does not exist until React commits
-    // the next surface. Defer the lookup so the page does not clamp to the old
-    // scroll range and feel like it has been truncated.
+    // the next surface. Defer the lookup so the active surface is in the real
+    // document flow before we scroll to a target inside it.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         const escaped = smartBarGeneralCssEscape(targetId);
-        const target = document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
-        if (!target) return;
+        const stage = document.querySelector<HTMLElement>('[data-smartbar-speed-stage="true"]');
+        const target =
+          stage?.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`) ||
+          document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
+
+        if (!target) {
+          if (options.resetToTop) {
+            window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+          }
+          return;
+        }
 
         target.scrollIntoView({ block: "start", behavior: "smooth" });
 
@@ -328,7 +341,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
   const buildOrderResult = useCallback((): SmartBarMobileOrderResult => {
     setSurface("ordering");
-    focusTarget("smartbar-order-cart");
+    focusTarget("section-combos", { resetToTop: true });
     return readyGeneralCarryoutOrder();
   }, [focusTarget]);
 
@@ -336,7 +349,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     const safeStep = Math.min(Math.max(nextStep, 0), 2);
     setBookingStep(safeStep);
     setSurface("booking");
-    focusTarget(safeStep === 0 ? "smartbar-booking-rooms" : safeStep === 1 ? "smartbar-booking-breakfast" : "smartbar-booking-summary");
+    focusTarget(safeStep === 0 ? "room-finder" : safeStep === 1 ? "package-breakfast-flex" : "booking-summary-card", { resetToTop: true });
 
     return {
       surfaceKind: "booking_tour",
@@ -357,7 +370,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
   const buildBookingSummaryResult = useCallback((): SmartBarMobileGenericResult => {
     setSurface("booking");
-    focusTarget("smartbar-booking-summary");
+    focusTarget("booking-summary-card", { resetToTop: true });
 
     return {
       surfaceKind: "booking_summary",
@@ -407,7 +420,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={surface}
-        className="relative z-10 min-h-[3600px] overflow-x-hidden px-3 pb-[520px] pt-3"
+        className="relative z-10 min-h-[4200px] overflow-x-hidden px-3 pb-[640px] pt-3"
       >
         <SmartBarSpeedTargetWall surface={surface} />
       </section>
