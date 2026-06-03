@@ -525,7 +525,10 @@ export default function SmartBarMobileShell({
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const genericPanelHeight = genericResult
-    ? Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 388))
+    ? Math.min(
+        maxCartPanelHeight,
+        Math.max(genericResult.surfaceKind === "info" ? 180 : 260, genericResult.height ?? 388),
+      )
     : 0;
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
@@ -1447,7 +1450,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex h-full min-h-0 flex-col px-4 pb-4 pt-0" : "flex h-full min-h-0 flex-col p-4"}
+                    className={genericResult?.surfaceKind === "info" ? "flex h-full min-h-0 flex-col px-3 pb-3 pt-0" : "flex h-full min-h-0 flex-col p-4"}
                   >
                     <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
@@ -1482,11 +1485,11 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className={`${genericResult?.surfaceKind === "info" ? "mt-0" : "mt-3"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0 pb-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
+                      className={`${genericResult?.surfaceKind === "info" ? "mt-0" : "mt-3"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
-                        <div className="space-y-3 text-[15px] leading-6 text-white/86">{genericResult.content}</div>
+                        <div className={genericResult?.surfaceKind === "info" ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}>{genericResult.content}</div>
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (
