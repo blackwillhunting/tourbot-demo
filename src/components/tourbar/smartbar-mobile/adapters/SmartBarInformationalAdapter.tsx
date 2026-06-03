@@ -253,7 +253,7 @@ function estimateInfoResultHeight(body: string, actionCount: number) {
   const answerBlockHeight = 46 + estimatedLines * 26;
   const actionBlockHeight = actionCount > 0 ? 18 + actionCount * 68 : 0;
 
-  return Math.min(620, Math.max(actionCount > 0 ? 340 : 280, answerBlockHeight + actionBlockHeight + 42));
+  return Math.min(620, Math.max(actionCount > 0 ? 300 : 240, answerBlockHeight + actionBlockHeight + 24));
 }
 
 function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {

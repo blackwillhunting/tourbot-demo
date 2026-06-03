@@ -1310,7 +1310,12 @@ export default function SmartBarMobileShell({
               className={upperGlassClass}
               style={{ width: entryPillWidth, maxHeight: `calc(100svh - ${88 + keyboardLift}px)` }}
               initial={{ height: realComposerHeight, borderRadius: 999 }}
-              animate={{ height: fakeCartPanelHeight, borderRadius: fakeCartPanelRadius }}
+              animate={{
+                height: phase === "cart" && cartExpanded && !selectedLine && genericResult?.surfaceKind === "info"
+                  ? "auto"
+                  : fakeCartPanelHeight,
+                borderRadius: fakeCartPanelRadius,
+              }}
               transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.9 }}
             >
               <AnimatePresence mode="wait" initial={false}>
@@ -1449,7 +1454,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex h-full min-h-0 flex-col px-3 pb-3 pt-0" : "flex h-full min-h-0 flex-col p-4"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-0" : "flex h-full min-h-0 flex-col p-4"}
                   >
                     <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
@@ -1484,7 +1489,7 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className={`${genericResult?.surfaceKind === "info" ? "mt-0" : "mt-3"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
+                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
@@ -1506,7 +1511,7 @@ export default function SmartBarMobileShell({
                     </div>
 
                     {!!genericResult.actions?.length && (
-                      <div className="mt-2 shrink-0 space-y-2">
+                      <div className={genericResult?.surfaceKind === "info" ? "mt-2 shrink-0 space-y-2" : "mt-2 shrink-0 space-y-2"}>
                         {genericResult.actions.map((action) => (
                           <button
                             key={action.id}
