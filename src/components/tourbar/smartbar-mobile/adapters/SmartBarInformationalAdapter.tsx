@@ -235,24 +235,14 @@ function renderInlineEmphasis(text: string) {
 
 function contentFor(result: TourBarResult): ReactNode | undefined {
   const body = resultBody(result);
-  const metadata: string[] = [];
 
   if (!body) return undefined;
 
   return (
-    <div className="space-y-0">
-      {body && (
-        <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-2 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
-          {renderInlineEmphasis(body)}
-        </div>
-      )}
-      {!!metadata.length && (
-        <div className="rounded-[22px] border border-white/16 bg-white/[0.10] px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.10em] text-white/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
-          {metadata.map((item) => (
-            <div key={item}>{item}</div>
-          ))}
-        </div>
-      )}
+    <div className="contents">
+      <div className="rounded-[24px] border border-white/16 bg-slate-950/68 px-4 py-2 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(2,6,23,0.14)] ring-1 ring-white/10">
+        {renderInlineEmphasis(body)}
+      </div>
     </div>
   );
 }
