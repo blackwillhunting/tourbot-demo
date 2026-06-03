@@ -71,6 +71,12 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
   const chromeLabelClass = isOverlay
     ? "font-semibold text-white/95 [text-shadow:0_1px_2px_rgba(0,0,0,0.55)]"
     : "font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.46)]";
+  const chromeBlueBadgeClass =
+    "inline-flex min-w-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_18px_rgba(1,33,105,0.34)] ring-1 ring-white/24";
+  const chromeBlueIconClass =
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_5px_14px_rgba(1,33,105,0.32)] ring-1 ring-white/24";
+  const chromeBlueLabelClass =
+    "min-w-0 truncate text-center font-black tracking-normal text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.30)]";
   const mainMutedTextClass = isOverlay ? "text-slate-950/72 [text-shadow:0_1px_0_rgba(255,255,255,0.12)]" : "text-slate-950/68";
   const softTextClass = isOverlay ? "text-white/72" : "text-white/62";
   const quietTextClass = isOverlay ? "text-white/58" : "text-white/44";
@@ -97,6 +103,9 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
     chromePillClass,
     chromeIconBubbleClass,
     chromeLabelClass,
+    chromeBlueBadgeClass,
+    chromeBlueIconClass,
+    chromeBlueLabelClass,
     mainMutedTextClass,
     softTextClass,
     quietTextClass,

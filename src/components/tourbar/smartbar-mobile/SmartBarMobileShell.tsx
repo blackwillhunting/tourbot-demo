@@ -1112,8 +1112,9 @@ export default function SmartBarMobileShell({
     rootTextClass,
     upperGlassClass,
     chromePillClass,
-    chromeIconBubbleClass,
-    chromeLabelClass,
+chromeBlueBadgeClass,
+    chromeBlueIconClass,
+    chromeBlueLabelClass,
     mainMutedTextClass,
     softTextClass,
     quietTextClass,
@@ -1606,7 +1607,9 @@ export default function SmartBarMobileShell({
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={closeArmed ? "Tap again to close SmartBar" : "Close SmartBar"}
               >
-                <X className="h-5 w-5" />
+                <span className={chromeBlueIconClass}>
+                  <X className="h-5 w-5" />
+                </span>
               </motion.button>
             )}
           </AnimatePresence>
@@ -1628,23 +1631,25 @@ export default function SmartBarMobileShell({
           >
             {phase === "rest" ? (
               <>
-                <span className={chromeIconBubbleClass}>
+                <span className={chromeBlueIconClass}>
                   <Sparkles className="h-3.5 w-3.5" />
                 </span>
-                <span className={`min-w-0 flex-1 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
-                  {companionLabel}
+                <span className={`${chromeBlueBadgeClass} h-8 flex-1 px-3 text-[16px]`}>
+                  <span className={chromeBlueLabelClass}>{companionLabel}</span>
                 </span>
-                <span className={chromeIconBubbleClass}>
+                <span className={chromeBlueIconClass}>
                   <ShoppingBag className="h-3.5 w-3.5" />
                 </span>
               </>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
-              <span className={`min-w-0 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
-                <ThinkingText text={companionLabel} />
+              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
+                <span className={chromeBlueLabelClass}>
+                  <ThinkingText text={companionLabel} />
+                </span>
               </span>
             ) : (
-              <span className={`min-w-0 truncate text-center text-[16px] tracking-normal ${chromeLabelClass}`}>
-                {companionLabel}
+              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
+                <span className={chromeBlueLabelClass}>{companionLabel}</span>
               </span>
             )}
           </button>
@@ -1663,11 +1668,13 @@ export default function SmartBarMobileShell({
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={phase === "cart" ? "Return to entry" : "Reopen cart"}
               >
-                {cartToggleShowsUp ? (
-                  <ChevronUp className="h-5 w-5" />
-                ) : (
-                  <ChevronDown className="h-5 w-5" />
-                )}
+                <span className={chromeBlueIconClass}>
+                  {cartToggleShowsUp ? (
+                    <ChevronUp className="h-5 w-5" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5" />
+                  )}
+                </span>
               </motion.button>
             )}
           </AnimatePresence>
