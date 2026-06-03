@@ -93,37 +93,7 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
   },
 ];
 
-const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
-  {
-    title: "BurgerRush Carryout",
-    cascadeGroup: "burger-rush-only-intro",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1400,
-  },
-  {
-    title: "Order in plain English",
-    cascadeGroup: "burger-rush-only-intro",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1400,
-  },
-  {
-    title: "SmartBar builds the cart",
-    cascadeGroup: "burger-rush-only-intro",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1400,
-  },
-  {
-    title: "Choices, fixes, checkout",
-    cascadeGroup: "burger-rush-only-intro",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1700,
-    clearCascade: true,
-  },
-];
+const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [];
 
 type MobileBurgerRushStage = "intro" | "placement" | "demo" | "outro";
 
@@ -2835,5 +2805,6 @@ export default function SmartBarSpeedDemo({
     </main>
   );
 }
+
 
 
