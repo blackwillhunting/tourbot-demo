@@ -32,78 +32,119 @@ type MobileFocusSnapshot = {
 };
 
 type SmartBarGeneralMobileAutoStep = {
-  delayMs: number;
   query: string;
-  pointerSelector?: string;
-  pointerLabel?: string;
-  pointerLeadMs?: number;
-  pointerAnchorX?: number;
-  pointerAnchorY?: number;
-  pointerOffsetX?: number;
-  pointerOffsetY?: number;
+  cards: string[];
+  targetSelector?: string;
+  label?: string;
+  introMs?: number;
+  cardMs?: number;
+  afterSubmitMs?: number;
 };
 
 const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
   {
-    delayMs: 1500,
     query: "we're a hedge fund, need help with IT and setting up copilots",
-    pointerSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
-    pointerLabel: "Open SmartBar",
-    pointerLeadMs: 820,
-    pointerAnchorY: 0.64,
-    pointerOffsetY: 8,
+    cards: ["Example 1: NexaPath Advisory", "Managed IT for finance", "SmartBar returns an answer"],
+    targetSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
+    label: "Ask",
+    introMs: 900,
+    cardMs: 2200,
+    afterSubmitMs: 5200,
   },
   {
-    delayMs: 9000,
     query: "that doesn't say what you actually do",
-    pointerSelector: '[data-smartbar-mobile-generic-action="show-proof"]:not(:disabled)',
-    pointerLabel: "Ask for proof",
+    cards: ["Visitor challenges the answer", "SmartBar drills into proof points"],
+    targetSelector: '[data-smartbar-mobile-generic-action="show-proof"]',
+    label: "Proof",
+    cardMs: 2100,
+    afterSubmitMs: 5200,
   },
   {
-    delayMs: 15000,
     query: "Perfect, can I talk to someone?",
-    pointerSelector: '[data-smartbar-mobile-generic-action="consultant"]:not(:disabled)',
-    pointerLabel: "Talk to consultant",
+    cards: ["Visitor wants a person", "SmartBar hands off the context"],
+    targetSelector: '[data-smartbar-mobile-generic-action="consultant"]',
+    label: "Handoff",
+    cardMs: 2100,
+    afterSubmitMs: 5600,
   },
   {
-    delayMs: 21800,
     query: "dbl chzbrger combo lg friez diet coke pie",
-    pointerSelector: '[data-smartbar-mobile-generic-action="start-order"]:not(:disabled), [data-smartbar-mobile-companion="true"]',
-    pointerLabel: "Next example",
+    cards: ["Example 2: BurgerRush", "Messy food shorthand", "SmartBar builds a cart"],
+    targetSelector: '[data-smartbar-mobile-generic-action="start-order"], [data-smartbar-mobile-companion="true"]',
+    label: "Order",
+    cardMs: 2400,
+    afterSubmitMs: 6200,
   },
   {
-    delayMs: 28800,
     query: "Aug 4 to 9, nice room with a view and breakfast, just me",
-    pointerSelector: '[data-smartbar-mobile-companion="true"]',
-    pointerLabel: "Booking example",
-    pointerAnchorY: 0.62,
-    pointerOffsetY: 6,
+    cards: ["Example 3: Domi Hotel", "Choice-heavy booking site", "SmartBar ranks the best fit"],
+    targetSelector: '[data-smartbar-mobile-companion="true"]',
+    label: "Booking",
+    cardMs: 2400,
+    afterSubmitMs: 5600,
   },
   {
-    delayMs: 35600,
     query: "__booking_next",
-    pointerSelector: '[data-smartbar-mobile-generic-action="booking-next"]:not(:disabled)',
-    pointerLabel: "Next room",
+    cards: ["Room request has tradeoffs", "SmartBar steps through options"],
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
+    label: "Next",
+    cardMs: 1900,
+    afterSubmitMs: 4800,
   },
   {
-    delayMs: 42400,
     query: "__booking_next",
-    pointerSelector: '[data-smartbar-mobile-generic-action="booking-next"]:not(:disabled)',
-    pointerLabel: "Next room",
+    cards: ["Keeps the stay context", "Compares premium option"],
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
+    label: "Next",
+    cardMs: 1900,
+    afterSubmitMs: 4800,
   },
   {
-    delayMs: 49200,
     query: "add breakfast",
-    pointerSelector: '[data-smartbar-mobile-generic-action="add-breakfast"]:not(:disabled)',
-    pointerLabel: "Add breakfast",
+    cards: ["Visitor changes the plan", "SmartBar keeps the room context"],
+    targetSelector: '[data-smartbar-mobile-generic-action="add-breakfast"]',
+    label: "Add",
+    cardMs: 2100,
+    afterSubmitMs: 5200,
   },
   {
-    delayMs: 56000,
     query: "prepare booking summary",
-    pointerSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]:not(:disabled), [data-smartbar-mobile-generic-action="booking-summary"]:not(:disabled)',
-    pointerLabel: "Prepare summary",
+    cards: ["Package attaches to active room", "SmartBar prepares the handoff"],
+    targetSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]',
+    label: "Summary",
+    cardMs: 2100,
+    afterSubmitMs: 5600,
   },
 ];
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function smartBarGeneralElementLooksVisible(element: HTMLElement | null) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+
+  return (
+    rect.width > 1 &&
+    rect.height > 1 &&
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < window.innerHeight &&
+    rect.left < window.innerWidth &&
+    style.visibility !== "hidden" &&
+    style.display !== "none" &&
+    Number(style.opacity || "1") > 0.02
+  );
+}
+
+function smartBarGeneralFindPointerTarget(selector?: string) {
+  if (typeof document === "undefined" || !selector) return null;
+  const matches = Array.from(document.querySelectorAll<HTMLElement>(selector));
+  return matches.find(smartBarGeneralElementLooksVisible) || null;
+}
+
 
 function smartBarGeneralCssEscape(value: string) {
   if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
@@ -416,6 +457,25 @@ function BookingSummaryContent() {
   );
 }
 
+function GeneralNarratorCards({ cards }: { cards: string[] }) {
+  if (!cards.length) return null;
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-3 z-[10130] flex justify-center px-4">
+      <div className="w-full max-w-[360px] space-y-2">
+        {cards.map((card, index) => (
+          <div
+            key={`${card}-${index}`}
+            className="rounded-[999px] border border-white/70 bg-slate-950/88 px-4 py-2.5 text-center text-[13px] font-semibold leading-5 text-white shadow-[0_16px_40px_rgba(2,6,23,0.24)] ring-1 ring-slate-950/10 backdrop-blur-xl"
+          >
+            {card}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function readyGeneralCarryoutOrder(): SmartBarMobileOrderResult {
   return {
     lines: [
@@ -469,8 +529,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
   const focusTimerRef = useRef<number | null>(null);
   const pointerIdRef = useRef(0);
-  const pointerClearTimerRef = useRef<number | null>(null);
-  const pointerPulseTimerRef = useRef<number | null>(null);
+  const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [pointer, setPointer] = useState<SmartBarFakePointerState | null>(null);
 
   const clearFocus = useCallback(() => {
@@ -549,100 +608,63 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     });
   }, [clearFocus]);
 
-  const clearPointer = useCallback(() => {
-    if (pointerClearTimerRef.current !== null) {
-      window.clearTimeout(pointerClearTimerRef.current);
-      pointerClearTimerRef.current = null;
-    }
-
-    if (pointerPulseTimerRef.current !== null) {
-      window.clearTimeout(pointerPulseTimerRef.current);
-      pointerPulseTimerRef.current = null;
-    }
-
-    setPointer(null);
-  }, []);
-
-  const showPointer = useCallback((step: SmartBarGeneralMobileAutoStep) => {
-    if (typeof document === "undefined" || typeof window === "undefined" || !step.pointerSelector) return;
-
-    if (pointerClearTimerRef.current !== null) {
-      window.clearTimeout(pointerClearTimerRef.current);
-      pointerClearTimerRef.current = null;
-    }
-
-    if (pointerPulseTimerRef.current !== null) {
-      window.clearTimeout(pointerPulseTimerRef.current);
-      pointerPulseTimerRef.current = null;
-    }
-
-    window.requestAnimationFrame(() => {
-      const target = document.querySelector<HTMLElement>(step.pointerSelector || "");
-      if (!target) return;
-
-      pointerIdRef.current += 1;
-      const id = pointerIdRef.current;
-      const pointerOptions = {
-        id,
-        label: step.pointerLabel,
-        anchorX: step.pointerAnchorX ?? 0.56,
-        anchorY: step.pointerAnchorY ?? 0.50,
-        offsetX: step.pointerOffsetX ?? 0,
-        offsetY: step.pointerOffsetY ?? 0,
-      };
-
-      setPointer(makeSmartBarFakePointerState(target, pointerOptions));
-
-      pointerPulseTimerRef.current = window.setTimeout(() => {
-        pointerPulseTimerRef.current = null;
-        setPointer(makeSmartBarFakePointerState(target, {
-          ...pointerOptions,
-          phase: "pulse",
-        }));
-      }, 260);
-
-      pointerClearTimerRef.current = window.setTimeout(() => {
-        pointerClearTimerRef.current = null;
-        setPointer(null);
-      }, 1180);
-    });
-  }, []);
-
   const submitDemoQuery = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
     submissionIdRef.current += 1;
     setDemoSubmission({ id: submissionIdRef.current, query, meta });
   }, []);
 
-  useEffect(() => () => {
-    clearFocus();
-    clearPointer();
-  }, [clearFocus, clearPointer]);
+  const pointToStep = useCallback(async (step: SmartBarGeneralMobileAutoStep) => {
+    const target = smartBarGeneralFindPointerTarget(step.targetSelector);
+    if (!target) return;
+
+    pointerIdRef.current += 1;
+    const id = pointerIdRef.current;
+    setPointer(makeSmartBarFakePointerState(target, { id, label: step.label, anchorY: 0.58, offsetY: 4 }));
+    await wait(360);
+
+    setPointer(makeSmartBarFakePointerState(target, { id: id + 10000, label: step.label, phase: "pulse", anchorY: 0.58, offsetY: 4 }));
+    await wait(760);
+    setPointer(null);
+  }, []);
+
+  useEffect(() => () => clearFocus(), [clearFocus]);
 
   useEffect(() => {
     if (!autoPlay || autoPlayStartedRef.current) return;
     autoPlayStartedRef.current = true;
+    let cancelled = false;
 
-    const timers = SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.flatMap((step) => {
-      const submitTimer = window.setTimeout(() => {
-        clearPointer();
+    const run = async () => {
+      for (const step of SMARTBAR_GENERAL_MOBILE_AUTO_STEPS) {
+        await wait(step.introMs ?? 0);
+        if (cancelled) return;
+
+        setNarratorCards(step.cards);
+        await wait(step.cardMs ?? 2000);
+        if (cancelled) return;
+
+        await pointToStep(step);
+        if (cancelled) return;
+
         submitDemoQuery(step.query);
-      }, step.delayMs);
+        await wait(step.afterSubmitMs ?? 5000);
+        if (cancelled) return;
 
-      if (!step.pointerSelector) return [submitTimer];
+        setNarratorCards([]);
+      }
 
-      const pointerTimer = window.setTimeout(
-        () => showPointer(step),
-        Math.max(0, step.delayMs - (step.pointerLeadMs ?? 900)),
-      );
+      await wait(900);
+      if (!cancelled) setNarratorCards(["Same bar. Different jobs.", "Answers, carts, bookings, and handoffs."]);
+    };
 
-      return [pointerTimer, submitTimer];
-    });
+    void run();
 
     return () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-      clearPointer();
+      cancelled = true;
+      setPointer(null);
+      setNarratorCards([]);
     };
-  }, [autoPlay, clearPointer, showPointer, submitDemoQuery]);
+  }, [autoPlay, pointToStep, submitDemoQuery]);
 
   const buildInfoResult = useCallback((kind: "primary" | "proof" = "primary"): SmartBarMobileGenericResult => {
     setSurface("info");
@@ -815,6 +837,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       className="relative min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_16%_10%,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef6ff_54%,#f8fafc_100%)] text-slate-950"
     >
       <div className="pointer-events-none fixed inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <GeneralNarratorCards cards={narratorCards} />
+      <SmartBarFakePointerOverlay pointer={pointer} />
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={surface}
@@ -822,7 +846,6 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       >
         <SmartBarSpeedTargetWall surface={surface} />
       </section>
-      <SmartBarFakePointerOverlay pointer={pointer} />
       <SmartBarMobileShell
         mode="overlay"
         entryModeLabel="Ask SmartBar"
