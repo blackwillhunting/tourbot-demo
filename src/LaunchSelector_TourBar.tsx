@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -698,6 +699,7 @@ export default function LaunchSelectorTourBar({
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
   const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
+  const isNexaPathMobilePlayground = currentTourBotDemoPath() === "/nexapath-play";
 
   const setActiveNoticeLaneState = useCallback((lane: SmartBarFlashCardLaneName | null) => {
     activeNoticeLaneRef.current = lane;
@@ -841,6 +843,12 @@ export default function LaunchSelectorTourBar({
     let cancelled = false;
 
     const loadAccessState = async () => {
+      if (isNexaPathMobilePlayground) {
+        setLaunchVisible(false);
+        setDemoVisible(true);
+        return;
+      }
+
       if (shouldResetAccessFromUrl()) {
         clearStoredTourBotDemoToken();
         cleanupResetAccessUrl();
@@ -870,7 +878,7 @@ export default function LaunchSelectorTourBar({
       cancelled = true;
       runIdRef.current += 1;
     };
-  }, [startAcceptedFlow]);
+  }, [isNexaPathMobilePlayground, startAcceptedFlow]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -929,6 +937,10 @@ export default function LaunchSelectorTourBar({
 
   const allowMobileDemoPageScroll =
     demoVisible && shouldSkipFitsAnywhereAnimationOnPhone();
+
+  if (isNexaPathMobilePlayground) {
+    return <NexaPathMobileExperience />;
+  }
 
   return (
     <div
