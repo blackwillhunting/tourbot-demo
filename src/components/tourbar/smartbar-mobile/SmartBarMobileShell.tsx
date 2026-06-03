@@ -1337,9 +1337,9 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="flex h-full min-h-0 flex-col p-4"
+                    className="flex h-full min-h-0 flex-col p-3"
                   >
-                    <div className="flex shrink-0 items-start justify-between gap-3">
+                    <div className={genericResult.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
                         <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
@@ -1482,7 +1482,7 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      className={`${genericResult.surfaceKind === "info" ? "mt-0" : "mt-3"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0 pb-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
@@ -1504,7 +1504,7 @@ export default function SmartBarMobileShell({
                     </div>
 
                     {!!genericResult.actions?.length && (
-                      <div className="mt-3 shrink-0 space-y-2">
+                      <div className="mt-2 shrink-0 space-y-2">
                         {genericResult.actions.map((action) => (
                           <button
                             key={action.id}

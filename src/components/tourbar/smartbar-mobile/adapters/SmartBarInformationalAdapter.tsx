@@ -235,17 +235,14 @@ function renderInlineEmphasis(text: string) {
 
 function contentFor(result: TourBarResult): ReactNode | undefined {
   const body = resultBody(result);
-  const metadata = [
-    hasNavigation(result) && result.label ? `Matched: ${result.label}` : "",
-    result.action ? `Mode: ${result.action.replace(/_/g, " ").toLowerCase()}` : "",
-  ].filter(Boolean);
+  const metadata: string[] = [];
 
   if (!body && !metadata.length) return undefined;
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-0">
       {body && (
-        <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-3 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+        <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-2 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
           {renderInlineEmphasis(body)}
         </div>
       )}
@@ -271,7 +268,7 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     helper: helperText(result),
     statusLabel: hasNavigation(result) ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
     actions,
-    height: actions.length ? 460 : 360,
+    height: actions.length ? 410 : 320,
     content: contentFor(result),
   };
 }
