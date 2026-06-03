@@ -45,12 +45,12 @@ function smartBarGeneralCompact(value: string) {
 
 function GeneralMiniCard({ title, body, icon }: { title: string; body: string; icon?: ReactNode }) {
   return (
-    <div className="rounded-[24px] border border-white/16 bg-slate-950/28 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
+    <div className="rounded-[22px] px-3.5 py-3 text-white">
       <div className="flex items-start gap-3">
-        {icon ? <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/12 text-sky-100 ring-1 ring-white/16">{icon}</div> : null}
+        {icon ? <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.075] text-sky-100 ring-1 ring-white/12">{icon}</div> : null}
         <div className="min-w-0">
           <div className="text-sm font-black leading-5 text-white">{title}</div>
-          <div className="mt-1 text-xs font-semibold leading-5 text-white/60">{body}</div>
+          <div className="mt-1 text-xs font-semibold leading-5 text-white/64">{body}</div>
         </div>
       </div>
     </div>
@@ -109,7 +109,7 @@ function BookingTourContent({ step }: { step: number }) {
             className={`rounded-full px-2 py-2 text-center text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${
               index === step
                 ? "bg-sky-300 text-slate-950 ring-sky-100/40"
-                : "bg-white/[0.08] text-white/58 ring-white/12"
+                : "bg-white/[0.045] text-white/58 ring-white/10"
             }`}
           >
             {index + 1}
@@ -130,11 +130,11 @@ function BookingSummaryContent() {
   ];
 
   return (
-    <div className="overflow-hidden rounded-[24px] border border-emerald-100/34 bg-emerald-300/76 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_30px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/28">
+    <div className="overflow-hidden rounded-[24px] border border-white/12 bg-white/[0.045] text-white ring-1 ring-white/10">
       {rows.map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-3 border-b border-emerald-950/10 px-4 py-2.5 last:border-b-0">
-          <span className="text-xs font-black uppercase tracking-[0.12em] text-slate-950/56">{label}</span>
-          <strong className="text-right text-sm font-black text-slate-950">{value}</strong>
+        <div key={label} className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-2.5 last:border-b-0">
+          <span className="text-xs font-black uppercase tracking-[0.12em] text-white/46">{label}</span>
+          <strong className="text-right text-sm font-black text-white">{value}</strong>
         </div>
       ))}
     </div>

@@ -1423,7 +1423,7 @@ export default function SmartBarMobileShell({
                             </p>
                           )}
                           {genericResult.helper && (
-                            <div className="rounded-[24px] border border-white/16 bg-slate-950/30 px-4 py-3 text-sm font-semibold leading-5 text-white/78 ring-1 ring-white/10">
+                            <div className="rounded-[24px] border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold leading-5 text-white/72 ring-1 ring-white/10">
                               {genericResult.helper}
                             </div>
                           )}
