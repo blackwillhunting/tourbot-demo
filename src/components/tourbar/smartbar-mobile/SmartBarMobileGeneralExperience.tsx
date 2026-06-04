@@ -20,6 +20,9 @@ type SmartBarMobileGeneralExperienceProps = {
   autoPlay?: boolean;
 };
 
+const SMARTBAR_MOBILE_GENERAL_START_KEY = "smartbar_mobile_general_start";
+const SMARTBAR_MOBILE_GENERAL_FAST_KEY = "smartbar_mobile_general_fast";
+
 type MobileFocusSnapshot = {
   element: HTMLElement;
   outline: string;
@@ -222,6 +225,7 @@ function smartBarGeneralMobileReadStartIndex() {
     params.get("mobileDemoStart") ||
     params.get("mobileStart") ||
     params.get("mobileStep") ||
+    window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_START_KEY) ||
     "";
 
   if (!rawStart) return 0;
@@ -272,7 +276,8 @@ function smartBarGeneralMobileReadFastMode() {
   return (
     params.get("mobileDemoFast") === "1" ||
     params.get("mobileFast") === "1" ||
-    params.get("fast") === "1"
+    params.get("fast") === "1" ||
+    window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY) === "1"
   );
 }
 

@@ -195,6 +195,52 @@ function shouldSkipFitsAnywhereAnimationOnPhone() {
   return window.matchMedia("(max-width: 767px)").matches;
 }
 
+const SMARTBAR_MOBILE_GENERAL_START_KEY = "smartbar_mobile_general_start";
+const SMARTBAR_MOBILE_GENERAL_FAST_KEY = "smartbar_mobile_general_fast";
+
+function smartBarMobileGeneralShortcutParams() {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const start =
+    params.get("mobileDemoStart") ||
+    params.get("mobileStart") ||
+    params.get("mobileStep") ||
+    "";
+
+  const fast =
+    params.get("mobileDemoFast") === "1" ||
+    params.get("mobileFast") === "1" ||
+    params.get("fast") === "1";
+
+  if (!start && !fast) return null;
+  return { start, fast };
+}
+
+function persistSmartBarMobileGeneralShortcut() {
+  if (typeof window === "undefined") return false;
+
+  const shortcut = smartBarMobileGeneralShortcutParams();
+  if (!shortcut) return false;
+
+  if (shortcut.start) {
+    window.sessionStorage.setItem(SMARTBAR_MOBILE_GENERAL_START_KEY, shortcut.start);
+  }
+
+  window.sessionStorage.setItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY, shortcut.fast ? "1" : "0");
+  return true;
+}
+
+function hasSmartBarMobileGeneralShortcut() {
+  if (typeof window === "undefined") return false;
+
+  return Boolean(
+    smartBarMobileGeneralShortcutParams() ||
+      window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_START_KEY) ||
+      window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY) === "1",
+  );
+}
+
 function cleanupResetAccessUrl() {
   if (typeof window === "undefined") return;
 
@@ -728,6 +774,24 @@ export default function LaunchSelectorTourBar({
       setLaunchVisible(false);
       setIsChecking(false);
 
+      const hasMobileGeneralTestShortcut =
+        variant === "full" && (persistSmartBarMobileGeneralShortcut() || hasSmartBarMobileGeneralShortcut());
+
+      if (hasMobileGeneralTestShortcut) {
+        cleanupResetAccessUrl();
+        setActiveNoticeLaneState(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        setPreludeStackCards([]);
+        setFitsAnimationVisible(false);
+        setDemoVisible(true);
+        await wait(DEMO_HANDOFF_SETTLE_MS);
+        if (runIdRef.current !== runId) return;
+
+        setDemoAutoPlay(true);
+        return;
+      }
+
       let nextLane: SmartBarFlashCardLaneName = getNextNoticeLane();
 
       if (options.showAccessGranted !== false) {
@@ -845,6 +909,8 @@ export default function LaunchSelectorTourBar({
     let cancelled = false;
 
     const loadAccessState = async () => {
+      persistSmartBarMobileGeneralShortcut();
+
       if (isNexaPathMobilePlayground || isDomiMobilePlayground) {
         setLaunchVisible(false);
         setDemoVisible(true);
