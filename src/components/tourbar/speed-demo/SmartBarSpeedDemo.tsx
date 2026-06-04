@@ -1896,6 +1896,8 @@ export default function SmartBarSpeedDemo({
   const [tutorBlocking, setTutorBlocking] = useState(true);
   const [introRunId, setIntroRunId] = useState(0);
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
+  const [mobileFullNarratorCards, setMobileFullNarratorCards] = useState<string[]>([]);
+  const [mobileFullPointer, setMobileFullPointer] = useState<SmartBarFakePointerState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
   const [mobileBurgerRushStage, setMobileBurgerRushStage] = useState<MobileBurgerRushStage>("intro");
   const commandIdRef = useRef(0);
@@ -1918,6 +1920,13 @@ export default function SmartBarSpeedDemo({
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && !mobileFullShell;
+  useEffect(() => {
+    if (mobileFullShell) return;
+
+    setMobileFullNarratorCards([]);
+    setMobileFullPointer(null);
+  }, [mobileFullShell]);
+
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -2704,7 +2713,35 @@ export default function SmartBarSpeedDemo({
       return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
     }
 
-    return <SmartBarMobileGeneralExperience autoPlay={autoPlay} />;
+    const mobileFullStackCards: SmartBarFlashCardStackItem[] = mobileFullNarratorCards.map((card, index) => ({
+      id: `mobile-full-card-${index}-${card}`,
+      variant: "success",
+      title: card,
+      density: mobileFullNarratorCards.length > 3 ? "micro" : "compact",
+    }));
+
+    const mobileFullCards = (
+      <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
+        <SmartBarFlashCardStack
+          cards={mobileFullStackCards}
+          mode={mobileFullNarratorCards.length > 3 ? "flurry" : "standard"}
+        />
+      </SmartBarFlashCardRail>
+    );
+
+    return (
+      <>
+        <SmartBarMobileGeneralExperience
+          autoPlay={autoPlay}
+          renderNarratorCards={false}
+          renderPointerOverlay={false}
+          onNarratorCardsChange={setMobileFullNarratorCards}
+          onPointerChange={setMobileFullPointer}
+        />
+        {mobileFullCards}
+        <SmartBarFakePointerOverlay pointer={mobileFullPointer} />
+      </>
+    );
   }
 
   if (mobileBurgerRushShell) {
