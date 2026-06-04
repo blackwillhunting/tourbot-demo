@@ -18,10 +18,6 @@ import type { SmartBarSpeedSurface } from "../speed-demo/smartBarSpeedScript";
 
 type SmartBarMobileGeneralExperienceProps = {
   autoPlay?: boolean;
-  renderNarratorCards?: boolean;
-  renderPointerOverlay?: boolean;
-  onNarratorCardsChange?: (cards: string[]) => void;
-  onPointerChange?: (pointer: SmartBarFakePointerState | null) => void;
 };
 
 type MobileFocusSnapshot = {
@@ -720,13 +716,7 @@ function readyGeneralCarryoutOrder(): SmartBarMobileOrderResult {
   };
 }
 
-export default function SmartBarMobileGeneralExperience({
-  autoPlay = false,
-  renderNarratorCards = true,
-  renderPointerOverlay = true,
-  onNarratorCardsChange,
-  onPointerChange,
-}: SmartBarMobileGeneralExperienceProps) {
+export default function SmartBarMobileGeneralExperience({ autoPlay = false }: SmartBarMobileGeneralExperienceProps) {
   const [surface, setSurface] = useState<SmartBarSpeedSurface>("info");
   const [bookingStep, setBookingStep] = useState(1);
   const [breakfastAdded, setBreakfastAdded] = useState(false);
@@ -835,14 +825,6 @@ export default function SmartBarMobileGeneralExperience({
   }, []);
 
   useEffect(() => () => clearFocus(), [clearFocus]);
-
-  useEffect(() => {
-    onNarratorCardsChange?.(narratorCards);
-  }, [narratorCards, onNarratorCardsChange]);
-
-  useEffect(() => {
-    onPointerChange?.(pointer);
-  }, [pointer, onPointerChange]);
 
   useEffect(() => {
     if (!autoPlay || autoPlayStartedRef.current) return;
@@ -1173,8 +1155,8 @@ export default function SmartBarMobileGeneralExperience({
       className="relative min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_16%_10%,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef6ff_54%,#f8fafc_100%)] text-slate-950"
     >
       <div className="pointer-events-none fixed inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
-      {renderNarratorCards ? <GeneralNarratorCards cards={narratorCards} /> : null}
-      {renderPointerOverlay ? <SmartBarFakePointerOverlay pointer={pointer} /> : null}
+      <GeneralNarratorCards cards={narratorCards} />
+      <SmartBarFakePointerOverlay pointer={pointer} />
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={surface}
