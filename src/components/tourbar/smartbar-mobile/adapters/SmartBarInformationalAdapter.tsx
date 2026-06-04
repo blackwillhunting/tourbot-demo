@@ -148,7 +148,8 @@ function navigationTargetFromResult(result: TourBarResult | null): TourBarFocusT
       result.nextMove?.focusAreaId ||
       "",
   ).trim();
-  const targetSelector = String(result.targetSelector || "").trim() || safeSelectorForTourId(targetId);
+  const rawTargetSelector = String(result.targetSelector || "").trim();
+  const targetSelector = targetId ? safeSelectorForTourId(targetId) : rawTargetSelector;
 
   if (!targetId && !targetSelector) return null;
 
@@ -171,53 +172,47 @@ function queryWords(value: string) {
 }
 
 function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]): DomOutlineItem | null {
-  const normalizedQuery = compactText(query).toLowerCase();
   const words = queryWords(query);
-  if (!normalizedQuery || !outline.length) return null;
+  if (!words.size || !outline.length) return null;
 
-  const directMatches: Array<{ terms: string[]; ids: string[] }> = [
-    {
-      terms: ["price", "pricing", "cost", "budget", "engagement", "plan", "plans"],
-      ids: ["pricing"],
-    },
-    {
-      terms: ["service", "services", "solution", "solutions", "offering", "offerings", "capability", "capabilities"],
-      ids: ["services"],
-    },
-    {
-      terms: ["consult", "consultation", "handoff", "contact", "advisor", "specialist", "expert", "talk", "person", "human"],
-      ids: ["consultation"],
-    },
+  const aliasTargets: Array<[RegExp, string[]]> = [
+    [/\b(price|pricing|cost|budget|engagement|plans?)\b/i, ["pricing"]],
+    [/\b(service|services|solutions|offerings|capabilities)\b/i, ["solutions-grid", "solutions", "solution-comparison"]],
+    [/\b(cyber|security|xdr|risk|phishing|incident|vulnerabilit|governance)\b/i, ["solution-cyber", "cyber-hero", "managed-xdr"]],
+    [/\b(ai|data|copilot|automation)\b/i, ["solution-ai-data", "hedgefund-ai-data", "hedgefund-copilot"]],
+    [/\b(cloud|infrastructure|platform|migration)\b/i, ["solution-cloud", "hedgefund-cloud"]],
+    [/\b(compliance|dora|finra|sec|gdpr|regulat)\b/i, ["compliance-preview", "compliance-hero", "topic-dora"]],
+    [/\b(hedge|fund|investment)\b/i, ["hedgefund-overview", "hedgefund-cloud", "hedgefund-cyber"]],
+    [/\b(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)\b/i, ["contact-cta", "cyber-contact-cta", "hedgefund-contact-cta", "compliance-contact-cta", "adaptive-contact-button"]],
   ];
 
-  for (const matchGroup of directMatches) {
-    if (!matchGroup.terms.some((term) => normalizedQuery.includes(term))) continue;
+  for (const [pattern, ids] of aliasTargets) {
+    if (!pattern.test(query)) continue;
 
-    const match = outline.find((item) => {
-      const itemId = item.id.toLowerCase();
-      const itemLabel = item.label.toLowerCase();
-      return matchGroup.ids.some((id) => itemId.includes(id) || itemLabel.includes(id));
-    });
+    for (const id of ids) {
+      const exact = outline.find((item) => item.id.toLowerCase() === id.toLowerCase());
+      if (exact) return exact;
+    }
 
-    if (match) return match;
+    const partial = outline.find((item) =>
+      ids.some((id) => item.id.toLowerCase().includes(id.toLowerCase())),
+    );
+    if (partial) return partial;
   }
-
-  if (!words.size) return null;
 
   let bestItem: DomOutlineItem | null = null;
   let bestScore = 0;
 
   for (const item of outline) {
-    const itemId = item.id.toLowerCase();
-    const itemLabel = item.label.toLowerCase();
-    const haystack = `${itemId} ${itemLabel} ${item.textSample}`.toLowerCase();
+    const idText = item.id.toLowerCase();
+    const labelText = item.label.toLowerCase();
+    const sampleText = item.textSample.toLowerCase();
     let score = 0;
 
     for (const word of words) {
-      if (!haystack.includes(word)) continue;
-      if (itemId.includes(word)) score += 6;
-      else if (itemLabel.includes(word)) score += 4;
-      else score += 1;
+      if (idText.includes(word)) score += 5;
+      if (labelText.includes(word)) score += 4;
+      if (sampleText.includes(word)) score += 1;
     }
 
     if (score > bestScore) {
@@ -226,45 +221,64 @@ function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]
     }
   }
 
-  return bestScore > 0 ? bestItem : null;
+  return bestScore >= 5 ? bestItem : null;
 }
 
 
-function navigationTargetResolves(target: TourBarFocusTarget | null) {
-  if (!target || typeof document === "undefined") return false;
+function outlineHasTarget(outline: DomOutlineItem[], target: TourBarFocusTarget | null) {
+  if (!target) return false;
 
-  const selectors: string[] = [];
-  const selector = String(target.targetSelector || "").trim();
-  if (selector) selectors.push(selector);
+  const cleanTargetId = String(target.targetId || "").trim().toLowerCase();
+  const cleanSelector = String(target.targetSelector || "").trim();
 
-  const targetId = String(target.targetId || "").trim();
-  if (targetId) selectors.push(safeSelectorForTourId(targetId));
+  if (cleanTargetId && outline.some((item) => item.id.toLowerCase() === cleanTargetId)) {
+    return true;
+  }
 
-  for (const item of selectors) {
-    try {
-      if (document.querySelector(item)) return true;
-    } catch {
-      // Ignore malformed selectors from backend/customer content.
-    }
+  if (cleanSelector && outline.some((item) => item.selector === cleanSelector)) {
+    return true;
   }
 
   return false;
 }
 
-function withFallbackNavigation(result: TourBarResult, query: string, outline: DomOutlineItem[]) {
-  const existingTarget = navigationTargetFromResult(result);
-  if (navigationTargetResolves(existingTarget)) return result;
+function resultPointsToDifferentPage(result: TourBarResult, currentPageId?: string) {
+  return Boolean(result.pageId && result.pageId !== currentPageId);
+}
+
+function withFallbackNavigation(
+  result: TourBarResult,
+  query: string,
+  outline: DomOutlineItem[],
+  currentPageId?: string,
+) {
+  const backendTarget = navigationTargetFromResult(result);
+
+  if (
+    backendTarget &&
+    (resultPointsToDifferentPage(result, currentPageId) || outlineHasTarget(outline, backendTarget))
+  ) {
+    return result;
+  }
+
   if (result.action === "CLARIFY" || result.action === "OUT_OF_SCOPE") return result;
 
   const fallback = fallbackNavigationItemForQuery(query, outline);
-  if (!fallback) return result;
+  if (!fallback) {
+    return {
+      ...result,
+      focusAreaId: undefined,
+      targetId: undefined,
+      targetSelector: undefined,
+    } satisfies TourBarResult;
+  }
 
   return {
     ...result,
     action: result.action === "ANSWER_ONLY" ? "NAVIGATE_AND_ANSWER" : result.action,
-    focusAreaId: result.focusAreaId || fallback.id,
-    targetId: result.targetId || fallback.id,
-    targetSelector: result.targetSelector || fallback.selector,
+    focusAreaId: fallback.id,
+    targetId: fallback.id,
+    targetSelector: fallback.selector,
     label: result.label || fallback.label,
   } satisfies TourBarResult;
 }
@@ -461,7 +475,7 @@ export default function SmartBarInformationalAdapter({
           domOutline,
           url: window.location.href,
         });
-    const normalizedResponse = shouldAnswerFollowUp ? response : withFallbackNavigation(response, query, domOutline);
+    const normalizedResponse = shouldAnswerFollowUp ? response : withFallbackNavigation(response, query, domOutline, currentPageId);
 
     activeResultRef.current = normalizedResponse;
     threadRef.current = [
