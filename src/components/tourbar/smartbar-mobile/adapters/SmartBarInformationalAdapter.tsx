@@ -170,14 +170,14 @@ function queryWords(value: string) {
   );
 }
 
-function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]) {
+function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]): DomOutlineItem | null {
   const words = queryWords(query);
   if (!words.size || !outline.length) return null;
 
   const aliasTargets: Array<[RegExp, string[]]> = [
-    [/\b(price|pricing|cost|budget|engagement|plans?)\b/i, ["pricing"]],
-    [/\b(service|services|solutions|offerings|capabilities)\b/i, ["services"]],
-    [/\b(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)\b/i, ["consultation"]],
+    [/(price|pricing|cost|budget|engagement|plans?)/i, ["pricing"]],
+    [/(service|services|solutions|offerings|capabilities)/i, ["services"]],
+    [/(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)/i, ["consultation"]],
   ];
 
   for (const [pattern, ids] of aliasTargets) {
@@ -186,20 +186,26 @@ function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]
     if (match) return match;
   }
 
-  let best: { item: DomOutlineItem; score: number } | null = null;
+  let bestItem: DomOutlineItem | null = null;
+  let bestScore = 0;
 
-  outline.forEach((item) => {
+  for (const item of outline) {
     const haystack = `${item.id} ${item.label} ${item.textSample}`.toLowerCase();
     let score = 0;
-    words.forEach((word) => {
-      if (haystack.includes(word)) score += item.id.toLowerCase().includes(word) ? 4 : 1;
-    });
 
-    if (score > 0 && (!best || score > best.score)) best = { item, score };
-  });
+    for (const word of words) {
+      if (haystack.includes(word)) {
+        score += item.id.toLowerCase().includes(word) ? 4 : 1;
+      }
+    }
 
-  if (!best) return null;
-  return best.item;
+    if (score > bestScore) {
+      bestItem = item;
+      bestScore = score;
+    }
+  }
+
+  return bestItem;
 }
 
 function withFallbackNavigation(result: TourBarResult, query: string, outline: DomOutlineItem[]) {
