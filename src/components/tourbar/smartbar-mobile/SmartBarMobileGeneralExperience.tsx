@@ -128,7 +128,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-next-ocean",
     query: "__booking_next",
     cards: [],
-    targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"]',
     label: "Next",
     cardMs: 400,
     afterSubmitMs: 3600,
@@ -138,7 +138,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-next-villa",
     query: "__booking_next",
     cards: [],
-    targetSelector: '[data-smartbar-mobile-generic-action="booking-next"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"]',
     label: "Next",
     cardMs: 400,
     afterSubmitMs: 3800,
@@ -959,8 +959,22 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       content: <BookingTourContent step={safeStep} />,
       helper: "SmartBar keeps room, view, breakfast, dates, and guest context together while you compare options.",
       actions: [
-        { id: "booking-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
-        { id: "booking-next", label: "Next room", disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1 },
+        {
+          id: "booking-nav-back",
+          label: "Back",
+          helper: `Stop ${safeStep + 1} of ${GENERAL_DOMI_ROOMS.length}`,
+          variant: "back",
+          disabled: safeStep === 0,
+        },
+        {
+          id: "booking-nav-next",
+          label: "Next",
+          helper: safeStep >= GENERAL_DOMI_ROOMS.length - 1
+            ? `Stop ${safeStep + 1} of ${GENERAL_DOMI_ROOMS.length}`
+            : GENERAL_DOMI_ROOMS[safeStep + 1]?.label || `Stop ${safeStep + 2}`,
+          variant: "next",
+          disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1,
+        },
         { id: "add-breakfast", label: breakfastAdded ? "Breakfast already added" : "Add breakfast", variant: breakfastAdded ? "secondary" : "primary" },
         { id: "prepare-booking", label: "Prepare booking summary", variant: "secondary" },
       ],
@@ -1124,8 +1138,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     if (action.id === "show-proof") submitDemoQuery("__nexa_proof");
     if (action.id === "consultant") submitDemoQuery("Perfect, can I talk to someone?");
     if (action.id === "start-order") submitDemoQuery("dbl chzbrger combo lg friez diet coke pie");
-    if (action.id === "booking-back") submitDemoQuery("__booking_back");
-    if (action.id === "booking-next") submitDemoQuery("__booking_next");
+    if (action.id === "booking-back" || action.id === "booking-nav-back") submitDemoQuery("__booking_back");
+    if (action.id === "booking-next" || action.id === "booking-nav-next") submitDemoQuery("__booking_next");
     if (action.id === "booking-summary") submitDemoQuery("prepare booking summary");
     if (action.id === "add-breakfast") submitDemoQuery("add breakfast");
     if (action.id === "prepare-booking") submitDemoQuery("prepare booking summary");
