@@ -397,7 +397,7 @@ function focusResult(result: TourBarResult, currentPageId?: string, onNavigateTo
   void smartbarFocusTarget(target, {
     initialDelayMs: pageWillChange ? 980 : 420,
     attempts: 28,
-    scrollBehavior: "auto",
+    scrollBehavior: "smooth",
     overlayDurationMs: 3600,
     dispatchLegacyEvent: false,
   });

@@ -192,9 +192,57 @@ const NEXAPATH_SECTIONS: NexaPathSection[] = [
     shape: "dark",
   },
   {
-    id: "hedgefund-contact-cta",
+    id: "hedgefund-copilot-governance",
     pageId: "hedge-fund",
     pageIndex: 6,
+    title: "Governed rollout plan",
+    body:
+      "A safe Copilot journey needs launch gates, ownership, training waves, escalation paths, and a clear rule for what agents may never answer alone.",
+    Icon: ClipboardList,
+    tone: "from-slate-900 to-violet-800",
+    chips: ["Launch gates", "Ownership", "Escalation"],
+    shape: "feature",
+  },
+  {
+    id: "hedgefund-permission-cleanup",
+    pageId: "hedge-fund",
+    pageIndex: 7,
+    title: "Permission cleanup",
+    body:
+      "Before agents surface knowledge, the firm has to reduce oversharing, separate sensitive material, and make source boundaries obvious.",
+    Icon: Shield,
+    tone: "from-slate-950 to-emerald-800",
+    chips: ["Least access", "Source limits", "Sensitive data"],
+    shape: "feature",
+  },
+  {
+    id: "hedgefund-adoption-pilot",
+    pageId: "hedge-fund",
+    pageIndex: 8,
+    title: "Pilot adoption sprint",
+    body:
+      "The first rollout should prove value with a controlled group, a small set of workflows, feedback loops, and simple success measures.",
+    Icon: Network,
+    tone: "from-indigo-900 to-slate-700",
+    chips: ["Pilot group", "Feedback", "Enablement"],
+    shape: "split",
+  },
+  {
+    id: "hedgefund-outcomes-review",
+    pageId: "hedge-fund",
+    pageIndex: 9,
+    title: "Outcome review",
+    body:
+      "After launch, leaders need a practical readout: what people asked, what helped, what escalated, and what should be improved before expansion.",
+    Icon: CheckCircle2,
+    tone: "from-teal-900 to-slate-700",
+    chips: ["Usage", "Quality", "Expansion"],
+    shape: "dark",
+  },
+  {
+    id: "hedgefund-contact-cta",
+    pageId: "hedge-fund",
+    pageIndex: 10,
     title: "Talk through your firm model",
     body:
       "A guided industry tour should end by narrowing toward a concrete next step for the buyer.",
@@ -528,7 +576,7 @@ function NexaPathHeroReplica() {
           <div className="grid gap-1.5 sm:gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-[14px] border border-white/15 bg-white/10 p-2.5 backdrop-blur sm:rounded-[28px] sm:p-5">
               <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Guide readiness</div>
-              <div className="mt-1 text-sm font-semibold sm:mt-3 sm:text-2xl">7 anchored stops</div>
+              <div className="mt-1 text-sm font-semibold sm:mt-3 sm:text-2xl">11 anchored stops</div>
               <p className="mt-1 text-[10px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
                 Each section remains addressable for spotlighting, multi-step navigation, and AI-guided explanations.
               </p>
