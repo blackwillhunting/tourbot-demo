@@ -226,6 +226,34 @@ function compactCalendarDateLabel(value?: string | null) {
   });
 }
 
+function normalizeSmartBarSummaryLabel(value?: string | null) {
+  return compactText(value)
+    .replace(/\u00e2(?:\u0080|\u20ac)(?:\u0093|\u0094|\u201c|\u009d)/g, " - ")
+    .replace(/[–—]/g, " - ")
+    .replace(/\s+-\s+/g, " - ");
+}
+
+function smartBarSummaryDateRange(checkInDate?: string | null, checkOutDate?: string | null, fallback?: string | null) {
+  const start = dateFromIso(checkInDate);
+  const end = dateFromIso(checkOutDate);
+
+  if (!start || !end) return normalizeSmartBarSummaryLabel(fallback || "");
+
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  const endLabel = end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `${startLabel} to ${endLabel}`;
+}
+
 function dateButtonState(value: string, checkInDate: string, checkOutDate: string) {
   const isStart = value === checkInDate;
   const isEnd = value === checkOutDate;
@@ -1628,9 +1656,17 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
       .filter((title): title is string => Boolean(title));
     const datesLabel =
       bookingContext.checkInDate && bookingContext.checkOutDate
-        ? site.formatDateRange(String(bookingContext.checkInDate), String(bookingContext.checkOutDate))
+        ? smartBarSummaryDateRange(
+            String(bookingContext.checkInDate),
+            String(bookingContext.checkOutDate),
+            site.formatDateRange(String(bookingContext.checkInDate), String(bookingContext.checkOutDate)),
+          )
         : site.datesSelected
-          ? site.formatDateRange(site.checkInDate, site.checkOutDate)
+          ? smartBarSummaryDateRange(
+              site.checkInDate,
+              site.checkOutDate,
+              site.formatDateRange(site.checkInDate, site.checkOutDate),
+            )
           : "Dates can be added next";
     const guestsLabel =
       typeof bookingContext.guestLabel === "string" && bookingContext.guestLabel.trim()
@@ -1642,11 +1678,11 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
             : "Guests can be added next";
 
     return [
-      ["Room", String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room")],
-      ["Add-ons", (packageTitles[0] || derivedPackageTitles[0] || "No package selected").replace(/\s+/g, " ")],
-      ["Dates", datesLabel],
-      ["Guests", guestsLabel],
-      ["Estimate", priceLabelFromTourBarCombination(selected) || roomMeta?.price || "Rate ready"],
+      ["Room", normalizeSmartBarSummaryLabel(String(selected.roomShortTitle || selected.roomTitle || roomMeta?.title || "Selected room"))],
+      ["Add-ons", normalizeSmartBarSummaryLabel(packageTitles[0] || derivedPackageTitles[0] || "No package selected")],
+      ["Dates", normalizeSmartBarSummaryLabel(datesLabel)],
+      ["Guests", normalizeSmartBarSummaryLabel(guestsLabel)],
+      ["Estimate", normalizeSmartBarSummaryLabel(priceLabelFromTourBarCombination(selected) || roomMeta?.price || "Rate ready")],
     ];
   };
 
@@ -1683,7 +1719,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
                   >
                     <span className="flex items-center gap-1.5 text-white/76">
                       {label}
-                      <span aria-hidden="true" className="text-[12px] text-sky-100/82">✎</span>
+                      <span className="rounded-full bg-sky-200/18 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-sky-100/86 ring-1 ring-sky-100/14">Edit</span>
                     </span>
                     <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>
                   </button>
