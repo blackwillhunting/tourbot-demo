@@ -314,18 +314,18 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
   const normalized = compactText(query).toLowerCase();
   const focusAreaId = activeResult?.focusAreaId || "hedgefund-copilot";
 
-  if (/\b(case|proof|study|studies|examples?)\b/.test(normalized) || normalized.includes("__case_studies")) {
+  if (/(case|proof|study|studies|examples?)/.test(normalized) || normalized.includes("__case_studies")) {
     return {
       ok: true,
       mode: "answer",
       action: "ANSWER_ONLY",
       focusAreaId,
-      label: "Proof points for Copilot and IT modernization",
+      label: "Relevant case studies",
       answerMode: "case_studies",
       answer:
-        "Relevant proof points: Copilot readiness planning, knowledge cleanup, secure access design, workflow automation, and service-desk handoff. SmartBar can explain the work, show the matching service area, and move the visitor toward a consultant without losing context.",
+        "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
       nextMove: {
-        type: "handoff",
+        type: "consultant_cta",
         label: "Talk to a consultant",
         query: "Perfect, can I talk to someone?",
         focusAreaId,
@@ -344,12 +344,6 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
       answer:
         "Yes. I can hand this to a consultant with the hedge-fund Copilot and IT modernization context already attached.",
       handoffRecommended: true,
-      nextMove: {
-        type: "handoff",
-        label: "Start consultant chat",
-        query: "Start consultant chat",
-        focusAreaId,
-      },
     };
   }
 
@@ -443,7 +437,7 @@ export default function SmartBarInformationalAdapter({
           url: window.location.href,
         });
 
-    if (queryRequestsHumanHandoff(query) || resultRequestsHumanHandoff(response)) {
+    if (queryRequestsHumanHandoff(query) || (!demoFixtureMode && resultRequestsHumanHandoff(response))) {
       setChatContext(handoffContextFromResult(query, response));
     }
 
