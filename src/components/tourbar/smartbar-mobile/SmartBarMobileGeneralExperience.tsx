@@ -95,7 +95,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "case-studies",
     query: "__case_studies",
     cards: ["Proof points", "then a handoff path"],
-    targetSelector: '[data-smartbar-mobile-generic-action="show-proof"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="show-proof"], [data-smartbar-mobile-companion="true"]',
     label: "Proof",
     cardMs: 3000,
     afterSubmitMs: 3600,
@@ -144,7 +144,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-next-ocean",
     query: "__booking_next",
     cards: ["Compare without restarting"],
-    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-smartbar-mobile-generic-action="booking-next"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-smartbar-mobile-generic-action="booking-next"], [data-smartbar-mobile-companion="true"]',
     label: "Next",
     cardMs: 2200,
     afterSubmitMs: 2900,
@@ -174,7 +174,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-summary",
     query: "prepare booking summary",
     cards: ["Room", "package", "dates", "guest context"],
-    targetSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="prepare-booking"], [data-smartbar-mobile-companion="true"]',
     label: "Summary",
     cardMs: 3300,
     afterSubmitMs: 4200,
@@ -194,7 +194,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-selectors",
     query: "__booking_selectors",
     cards: ["Selectors beat typing", "context becomes structured"],
-    targetSelector: '[data-smartbar-mobile-generic-action="select-dates"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="select-dates"], [data-smartbar-mobile-companion="true"]',
     label: "Select",
     cardMs: 3000,
     afterSubmitMs: 3500,
@@ -204,7 +204,7 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     desktopStepId: "booking-family-summary",
     query: "show family recommendation",
     cards: ["Now SmartBar can filter", "family-ready recommendation"],
-    targetSelector: '[data-smartbar-mobile-generic-action="show-family-recommendation"]',
+    targetSelector: '[data-smartbar-mobile-generic-action="show-family-recommendation"], [data-smartbar-mobile-companion="true"]',
     label: "Recommend",
     cardMs: 3200,
     afterSubmitMs: 4200,
@@ -546,7 +546,7 @@ function readyGeneralCarryoutOrder(): SmartBarMobileOrderResult {
 export default function SmartBarMobileGeneralExperience({ autoPlay = false }: SmartBarMobileGeneralExperienceProps) {
   const [surface, setSurface] = useState<SmartBarSpeedSurface>("info");
   const [bookingStep, setBookingStep] = useState(1);
-  const [breakfastAdded, setBreakfastAdded] = useState(false);
+  const [, setBreakfastAdded] = useState(false);
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
   const submissionIdRef = useRef(0);
   const autoPlayStartedRef = useRef(false);
@@ -707,50 +707,27 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("info");
     focusTarget(kind === "primary" ? "hedgefund-copilot" : "hedgefund-contact-cta");
 
-    if (kind === "specifics") {
-      return {
-        surfaceKind: "info",
-        eyebrow: "NexaPath Advisory",
-        title: "What NexaPath would do",
-        statusLabel: "Use cases",
-        body: "Readiness review, secure Copilot rollout, agent design, and a controlled pilot for finance operations.",
-        helper: "The visible page carries the detail; the bar stays compact and action-oriented.",
-        actions: [
-          { id: "show-proof", label: "Show relevant case studies", helper: "Surface proof points" },
-          { id: "consultant", label: "Talk to consultant", variant: "secondary" },
-        ],
-        height: 330,
-      };
-    }
-
-    if (kind === "proof") {
-      return {
-        surfaceKind: "info",
-        eyebrow: "NexaPath Advisory",
-        title: "Relevant proof points",
-        statusLabel: "Proof ready",
-        body: "Ops assistant, compliance evidence helper, and Copilot adoption sprint.",
-        helper: "SmartBar moves from answer to proof, then to handoff.",
-        actions: [
-          { id: "consultant", label: "Talk to someone about Copilot support", helper: "Open the handoff surface" },
-          { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
-        ],
-        height: 330,
-      };
-    }
+    const copy =
+      kind === "specifics"
+        ? {
+            title: "NexaPath use cases ready",
+            statusLabel: "Specifics",
+          }
+        : kind === "proof"
+          ? {
+              title: "Proof points ready",
+              statusLabel: "Proof",
+            }
+          : {
+              title: "NexaPath answer ready",
+              statusLabel: "Answer",
+            };
 
     return {
       surfaceKind: "info",
-      eyebrow: "NexaPath Advisory",
-      title: "Copilot journey found",
-      statusLabel: "Answer ready",
-      body: "For a hedge fund, SmartBar routes the visitor toward secure Copilot adoption, data readiness, compliance pressure, and operating-model fit.",
-      helper: "A search bar returns links. SmartBar returns the next useful buyer step.",
-      actions: [
-        { id: "show-proof", label: "Show proof points", helper: "Drill into concrete examples" },
-        { id: "consultant", label: "Talk to consultant", variant: "secondary" },
-      ],
-      height: 330,
+      eyebrow: "NexaPath",
+      ...copy,
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -760,15 +737,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "chat",
-      eyebrow: "Live handoff",
-      title: "Consultant desk opened",
-      statusLabel: "Chat open",
-      body: "Context received — handing the hedge-fund Copilot brief to a consultant.",
-      helper: "This keeps the handoff compact instead of rendering a fake chat transcript inside the shell.",
-      actions: [
-        { id: "start-order", label: "Next: ordering demo", helper: "Move to BurgerRush" },
-      ],
-      height: 330,
+      eyebrow: "NexaPath",
+      title: "Consultant handoff ready",
+      statusLabel: "Handoff",
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -788,23 +760,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi Hotel",
+      eyebrow: "Domi",
       title: activeRoom.title,
       statusLabel: activeRoom.label,
       progressLabel: "Rooms",
       progressCurrent: safeStep + 1,
       progressTotal: GENERAL_DOMI_ROOMS.length,
-      body: `${activeRoom.body} ${activeRoom.price}.`,
-      helper: "Room, view, breakfast, date, and guest context stay attached while the visitor compares options.",
-      actions: [
-        { id: "booking-nav-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
-        { id: "booking-nav-next", label: "Next room", disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1 },
-        { id: "add-breakfast", label: breakfastAdded ? "Breakfast already added" : "Add breakfast", variant: breakfastAdded ? "secondary" : "primary" },
-        { id: "prepare-booking", label: "Prepare booking summary", variant: "secondary" },
-      ],
-      height: 330,
+      height: 150,
     };
-  }, [bookingStep, breakfastAdded, focusTarget]);
+  }, [bookingStep, focusTarget]);
 
   const buildBookingBreakfastResult = useCallback((): SmartBarMobileGenericResult => {
     setBreakfastAdded(true);
@@ -814,19 +778,13 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi Hotel",
+      eyebrow: "Domi",
       title: "Breakfast added",
       statusLabel: "Add-on",
       progressLabel: "Package",
       progressCurrent: 2,
       progressTotal: 3,
-      body: "Breakfast Flex Plan is attached to the Ocean View Suite without losing the room, date, or guest context.",
-      helper: "The add-on updates the active stay plan instead of replacing the recommendation.",
-      actions: [
-        { id: "show-rooms", label: "Review rooms", variant: "secondary" },
-        { id: "prepare-booking", label: "Prepare booking summary" },
-      ],
-      height: 330,
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -838,15 +796,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_summary",
-      eyebrow: "Domi Hotel",
+      eyebrow: "Domi",
       title: "Booking summary ready",
-      statusLabel: "Summary ready",
-      body: "Ocean View Suite, Breakfast Flex Plan, Aug 4–9, 2026, 1 guest. Estimate: $379/night + $32/night.",
-      helper: "The summary is now ready for a booking handoff.",
-      actions: [
-        { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
-      ],
-      height: 330,
+      statusLabel: "Summary",
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -856,15 +809,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi Hotel",
-      title: "Need dates and guests",
-      statusLabel: "Missing context",
-      body: "SmartBar does not guess. It pauses the booking path and asks for the fields needed before recommending a family-capable room.",
-      helper: "This mirrors the real booking flow: collect required context before filtering inventory.",
-      actions: [
-        { id: "select-dates", label: "Set dates and guests" },
-      ],
-      height: 330,
+      eyebrow: "Domi",
+      title: "Dates and guests needed",
+      statusLabel: "Context",
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -874,15 +822,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi Hotel",
+      eyebrow: "Domi",
       title: "Dates and guests selected",
       statusLabel: "Context set",
-      body: "June 12–15, 2026 with 2 adults and 2 children. SmartBar can now filter for family-capable rooms.",
-      helper: "The mobile selector work is represented as resolved booking context.",
-      actions: [
-        { id: "show-family-recommendation", label: "Show family recommendation" },
-      ],
-      height: 330,
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -892,15 +835,10 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_summary",
-      eyebrow: "Domi Hotel",
+      eyebrow: "Domi",
       title: "Family recommendation ready",
       statusLabel: "Family fit",
-      body: "Family Double Room with the Family Comfort Bundle fits the selected dates and four-guest stay.",
-      helper: "The result now carries room, dates, guests, and package context forward.",
-      actions: [
-        { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
-      ],
-      height: 330,
+      height: 150,
     };
   }, [focusTarget]);
 
@@ -913,12 +851,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Finale",
       title: "Search bar with a toolbelt",
       statusLabel: "Toolbelt",
-      body: "Same bar, different jobs: answer, action choices, cart, selectors, summary, lead capture, and chat handoff.",
-      helper: "The website remains the visual surface. The bar stays compact and action-oriented.",
-      actions: [
-        { id: "restart-info", label: "Replay from the top", variant: "secondary" },
-      ],
-      height: 330,
+      height: 150,
     };
   }, [focusTarget]);
 
