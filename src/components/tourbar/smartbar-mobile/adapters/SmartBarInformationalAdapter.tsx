@@ -128,6 +128,96 @@ function collectDomOutline(): DomOutlineItem[] {
     .filter((item): item is DomOutlineItem => Boolean(item));
 }
 
+function safeSelectorForTourId(value: string) {
+  const id = value.trim();
+  if (!id) return "";
+
+  const escaped = typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(id)
+    : id.replace(/["\\]/g, "\\$&");
+
+  return `[data-tour-id="${escaped}"], #${escaped}`;
+}
+
+function navigationTargetFromResult(result: TourBarResult | null): TourBarFocusTarget | null {
+  if (!result) return null;
+
+  const targetId = String(
+    result.targetId ||
+      result.focusAreaId ||
+      result.nextMove?.focusAreaId ||
+      "",
+  ).trim();
+  const targetSelector = String(result.targetSelector || "").trim() || safeSelectorForTourId(targetId);
+
+  if (!targetId && !targetSelector) return null;
+
+  return {
+    pageId: result.pageId,
+    targetId: targetId || undefined,
+    targetSelector: targetSelector || undefined,
+    label: result.label,
+  };
+}
+
+function queryWords(value: string) {
+  return new Set(
+    compactText(value)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]+/g, " ")
+      .split(/[\s-]+/)
+      .filter((word) => word.length > 2),
+  );
+}
+
+function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]) {
+  const words = queryWords(query);
+  if (!words.size || !outline.length) return null;
+
+  const aliasTargets: Array<[RegExp, string[]]> = [
+    [/\b(price|pricing|cost|budget|engagement|plans?)\b/i, ["pricing"]],
+    [/\b(service|services|solutions|offerings|capabilities)\b/i, ["services"]],
+    [/\b(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)\b/i, ["consultation"]],
+  ];
+
+  for (const [pattern, ids] of aliasTargets) {
+    if (!pattern.test(query)) continue;
+    const match = outline.find((item) => ids.some((id) => item.id.toLowerCase().includes(id)));
+    if (match) return match;
+  }
+
+  let best: { item: DomOutlineItem; score: number } | null = null;
+
+  outline.forEach((item) => {
+    const haystack = `${item.id} ${item.label} ${item.textSample}`.toLowerCase();
+    let score = 0;
+    words.forEach((word) => {
+      if (haystack.includes(word)) score += item.id.toLowerCase().includes(word) ? 4 : 1;
+    });
+
+    if (score > 0 && (!best || score > best.score)) best = { item, score };
+  });
+
+  return best?.item || null;
+}
+
+function withFallbackNavigation(result: TourBarResult, query: string, outline: DomOutlineItem[]) {
+  if (navigationTargetFromResult(result)) return result;
+  if (result.action === "CLARIFY" || result.action === "OUT_OF_SCOPE") return result;
+
+  const fallback = fallbackNavigationItemForQuery(query, outline);
+  if (!fallback) return result;
+
+  return {
+    ...result,
+    action: result.action === "ANSWER_ONLY" ? "NAVIGATE_AND_ANSWER" : result.action,
+    focusAreaId: result.focusAreaId || fallback.id,
+    targetId: result.targetId || fallback.id,
+    targetSelector: result.targetSelector || fallback.selector,
+    label: result.label || fallback.label,
+  } satisfies TourBarResult;
+}
+
 async function postTourBar(payload: Record<string, unknown>) {
   const token = getTourBotDemoToken();
 
@@ -152,7 +242,7 @@ async function postTourBar(payload: Record<string, unknown>) {
 }
 
 function hasNavigation(result: TourBarResult | null) {
-  return Boolean(result?.targetId || result?.targetSelector);
+  return Boolean(navigationTargetFromResult(result));
 }
 
 function resultTitle(result: TourBarResult | null) {
@@ -275,15 +365,10 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
 }
 
 function focusResult(result: TourBarResult, currentPageId?: string, onNavigateToFocus?: (target: TourBarFocusTarget) => void) {
-  if (!result.targetId && !result.targetSelector) return;
+  const target = navigationTargetFromResult(result);
+  if (!target) return;
 
-  const target = {
-    pageId: result.pageId,
-    targetId: result.targetId,
-    targetSelector: result.targetSelector,
-    label: result.label,
-  };
-  const pageWillChange = Boolean(result.pageId && result.pageId !== currentPageId);
+  const pageWillChange = Boolean(target.pageId && target.pageId !== currentPageId);
 
   onNavigateToFocus?.(target);
   void smartbarFocusTarget(target, {
@@ -306,6 +391,7 @@ export default function SmartBarInformationalAdapter({
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const activeResult = activeResultRef.current;
     const shouldAnswerFollowUp = Boolean(activeResult?.focusAreaId && !queryLooksLikeNewRoute(query));
+    const domOutline = shouldAnswerFollowUp ? [] : collectDomOutline();
     const response = shouldAnswerFollowUp
       ? await postTourBar({
           mode: "answer",
@@ -321,24 +407,25 @@ export default function SmartBarInformationalAdapter({
           siteId,
           query,
           currentPageId,
-          domOutline: collectDomOutline(),
+          domOutline,
           url: window.location.href,
         });
+    const normalizedResponse = shouldAnswerFollowUp ? response : withFallbackNavigation(response, query, domOutline);
 
-    activeResultRef.current = response;
+    activeResultRef.current = normalizedResponse;
     threadRef.current = [
       ...threadRef.current.slice(-6),
       { role: "visitor", content: query },
       {
         role: "tourbar",
-        content: messageFromResult(response),
-        focusAreaId: response.focusAreaId,
-        answerMode: response.answerMode,
+        content: messageFromResult(normalizedResponse),
+        focusAreaId: normalizedResponse.focusAreaId,
+        answerMode: normalizedResponse.answerMode,
       },
     ];
 
-    focusResult(response, currentPageId, onNavigateToFocus);
-    return toGenericResult(response);
+    focusResult(normalizedResponse, currentPageId, onNavigateToFocus);
+    return toGenericResult(normalizedResponse);
   };
 
   const submitGenericAction = (action: SmartBarMobileGenericAction) => {
