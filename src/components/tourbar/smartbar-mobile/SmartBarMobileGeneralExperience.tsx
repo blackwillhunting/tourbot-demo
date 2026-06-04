@@ -14,6 +14,15 @@ import {
   makeSmartBarFakePointerState,
   type SmartBarFakePointerState,
 } from "../speed-demo/SmartBarFakePointer";
+import {
+  SmartBarFlashCard,
+  SmartBarFlashCardLane,
+  SmartBarFlashCardRail,
+  SMARTBAR_FLASH_CARD_CROSSOVER_MS,
+  SMARTBAR_FLASH_CARD_TRANSITION_MS,
+  type SmartBarFlashCardLaneName,
+  type SmartBarFlashCardNotice,
+} from "../speed-demo/SmartBarFlashCardRail";
 import type { SmartBarSpeedSurface } from "../speed-demo/smartBarSpeedScript";
 
 type SmartBarMobileGeneralExperienceProps = {
@@ -743,21 +752,68 @@ function FinaleToolbeltContent() {
 }
 
 function GeneralNarratorCards({ cards }: { cards: string[] }) {
-  if (!cards.length) return null;
+  const [activeLane, setActiveLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
+  const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runCards = async () => {
+      if (!cards.length) {
+        setActiveLane(null);
+        await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+        if (cancelled) return;
+
+        setNoticeA(null);
+        setNoticeB(null);
+        return;
+      }
+
+      let nextLane: SmartBarFlashCardLaneName = "a";
+      setActiveLane(null);
+      await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+      if (cancelled) return;
+
+      for (let index = 0; index < cards.length; index += 1) {
+        const title = cards[index]?.trim();
+        if (!title) continue;
+
+        const notice: SmartBarFlashCardNotice = {
+          variant: "prelude",
+          title,
+        };
+
+        if (nextLane === "a") setNoticeA(notice);
+        else setNoticeB(notice);
+
+        setActiveLane(nextLane);
+
+        await wait(Math.max(1100, Math.min(1700, SMARTBAR_FLASH_CARD_TRANSITION_MS + 420)));
+        if (cancelled) return;
+
+        nextLane = nextLane === "a" ? "b" : "a";
+      }
+    };
+
+    void runCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cards]);
+
+  if (!cards.length && !noticeA && !noticeB) return null;
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-3 z-[10130] flex justify-center px-4">
-      <div className="w-full max-w-[360px] space-y-2">
-        {cards.map((card, index) => (
-          <div
-            key={`${card}-${index}`}
-            className="rounded-[999px] border border-white/70 bg-slate-950/88 px-4 py-2.5 text-center text-[13px] font-semibold leading-5 text-white shadow-[0_16px_40px_rgba(2,6,23,0.24)] ring-1 ring-slate-950/10 backdrop-blur-xl"
-          >
-            {card}
-          </div>
-        ))}
-      </div>
-    </div>
+    <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
+      <SmartBarFlashCardLane active={activeLane === "a"}>
+        <SmartBarFlashCard notice={noticeA} />
+      </SmartBarFlashCardLane>
+      <SmartBarFlashCardLane active={activeLane === "b"}>
+        <SmartBarFlashCard notice={noticeB} />
+      </SmartBarFlashCardLane>
+    </SmartBarFlashCardRail>
   );
 }
 
