@@ -198,7 +198,8 @@ function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]
     if (score > 0 && (!best || score > best.score)) best = { item, score };
   });
 
-  return best?.item || null;
+  if (!best) return null;
+  return best.item;
 }
 
 function withFallbackNavigation(result: TourBarResult, query: string, outline: DomOutlineItem[]) {
