@@ -1450,10 +1450,10 @@ export default function SmartBarMobileShell({
         {phase === "entry" && (
           <motion.section
             key="real-entry-composer"
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.985 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
             style={{ bottom: 76 + keyboardLift }}
           >
@@ -1517,7 +1517,7 @@ export default function SmartBarMobileShell({
                   : fakeCartPanelHeight,
                 borderRadius: fakeCartPanelRadius,
               }}
-              transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.9 }}
+              transition={{ type: "spring", stiffness: 230, damping: 52, mass: 1.05 }}
             >
               <AnimatePresence initial={false}>
                 {phase === "building_cart" && (
