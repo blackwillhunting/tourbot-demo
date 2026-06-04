@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import GuideShellStatic, { type GuideShellDemoCommand } from "./components/GuideShellStatic";
 import TourBarInformational, { type TourBarFocusTarget } from "./components/tourbar/TourBarInformational";
+import SmartBarInformationalAdapter from "./components/tourbar/smartbar-mobile/adapters/SmartBarInformationalAdapter";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import { guidedDiscoveryDemo } from "./demo/demoScripts";
 
@@ -90,6 +91,47 @@ function Button({
       {children}
     </button>
   );
+}
+
+
+function smartBarMobileViewportMatches() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
+}
+
+function useSmartBarMobileViewport() {
+  const [isMobileViewport, setIsMobileViewport] = useState(smartBarMobileViewportMatches);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileViewport(smartBarMobileViewportMatches());
+
+    update();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      window.addEventListener("orientationchange", update);
+      return () => {
+        media.removeEventListener("change", update);
+        window.removeEventListener("orientationchange", update);
+      };
+    }
+
+    media.addListener(update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      media.removeListener(update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
+  return isMobileViewport;
 }
 
 function StaticSearchPresence({ compact = false }: { compact?: boolean }) {
@@ -1372,6 +1414,8 @@ export default function App() {
   }, []);
 
   const showLegacyGuideShell = isSelfDriveEntry && !isTourBarForced;
+  const isSmartBarMobileViewport = useSmartBarMobileViewport();
+  const useNewMobileSmartBar = isSmartBarMobileViewport && !showLegacyGuideShell;
 
   const page = PAGES[currentPage];
   const pageIndex = pageOrder.indexOf(currentPage);
@@ -1490,7 +1534,7 @@ export default function App() {
         onResumeDemo={() => setDemoStatus("running")}
         onStopDemo={stopDemo}
         tourBarNode={
-          showLegacyGuideShell ? null : (
+          showLegacyGuideShell || useNewMobileSmartBar ? null : (
             <TourBarInformational
               siteId="nexapath"
               currentPageId={currentPage}
@@ -1624,6 +1668,14 @@ export default function App() {
           </Card>
         </aside>
       </main>
+
+      {useNewMobileSmartBar && (
+        <SmartBarInformationalAdapter
+          siteId="nexapath"
+          currentPageId={currentPage}
+          onNavigateToFocus={goToTourBarFocus}
+        />
+      )}
 
       {showLegacyGuideShell && (
         <DemoController
