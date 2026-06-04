@@ -133,7 +133,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           body: "Hi there — so you're interested in Copilots?",
         },
       ]);
-    }, 500));
+    }, 1000));
 
     timers.push(window.setTimeout(() => {
       setThread((current) => [
@@ -144,7 +144,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           body: "Hi, I'm curious about your pricing",
         },
       ]);
-    }, 1200));
+    }, 1500));
 
     timers.push(window.setTimeout(() => {
       setThread((current) => [
@@ -155,7 +155,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           body: "Sure, lets set up a call",
         },
       ]);
-    }, 1900));
+    }, 2200));
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
