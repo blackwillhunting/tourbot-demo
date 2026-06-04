@@ -18,7 +18,7 @@ function NexaPathLiveTestSurface({ lane }: { lane: SmartBarLiveMobileRuntimeLane
   const isChat = lane === "chat";
 
   return (
-    <main className="min-h-[100svh] bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#f8fafc_100%)] px-5 pb-36 pt-8 text-slate-950">
+    <main data-smartbar-scroll-stage="true" className="min-h-[100svh] bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#f8fafc_100%)] px-5 pb-36 pt-8 text-slate-950">
       <section className="mx-auto max-w-[760px] space-y-5">
         <div className="rounded-[32px] border border-white/80 bg-white/82 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/70 backdrop-blur-xl">
           <div className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">

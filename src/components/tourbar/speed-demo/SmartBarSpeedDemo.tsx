@@ -2780,6 +2780,7 @@ export default function SmartBarSpeedDemo({
         key={toolbarSurface}
         ref={targetStageRef}
         data-smartbar-speed-stage="true"
+        data-smartbar-scroll-stage="true"
         data-smartbar-speed-surface={toolbarSurface}
         className={isFinaleSurface
           ? "relative z-10 h-[calc(100svh-106px)] overflow-hidden overscroll-none pb-32 pt-2"

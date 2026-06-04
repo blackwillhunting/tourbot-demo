@@ -7,6 +7,11 @@ const SMARTBAR_OPEN_PANEL_SELECTORS = [
   "[data-tourbar-sheet-panel='true']",
 ];
 
+const SMARTBAR_SCROLL_STAGE_SELECTORS = [
+  "[data-smartbar-scroll-stage='true']",
+  "[data-smartbar-speed-stage='true']",
+];
+
 export type SmartBarFocusTarget = {
   pageId?: string;
   targetId?: string;
@@ -443,10 +448,104 @@ function scrollWindowDeterministicallyTo(
   });
 }
 
+
+function smartbarScrollableStageFor(element: HTMLElement) {
+  const candidates = SMARTBAR_SCROLL_STAGE_SELECTORS.flatMap((selector) =>
+    Array.from(document.querySelectorAll<HTMLElement>(selector)),
+  );
+
+  return candidates.find((stage) => {
+    if (!stage.contains(element)) return false;
+
+    const style = window.getComputedStyle(stage);
+    const canScrollY = /(auto|scroll|overlay)/.test(style.overflowY);
+    return canScrollY && stage.scrollHeight > stage.clientHeight + 4;
+  }) || null;
+}
+
+function clampSmartBarStageScrollTop(stage: HTMLElement, value: number) {
+  return Math.min(Math.max(0, value), Math.max(0, stage.scrollHeight - stage.clientHeight));
+}
+
+function focusElementTopInStage(element: HTMLElement, stage: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const stageRect = stage.getBoundingClientRect();
+  const safeTop = smartBarSafeTop(rect);
+  const targetTopInStage = stage.scrollTop + rect.top - stageRect.top;
+  const desiredViewportTop = Math.max(stageRect.top + 12, safeTop);
+  return targetTopInStage - (desiredViewportTop - stageRect.top);
+}
+
+function scrollStageDeterministicallyTo(
+  stage: HTMLElement,
+  desiredTop: number,
+  behavior: ScrollBehavior,
+) {
+  cancelSmartBarFocusScroll();
+
+  const startTop = stage.scrollTop;
+  const endTop = clampSmartBarStageScrollTop(stage, desiredTop);
+  const distance = endTop - startTop;
+
+  if (behavior === "auto" || Math.abs(distance) < 2) {
+    stage.scrollTo({ top: endTop, left: 0, behavior: "auto" });
+    return waitForFrame();
+  }
+
+  const duration = smartBarScrollDuration(distance);
+
+  return new Promise<void>((resolve) => {
+    let raf = 0;
+    let resolved = false;
+    let cancel: () => void = () => undefined;
+    const startedAt = performance.now();
+
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = 0;
+      if (activeSmartBarFocusScrollCancel === cancel) activeSmartBarFocusScrollCancel = null;
+      resolve();
+    };
+
+    cancel = () => {
+      finish();
+    };
+
+    const step = (now: number) => {
+      const progress = Math.min(1, Math.max(0, (now - startedAt) / duration));
+      const eased = smartBarScrollEase(progress);
+      const nextTop = startTop + distance * eased;
+
+      stage.scrollTo({ top: clampSmartBarStageScrollTop(stage, nextTop), left: 0, behavior: "auto" });
+
+      if (progress >= 1) {
+        stage.scrollTo({ top: endTop, left: 0, behavior: "auto" });
+        finish();
+        return;
+      }
+
+      raf = window.requestAnimationFrame(step);
+    };
+
+    activeSmartBarFocusScrollCancel = cancel;
+    raf = window.requestAnimationFrame(step);
+  });
+}
+
 async function scrollSmartBarFocusElementIntoPlace(
   element: HTMLElement,
   behavior: ScrollBehavior,
 ) {
+  const stage = smartbarScrollableStageFor(element);
+
+  if (stage) {
+    const desiredStageTop = focusElementTopInStage(element, stage);
+    await scrollStageDeterministicallyTo(stage, desiredStageTop, behavior);
+    return;
+  }
+
   const desiredTop = focusElementTop(element);
   ensureSmartBarFocusBottomRoomFor(desiredTop);
   await scrollWindowDeterministicallyTo(desiredTop, behavior);
