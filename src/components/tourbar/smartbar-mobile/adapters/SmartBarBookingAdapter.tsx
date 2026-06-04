@@ -786,7 +786,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
           variant: "primary",
         },
       ],
-      height: missingDates ? 620 : 430,
+      height: missingDates ? 540 : 390,
       content: (
         <SmartBarBookingContextSelectors
           missingDates={missingDates}
@@ -1635,8 +1635,8 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const body = bookingResponseBody(raw);
     const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
     const estimatedHeight = Math.min(
-      600,
-      Math.max(summary ? 380 : actions.length ? 320 : 260, 72 + estimatedLines * 26 + actions.length * 66 + (summary ? 190 : 0)),
+      560,
+      Math.max(summary ? 340 : actions.length ? 290 : 240, 56 + estimatedLines * 25 + actions.length * 58 + (summary ? 170 : 0)),
     );
     const navigates = resultHasNavigation(raw);
     const navigationState = navigationStateRef.current;

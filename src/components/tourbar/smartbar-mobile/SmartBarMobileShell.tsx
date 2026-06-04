@@ -1152,24 +1152,38 @@ export default function SmartBarMobileShell({
     setLineOverrides({});
     setCartExpanded(true);
     setSubmittedPromptPreview(action.label);
+    setBuildingStatusLabel(buildingLabel);
     setGenericResult(null);
     setPhase("building_cart");
 
+    const revealGenericActionResult = (nextResult: SmartBarMobileSubmitResult) => {
+      if (smartBarMobileResultIsGeneric(nextResult)) {
+        setGenericResult(nextResult);
+        setOrderLines([]);
+        setOrderEstimatedSubtotal(undefined);
+        setOrderEstimatedTax(undefined);
+        setOrderEstimatedTotal("—");
+      } else {
+        setGenericResult(null);
+        setOrderLines(nextResult.lines);
+        applyOrderResultEstimates(nextResult, estimatedTotal);
+      }
+      setHasCart(true);
+      setPhase("cart");
+    };
+
     Promise.resolve(actionResult)
       .then((nextResult) => {
-        if (smartBarMobileResultIsGeneric(nextResult)) {
-          setGenericResult(nextResult);
-          setOrderLines([]);
-          setOrderEstimatedSubtotal(undefined);
-          setOrderEstimatedTax(undefined);
-          setOrderEstimatedTotal("—");
-        } else {
-          setGenericResult(null);
-          setOrderLines(nextResult.lines);
-          applyOrderResultEstimates(nextResult, estimatedTotal);
+        if (smartBarMobileResultIsGeneric(nextResult) && nextResult.navigationRevealDelayMs && nextResult.navigationRevealDelayMs > 0) {
+          setBuildingStatusLabel(nextResult.navigationRevealLabel || "Spotlighting...");
+          buildTimerRef.current = window.setTimeout(() => {
+            buildTimerRef.current = null;
+            revealGenericActionResult(nextResult);
+          }, nextResult.navigationRevealDelayMs);
+          return;
         }
-        setHasCart(true);
-        setPhase("cart");
+
+        revealGenericActionResult(nextResult);
       })
       .catch(() => {
         setGenericResult({
@@ -1524,7 +1538,7 @@ export default function SmartBarMobileShell({
                     <div
                       className={genericResult?.surfaceKind === "chat"
                         ? "mt-0 min-h-0 shrink-0 overflow-visible pr-0 pb-0"
-                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-0 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-0 max-h-[calc(100svh-300px)] shrink-0"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={genericResult?.surfaceKind === "chat" ? undefined : { WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
