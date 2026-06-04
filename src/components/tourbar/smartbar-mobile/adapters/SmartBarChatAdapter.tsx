@@ -13,21 +13,14 @@ type SmartBarMobileChatMessage = {
   status?: "thinking" | "done";
 };
 
-const SMARTBAR_MOBILE_CHAT_THREAD_STORAGE_KEY = "smartbar_mobile_chat_thread_v1";
+const SMARTBAR_MOBILE_CHAT_THREAD_STORAGE_KEY = "smartbar_mobile_chat_thread_v2";
 
-function defaultChatThread(initialContext: string): SmartBarMobileChatMessage[] {
+function defaultChatThread(_initialContext: string): SmartBarMobileChatMessage[] {
   return [
     {
       id: "smartbar-context",
       role: "smartbar",
-      body: initialContext
-        ? `Context received: ${initialContext}`
-        : "Context received — handing this to a consultant.",
-    },
-    {
-      id: "consultant-open",
-      role: "consultant",
-      body: "Hi — I have the SmartBar context. What would you like to cover first?",
+      body: "Context received — handing this to a consultant.",
     },
   ];
 }
@@ -89,7 +82,7 @@ function consultantReplyFor(message: string) {
   const lower = message.toLowerCase();
 
   if (/price|pricing|cost|budget/.test(lower)) {
-    return "Absolutely — pricing usually depends on scope, implementation depth, and how much workflow/context mapping is needed. I’d start by separating advisory, pilot, and full rollout so the buyer sees a clear path.";
+    return "Sure, lets set up a call";
   }
 
   if (/demo|show|example|case|proof/.test(lower)) {
@@ -105,7 +98,10 @@ function consultantReplyFor(message: string) {
 
 function SmartBarMobileChatSurface({ initialContext }: { initialContext: string }) {
   const [draft, setDraft] = useState("");
-  const [thread, setThread] = useState<SmartBarMobileChatMessage[]>(() => readPersistedChatThread(initialContext));
+  const [thread, setThread] = useState<SmartBarMobileChatMessage[]>(() =>
+    initialContext ? defaultChatThread(initialContext) : readPersistedChatThread(initialContext),
+  );
+  const scriptedHandoffStartedRef = useRef(false);
   const [isWaiting, setIsWaiting] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
@@ -123,8 +119,53 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
   }, [draft]);
 
   useEffect(() => {
+    if (!initialContext || scriptedHandoffStartedRef.current) return;
+
+    scriptedHandoffStartedRef.current = true;
+    const timers: number[] = [];
+
+    timers.push(window.setTimeout(() => {
+      setThread((current) => [
+        ...current,
+        {
+          id: "consultant-open",
+          role: "consultant",
+          body: "Hi there — so you're interested in Copilots?",
+        },
+      ]);
+    }, 500));
+
+    timers.push(window.setTimeout(() => {
+      setThread((current) => [
+        ...current,
+        {
+          id: "visitor-pricing",
+          role: "visitor",
+          body: "Hi, I'm curious about your pricing",
+        },
+      ]);
+    }, 1200));
+
+    timers.push(window.setTimeout(() => {
+      setThread((current) => [
+        ...current,
+        {
+          id: "consultant-call",
+          role: "consultant",
+          body: "Sure, lets set up a call",
+        },
+      ]);
+    }, 1900));
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [initialContext]);
+
+  useEffect(() => {
+    if (initialContext) return;
     persistChatThread(thread);
-  }, [thread]);
+  }, [initialContext, thread]);
 
   useLayoutEffect(() => {
     window.requestAnimationFrame(() => {
