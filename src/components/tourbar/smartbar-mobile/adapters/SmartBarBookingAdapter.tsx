@@ -760,8 +760,8 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         {
           initialDelayMs: 0,
           attempts: 28,
-          scrollBehavior: "auto",
-          overlayDurationMs: 3600,
+          scrollBehavior: "smooth",
+          overlayDurationMs: 4600,
           dispatchLegacyEvent: false,
         },
       );
@@ -1104,8 +1104,8 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const body = bookingResponseBody(raw);
     const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
     const estimatedHeight = Math.min(
-      640,
-      Math.max(summary ? 430 : actions.length ? 360 : 300, 120 + estimatedLines * 26 + actions.length * 66 + (summary ? 190 : 0)),
+      600,
+      Math.max(summary ? 380 : actions.length ? 320 : 260, 72 + estimatedLines * 26 + actions.length * 66 + (summary ? 190 : 0)),
     );
     const navigates = resultHasNavigation(raw);
     const navigationState = navigationStateRef.current;
@@ -1180,8 +1180,8 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         const nextIndex = action.id === "booking-nav-next"
           ? state.activeIndex + 1
           : state.activeIndex - 1;
-        focusNavigationStep(state, nextIndex, 160);
-        await wait(2600);
+        focusNavigationStep(state, nextIndex, 420);
+        await wait(4200);
         return toGenericResult(raw);
       }
 

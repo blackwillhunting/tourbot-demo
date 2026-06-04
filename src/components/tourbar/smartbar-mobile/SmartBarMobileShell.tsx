@@ -1500,9 +1500,9 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-1" : "flex h-full min-h-0 flex-col p-4"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-1" : "flex h-full min-h-0 flex-col px-4 pb-4 pt-3"}
                   >
-                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
+                    <div className="hidden">
                       <div className="min-w-0">
                         {genericResult.eyebrow && (
                           <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
@@ -1522,7 +1522,7 @@ export default function SmartBarMobileShell({
                     </div>
 
                     {(genericResult.progressCurrent !== undefined && genericResult.progressTotal !== undefined) && (
-                      <div className="mt-3 grid shrink-0 grid-cols-2 gap-2">
+                      <div className="mt-0 grid shrink-0 grid-cols-2 gap-2">
                         <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
                           <span className="text-[10px] leading-none tracking-[0.14em]">Step</span>
                           <span className="mt-1 text-[14px] leading-none tracking-normal">{genericResult.progressCurrent}</span>
