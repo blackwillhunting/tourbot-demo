@@ -1454,9 +1454,9 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : "flex h-full min-h-0 flex-col p-4"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-1" : "flex h-full min-h-0 flex-col p-4"}
                   >
-                    <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
+                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
                         {genericResult.eyebrow && (
                           <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
@@ -1489,7 +1489,7 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : genericResult?.surfaceKind === "chat" ? "mt-0 shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
+                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : genericResult?.surfaceKind === "chat" ? "mt-0 shrink-0 overflow-visible" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
