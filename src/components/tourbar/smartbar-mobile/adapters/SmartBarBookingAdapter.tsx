@@ -1008,16 +1008,16 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     return (
       <div className="space-y-2.5">
         {body && (
-          <div className="rounded-[24px] border border-white/16 bg-slate-950/68 px-4 py-3 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(2,6,23,0.14)] ring-1 ring-white/10">
+          <div className="rounded-[24px] border border-white/22 bg-slate-950/88 px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_28px_rgba(2,6,23,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">
             {renderInlineEmphasis(body)}
           </div>
         )}
         {rows.length > 0 && (
-          <div className="overflow-hidden rounded-[24px] border border-white/16 bg-white/[0.10] text-sm font-semibold text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/10">
+          <div className="overflow-hidden rounded-[24px] border border-white/20 bg-slate-950/84 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/14">
             {rows.map(([label, value]) => (
-              <div key={label} className="flex items-start justify-between gap-3 border-b border-white/10 px-4 py-2.5 last:border-b-0">
-                <span className="text-white/52">{label}</span>
-                <strong className="max-w-[62%] text-right text-white">{value}</strong>
+              <div key={label} className="flex items-start justify-between gap-3 border-b border-white/14 px-4 py-3 last:border-b-0">
+                <span className="text-white/70">{label}</span>
+                <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>
               </div>
             ))}
           </div>

@@ -1371,7 +1371,7 @@ export default function SmartBarMobileShell({
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     className="flex h-full min-h-0 flex-col p-3"
                   >
-                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
+                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
                       <div className="min-w-0">
                         <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
