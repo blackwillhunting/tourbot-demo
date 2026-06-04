@@ -1,20 +1,36 @@
+import SmartBarChatAdapter from "./adapters/SmartBarChatAdapter";
 import SmartBarInformationalAdapter from "./adapters/SmartBarInformationalAdapter";
 
-type SmartBarLiveMobileRuntimeLane = "informational";
+type SmartBarLiveMobileRuntimeLane = "informational" | "chat";
 
 type SmartBarLiveMobileRuntimeProps = {
   lane?: SmartBarLiveMobileRuntimeLane;
 };
 
-function NexaPathLiveTestSurface() {
+function smartBarLiveMobileRuntimeLaneFromUrl(fallback: SmartBarLiveMobileRuntimeLane) {
+  if (typeof window === "undefined") return fallback;
+
+  const lane = new URLSearchParams(window.location.search).get("lane");
+  return lane === "chat" ? "chat" : fallback;
+}
+
+function NexaPathLiveTestSurface({ lane }: { lane: SmartBarLiveMobileRuntimeLane }) {
+  const isChat = lane === "chat";
+
   return (
     <main className="min-h-[100svh] bg-[linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#f8fafc_100%)] px-5 pb-36 pt-8 text-slate-950">
       <section className="mx-auto max-w-[760px] space-y-5">
         <div className="rounded-[32px] border border-white/80 bg-white/82 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.12)] ring-1 ring-slate-200/70 backdrop-blur-xl">
-          <div className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">NexaPath live mobile test</div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight">Ask SmartBar about this service site.</h1>
+          <div className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">
+            {isChat ? "NexaPath mobile chat lane" : "NexaPath live mobile test"}
+          </div>
+          <h1 className="mt-2 text-3xl font-black tracking-tight">
+            {isChat ? "Open SmartBar consultant chat." : "Ask SmartBar about this service site."}
+          </h1>
           <p className="mt-3 text-base font-semibold leading-7 text-slate-600">
-            This route is only a proof harness. It uses the new SmartBar mobile shell and the live NexaPath informational backend without touching the current live routes.
+            {isChat
+              ? "This route opens the new SmartBar mobile shell directly into a consultant-style chat surface without touching the current live routes."
+              : "This route is only a proof harness. It uses the new SmartBar mobile shell and the live NexaPath informational backend without touching the current live routes."}
           </p>
         </div>
 
@@ -44,12 +60,16 @@ function NexaPathLiveTestSurface() {
 }
 
 export default function SmartBarLiveMobileRuntime({ lane = "informational" }: SmartBarLiveMobileRuntimeProps) {
-  if (lane !== "informational") return null;
+  const effectiveLane = smartBarLiveMobileRuntimeLaneFromUrl(lane);
 
   return (
     <>
-      <NexaPathLiveTestSurface />
-      <SmartBarInformationalAdapter siteId="nexapath" />
+      <NexaPathLiveTestSurface lane={effectiveLane} />
+      {effectiveLane === "chat" ? (
+        <SmartBarChatAdapter />
+      ) : (
+        <SmartBarInformationalAdapter siteId="nexapath" />
+      )}
     </>
   );
 }
