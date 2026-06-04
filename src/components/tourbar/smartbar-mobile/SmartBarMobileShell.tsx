@@ -105,6 +105,12 @@ export type SmartBarMobileDemoSubmission = {
   id: number;
   query: string;
   meta?: SmartBarMobileSubmitMeta;
+  /** Demo-only: visibly open the entry box, type the query, then submit it. */
+  typing?: boolean;
+  /** Demo-only typing cadence in milliseconds per character. */
+  typeDelayMs?: number;
+  /** Demo-only pause after typing before submit. */
+  submitDelayMs?: number;
 };
 
 type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionSelectionMode" | "retryPrompt">>;
@@ -738,7 +744,62 @@ export default function SmartBarMobileShell({
 
   useEffect(() => {
     if (!demoSubmission) return;
-    submitPromptValue(demoSubmission.query, demoSubmission.meta);
+
+    let cancelled = false;
+    const timers: number[] = [];
+
+    const waitFor = (ms: number) =>
+      new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, Math.max(0, ms));
+        timers.push(timer);
+      });
+
+    const runDemoSubmission = async () => {
+      if (!demoSubmission.typing) {
+        submitPromptValue(demoSubmission.query, demoSubmission.meta);
+        return;
+      }
+
+      const query = demoSubmission.query || "";
+      const typeDelayMs = demoSubmission.typeDelayMs ?? 24;
+      const submitDelayMs = demoSubmission.submitDelayMs ?? 320;
+
+      disarmClose();
+      clearBuildTimer();
+      clearHandoffTimers();
+      setHandoffState("idle");
+      setSelectedLineId(null);
+      setLineOverrides({});
+      setGenericResult(null);
+      setCartExpanded(false);
+      setSubmittedPromptPreview("");
+      setEntryDraft("");
+      setHasEditedEntryDraft(true);
+      setPhase("entry");
+
+      await waitFor(180);
+      if (cancelled) return;
+
+      entryTextareaRef.current?.focus({ preventScroll: true });
+
+      for (let index = 1; index <= query.length; index += 1) {
+        if (cancelled) return;
+        setEntryDraft(query.slice(0, index));
+        await waitFor(typeDelayMs);
+      }
+
+      await waitFor(submitDelayMs);
+      if (cancelled) return;
+
+      submitPromptValue(query, demoSubmission.meta);
+    };
+
+    void runDemoSubmission();
+
+    return () => {
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoSubmission?.id]);
 

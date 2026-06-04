@@ -301,6 +301,25 @@ function smartBarGeneralMobileWaitMs(ms: number, fastMode: boolean) {
   return Math.min(900, Math.max(80, Math.round(ms * 0.16)));
 }
 
+function smartBarGeneralShouldTypeQuery(query: string) {
+  const trimmed = query.trim();
+  return Boolean(trimmed) && !trimmed.startsWith("__");
+}
+
+function smartBarGeneralTypeDelayMs() {
+  return smartBarGeneralMobileReadFastMode() ? 6 : 22;
+}
+
+function smartBarGeneralSubmitDelayMs() {
+  return smartBarGeneralMobileReadFastMode() ? 80 : 320;
+}
+
+function smartBarGeneralEstimatedTypingSettleMs(query: string) {
+  if (!smartBarGeneralShouldTypeQuery(query)) return 0;
+
+  return Math.min(2600, Math.max(520, query.length * smartBarGeneralTypeDelayMs() + smartBarGeneralSubmitDelayMs() + 260));
+}
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -634,7 +653,14 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
   const submitDemoQuery = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
     submissionIdRef.current += 1;
-    setDemoSubmission({ id: submissionIdRef.current, query, meta });
+    setDemoSubmission({
+      id: submissionIdRef.current,
+      query,
+      meta,
+      typing: smartBarGeneralShouldTypeQuery(query),
+      typeDelayMs: smartBarGeneralTypeDelayMs(),
+      submitDelayMs: smartBarGeneralSubmitDelayMs(),
+    });
   }, []);
 
   const pointToStep = useCallback(async (step: SmartBarGeneralMobileAutoStep) => {
@@ -683,6 +709,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
         if (step.query && !clickedTarget) {
           submitDemoQuery(step.query);
+          await wait(smartBarGeneralMobileWaitMs(smartBarGeneralEstimatedTypingSettleMs(step.query), fastMode));
+          if (cancelled) return;
         }
         await wait(smartBarGeneralMobileWaitMs(step.afterSubmitMs ?? 5000, fastMode));
         if (cancelled) return;
