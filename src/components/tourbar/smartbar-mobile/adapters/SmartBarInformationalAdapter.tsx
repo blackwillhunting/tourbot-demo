@@ -171,32 +171,53 @@ function queryWords(value: string) {
 }
 
 function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]): DomOutlineItem | null {
+  const normalizedQuery = compactText(query).toLowerCase();
   const words = queryWords(query);
-  if (!words.size || !outline.length) return null;
+  if (!normalizedQuery || !outline.length) return null;
 
-  const aliasTargets: Array<[RegExp, string[]]> = [
-    [/(price|pricing|cost|budget|engagement|plans?)/i, ["pricing"]],
-    [/(service|services|solutions|offerings|capabilities)/i, ["services"]],
-    [/(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)/i, ["consultation"]],
+  const directMatches: Array<{ terms: string[]; ids: string[] }> = [
+    {
+      terms: ["price", "pricing", "cost", "budget", "engagement", "plan", "plans"],
+      ids: ["pricing"],
+    },
+    {
+      terms: ["service", "services", "solution", "solutions", "offering", "offerings", "capability", "capabilities"],
+      ids: ["services"],
+    },
+    {
+      terms: ["consult", "consultation", "handoff", "contact", "advisor", "specialist", "expert", "talk", "person", "human"],
+      ids: ["consultation"],
+    },
   ];
 
-  for (const [pattern, ids] of aliasTargets) {
-    if (!pattern.test(query)) continue;
-    const match = outline.find((item) => ids.some((id) => item.id.toLowerCase().includes(id)));
+  for (const matchGroup of directMatches) {
+    if (!matchGroup.terms.some((term) => normalizedQuery.includes(term))) continue;
+
+    const match = outline.find((item) => {
+      const itemId = item.id.toLowerCase();
+      const itemLabel = item.label.toLowerCase();
+      return matchGroup.ids.some((id) => itemId.includes(id) || itemLabel.includes(id));
+    });
+
     if (match) return match;
   }
+
+  if (!words.size) return null;
 
   let bestItem: DomOutlineItem | null = null;
   let bestScore = 0;
 
   for (const item of outline) {
-    const haystack = `${item.id} ${item.label} ${item.textSample}`.toLowerCase();
+    const itemId = item.id.toLowerCase();
+    const itemLabel = item.label.toLowerCase();
+    const haystack = `${itemId} ${itemLabel} ${item.textSample}`.toLowerCase();
     let score = 0;
 
     for (const word of words) {
-      if (haystack.includes(word)) {
-        score += item.id.toLowerCase().includes(word) ? 4 : 1;
-      }
+      if (!haystack.includes(word)) continue;
+      if (itemId.includes(word)) score += 6;
+      else if (itemLabel.includes(word)) score += 4;
+      else score += 1;
     }
 
     if (score > bestScore) {
@@ -205,11 +226,34 @@ function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]
     }
   }
 
-  return bestItem;
+  return bestScore > 0 ? bestItem : null;
+}
+
+
+function navigationTargetResolves(target: TourBarFocusTarget | null) {
+  if (!target || typeof document === "undefined") return false;
+
+  const selectors: string[] = [];
+  const selector = String(target.targetSelector || "").trim();
+  if (selector) selectors.push(selector);
+
+  const targetId = String(target.targetId || "").trim();
+  if (targetId) selectors.push(safeSelectorForTourId(targetId));
+
+  for (const item of selectors) {
+    try {
+      if (document.querySelector(item)) return true;
+    } catch {
+      // Ignore malformed selectors from backend/customer content.
+    }
+  }
+
+  return false;
 }
 
 function withFallbackNavigation(result: TourBarResult, query: string, outline: DomOutlineItem[]) {
-  if (navigationTargetFromResult(result)) return result;
+  const existingTarget = navigationTargetFromResult(result);
+  if (navigationTargetResolves(existingTarget)) return result;
   if (result.action === "CLARIFY" || result.action === "OUT_OF_SCOPE") return result;
 
   const fallback = fallbackNavigationItemForQuery(query, outline);
