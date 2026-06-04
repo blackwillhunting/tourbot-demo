@@ -13,6 +13,70 @@ type SmartBarMobileChatMessage = {
   status?: "thinking" | "done";
 };
 
+const SMARTBAR_MOBILE_CHAT_THREAD_STORAGE_KEY = "smartbar_mobile_chat_thread_v1";
+
+function defaultChatThread(initialContext: string): SmartBarMobileChatMessage[] {
+  return [
+    {
+      id: "smartbar-context",
+      role: "smartbar",
+      body: initialContext
+        ? `Context received: ${initialContext}`
+        : "Context received — handing this to a consultant.",
+    },
+    {
+      id: "consultant-open",
+      role: "consultant",
+      body: "Hi — I have the SmartBar context. What would you like to cover first?",
+    },
+  ];
+}
+
+function smartBarMobileChatMessageIsValid(value: unknown): value is SmartBarMobileChatMessage {
+  if (!value || typeof value !== "object") return false;
+
+  const candidate = value as Partial<SmartBarMobileChatMessage>;
+  return (
+    typeof candidate.id === "string" &&
+    (candidate.role === "visitor" || candidate.role === "smartbar" || candidate.role === "consultant") &&
+    typeof candidate.body === "string"
+  );
+}
+
+function readPersistedChatThread(initialContext: string): SmartBarMobileChatMessage[] {
+  if (typeof window === "undefined") return defaultChatThread(initialContext);
+
+  try {
+    const raw = window.localStorage.getItem(SMARTBAR_MOBILE_CHAT_THREAD_STORAGE_KEY);
+    if (!raw) return defaultChatThread(initialContext);
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed) || !parsed.every(smartBarMobileChatMessageIsValid)) {
+      return defaultChatThread(initialContext);
+    }
+
+    return parsed.map((message) => ({
+      ...message,
+      status: message.status === "thinking" ? "done" : message.status,
+    }));
+  } catch {
+    return defaultChatThread(initialContext);
+  }
+}
+
+function persistChatThread(thread: SmartBarMobileChatMessage[]) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(
+      SMARTBAR_MOBILE_CHAT_THREAD_STORAGE_KEY,
+      JSON.stringify(thread),
+    );
+  } catch {
+    // Storage can fail in private mode or when full. Chat still works in-memory.
+  }
+}
+
 function compactText(value: string) {
   return value.replace(/\s+/g, " ").trim();
 }
@@ -41,20 +105,7 @@ function consultantReplyFor(message: string) {
 
 function SmartBarMobileChatSurface({ initialContext }: { initialContext: string }) {
   const [draft, setDraft] = useState("");
-  const [thread, setThread] = useState<SmartBarMobileChatMessage[]>(() => [
-    {
-      id: "smartbar-context",
-      role: "smartbar",
-      body: initialContext
-        ? `Context received: ${initialContext}`
-        : "Context received — handing this to a consultant.",
-    },
-    {
-      id: "consultant-open",
-      role: "consultant",
-      body: "Hi — I have the SmartBar context. What would you like to cover first?",
-    },
-  ]);
+  const [thread, setThread] = useState<SmartBarMobileChatMessage[]>(() => readPersistedChatThread(initialContext));
   const [isWaiting, setIsWaiting] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
@@ -70,6 +121,10 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
   useEffect(() => {
     resizeDraftInput();
   }, [draft]);
+
+  useEffect(() => {
+    persistChatThread(thread);
+  }, [thread]);
 
   useLayoutEffect(() => {
     window.requestAnimationFrame(() => {
