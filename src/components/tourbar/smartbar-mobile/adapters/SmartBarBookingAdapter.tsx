@@ -1545,12 +1545,6 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     return Boolean(roomId.trim());
   };
 
-  const prepareBookingSummaryRaw = (raw: TourBarBookingRawResponse): TourBarBookingRawResponse => ({
-    ...raw,
-    commerceAction: raw.commerceAction || "prepare_booking",
-    displayMode: raw.displayMode || "prepare_booking",
-    intent: raw.intent || "prepare_booking",
-  });
 
   const actionsForRaw = (raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
     const actions: SmartBarMobileGenericAction[] = [];
@@ -1805,7 +1799,12 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         if (bookingTarget.pageId) site.setCurrentPage(bookingTarget.pageId);
         spotlightAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 180);
       }
-      return toGenericResult(prepareBookingSummaryRaw(raw));
+      return toGenericResult({
+        ...raw,
+        commerceAction: "prepare_booking",
+        displayMode: "prepare_booking",
+        intent: "prepare_booking",
+      });
     }
 
     const query = actionQueriesRef.current[action.id] || action.label;
