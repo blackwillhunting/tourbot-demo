@@ -1542,7 +1542,26 @@ export default function SmartBarMobileShell({
                       style={genericResult?.surfaceKind === "chat" ? undefined : { WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
-                        <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}>{genericResult.content}</div>
+                        <div
+                          onClick={(event) => {
+                            const target = event.target as HTMLElement | null;
+                            const actionElement = target?.closest("[data-smartbar-mobile-content-action]") as HTMLElement | null;
+                            const actionId = actionElement?.dataset.smartbarMobileContentAction;
+                            if (!actionId) return;
+
+                            event.preventDefault();
+                            event.stopPropagation();
+
+                            handleGenericActionClick({
+                              id: actionId,
+                              label: actionElement.dataset.smartbarMobileContentActionLabel || "Edit",
+                              variant: "secondary",
+                            }, genericResult);
+                          }}
+                          className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}
+                        >
+                          {genericResult.content}
+                        </div>
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (

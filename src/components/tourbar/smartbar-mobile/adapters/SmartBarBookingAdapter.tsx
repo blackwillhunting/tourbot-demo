@@ -1663,12 +1663,40 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         )}
         {rows.length > 0 && (
           <div className="overflow-hidden rounded-[24px] border border-white/20 bg-slate-950/84 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/14">
-            {rows.map(([label, value]) => (
-              <div key={label} className="flex items-start justify-between gap-3 border-b border-white/14 px-4 py-3 last:border-b-0">
-                <span className="text-white/70">{label}</span>
-                <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>
-              </div>
-            ))}
+            {rows.map(([label, value]) => {
+              const editActionId =
+                summary && label === "Dates"
+                  ? "booking-edit-dates"
+                  : summary && label === "Guests"
+                    ? "booking-edit-guests"
+                    : "";
+              const rowClass = "flex w-full items-start justify-between gap-3 border-b border-white/14 px-4 py-3 text-left last:border-b-0";
+
+              if (editActionId) {
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    data-smartbar-mobile-content-action={editActionId}
+                    data-smartbar-mobile-content-action-label={`Edit ${label.toLowerCase()}`}
+                    className={`${rowClass} transition hover:bg-white/[0.04] active:bg-white/[0.07]`}
+                  >
+                    <span className="flex items-center gap-1.5 text-white/76">
+                      {label}
+                      <span aria-hidden="true" className="text-[12px] text-sky-100/82">✎</span>
+                    </span>
+                    <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>
+                  </button>
+                );
+              }
+
+              return (
+                <div key={label} className={rowClass}>
+                  <span className="text-white/70">{label}</span>
+                  <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -1689,12 +1717,15 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const actions = actionsForRaw(raw).filter((action) =>
       summary ? action.id !== "booking-handoff" && action.id !== "booking-summary" : true,
     );
-    const body = bookingResponseBody(raw);
+    const body = summary ? "Review the stay details SmartBar has staged for handoff." : bookingResponseBody(raw);
     const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
-    const estimatedHeight = Math.min(
-      560,
-      Math.max(summary ? 340 : actions.length ? 290 : 240, 56 + estimatedLines * 25 + actions.length * 58 + (summary ? 170 : 0)),
-    );
+    const summaryRowCount = summary ? bookingSummaryRows(raw).length : 0;
+    const estimatedHeight = summary
+      ? Math.min(380, Math.max(300, 62 + estimatedLines * 24 + summaryRowCount * 48))
+      : Math.min(
+          560,
+          Math.max(actions.length ? 290 : 240, 56 + estimatedLines * 25 + actions.length * 58),
+        );
     const navigates = resultHasNavigation(raw);
     const navigationState = navigationStateRef.current;
     const guidedProgress = navigationState && navigationState.steps.length > 1
@@ -1772,6 +1803,23 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     action: SmartBarMobileGenericAction,
   ): Promise<SmartBarMobileSubmitResult> => {
     const raw = currentRawRef.current;
+
+    if ((action.id === "booking-edit-dates" || action.id === "booking-edit-guests") && raw) {
+      currentRawRef.current = raw;
+      const artifacts = asRecord(raw.bookingArtifacts);
+      const pendingQuery = compactText(
+        artifacts.rawPrompt ||
+          artifacts.normalizedPrompt ||
+          raw.prompt ||
+          raw.message ||
+          "show updated booking options",
+      );
+      return buildBookingContextSelectorResult(
+        pendingQuery || "show updated booking options",
+        action.id === "booking-edit-dates",
+        action.id === "booking-edit-guests",
+      );
+    }
 
     if (action.id === "booking-context-continue") {
       return resumeBookingContextQuery();
