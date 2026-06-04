@@ -735,27 +735,50 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("info");
     focusTarget(kind === "primary" ? "hedgefund-copilot" : "hedgefund-contact-cta");
 
-    const copy =
-      kind === "specifics"
-        ? {
-            title: "NexaPath use cases ready",
-            statusLabel: "Specifics",
-          }
-        : kind === "proof"
-          ? {
-              title: "Proof points ready",
-              statusLabel: "Proof",
-            }
-          : {
-              title: "NexaPath answer ready",
-              statusLabel: "Answer",
-            };
+    if (kind === "specifics") {
+      return {
+        surfaceKind: "info",
+        eyebrow: "NexaPath Advisory",
+        title: "What NexaPath would actually do",
+        statusLabel: "Use cases",
+        body: "For a hedge fund, NexaPath would start with Copilot readiness, data/security review, policy boundaries, and a controlled pilot for internal workflows.",
+        helper: "Fixture snapshot shaped like the live informational adapter: answer, next actions, and handoff path.",
+        actions: [
+          { id: "show-proof", label: "Show relevant case studies", helper: "Surface proof points" },
+          { id: "consultant", label: "Talk to consultant", variant: "secondary" },
+        ],
+        height: 310,
+      };
+    }
+
+    if (kind === "proof") {
+      return {
+        surfaceKind: "info",
+        eyebrow: "NexaPath Advisory",
+        title: "Relevant proof points",
+        statusLabel: "Proof ready",
+        body: "Comparable work: Copilot adoption sprint, compliance evidence assistant, and operations assistant for controlled internal rollout.",
+        helper: "The point is not a fake content panel; it is the real shell renderer receiving a deterministic adapter-shaped answer.",
+        actions: [
+          { id: "consultant", label: "Talk to someone about Copilot support", helper: "Open handoff" },
+          { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
+        ],
+        height: 310,
+      };
+    }
 
     return {
       surfaceKind: "info",
-      eyebrow: "NexaPath",
-      ...copy,
-      height: 150,
+      eyebrow: "NexaPath Advisory",
+      title: "Copilot journey found",
+      statusLabel: "Answer ready",
+      body: "SmartBar routes the hedge-fund visitor toward a secure Copilot implementation path instead of dumping them into a generic search result.",
+      helper: "The visible site carries the page context. The SmartBar shell carries the answer and next actions.",
+      actions: [
+        { id: "show-proof", label: "Show proof points", helper: "Drill into concrete examples" },
+        { id: "consultant", label: "Talk to consultant", variant: "secondary" },
+      ],
+      height: 310,
     };
   }, [focusTarget]);
 
@@ -765,10 +788,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "chat",
-      eyebrow: "NexaPath",
+      eyebrow: "Live handoff",
       title: "Consultant handoff ready",
-      statusLabel: "Handoff",
-      height: 150,
+      statusLabel: "Context carried",
+      body: "Context received: hedge fund, IT support, Copilot setup, and desire to talk with someone.",
+      helper: "A real deployment would pass this context into chat/lead capture. This demo snapshot keeps the same shell shape without fake transcript UI.",
+      actions: [
+        { id: "start-order", label: "Next: ordering demo", helper: "Move to BurgerRush" },
+      ],
+      height: 300,
     };
   }, [focusTarget]);
 
@@ -788,13 +816,21 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi",
+      eyebrow: "Domi Hotel",
       title: activeRoom.title,
       statusLabel: activeRoom.label,
       progressLabel: "Rooms",
       progressCurrent: safeStep + 1,
       progressTotal: GENERAL_DOMI_ROOMS.length,
-      height: 150,
+      body: `${activeRoom.body} ${activeRoom.price}.`,
+      helper: "Deterministic booking snapshot shaped for the real mobile shell renderer.",
+      actions: [
+        { id: "booking-nav-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
+        { id: "booking-nav-next", label: "Next room", disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1 },
+        { id: "add-breakfast", label: "Add breakfast", variant: "secondary" },
+        { id: "prepare-booking", label: "Prepare booking summary", variant: "secondary" },
+      ],
+      height: 330,
     };
   }, [bookingStep, focusTarget]);
 
@@ -806,13 +842,19 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi",
+      eyebrow: "Domi Hotel",
       title: "Breakfast added",
-      statusLabel: "Add-on",
+      statusLabel: "Add-on attached",
       progressLabel: "Package",
       progressCurrent: 2,
       progressTotal: 3,
-      height: 150,
+      body: "Breakfast Flex Plan is attached to the Ocean View Suite without losing the room, date, or guest context.",
+      helper: "The fixture now fills the real shell result area instead of opening an empty status box.",
+      actions: [
+        { id: "show-rooms", label: "Review rooms", variant: "secondary" },
+        { id: "prepare-booking", label: "Prepare booking summary" },
+      ],
+      height: 320,
     };
   }, [focusTarget]);
 
@@ -824,10 +866,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_summary",
-      eyebrow: "Domi",
+      eyebrow: "Domi Hotel",
       title: "Booking summary ready",
-      statusLabel: "Summary",
-      height: 150,
+      statusLabel: "Summary ready",
+      body: "Ocean View Suite, Breakfast Flex Plan, Aug 4–9, 2026, 1 guest. Estimate: $379/night + $32/night.",
+      helper: "Ready to hand off to booking with room, package, dates, and guest context preserved.",
+      actions: [
+        { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
+      ],
+      height: 310,
     };
   }, [focusTarget]);
 
@@ -837,10 +884,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi",
-      title: "Dates and guests needed",
-      statusLabel: "Context",
-      height: 150,
+      eyebrow: "Domi Hotel",
+      title: "Need dates and guests",
+      statusLabel: "Missing context",
+      body: "SmartBar pauses before recommending a family room because dates and guest count change availability and fit.",
+      helper: "The real booking adapter follows this same principle: collect required context before filtering inventory.",
+      actions: [
+        { id: "select-dates", label: "Set dates and guests" },
+      ],
+      height: 300,
     };
   }, [focusTarget]);
 
@@ -850,10 +902,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_tour",
-      eyebrow: "Domi",
+      eyebrow: "Domi Hotel",
       title: "Dates and guests selected",
       statusLabel: "Context set",
-      height: 150,
+      body: "June 12–15, 2026 with 2 adults and 2 children. SmartBar can now filter for a family-capable room.",
+      helper: "Selector output becomes structured booking context for the next recommendation.",
+      actions: [
+        { id: "show-family-recommendation", label: "Show family recommendation" },
+      ],
+      height: 300,
     };
   }, [focusTarget]);
 
@@ -863,10 +920,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
     return {
       surfaceKind: "booking_summary",
-      eyebrow: "Domi",
+      eyebrow: "Domi Hotel",
       title: "Family recommendation ready",
       statusLabel: "Family fit",
-      height: 150,
+      body: "Family Double Room with the Family Comfort Bundle fits the selected dates and four-guest stay.",
+      helper: "The recommendation carries room, dates, guests, and package context forward.",
+      actions: [
+        { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
+      ],
+      height: 310,
     };
   }, [focusTarget]);
 
@@ -879,7 +941,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Finale",
       title: "Search bar with a toolbelt",
       statusLabel: "Toolbelt",
-      height: 150,
+      body: "Same bar, different jobs: answer, action choices, cart, selectors, summary, lead capture, and handoff.",
+      helper: "The demo should now show real entry typing, real shell rendering, sliding cards, pointer choreography, and deterministic snapshots.",
+      actions: [
+        { id: "restart-info", label: "Replay from the top", variant: "secondary" },
+      ],
+      height: 310,
     };
   }, [focusTarget]);
 
