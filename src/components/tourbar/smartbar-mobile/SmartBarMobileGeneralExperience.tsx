@@ -20,10 +20,13 @@ import {
   SmartBarFlashCardLane,
   SmartBarFlashCardRail,
   SMARTBAR_FLASH_CARD_CROSSOVER_MS,
-  SMARTBAR_FLASH_CARD_TRANSITION_MS,
   type SmartBarFlashCardLaneName,
   type SmartBarFlashCardNotice,
 } from "../speed-demo/SmartBarFlashCardRail";
+import {
+  SmartBarFlashCardStack,
+  type SmartBarFlashCardStackItem,
+} from "../speed-demo/SmartBarFlashCardStack";
 import type { SmartBarSpeedSurface } from "../speed-demo/smartBarSpeedScript";
 
 type SmartBarMobileGeneralExperienceProps = {
@@ -60,62 +63,62 @@ type SmartBarGeneralMobileAutoStep = {
 const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
   {
     desktopStepId: "open",
-    cards: ["Example 1: **NexaPath Advisory**", "Managed IT for finance", "SmartBar generates a lead"],
+    cards: ["Example 1: **NexaPath Advisory**", "Hidden-cart advisory site", "SmartBar finds the buyer's next step"],
     targetSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
     label: "Open",
-    introMs: 900,
-    cardMs: 4200,
-    afterSubmitMs: 700,
+    introMs: 700,
+    cardMs: 3600,
+    afterSubmitMs: 650,
     surface: "info",
   },
   {
     desktopStepId: "hedge-fund-ask",
     query: "we're a hedge fund, need help wih IT and setting up copilots",
-    cards: ["Reads intent", "moves visitor to the answer"],
+    cards: ["Messy buyer question", "Reads intent", "moves visitor to the answer"],
     targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Ask",
-    cardMs: 3300,
-    afterSubmitMs: 5200,
+    cardMs: 3600,
+    afterSubmitMs: 4300,
     surface: "info",
   },
   {
     desktopStepId: "prove-it",
     query: "that doesn't say what you actually do",
-    cards: ["Summarizes focus area", "Visitor asks for specifics"],
+    cards: ["Visitor challenges the answer", "SmartBar gets specific"],
     targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
-    label: "Ask",
-    cardMs: 5100,
-    afterSubmitMs: 4200,
+    label: "Specifics",
+    cardMs: 3400,
+    afterSubmitMs: 3600,
     surface: "info",
   },
   {
     desktopStepId: "case-studies",
     query: "__case_studies",
-    cards: ["Surfaces proof points", "Offers next step"],
+    cards: ["Proof points", "then a handoff path"],
     targetSelector: '[data-smartbar-mobile-generic-action="show-proof"]',
     label: "Proof",
     cardMs: 3000,
-    afterSubmitMs: 4800,
+    afterSubmitMs: 3600,
     surface: "info",
   },
   {
     desktopStepId: "consultant-chat",
     query: "Perfect, can I talk to someone?",
-    cards: ["Provides direct chat surface", "Hands off context"],
+    cards: ["Context is carried forward", "Lead capture without a dead end"],
     targetSelector: '[data-smartbar-mobile-generic-action="consultant"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Handoff",
-    cardMs: 3000,
-    afterSubmitMs: 6200,
+    cardMs: 3300,
+    afterSubmitMs: 4200,
     surface: "info",
   },
   {
     desktopStepId: "complete-order",
     query: "dbl chzbrger combo lg friez diet coke pie",
-    cards: ["Example 2: **BurgerRush**", "Direct ordering site", "Turns intent into checkout"],
+    cards: ["Example 2: **BurgerRush**", "Native ordering site", "Rough text becomes a cart"],
     targetSelector: '[data-smartbar-mobile-generic-action="start-order"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Order",
-    cardMs: 3350,
-    afterSubmitMs: 5600,
+    cardMs: 3700,
+    afterSubmitMs: 4600,
     surface: "ordering",
   },
   {
@@ -123,96 +126,96 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     cards: ["Plain English", "Typos included", "Cart loaded", "Checkout-ready"],
     targetSelector: '[data-smartbar-mobile-checkout="true"], [data-smartbar-mobile-companion="true"]',
     label: "Checkout",
-    cardMs: 4300,
-    afterSubmitMs: 2600,
+    cardMs: 3800,
+    afterSubmitMs: 2400,
     surface: "ordering",
   },
   {
     desktopStepId: "booking-complete",
     query: "Aug 4 to 9, nice room with a view and breakfast, just me",
-    cards: ["Example 3: **Domi Hotel**", "Choice-heavy booking site", "Ranks best fit", "Room request has tradeoffs", "Ranks options", "stores room context"],
+    cards: ["Example 3: **Domi Hotel**", "Choice-heavy booking site", "Ranks the best fit"],
     targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
     label: "Booking",
-    cardMs: 6500,
-    afterSubmitMs: 4200,
+    cardMs: 3700,
+    afterSubmitMs: 3800,
     surface: "booking",
   },
   {
     desktopStepId: "booking-next-ocean",
     query: "__booking_next",
-    cards: [],
-    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"]',
+    cards: ["Compare without restarting"],
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-smartbar-mobile-generic-action="booking-next"]',
     label: "Next",
-    cardMs: 400,
-    afterSubmitMs: 3600,
+    cardMs: 2200,
+    afterSubmitMs: 2900,
     surface: "booking",
   },
   {
     desktopStepId: "booking-next-villa",
     query: "__booking_next",
-    cards: [],
-    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"]',
+    cards: ["Same context", "next option"],
+    targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-smartbar-mobile-generic-action="booking-next"]',
     label: "Next",
-    cardMs: 400,
-    afterSubmitMs: 3800,
+    cardMs: 2500,
+    afterSubmitMs: 2900,
     surface: "booking",
   },
   {
     desktopStepId: "booking-breakfast",
     query: "add breakfast",
-    cards: ["Package attaches to active room"],
+    cards: ["Package attaches", "active room stays selected"],
     targetSelector: '[data-smartbar-mobile-generic-action="add-breakfast"], [data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
-    label: "Add",
-    cardMs: 2700,
-    afterSubmitMs: 4600,
+    label: "Breakfast",
+    cardMs: 3000,
+    afterSubmitMs: 3600,
     surface: "booking",
   },
   {
     desktopStepId: "booking-summary",
     query: "prepare booking summary",
-    cards: ["Package attaches to active room"],
+    cards: ["Room", "package", "dates", "guest context"],
     targetSelector: '[data-smartbar-mobile-generic-action="prepare-booking"]',
     label: "Summary",
-    cardMs: 2600,
-    afterSubmitMs: 5200,
+    cardMs: 3300,
+    afterSubmitMs: 4200,
     surface: "booking",
   },
   {
     desktopStepId: "booking-incomplete",
     query: "need a family room",
-    cards: ["Travel dates missing", "Who's staying missing"],
+    cards: ["Incomplete request", "dates missing", "guests missing"],
     targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
-    label: "Dates",
-    cardMs: 3000,
-    afterSubmitMs: 4400,
+    label: "Context",
+    cardMs: 3300,
+    afterSubmitMs: 3500,
     surface: "booking",
   },
   {
     desktopStepId: "booking-selectors",
     query: "__booking_selectors",
-    cards: ["Selectors easier than typing"],
+    cards: ["Selectors beat typing", "context becomes structured"],
     targetSelector: '[data-smartbar-mobile-generic-action="select-dates"]',
     label: "Select",
-    cardMs: 2500,
-    afterSubmitMs: 4400,
+    cardMs: 3000,
+    afterSubmitMs: 3500,
     surface: "booking",
   },
   {
     desktopStepId: "booking-family-summary",
     query: "show family recommendation",
-    cards: ["Context becomes booking"],
+    cards: ["Now SmartBar can filter", "family-ready recommendation"],
     targetSelector: '[data-smartbar-mobile-generic-action="show-family-recommendation"]',
-    label: "Book",
-    cardMs: 2500,
-    afterSubmitMs: 5200,
+    label: "Recommend",
+    cardMs: 3200,
+    afterSubmitMs: 4200,
     surface: "booking",
   },
   {
     desktopStepId: "finale-setup",
-    cards: ["Same bar. Different jobs.", "Think of SmartBar like a caddy", "with a bag full of clubs.", "The visitor describes the shot.", "SmartBar picks the right tool."],
+    cards: ["Same bar. Different jobs.", "Like a caddy", "with a bag full of clubs"],
     targetSelector: '[data-smartbar-mobile-companion="true"]',
     label: "Toolbelt",
-    cardMs: 6500,
+    cardMs: 4200,
     afterSubmitMs: 900,
     surface: "finale",
   },
@@ -222,8 +225,8 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     cards: ["Search bar with a toolbelt"],
     targetSelector: '[data-smartbar-mobile-companion="true"]',
     label: "Finale",
-    cardMs: 1800,
-    afterSubmitMs: 5200,
+    cardMs: 2400,
+    afterSubmitMs: 4600,
     surface: "finale",
   },
 ];
@@ -411,48 +414,68 @@ const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
 ];
 
 function GeneralNarratorCards({ cards }: { cards: string[] }) {
+  const sequenceRef = useRef(0);
+  const [stackCards, setStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
   const [activeLane, setActiveLane] = useState<SmartBarFlashCardLaneName | null>(null);
   const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
   const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const visibleCards = cards.map((card) => card.trim()).filter(Boolean);
+    const sequenceId = sequenceRef.current + 1;
+    sequenceRef.current = sequenceId;
+
+    const clearAll = async () => {
+      setActiveLane(null);
+      setStackCards([]);
+      await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+      if (cancelled) return;
+      setNoticeA(null);
+      setNoticeB(null);
+    };
 
     const runCards = async () => {
-      if (!cards.length) {
-        setActiveLane(null);
-        await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
-        if (cancelled) return;
-
-        setNoticeA(null);
-        setNoticeB(null);
+      if (!visibleCards.length) {
+        await clearAll();
         return;
       }
 
-      let nextLane: SmartBarFlashCardLaneName = "a";
-      setActiveLane(null);
-      await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
-      if (cancelled) return;
+      if (visibleCards.length > 1) {
+        setActiveLane(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        setStackCards([]);
 
-      for (let index = 0; index < cards.length; index += 1) {
-        const title = cards[index]?.trim();
-        if (!title) continue;
+        const nextStack: SmartBarFlashCardStackItem[] = [];
+        for (let index = 0; index < visibleCards.length; index += 1) {
+          if (cancelled) return;
 
-        const notice: SmartBarFlashCardNotice = {
-          variant: "prelude",
-          title,
-        };
+          nextStack.push({
+            id: `${sequenceId}-${index}-${visibleCards[index]}`,
+            variant: "prelude",
+            title: visibleCards[index],
+            density: visibleCards.length >= 4 ? "micro" : "compact",
+          });
 
-        if (nextLane === "a") setNoticeA(notice);
-        else setNoticeB(notice);
+          setStackCards([...nextStack]);
+          await wait(260);
+        }
 
-        setActiveLane(nextLane);
-
-        await wait(Math.max(1100, Math.min(1700, SMARTBAR_FLASH_CARD_TRANSITION_MS + 420)));
-        if (cancelled) return;
-
-        nextLane = nextLane === "a" ? "b" : "a";
+        return;
       }
+
+      setStackCards([]);
+      const notice: SmartBarFlashCardNotice = {
+        variant: "prelude",
+        title: visibleCards[0],
+      };
+
+      const nextLane: SmartBarFlashCardLaneName = activeLane === "a" ? "b" : "a";
+      if (nextLane === "a") setNoticeA(notice);
+      else setNoticeB(notice);
+
+      setActiveLane(nextLane);
     };
 
     void runCards();
@@ -460,12 +483,13 @@ function GeneralNarratorCards({ cards }: { cards: string[] }) {
     return () => {
       cancelled = true;
     };
-  }, [cards]);
+  }, [cards, activeLane]);
 
-  if (!cards.length && !noticeA && !noticeB) return null;
+  if (!cards.length && !noticeA && !noticeB && !stackCards.length) return null;
 
   return (
     <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
+      <SmartBarFlashCardStack cards={stackCards} mode={stackCards.length >= 4 ? "flurry" : "standard"} />
       <SmartBarFlashCardLane active={activeLane === "a"}>
         <SmartBarFlashCard notice={noticeA} />
       </SmartBarFlashCardLane>
