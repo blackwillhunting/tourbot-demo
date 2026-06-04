@@ -1443,7 +1443,7 @@ export default function SmartBarMobileShell({
               }}
               transition={{ type: "spring", stiffness: 260, damping: 30, mass: 0.9 }}
             >
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence initial={false}>
                 {phase === "building_cart" && (
                   <motion.div
                     key="fake-building-cart-content"
@@ -1455,7 +1455,7 @@ export default function SmartBarMobileShell({
                     aria-live="polite"
                   >
                     <div className="flex h-full items-center justify-center px-3 py-2">
-                      <div className={inputDraftCapsuleClass}>
+                      <div className="max-w-[82%] rounded-full border border-white/28 bg-white/[0.095] px-4 py-2 text-center text-[15px] font-semibold leading-5 text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] ring-1 ring-white/16 backdrop-blur-[10px] [text-shadow:0_1px_2px_rgba(0,0,0,0.42)]">
                         {submittedPromptPreview}
                       </div>
                     </div>
