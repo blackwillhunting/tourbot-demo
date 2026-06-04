@@ -1,10 +1,11 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import SmartBarMobileShell, {
   type SmartBarMobileGenericAction,
   type SmartBarMobileGenericResult,
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
 import { smartbarFocusTarget } from "../../smartbarFocusController";
+import SmartBarChatAdapter from "./SmartBarChatAdapter";
 
 const TOURBAR_API_URL = "/api/tourbar";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
@@ -173,6 +174,36 @@ function messageFromResult(result: TourBarResult) {
   return [resultTitle(result), resultBody(result), invitation].filter(Boolean).join("\n");
 }
 
+function queryRequestsHumanHandoff(query: string) {
+  return /\b(chat|consultant|human|person|specialist|advisor|expert|handoff|talk to someone|talk to a person|live help|sales)\b/i.test(query);
+}
+
+function resultRequestsHumanHandoff(result: TourBarResult | null) {
+  if (!result) return false;
+
+  const nextType = String(result.nextMove?.type || result.invitation?.kind || "").toLowerCase();
+  const text = `${result.nextMove?.label || ""} ${result.invitation?.text || ""} ${result.label || ""}`.toLowerCase();
+
+  return Boolean(
+    result.handoffRecommended ||
+      nextType.includes("handoff") ||
+      /\b(chat|consultant|human|person|specialist|advisor|expert|handoff|talk to someone|talk to a person|live help|sales)\b/i.test(text),
+  );
+}
+
+function handoffContextFromResult(query: string, result: TourBarResult) {
+  return compactText(
+    [
+      `Visitor asked: ${query}`,
+      result.label ? `Matched section: ${result.label}` : "",
+      result.focusAreaId ? `Focus area: ${result.focusAreaId}` : "",
+      resultBody(result) ? `SmartBar answer: ${resultBody(result)}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+}
+
 function queryLooksLikeNewRoute(query: string) {
   return /\b(show|find|open|go to|where|pricing|services|implementation|consultation|contact|support|options|plans?|cyber|security|ai|data|cloud|compliance|dora|hedge|fund)\b/i.test(query);
 }
@@ -302,6 +333,7 @@ export default function SmartBarInformationalAdapter({
 }: SmartBarInformationalAdapterProps) {
   const activeResultRef = useRef<TourBarResult | null>(null);
   const threadRef = useRef<SmartBarInformationalThreadMessage[]>([]);
+  const [chatContext, setChatContext] = useState("");
 
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const activeResult = activeResultRef.current;
@@ -325,6 +357,10 @@ export default function SmartBarInformationalAdapter({
           url: window.location.href,
         });
 
+    if (queryRequestsHumanHandoff(query) || resultRequestsHumanHandoff(response)) {
+      setChatContext(handoffContextFromResult(query, response));
+    }
+
     activeResultRef.current = response;
     threadRef.current = [
       ...threadRef.current.slice(-6),
@@ -345,6 +381,10 @@ export default function SmartBarInformationalAdapter({
     return submitPrompt(action.label);
   };
 
+  if (chatContext) {
+    return <SmartBarChatAdapter initialContext={chatContext} />;
+  }
+
   return (
     <SmartBarMobileShell
       mode="overlay"
@@ -355,6 +395,7 @@ export default function SmartBarInformationalAdapter({
       onResetCart={() => {
         activeResultRef.current = null;
         threadRef.current = [];
+        setChatContext("");
       }}
     />
   );

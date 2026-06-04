@@ -228,6 +228,11 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
   );
 }
 
+type SmartBarChatAdapterProps = {
+  initialContext?: string;
+  autoOpen?: boolean;
+};
+
 function buildChatResult(initialContext: string): SmartBarMobileGenericResult {
   return {
     surfaceKind: "chat",
@@ -239,14 +244,18 @@ function buildChatResult(initialContext: string): SmartBarMobileGenericResult {
   };
 }
 
-export default function SmartBarChatAdapter() {
+export default function SmartBarChatAdapter({
+  initialContext = "",
+  autoOpen = true,
+}: SmartBarChatAdapterProps) {
   const autoSubmission = useRef<SmartBarMobileDemoSubmission>({
-    id: 1,
+    id: Date.now(),
     query: "Open consultant chat",
   });
 
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
-    return buildChatResult(query === "Open consultant chat" ? "" : query);
+    const cleanQuery = query === "Open consultant chat" ? "" : query;
+    return buildChatResult(cleanQuery || initialContext);
   };
 
   return (
@@ -254,7 +263,7 @@ export default function SmartBarChatAdapter() {
       mode="overlay"
       entryModeLabel="Open chat"
       buildingLabel="Opening chat..."
-      demoSubmission={autoSubmission.current}
+      demoSubmission={autoOpen ? autoSubmission.current : null}
       onSubmitPrompt={submitPrompt}
     />
   );
