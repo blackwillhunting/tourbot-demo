@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import SmartBarMobileShell, {
   type SmartBarMobileGenericAction,
   type SmartBarMobileGenericResult,
@@ -138,18 +138,12 @@ function renderInlineEmphasis(text: string) {
 }
 
 type SmartBarBookingDatePreset = {
-  id: string;
-  label: string;
-  helper: string;
   checkInDate: string;
   checkOutDate: string;
   prompt: string;
 };
 
 type SmartBarBookingGuestPreset = {
-  id: string;
-  label: string;
-  helper: string;
   adults: number;
   children: number;
 };
@@ -166,51 +160,121 @@ type SmartBarBookingContextDraft = {
   guestLabel: string;
 };
 
-const SMARTBAR_BOOKING_DATE_PRESETS: SmartBarBookingDatePreset[] = [
-  {
-    id: "aug-4-9",
-    label: "Aug 4–9",
-    helper: "5 nights",
-    checkInDate: "2026-08-04",
-    checkOutDate: "2026-08-09",
-    prompt: "Aug 4 to Aug 9, 2026",
-  },
-  {
-    id: "jul-10-14",
-    label: "Jul 10–14",
-    helper: "4 nights",
-    checkInDate: "2026-07-10",
-    checkOutDate: "2026-07-14",
-    prompt: "Jul 10 to Jul 14, 2026",
-  },
-  {
-    id: "jun-12-19",
-    label: "Jun 12–19",
-    helper: "7 nights",
-    checkInDate: "2026-06-12",
-    checkOutDate: "2026-06-19",
-    prompt: "Jun 12 to Jun 19, 2026",
-  },
-];
+type SmartBarBookingSelectorStage = "dates" | "guests";
 
-const SMARTBAR_BOOKING_GUEST_PRESETS: SmartBarBookingGuestPreset[] = [
-  { id: "solo", label: "1 adult", helper: "Solo stay", adults: 1, children: 0 },
-  { id: "couple", label: "2 adults", helper: "Two travelers", adults: 2, children: 0 },
-  { id: "family-3", label: "2 adults + 1 child", helper: "Family fit", adults: 2, children: 1 },
-  { id: "family-4", label: "2 adults + 2 children", helper: "Sleeps 4", adults: 2, children: 2 },
-];
+const SMARTBAR_BOOKING_SELECTOR_YEAR = 2026;
+const SMARTBAR_BOOKING_SELECTOR_START_MONTH = 5; // June 2026
+
+function isoDateFromParts(year: number, monthIndex: number, day: number) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function dateFromIso(value?: string | null) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function monthLabel(year: number, monthIndex: number) {
+  return new Date(year, monthIndex, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function dayNumberFromIso(value: string) {
+  return Number(value.slice(-2));
+}
+
+function calendarCells(year: number, monthIndex: number) {
+  const firstDay = new Date(year, monthIndex, 1).getDay();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const cells: Array<string | null> = Array.from({ length: firstDay }, () => null);
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push(isoDateFromParts(year, monthIndex, day));
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+
+  return cells;
+}
 
 function promptDateRangeFromIso(checkInDate?: string | null, checkOutDate?: string | null) {
-  if (!checkInDate || !checkOutDate) return "";
+  const start = dateFromIso(checkInDate);
+  const end = dateFromIso(checkOutDate);
 
-  const start = new Date(`${checkInDate}T00:00:00`);
-  const end = new Date(`${checkOutDate}T00:00:00`);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+  if (!start || !end) return "";
 
   const startLabel = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const endLabel = end.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return `${startLabel} to ${endLabel}, ${end.getFullYear()}`;
+}
+
+function compactCalendarDateLabel(value?: string | null) {
+  const date = dateFromIso(value);
+
+  if (!date) return "Select";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function dateButtonState(value: string, checkInDate: string, checkOutDate: string) {
+  const isStart = value === checkInDate;
+  const isEnd = value === checkOutDate;
+  const inRange = Boolean(checkInDate && checkOutDate && value > checkInDate && value < checkOutDate);
+
+  if (isStart || isEnd) return "selected";
+  if (inRange) return "range";
+  return "plain";
+}
+
+function SmartBarBookingCounterRow({
+  label,
+  helper,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  helper: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  const decrease = () => onChange(Math.max(min, value - 1));
+  const increase = () => onChange(Math.min(max, value + 1));
+  const buttonClass =
+    "flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/12 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-35";
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-[22px] border border-white/14 bg-white/[0.08] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8">
+      <div className="min-w-0">
+        <div className="text-[13px] font-black leading-4 text-white">{label}</div>
+        <div className="mt-0.5 text-[11px] font-semibold leading-4 text-white/58">{helper}</div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button type="button" onClick={decrease} disabled={value <= min} className={buttonClass} aria-label={`Decrease ${label.toLowerCase()}`}>
+          −
+        </button>
+        <div className="flex h-10 min-w-[46px] items-center justify-center rounded-full bg-emerald-300/92 px-3 text-[16px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-emerald-100/34">
+          {value}
+        </div>
+        <button type="button" onClick={increase} disabled={value >= max} className={buttonClass} aria-label={`Increase ${label.toLowerCase()}`}>
+          +
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function SmartBarBookingContextSelectors({
@@ -226,38 +290,219 @@ function SmartBarBookingContextSelectors({
   onSelectDates: (preset: SmartBarBookingDatePreset) => void;
   onSelectGuests: (preset: SmartBarBookingGuestPreset) => void;
 }) {
-  const [selectedDateId, setSelectedDateId] = useState(() => {
-    const matching = SMARTBAR_BOOKING_DATE_PRESETS.find(
-      (preset) =>
-        preset.checkInDate === initialDraft.checkInDate &&
-        preset.checkOutDate === initialDraft.checkOutDate,
-    );
-    return matching?.id || "";
+  const initialStage: SmartBarBookingSelectorStage = missingDates ? "dates" : "guests";
+  const initialCalendarDate =
+    dateFromIso(initialDraft.checkInDate) ||
+    new Date(SMARTBAR_BOOKING_SELECTOR_YEAR, SMARTBAR_BOOKING_SELECTOR_START_MONTH, 1);
+  const [stage, setStage] = useState<SmartBarBookingSelectorStage>(initialStage);
+  const [calendarMonth, setCalendarMonth] = useState({
+    year: initialCalendarDate.getFullYear(),
+    monthIndex: initialCalendarDate.getMonth(),
   });
-  const [selectedGuestId, setSelectedGuestId] = useState(() => {
-    const matching = SMARTBAR_BOOKING_GUEST_PRESETS.find(
-      (preset) =>
-        preset.adults === initialDraft.guestAdults &&
-        preset.children === initialDraft.guestChildren,
-    );
-    return matching?.id || "";
+  const [dateDraft, setDateDraft] = useState({
+    checkInDate: initialDraft.checkInDate || "",
+    checkOutDate: initialDraft.checkOutDate || "",
   });
-  const [localSummary, setLocalSummary] = useState({
-    datesLabel: initialDraft.datesLabel,
-    guestLabel: initialDraft.guestLabel,
+  const [guestCounts, setGuestCounts] = useState({
+    adults: Math.max(1, Math.floor(initialDraft.guestAdults || 1)),
+    children: Math.max(0, Math.floor(initialDraft.guestChildren || 0)),
   });
+  const initializedGuestSelectionRef = useRef(false);
 
-  const chooseDates = (preset: SmartBarBookingDatePreset) => {
-    setSelectedDateId(preset.id);
-    setLocalSummary((current) => ({ ...current, datesLabel: preset.label }));
-    onSelectDates(preset);
+  const datesComplete = Boolean(dateDraft.checkInDate && dateDraft.checkOutDate);
+  const guestLabel = `${guestCounts.adults} adult${guestCounts.adults === 1 ? "" : "s"}${
+    guestCounts.children > 0 ? `, ${guestCounts.children} child${guestCounts.children === 1 ? "" : "ren"}` : ""
+  }`;
+
+  useEffect(() => {
+    if (stage !== "guests" || !missingGuests || initializedGuestSelectionRef.current) return;
+
+    initializedGuestSelectionRef.current = true;
+    onSelectGuests({
+      adults: guestCounts.adults,
+      children: guestCounts.children,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, missingGuests]);
+
+  const shiftMonth = (delta: number) => {
+    setCalendarMonth((current) => {
+      const next = new Date(current.year, current.monthIndex + delta, 1);
+      return {
+        year: next.getFullYear(),
+        monthIndex: next.getMonth(),
+      };
+    });
   };
 
-  const chooseGuests = (preset: SmartBarBookingGuestPreset) => {
-    setSelectedGuestId(preset.id);
-    setLocalSummary((current) => ({ ...current, guestLabel: preset.label }));
-    onSelectGuests(preset);
+  const selectDate = (value: string) => {
+    if (!dateDraft.checkInDate || dateDraft.checkOutDate || value <= dateDraft.checkInDate) {
+      setDateDraft({
+        checkInDate: value,
+        checkOutDate: "",
+      });
+      return;
+    }
+
+    const next = {
+      checkInDate: dateDraft.checkInDate,
+      checkOutDate: value,
+    };
+
+    setDateDraft(next);
+    onSelectDates({
+      checkInDate: next.checkInDate,
+      checkOutDate: next.checkOutDate,
+      prompt: promptDateRangeFromIso(next.checkInDate, next.checkOutDate),
+    });
+
+    if (missingGuests) {
+      window.setTimeout(() => setStage("guests"), 180);
+    }
   };
+
+  const updateGuestCounts = (next: { adults: number; children: number }) => {
+    const safeNext = {
+      adults: Math.max(1, Math.min(6, Math.floor(next.adults || 1))),
+      children: Math.max(0, Math.min(6, Math.floor(next.children || 0))),
+    };
+
+    setGuestCounts(safeNext);
+    initializedGuestSelectionRef.current = true;
+    onSelectGuests(safeNext);
+  };
+
+  const renderCalendar = () => {
+    const cells = calendarCells(calendarMonth.year, calendarMonth.monthIndex);
+
+    return (
+      <div className="rounded-[24px] border border-white/18 bg-slate-950/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => shiftMonth(-1)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg font-black text-white ring-1 ring-white/12"
+            aria-label="Previous month"
+          >
+            ‹
+          </button>
+          <div className="text-center">
+            <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/62">
+              {dateDraft.checkInDate && !dateDraft.checkOutDate ? "Select check-out" : "Select check-in"}
+            </div>
+            <div className="mt-0.5 text-[15px] font-black leading-5 text-white">
+              {monthLabel(calendarMonth.year, calendarMonth.monthIndex)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => shiftMonth(1)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg font-black text-white ring-1 ring-white/12"
+            aria-label="Next month"
+          >
+            ›
+          </button>
+        </div>
+
+        <div className="mb-2 grid grid-cols-2 gap-2">
+          <div className="rounded-[18px] bg-sky-200/92 px-3 py-2 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-sky-100/34">
+            <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-in</div>
+            <div className="mt-0.5 text-sm font-black">{compactCalendarDateLabel(dateDraft.checkInDate)}</div>
+          </div>
+          <div className="rounded-[18px] bg-sky-200/70 px-3 py-2 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ring-1 ring-sky-100/24">
+            <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-out</div>
+            <div className="mt-0.5 text-sm font-black">{compactCalendarDateLabel(dateDraft.checkOutDate)}</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-[0.06em] text-white/44">
+          {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+            <div key={`${day}-${index}`} className="py-1">{day}</div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((value, index) => {
+            if (!value) return <div key={`empty-${index}`} className="h-9" />;
+
+            const state = dateButtonState(value, dateDraft.checkInDate, dateDraft.checkOutDate);
+            const className =
+              state === "selected"
+                ? "h-9 rounded-full bg-sky-200 text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),0_6px_14px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40"
+                : state === "range"
+                  ? "h-9 rounded-full bg-sky-200/34 text-sm font-black text-white ring-1 ring-sky-100/16"
+                  : "h-9 rounded-full bg-white/[0.07] text-sm font-black text-white ring-1 ring-white/8";
+
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => selectDate(value)}
+                className={className}
+                aria-label={`Select ${value}`}
+              >
+                {dayNumberFromIso(value)}
+              </button>
+            );
+          })}
+        </div>
+
+        {datesComplete && missingGuests && (
+          <button
+            type="button"
+            onClick={() => setStage("guests")}
+            className="mt-3 flex w-full items-center justify-center rounded-full bg-emerald-300/92 px-4 py-3 text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/34"
+          >
+            Continue to guests
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderGuests = () => (
+    <div className="rounded-[24px] border border-white/18 bg-slate-950/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+      {missingDates && (
+        <button
+          type="button"
+          onClick={() => setStage("dates")}
+          className="mb-3 flex w-full items-center justify-between rounded-[20px] border border-sky-100/16 bg-sky-200/16 px-3 py-2 text-left text-xs font-black text-sky-100 ring-1 ring-white/8"
+        >
+          <span>{dateDraft.checkInDate && dateDraft.checkOutDate ? `${compactCalendarDateLabel(dateDraft.checkInDate)}–${compactCalendarDateLabel(dateDraft.checkOutDate)}` : "Choose dates"}</span>
+          <span>Edit</span>
+        </button>
+      )}
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/62">Guests</div>
+          <div className="mt-0.5 text-[15px] font-black leading-5 text-white">{guestLabel}</div>
+        </div>
+        <div className="rounded-full bg-emerald-300/92 px-3 py-1.5 text-[11px] font-black text-slate-950">
+          Selected
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <SmartBarBookingCounterRow
+          label="Adults"
+          helper="Age 18+"
+          value={guestCounts.adults}
+          min={1}
+          max={6}
+          onChange={(value) => updateGuestCounts({ ...guestCounts, adults: value })}
+        />
+        <SmartBarBookingCounterRow
+          label="Kids"
+          helper="Children"
+          value={guestCounts.children}
+          min={0}
+          max={6}
+          onChange={(value) => updateGuestCounts({ ...guestCounts, children: value })}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-3">
@@ -266,67 +511,13 @@ function SmartBarBookingContextSelectors({
           Trip details needed
         </div>
         <div className="mt-1 text-[15px] font-bold leading-5 text-white/92">
-          Add the missing stay fields, then continue the same request.
+          {stage === "dates"
+            ? "Select check-in and check-out dates first."
+            : "Set adults and kids separately, then continue the search."}
         </div>
       </div>
 
-      {missingDates && (
-        <div className="rounded-[24px] border border-white/18 bg-slate-950/76 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/68">Dates</span>
-            <span className="rounded-full bg-sky-200/92 px-2.5 py-1 text-[11px] font-black text-slate-950">
-              {localSummary.datesLabel || "Select"}
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            {SMARTBAR_BOOKING_DATE_PRESETS.map((preset) => {
-              const active = selectedDateId === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => chooseDates(preset)}
-                  className={active
-                    ? "min-h-[62px] rounded-[20px] bg-sky-200/95 px-2 py-2 text-center text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_8px_18px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/44"
-                    : "min-h-[62px] rounded-[20px] border border-white/14 bg-white/[0.08] px-2 py-2 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8"}
-                >
-                  <span className="block text-[13px] font-black leading-4">{preset.label}</span>
-                  <span className="mt-1 block text-[11px] font-semibold opacity-72">{preset.helper}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {missingGuests && (
-        <div className="rounded-[24px] border border-white/18 bg-slate-950/76 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/68">Guests</span>
-            <span className="rounded-full bg-emerald-300/92 px-2.5 py-1 text-[11px] font-black text-slate-950">
-              {localSummary.guestLabel || "Select"}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {SMARTBAR_BOOKING_GUEST_PRESETS.map((preset) => {
-              const active = selectedGuestId === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => chooseGuests(preset)}
-                  className={active
-                    ? "min-h-[58px] rounded-[20px] bg-emerald-300/92 px-3 py-2 text-left text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/38"
-                    : "min-h-[58px] rounded-[20px] border border-white/14 bg-white/[0.08] px-3 py-2 text-left text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8"}
-                >
-                  <span className="block text-[13px] font-black leading-4">{preset.label}</span>
-                  <span className="mt-1 block text-[11px] font-semibold opacity-72">{preset.helper}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {stage === "dates" ? renderCalendar() : renderGuests()}
     </div>
   );
 }
@@ -595,7 +786,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
           variant: "primary",
         },
       ],
-      height: missingDates && missingGuests ? 520 : 420,
+      height: missingDates ? 620 : 430,
       content: (
         <SmartBarBookingContextSelectors
           missingDates={missingDates}
