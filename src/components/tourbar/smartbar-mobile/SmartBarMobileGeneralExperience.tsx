@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { BedDouble, CalendarDays, Coffee, CreditCard, MessageSquare, Sparkles, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
   type SmartBarMobileGenericAction,
@@ -349,91 +348,11 @@ function smartBarGeneralCompact(value: string) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-type GeneralMobileTone = "sky" | "slate" | "emerald" | "violet" | "amber";
-
-const GENERAL_MOBILE_TONE_CLASS: Record<GeneralMobileTone, {
-  card: string;
-  icon: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-}> = {
-  sky: {
-    card: "border-sky-100/44 bg-sky-400/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(14,165,233,0.20)] ring-sky-100/30",
-    icon: "bg-slate-950/88 text-sky-200 ring-slate-950/18",
-    eyebrow: "text-slate-950/58",
-    title: "text-slate-950",
-    body: "text-slate-950/76",
-  },
-  slate: {
-    card: "border-white/24 bg-slate-950/88 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_30px_rgba(2,6,23,0.24)] ring-white/14",
-    icon: "bg-white/12 text-white ring-white/18",
-    eyebrow: "text-white/46",
-    title: "text-white",
-    body: "text-white/72",
-  },
-  emerald: {
-    card: "border-emerald-100/42 bg-emerald-300/84 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(16,185,129,0.20)] ring-emerald-100/30",
-    icon: "bg-slate-950/88 text-emerald-200 ring-slate-950/18",
-    eyebrow: "text-slate-950/58",
-    title: "text-slate-950",
-    body: "text-slate-950/76",
-  },
-  violet: {
-    card: "border-violet-100/36 bg-violet-500/82 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(124,58,237,0.24)] ring-violet-100/24",
-    icon: "bg-white/14 text-white ring-white/18",
-    eyebrow: "text-white/56",
-    title: "text-white",
-    body: "text-white/76",
-  },
-  amber: {
-    card: "border-amber-100/48 bg-amber-300/88 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_28px_rgba(245,158,11,0.20)] ring-amber-100/34",
-    icon: "bg-slate-950/88 text-amber-200 ring-slate-950/18",
-    eyebrow: "text-slate-950/58",
-    title: "text-slate-950",
-    body: "text-slate-950/76",
-  },
-};
-
-function GeneralMiniCard({
-  eyebrow,
-  title,
-  body,
-  icon,
-  tone = "slate",
-}: {
-  eyebrow?: string;
-  title: string;
-  body: string;
-  icon?: ReactNode;
-  tone?: GeneralMobileTone;
-}) {
-  const toneClass = GENERAL_MOBILE_TONE_CLASS[tone];
-
-  return (
-    <div className={`rounded-[24px] border px-3.5 py-3 ring-1 ${toneClass.card}`}>
-      <div className="flex items-start gap-3">
-        {icon ? <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${toneClass.icon}`}>{icon}</div> : null}
-        <div className="min-w-0">
-          {eyebrow && (
-            <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${toneClass.eyebrow}`}>
-              {eyebrow}
-            </div>
-          )}
-          <div className={`text-sm font-black leading-5 ${toneClass.title}`}>{title}</div>
-          <div className={`mt-1 text-xs font-semibold leading-5 ${toneClass.body}`}>{body}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 type GeneralDomiRoom = {
   id: string;
   label: string;
   title: string;
   body: string;
-  tone: GeneralMobileTone;
   price: string;
 };
 
@@ -443,7 +362,6 @@ const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
     label: "Value fit",
     title: "Garden Terrace King",
     body: "Comfortable and breakfast-compatible, but not the strongest view for this request.",
-    tone: "emerald",
     price: "$239/night",
   },
   {
@@ -451,7 +369,6 @@ const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
     label: "Best fit",
     title: "Ocean View Suite",
     body: "Best balance of view, comfort, and breakfast compatibility without jumping to villa pricing.",
-    tone: "sky",
     price: "$379/night",
   },
   {
@@ -459,207 +376,9 @@ const GENERAL_DOMI_ROOMS: GeneralDomiRoom[] = [
     label: "Premium",
     title: "Coastal Villa Suite",
     body: "The strongest view and most space, but more room than this solo stay probably needs.",
-    tone: "violet",
     price: "$549/night",
   },
 ];
-
-function BookingContextPills() {
-  const pills = [
-    ["Dates", "Aug 4–9"],
-    ["Guests", "1 guest"],
-    ["View", "Nice view"],
-    ["Breakfast", "Wanted"],
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {pills.map(([label, value]) => (
-        <div
-          key={label}
-          className="rounded-full bg-slate-950/82 px-3 py-2 text-center text-white ring-1 ring-white/14"
-        >
-          <div className="text-[9px] font-black uppercase tracking-[0.14em] text-white/44">{label}</div>
-          <div className="mt-0.5 text-[11px] font-semibold leading-none text-white/88">{value}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function BookingTourContent({ step }: { step: number }) {
-  const activeRoomIndex = Math.min(Math.max(step, 0), GENERAL_DOMI_ROOMS.length - 1);
-  const room = GENERAL_DOMI_ROOMS[activeRoomIndex];
-
-  return (
-    <div className="space-y-3">
-      <GeneralMiniCard
-        eyebrow={room.label}
-        title={room.title}
-        body={`${room.body} ${room.price}.`}
-        tone={room.tone}
-        icon={<BedDouble className="h-4 w-4" />}
-      />
-      <BookingContextPills />
-      <div className="grid grid-cols-3 gap-2">
-        {GENERAL_DOMI_ROOMS.map((item, index) => (
-          <div
-            key={item.id}
-            className={`rounded-[18px] px-2 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${
-              index === activeRoomIndex
-                ? "bg-sky-300 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_8px_18px_rgba(14,165,233,0.20)] ring-sky-100/40"
-                : "bg-slate-950/82 text-white/72 ring-white/14"
-            }`}
-            aria-label={item.title}
-          >
-            <span className="block text-[11px] leading-none">{index + 1}</span>
-            <span className="mt-1 block truncate text-[8px] leading-none opacity-70">{item.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BookingBreakfastContent() {
-  return (
-    <div className="space-y-3">
-      <GeneralMiniCard
-        eyebrow="Package attached"
-        title="Breakfast Flex Plan"
-        body="Breakfast is attached to the Ocean View Suite without losing the room, date, or guest context. +$32/night."
-        tone="amber"
-        icon={<Coffee className="h-4 w-4" />}
-      />
-      <BookingContextPills />
-    </div>
-  );
-}
-
-function BookingSummaryContent() {
-  const rows: Array<[string, string, GeneralMobileTone, ReactNode]> = [
-    ["Room", "Ocean View Suite", "sky", <BedDouble className="h-3.5 w-3.5" />],
-    ["Add-on", "Breakfast Flex Plan", "amber", <Coffee className="h-3.5 w-3.5" />],
-    ["Dates", "Aug 4–9, 2026", "violet", <CalendarDays className="h-3.5 w-3.5" />],
-    ["Guests", "1 guest", "emerald", <Users className="h-3.5 w-3.5" />],
-    ["Estimate", "$379/night + $32/night", "slate", <CreditCard className="h-3.5 w-3.5" />],
-  ];
-
-  return (
-    <div className="space-y-2">
-      {rows.map(([label, value, tone, icon]) => (
-        <GeneralMiniCard
-          key={label}
-          eyebrow={label}
-          title={value}
-          body={label === "Estimate" ? "Ready for booking handoff" : "Confirmed for this stay"}
-          tone={tone}
-          icon={icon}
-        />
-      ))}
-    </div>
-  );
-}
-
-function BookingMissingContextContent() {
-  return (
-    <div className="space-y-3">
-      <GeneralMiniCard
-        eyebrow="Missing context"
-        title="Need dates and guests"
-        body="SmartBar does not guess. It pauses the booking path and asks for the fields needed before recommending a family room."
-        tone="violet"
-        icon={<CalendarDays className="h-4 w-4" />}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <GeneralMiniCard
-          eyebrow="Dates"
-          title="Not set"
-          body="Choose check-in and check-out."
-          tone="amber"
-          icon={<CalendarDays className="h-4 w-4" />}
-        />
-        <GeneralMiniCard
-          eyebrow="Guests"
-          title="Not set"
-          body="Adults and children needed."
-          tone="slate"
-          icon={<Users className="h-4 w-4" />}
-        />
-      </div>
-    </div>
-  );
-}
-
-function BookingSelectorsContent() {
-  return (
-    <div className="space-y-3">
-      <GeneralMiniCard
-        eyebrow="Dates selected"
-        title="June 12–15, 2026"
-        body="The mobile equivalent of the desktop calendar clicks: check-in and check-out are now attached to the stay."
-        tone="sky"
-        icon={<CalendarDays className="h-4 w-4" />}
-      />
-      <GeneralMiniCard
-        eyebrow="Guests selected"
-        title="2 adults · 2 children"
-        body="The mobile equivalent of the desktop guest controls: SmartBar can now filter for family-capable rooms."
-        tone="emerald"
-        icon={<Users className="h-4 w-4" />}
-      />
-    </div>
-  );
-}
-
-function FamilyRecommendationContent() {
-  return (
-    <div className="space-y-3">
-      <GeneralMiniCard
-        eyebrow="Family fit"
-        title="Family Double Room"
-        body="With dates and guests resolved, SmartBar turns the missing-context path into a recommendation."
-        tone="sky"
-        icon={<BedDouble className="h-4 w-4" />}
-      />
-      <GeneralMiniCard
-        eyebrow="Context becomes booking"
-        title="Family Comfort Bundle"
-        body="The summary can now carry room, dates, guests, and package context forward."
-        tone="amber"
-        icon={<CreditCard className="h-4 w-4" />}
-      />
-    </div>
-  );
-}
-
-function FinaleToolbeltContent() {
-  return (
-    <div className="space-y-2">
-      <GeneralMiniCard
-        eyebrow="Answer"
-        title="Short version"
-        body="SmartBar can answer directly when the visitor needs a concise explanation."
-        tone="sky"
-        icon={<Sparkles className="h-4 w-4" />}
-      />
-      <GeneralMiniCard
-        eyebrow="Action choices"
-        title="Next-step buttons"
-        body="It can return choices when the right answer is an action path."
-        tone="emerald"
-        icon={<MessageSquare className="h-4 w-4" />}
-      />
-      <GeneralMiniCard
-        eyebrow="Commerce"
-        title="Cart / booking / handoff"
-        body="It can switch tools without changing the bar: cart, dates, guests, summaries, and chat."
-        tone="violet"
-        icon={<CreditCard className="h-4 w-4" />}
-      />
-    </div>
-  );
-}
 
 function GeneralNarratorCards({ cards }: { cards: string[] }) {
   const [activeLane, setActiveLane] = useState<SmartBarFlashCardLaneName | null>(null);
@@ -1021,29 +740,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       progressLabel: "Rooms",
       progressCurrent: safeStep + 1,
       progressTotal: GENERAL_DOMI_ROOMS.length,
-      content: <BookingTourContent step={safeStep} />,
-      helper: "SmartBar keeps room, view, breakfast, dates, and guest context together while you compare options.",
+      body: `${activeRoom.body} ${activeRoom.price}.`,
+      helper: "Room, view, breakfast, date, and guest context stay attached while the visitor compares options.",
       actions: [
-        {
-          id: "booking-nav-back",
-          label: "Back",
-          helper: `Stop ${safeStep + 1} of ${GENERAL_DOMI_ROOMS.length}`,
-          variant: "back",
-          disabled: safeStep === 0,
-        },
-        {
-          id: "booking-nav-next",
-          label: "Next",
-          helper: safeStep >= GENERAL_DOMI_ROOMS.length - 1
-            ? `Stop ${safeStep + 1} of ${GENERAL_DOMI_ROOMS.length}`
-            : GENERAL_DOMI_ROOMS[safeStep + 1]?.label || `Stop ${safeStep + 2}`,
-          variant: "next",
-          disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1,
-        },
+        { id: "booking-nav-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
+        { id: "booking-nav-next", label: "Next room", disabled: safeStep === GENERAL_DOMI_ROOMS.length - 1 },
         { id: "add-breakfast", label: breakfastAdded ? "Breakfast already added" : "Add breakfast", variant: breakfastAdded ? "secondary" : "primary" },
         { id: "prepare-booking", label: "Prepare booking summary", variant: "secondary" },
       ],
-      height: 570,
+      height: 330,
     };
   }, [bookingStep, breakfastAdded, focusTarget]);
 
@@ -1061,13 +766,13 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       progressLabel: "Package",
       progressCurrent: 2,
       progressTotal: 3,
-      content: <BookingBreakfastContent />,
-      helper: "The add-on attaches to the active stay plan instead of replacing the room recommendation.",
+      body: "Breakfast Flex Plan is attached to the Ocean View Suite without losing the room, date, or guest context.",
+      helper: "The add-on updates the active stay plan instead of replacing the recommendation.",
       actions: [
         { id: "show-rooms", label: "Review rooms", variant: "secondary" },
         { id: "prepare-booking", label: "Prepare booking summary" },
       ],
-      height: 500,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1082,11 +787,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Domi Hotel",
       title: "Booking summary ready",
       statusLabel: "Summary ready",
-      content: <BookingSummaryContent />,
+      body: "Ocean View Suite, Breakfast Flex Plan, Aug 4–9, 2026, 1 guest. Estimate: $379/night + $32/night.",
+      helper: "The summary is now ready for a booking handoff.",
       actions: [
         { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
       ],
-      height: 510,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1099,12 +805,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Domi Hotel",
       title: "Need dates and guests",
       statusLabel: "Missing context",
-      content: <BookingMissingContextContent />,
-      helper: "This is the phone equivalent of the desktop selector setup: SmartBar asks for the fields required before continuing.",
+      body: "SmartBar does not guess. It pauses the booking path and asks for the fields needed before recommending a family-capable room.",
+      helper: "This mirrors the real booking flow: collect required context before filtering inventory.",
       actions: [
         { id: "select-dates", label: "Set dates and guests" },
       ],
-      height: 500,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1116,13 +822,13 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       surfaceKind: "booking_tour",
       eyebrow: "Domi Hotel",
       title: "Dates and guests selected",
-      statusLabel: "Selectors",
-      content: <BookingSelectorsContent />,
-      helper: "Calendar taps and guest controls are represented as selected booking context inside the mobile stretch box.",
+      statusLabel: "Context set",
+      body: "June 12–15, 2026 with 2 adults and 2 children. SmartBar can now filter for family-capable rooms.",
+      helper: "The mobile selector work is represented as resolved booking context.",
       actions: [
         { id: "show-family-recommendation", label: "Show family recommendation" },
       ],
-      height: 520,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1135,11 +841,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Domi Hotel",
       title: "Family recommendation ready",
       statusLabel: "Family fit",
-      content: <FamilyRecommendationContent />,
+      body: "Family Double Room with the Family Comfort Bundle fits the selected dates and four-guest stay.",
+      helper: "The result now carries room, dates, guests, and package context forward.",
       actions: [
         { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
       ],
-      height: 520,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1152,12 +859,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Finale",
       title: "Search bar with a toolbelt",
       statusLabel: "Toolbelt",
-      content: <FinaleToolbeltContent />,
-      helper: "Same bar, different jobs: answer, action choices, cart, selectors, summary, lead capture, and chat handoff.",
+      body: "Same bar, different jobs: answer, action choices, cart, selectors, summary, lead capture, and chat handoff.",
+      helper: "The website remains the visual surface. The bar stays compact and action-oriented.",
       actions: [
         { id: "restart-info", label: "Replay from the top", variant: "secondary" },
       ],
-      height: 560,
+      height: 330,
     };
   }, [focusTarget]);
 
