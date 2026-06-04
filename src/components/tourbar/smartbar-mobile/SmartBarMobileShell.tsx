@@ -1521,23 +1521,10 @@ export default function SmartBarMobileShell({
                       )}
                     </div>
 
-                    {(genericResult.progressCurrent !== undefined && genericResult.progressTotal !== undefined) && (
-                      <div className="mt-0 grid shrink-0 grid-cols-2 gap-2">
-                        <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
-                          <span className="text-[10px] leading-none tracking-[0.14em]">Step</span>
-                          <span className="mt-1 text-[14px] leading-none tracking-normal">{genericResult.progressCurrent}</span>
-                        </div>
-                        <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
-                          <span className="text-[10px] leading-none tracking-[0.14em]">Total</span>
-                          <span className="mt-1 text-[14px] leading-none tracking-normal">{genericResult.progressTotal}</span>
-                        </div>
-                      </div>
-                    )}
-
                     <div
                       className={genericResult?.surfaceKind === "chat"
                         ? "mt-0 min-h-0 shrink-0 overflow-visible pr-0 pb-0"
-                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-0 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={genericResult?.surfaceKind === "chat" ? undefined : { WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (

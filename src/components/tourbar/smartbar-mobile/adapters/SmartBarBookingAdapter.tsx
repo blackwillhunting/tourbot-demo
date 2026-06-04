@@ -137,6 +137,200 @@ function renderInlineEmphasis(text: string) {
   });
 }
 
+type SmartBarBookingDatePreset = {
+  id: string;
+  label: string;
+  helper: string;
+  checkInDate: string;
+  checkOutDate: string;
+  prompt: string;
+};
+
+type SmartBarBookingGuestPreset = {
+  id: string;
+  label: string;
+  helper: string;
+  adults: number;
+  children: number;
+};
+
+type SmartBarBookingContextDraft = {
+  datesSelected: boolean;
+  checkInDate: string;
+  checkOutDate: string;
+  datesLabel: string;
+  datesPrompt: string;
+  guestsSelected: boolean;
+  guestAdults: number;
+  guestChildren: number;
+  guestLabel: string;
+};
+
+const SMARTBAR_BOOKING_DATE_PRESETS: SmartBarBookingDatePreset[] = [
+  {
+    id: "aug-4-9",
+    label: "Aug 4–9",
+    helper: "5 nights",
+    checkInDate: "2026-08-04",
+    checkOutDate: "2026-08-09",
+    prompt: "Aug 4 to Aug 9, 2026",
+  },
+  {
+    id: "jul-10-14",
+    label: "Jul 10–14",
+    helper: "4 nights",
+    checkInDate: "2026-07-10",
+    checkOutDate: "2026-07-14",
+    prompt: "Jul 10 to Jul 14, 2026",
+  },
+  {
+    id: "jun-12-19",
+    label: "Jun 12–19",
+    helper: "7 nights",
+    checkInDate: "2026-06-12",
+    checkOutDate: "2026-06-19",
+    prompt: "Jun 12 to Jun 19, 2026",
+  },
+];
+
+const SMARTBAR_BOOKING_GUEST_PRESETS: SmartBarBookingGuestPreset[] = [
+  { id: "solo", label: "1 adult", helper: "Solo stay", adults: 1, children: 0 },
+  { id: "couple", label: "2 adults", helper: "Two travelers", adults: 2, children: 0 },
+  { id: "family-3", label: "2 adults + 1 child", helper: "Family fit", adults: 2, children: 1 },
+  { id: "family-4", label: "2 adults + 2 children", helper: "Sleeps 4", adults: 2, children: 2 },
+];
+
+function promptDateRangeFromIso(checkInDate?: string | null, checkOutDate?: string | null) {
+  if (!checkInDate || !checkOutDate) return "";
+
+  const start = new Date(`${checkInDate}T00:00:00`);
+  const end = new Date(`${checkOutDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "";
+
+  const startLabel = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const endLabel = end.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `${startLabel} to ${endLabel}, ${end.getFullYear()}`;
+}
+
+function SmartBarBookingContextSelectors({
+  missingDates,
+  missingGuests,
+  initialDraft,
+  onSelectDates,
+  onSelectGuests,
+}: {
+  missingDates: boolean;
+  missingGuests: boolean;
+  initialDraft: SmartBarBookingContextDraft;
+  onSelectDates: (preset: SmartBarBookingDatePreset) => void;
+  onSelectGuests: (preset: SmartBarBookingGuestPreset) => void;
+}) {
+  const [selectedDateId, setSelectedDateId] = useState(() => {
+    const matching = SMARTBAR_BOOKING_DATE_PRESETS.find(
+      (preset) =>
+        preset.checkInDate === initialDraft.checkInDate &&
+        preset.checkOutDate === initialDraft.checkOutDate,
+    );
+    return matching?.id || "";
+  });
+  const [selectedGuestId, setSelectedGuestId] = useState(() => {
+    const matching = SMARTBAR_BOOKING_GUEST_PRESETS.find(
+      (preset) =>
+        preset.adults === initialDraft.guestAdults &&
+        preset.children === initialDraft.guestChildren,
+    );
+    return matching?.id || "";
+  });
+  const [localSummary, setLocalSummary] = useState({
+    datesLabel: initialDraft.datesLabel,
+    guestLabel: initialDraft.guestLabel,
+  });
+
+  const chooseDates = (preset: SmartBarBookingDatePreset) => {
+    setSelectedDateId(preset.id);
+    setLocalSummary((current) => ({ ...current, datesLabel: preset.label }));
+    onSelectDates(preset);
+  };
+
+  const chooseGuests = (preset: SmartBarBookingGuestPreset) => {
+    setSelectedGuestId(preset.id);
+    setLocalSummary((current) => ({ ...current, guestLabel: preset.label }));
+    onSelectGuests(preset);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-[24px] border border-white/20 bg-slate-950/86 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/14">
+        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-100/82">
+          Trip details needed
+        </div>
+        <div className="mt-1 text-[15px] font-bold leading-5 text-white/92">
+          Add the missing stay fields, then continue the same request.
+        </div>
+      </div>
+
+      {missingDates && (
+        <div className="rounded-[24px] border border-white/18 bg-slate-950/76 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/68">Dates</span>
+            <span className="rounded-full bg-sky-200/92 px-2.5 py-1 text-[11px] font-black text-slate-950">
+              {localSummary.datesLabel || "Select"}
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {SMARTBAR_BOOKING_DATE_PRESETS.map((preset) => {
+              const active = selectedDateId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => chooseDates(preset)}
+                  className={active
+                    ? "min-h-[62px] rounded-[20px] bg-sky-200/95 px-2 py-2 text-center text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_8px_18px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/44"
+                    : "min-h-[62px] rounded-[20px] border border-white/14 bg-white/[0.08] px-2 py-2 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8"}
+                >
+                  <span className="block text-[13px] font-black leading-4">{preset.label}</span>
+                  <span className="mt-1 block text-[11px] font-semibold opacity-72">{preset.helper}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {missingGuests && (
+        <div className="rounded-[24px] border border-white/18 bg-slate-950/76 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-black uppercase tracking-[0.14em] text-white/68">Guests</span>
+            <span className="rounded-full bg-emerald-300/92 px-2.5 py-1 text-[11px] font-black text-slate-950">
+              {localSummary.guestLabel || "Select"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {SMARTBAR_BOOKING_GUEST_PRESETS.map((preset) => {
+              const active = selectedGuestId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => chooseGuests(preset)}
+                  className={active
+                    ? "min-h-[58px] rounded-[20px] bg-emerald-300/92 px-3 py-2 text-left text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/38"
+                    : "min-h-[58px] rounded-[20px] border border-white/14 bg-white/[0.08] px-3 py-2 text-left text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8"}
+                >
+                  <span className="block text-[13px] font-black leading-4">{preset.label}</span>
+                  <span className="mt-1 block text-[11px] font-semibold opacity-72">{preset.helper}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function buildTourBarBookingRequestBody(
   query: string,
   shellContext: TourBarBookingTurnContext,
@@ -245,6 +439,18 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
   const currentRawRef = useRef<TourBarBookingRawResponse | null>(null);
   const threadRef = useRef<SmartBarBookingThreadMessage[]>([]);
   const actionQueriesRef = useRef<Record<string, string>>({});
+  const pendingBookingQueryRef = useRef("");
+  const bookingContextDraftRef = useRef<SmartBarBookingContextDraft>({
+    datesSelected: site.datesSelected,
+    checkInDate: site.checkInDate || "",
+    checkOutDate: site.checkOutDate || "",
+    datesLabel: site.datesSelected ? site.formatDateRange(site.checkInDate, site.checkOutDate) : "",
+    datesPrompt: promptDateRangeFromIso(site.checkInDate, site.checkOutDate),
+    guestsSelected: site.guestsSelected,
+    guestAdults: site.guestAdults || 1,
+    guestChildren: site.guestChildren || 0,
+    guestLabel: site.guestsSelected ? site.guestLabelFromCounts(site.guestAdults || 1, site.guestChildren || 0) : "",
+  });
   const navigationStateRef = useRef<SmartBarBookingNavigationState | null>(null);
   const navigationRunRef = useRef(0);
 
@@ -285,6 +491,140 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
   const packageIdFromTarget = (targetId?: string | null) => {
     const sectionId = sectionIdFromTarget(targetId);
     return site.getPackageMeta(sectionId) ? sectionId : "";
+  };
+
+  const selectorDraftFromSite = (): SmartBarBookingContextDraft => {
+    const current = bookingContextDraftRef.current;
+    const hasSiteDates = Boolean(site.datesSelected && site.checkInDate && site.checkOutDate);
+    const hasSiteGuests = Boolean(site.guestsSelected);
+
+    return {
+      ...current,
+      datesSelected: hasSiteDates || current.datesSelected,
+      checkInDate: hasSiteDates ? site.checkInDate : current.checkInDate,
+      checkOutDate: hasSiteDates ? site.checkOutDate : current.checkOutDate,
+      datesLabel: hasSiteDates ? site.formatDateRange(site.checkInDate, site.checkOutDate) : current.datesLabel,
+      datesPrompt: hasSiteDates ? promptDateRangeFromIso(site.checkInDate, site.checkOutDate) : current.datesPrompt,
+      guestsSelected: hasSiteGuests || current.guestsSelected,
+      guestAdults: hasSiteGuests ? site.guestAdults : current.guestAdults,
+      guestChildren: hasSiteGuests ? site.guestChildren : current.guestChildren,
+      guestLabel: hasSiteGuests ? site.guestLabelFromCounts(site.guestAdults, site.guestChildren) : current.guestLabel,
+    };
+  };
+
+  const selectBookingDates = (preset: SmartBarBookingDatePreset) => {
+    const datesLabel = site.formatDateRange(preset.checkInDate, preset.checkOutDate);
+    bookingContextDraftRef.current = {
+      ...bookingContextDraftRef.current,
+      datesSelected: true,
+      checkInDate: preset.checkInDate,
+      checkOutDate: preset.checkOutDate,
+      datesLabel,
+      datesPrompt: preset.prompt,
+    };
+    site.setCheckInDate(preset.checkInDate);
+    site.setCheckOutDate(preset.checkOutDate);
+    site.setDatesSelected(true);
+    site.setActiveFormSpotlight?.(null);
+  };
+
+  const selectBookingGuests = (preset: SmartBarBookingGuestPreset) => {
+    const guestLabel = site.guestLabelFromCounts(preset.adults, preset.children);
+    bookingContextDraftRef.current = {
+      ...bookingContextDraftRef.current,
+      guestsSelected: true,
+      guestAdults: preset.adults,
+      guestChildren: preset.children,
+      guestLabel,
+    };
+    site.setGuestAdults(preset.adults);
+    site.setGuestChildren(preset.children);
+    site.setGuestLabel(guestLabel);
+    site.setGuestsSelected(true);
+    site.setActiveFormSpotlight?.(null);
+  };
+
+  const syncPromptContextToDraft = (promptContext: TourBarBookingContext) => {
+    if (promptContext.datesSelected && promptContext.checkInDate && promptContext.checkOutDate) {
+      bookingContextDraftRef.current = {
+        ...bookingContextDraftRef.current,
+        datesSelected: true,
+        checkInDate: String(promptContext.checkInDate),
+        checkOutDate: String(promptContext.checkOutDate),
+        datesLabel: promptContext.datesLabel || site.formatDateRange(String(promptContext.checkInDate), String(promptContext.checkOutDate)),
+        datesPrompt: promptDateRangeFromIso(promptContext.checkInDate, promptContext.checkOutDate),
+      };
+    }
+
+    if (promptContext.guestsSelected) {
+      const adults = Math.max(1, Number(promptContext.guestAdults ?? promptContext.adults ?? 1));
+      const children = Math.max(0, Number(promptContext.guestChildren ?? promptContext.children ?? 0));
+      bookingContextDraftRef.current = {
+        ...bookingContextDraftRef.current,
+        guestsSelected: true,
+        guestAdults: adults,
+        guestChildren: children,
+        guestLabel: promptContext.guestLabel || site.guestLabelFromCounts(adults, children),
+      };
+    }
+  };
+
+  const buildBookingContextSelectorResult = (
+    pendingQuery: string,
+    missingDates: boolean,
+    missingGuests: boolean,
+  ): SmartBarMobileGenericResult => {
+    pendingBookingQueryRef.current = pendingQuery;
+    const initialDraft = selectorDraftFromSite();
+
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Domi stay planner",
+      title: missingDates && missingGuests
+        ? "Add trip details"
+        : missingDates
+          ? "Select stay dates"
+          : "Add guests",
+      helper: "Pick the missing booking fields, then continue the same request.",
+      statusLabel: "Trip details",
+      actions: [
+        {
+          id: "booking-context-continue",
+          label: "Continue search",
+          helper: "Resume the original request",
+          variant: "primary",
+        },
+      ],
+      height: missingDates && missingGuests ? 520 : 420,
+      content: (
+        <SmartBarBookingContextSelectors
+          missingDates={missingDates}
+          missingGuests={missingGuests}
+          initialDraft={initialDraft}
+          onSelectDates={selectBookingDates}
+          onSelectGuests={selectBookingGuests}
+        />
+      ),
+    };
+  };
+
+  const resumeBookingContextQuery = (): Promise<SmartBarMobileSubmitResult> | SmartBarMobileSubmitResult => {
+    const pendingQuery = pendingBookingQueryRef.current || "show booking options";
+    const draft = selectorDraftFromSite();
+    const hasDates = Boolean(draft.datesSelected && draft.checkInDate && draft.checkOutDate);
+    const hasGuests = Boolean(draft.guestsSelected && draft.guestAdults >= 1);
+
+    if (!hasDates || !hasGuests) {
+      return buildBookingContextSelectorResult(pendingQuery, !hasDates, !hasGuests);
+    }
+
+    const datePrompt = draft.datesPrompt || promptDateRangeFromIso(draft.checkInDate, draft.checkOutDate);
+    const guestPrompt = draft.guestLabel ? `for ${draft.guestLabel}` : "";
+    const resumedQuery = [pendingQuery, datePrompt, guestPrompt]
+      .filter((part) => String(part || "").trim().length > 0)
+      .join(" ");
+
+    return submitBookingQuery(resumedQuery);
   };
 
   const currentBookingContext = (
@@ -1139,6 +1479,17 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
 
   const submitBookingQuery = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const promptContext = mergePromptContext(query);
+    syncPromptContextToDraft(promptContext);
+
+    const draft = selectorDraftFromSite();
+    const hasDates = Boolean(promptContext.datesSelected || site.datesSelected || draft.datesSelected);
+    const hasGuests = Boolean(promptContext.guestsSelected || site.guestsSelected || draft.guestsSelected);
+
+    if (!hasDates || !hasGuests) {
+      navigationStateRef.current = null;
+      return buildBookingContextSelectorResult(query, !hasDates, !hasGuests);
+    }
+
     const requestContext = buildRequestContext(query, promptContext);
     const turnContext: TourBarBookingTurnContext = {
       currentResult: activeResultRef.current,
@@ -1173,6 +1524,10 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     action: SmartBarMobileGenericAction,
   ): Promise<SmartBarMobileSubmitResult> => {
     const raw = currentRawRef.current;
+
+    if (action.id === "booking-context-continue") {
+      return resumeBookingContextQuery();
+    }
 
     if ((action.id === "booking-nav-back" || action.id === "booking-nav-next") && raw) {
       const state = navigationStateRef.current;
@@ -1230,6 +1585,18 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         currentRawRef.current = null;
         threadRef.current = [];
         actionQueriesRef.current = {};
+        pendingBookingQueryRef.current = "";
+        bookingContextDraftRef.current = {
+          datesSelected: false,
+          checkInDate: "",
+          checkOutDate: "",
+          datesLabel: "",
+          datesPrompt: "",
+          guestsSelected: false,
+          guestAdults: 1,
+          guestChildren: 0,
+          guestLabel: "",
+        };
         navigationStateRef.current = null;
       }}
     />
