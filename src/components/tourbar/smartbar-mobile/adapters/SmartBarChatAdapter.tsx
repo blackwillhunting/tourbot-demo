@@ -89,10 +89,10 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
   };
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-white/14 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
+    <div className="overflow-hidden rounded-[26px] border border-white/14 bg-slate-950/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.16)] ring-1 ring-white/10">
       <div
         ref={scrollRef}
-        className="max-h-[min(46svh,420px)] space-y-2 overflow-y-auto px-3 py-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="max-h-[min(44svh,360px)] space-y-2 overflow-y-auto px-3 py-3 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {thread.map((message) => {
           const visitor = message.role === "visitor";
@@ -103,13 +103,13 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
               key={message.id}
               className={`rounded-[20px] px-3 py-2.5 text-sm font-semibold leading-5 ring-1 ${
                 visitor
-                  ? "ml-8 bg-sky-200/92 text-slate-950 ring-sky-100/40"
+                  ? "ml-8 border border-sky-100/50 bg-sky-300/92 text-slate-950 shadow-[0_8px_18px_rgba(14,165,233,0.16)] ring-sky-100/40"
                   : smartbar
-                    ? "mr-8 bg-white/[0.10] text-white/76 ring-white/12"
-                    : "mr-8 bg-slate-900/92 text-white/86 ring-white/14"
+                    ? "mr-8 border border-white/16 bg-slate-200/82 text-slate-950 shadow-[0_8px_18px_rgba(15,23,42,0.10)] ring-white/16"
+                    : "mr-8 border border-emerald-100/42 bg-emerald-300/88 text-slate-950 shadow-[0_8px_18px_rgba(16,185,129,0.16)] ring-emerald-100/34"
               }`}
             >
-              <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${visitor ? "text-slate-950/54" : "text-white/42"}`}>
+              <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-950/54`}>
                 {visitor ? "You" : smartbar ? "SmartBar" : "Consultant"}
               </div>
               <span className="whitespace-pre-wrap">
@@ -120,8 +120,8 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
         })}
       </div>
 
-      <form onSubmit={submit} className="border-t border-white/10 px-3 py-2.5">
-        <div className="flex items-end gap-2 rounded-[22px] bg-white/[0.08] px-3 py-2 ring-1 ring-white/10">
+      <form onSubmit={submit} className="border-t border-white/10 px-3 py-2">
+        <div className="flex items-end gap-2 rounded-[22px] bg-white/[0.12] px-3 py-2 ring-1 ring-white/12">
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
@@ -138,7 +138,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           <button
             type="submit"
             disabled={!draft.trim() || isWaiting}
-            className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-200/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-sky-100/42 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
+            className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] ring-1 ring-emerald-100/42 transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-45"
             aria-label="Send consultant message"
           >
             <SendHorizonal className="h-4 w-4" />
@@ -155,7 +155,7 @@ function buildChatResult(initialContext: string): SmartBarMobileGenericResult {
     eyebrow: "Live handoff",
     title: "Consultant chat",
     statusLabel: "Chat open",
-    height: 560,
+    height: 392,
     content: <SmartBarMobileChatSurface initialContext={initialContext} />,
   };
 }

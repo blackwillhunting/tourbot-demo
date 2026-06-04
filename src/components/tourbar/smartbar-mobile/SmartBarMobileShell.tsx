@@ -1311,7 +1311,7 @@ export default function SmartBarMobileShell({
               style={{ width: entryPillWidth, maxHeight: `calc(100svh - ${88 + keyboardLift}px)` }}
               initial={{ height: realComposerHeight, borderRadius: 999 }}
               animate={{
-                height: phase === "cart" && cartExpanded && !selectedLine && genericResult?.surfaceKind === "info"
+                height: phase === "cart" && cartExpanded && !selectedLine && (genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat")
                   ? "auto"
                   : fakeCartPanelHeight,
                 borderRadius: fakeCartPanelRadius,
@@ -1346,7 +1346,7 @@ export default function SmartBarMobileShell({
                     transition={{ duration: 0.2, ease: "easeOut" }}
                     className="flex h-full min-h-0 flex-col p-3"
                   >
-                    <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
+                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
                         <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
@@ -1454,7 +1454,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : "flex h-full min-h-0 flex-col p-4"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : "flex h-full min-h-0 flex-col p-4"}
                   >
                     <div className={genericResult?.surfaceKind === "info" ? "hidden" : "flex shrink-0 items-start justify-between gap-3"}>
                       <div className="min-w-0">
@@ -1489,11 +1489,11 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
+                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : genericResult?.surfaceKind === "chat" ? "mt-0 shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
-                        <div className={genericResult?.surfaceKind === "info" ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}>{genericResult.content}</div>
+                        <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}>{genericResult.content}</div>
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (
