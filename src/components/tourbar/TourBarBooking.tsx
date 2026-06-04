@@ -1449,6 +1449,7 @@ export default function TourBarBooking({ site }: TourBarBookingProps) {
       resultEyebrow="TourBar booking"
       initialLoadingMessage="Resolving the lowest valid room setup…"
       followUpLoadingMessage="Rechecking the matrix…"
+      smartBarMobileChrome
       onPrimarySubmit={submitTourBarHotelBooking}
       onFollowUpSubmit={submitTourBarHotelBooking}
       onResult={focusTourBarTarget}
