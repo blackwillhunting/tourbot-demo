@@ -318,6 +318,13 @@ function SmartBarMobileGeneralRealSurface({ surface }: { surface: SmartBarSpeedS
 
   return (
     <div className="smartbar-mobile-general-real-surface relative min-h-[100dvh] overflow-x-hidden">
+      <style>
+        {`
+          .smartbar-mobile-general-real-surface [data-smartbar-mobile-shell="true"] {
+            display: none !important;
+          }
+        `}
+      </style>
       {child}
     </div>
   );
@@ -959,16 +966,14 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       >
         <SmartBarMobileGeneralRealSurface surface={surface} />
       </section>
-      <div className="hidden" aria-hidden="true">
-        <SmartBarMobileShell
-          mode="overlay"
-          entryModeLabel="Ask SmartBar"
-          buildingLabel="Thinking..."
-          demoSubmission={demoSubmission}
-          onSubmitPrompt={handleSubmitPrompt}
-          onGenericAction={handleGenericAction}
-        />
-      </div>
+      <SmartBarMobileShell
+        mode="overlay"
+        entryModeLabel="Ask SmartBar"
+        buildingLabel="Thinking..."
+        demoSubmission={demoSubmission}
+        onSubmitPrompt={handleSubmitPrompt}
+        onGenericAction={handleGenericAction}
+      />
     </main>
   );
 }
