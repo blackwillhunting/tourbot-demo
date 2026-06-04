@@ -14,7 +14,8 @@ import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
 import BurgerRushMobileExperience from "../smartbar-mobile/burgerrush/BurgerRushMobileExperience";
-import SmartBarMobileGeneralExperience from "../smartbar-mobile/SmartBarMobileGeneralExperience";
+import DomiMobileExperience from "../smartbar-mobile/domi/DomiMobileExperience";
+import NexaPathMobileExperience from "../smartbar-mobile/nexapath/NexaPathMobileExperience";
 import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
 import {
@@ -36,7 +37,7 @@ import {
   type SmartBarFlashCardNotice,
   type SmartBarTutorCard,
 } from "./SmartBarFlashCardRail";
-import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_MOBILE_GENERAL_REAL_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const MOBILE_TYPE_DELAY_MS = 42;
@@ -1911,13 +1912,14 @@ export default function SmartBarSpeedDemo({
   const mobileFullShell = variant === "full" && speedDemoIsPhoneViewport();
   const demoSteps = useMemo(
     () => {
+      if (mobileFullShell) return SMARTBAR_MOBILE_GENERAL_REAL_STEPS;
       if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
       return mobileBurgerRushShell ? SMARTBAR_BURGERRUSH_MOBILE_STEPS : SMARTBAR_BURGERRUSH_ONLY_STEPS;
     },
-    [mobileBurgerRushShell, variant],
+    [mobileBurgerRushShell, mobileFullShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && !mobileFullShell;
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   useLayoutEffect(() => {
     if (!mobileBurgerRushShell || typeof document === "undefined") return;
 
@@ -2704,7 +2706,34 @@ export default function SmartBarSpeedDemo({
       return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
     }
 
-    return <SmartBarMobileGeneralExperience autoPlay={autoPlay} />;
+    const mobileCards = (
+      <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
+        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
+        <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+          <SmartBarFlashCard notice={tutorNoticeA} />
+        </SmartBarFlashCardLane>
+        <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+          <SmartBarFlashCard notice={tutorNoticeB} />
+        </SmartBarFlashCardLane>
+      </SmartBarFlashCardRail>
+    );
+
+    const mobileSurfaceNode =
+      toolbarSurface === "ordering" ? (
+        <BurgerRushMobileExperience demoFixtureMode />
+      ) : toolbarSurface === "booking" ? (
+        <DomiMobileExperience />
+      ) : (
+        <NexaPathMobileExperience />
+      );
+
+    return (
+      <main className="relative min-h-[100svh] overflow-x-hidden bg-white text-slate-950">
+        {mobileSurfaceNode}
+        {mobileCards}
+        <SmartBarFakePointerOverlay pointer={fakePointer} />
+      </main>
+    );
   }
 
   if (mobileBurgerRushShell) {

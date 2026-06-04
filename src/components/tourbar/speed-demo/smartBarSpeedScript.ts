@@ -679,6 +679,249 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
   },
 ];
 
+const MOBILE_GENERAL_OPEN_COMMANDS: SmartBarSpeedCommand[] = [
+  {
+    kind: "pointerClick",
+    targetSelector: '[data-smartbar-mobile-launcher="true"]',
+    label: "",
+    click: true,
+    delayMs: 250,
+    pulseMs: 820,
+  },
+  { kind: "pause", delayMs: 520 },
+];
+
+const MOBILE_GENERAL_SUBMIT_COMMANDS: SmartBarSpeedCommand[] = [
+  {
+    kind: "pointerClick",
+    targetSelector: '[data-smartbar-mobile-submit="true"]',
+    label: "",
+    click: true,
+    delayMs: 250,
+    pulseMs: 820,
+  },
+];
+
+export const SMARTBAR_MOBILE_GENERAL_REAL_STEPS: SmartBarSpeedStep[] = [
+  {
+    id: "mobile-nexa-open",
+    chapter: "NexaPath",
+    label: "Open NexaPath SmartBar",
+    helper: "Real mobile shell, BurgerRush-style director.",
+    surface: "info",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1350,
+        cards: [
+          "Example 1: **NexaPath Advisory**",
+          "Real mobile shell",
+          "Script only directs",
+        ],
+      },
+      ...MOBILE_GENERAL_OPEN_COMMANDS,
+    ],
+  },
+  {
+    id: "mobile-nexa-query",
+    chapter: "NexaPath",
+    label: "Ask advisory question",
+    helper: "Type into the real NexaPath entry box.",
+    surface: "info",
+    commands: [
+      {
+        kind: "typeInput",
+        targetSelector: '[data-smartbar-mobile-entry-input="true"]',
+        value: "we're a hedge fund, need help with IT and setting up copilots",
+        delayMs: 250,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1600,
+        cards: [
+          "Typed into the real bar",
+          "Adapter owns the panel",
+          "No fake general shell",
+        ],
+      },
+      ...MOBILE_GENERAL_SUBMIT_COMMANDS,
+      { kind: "pause", delayMs: 6200 },
+    ],
+  },
+  {
+    id: "mobile-order-open",
+    chapter: "BurgerRush",
+    label: "Open BurgerRush SmartBar",
+    helper: "Same working BurgerRush orchestration pattern.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1350,
+        cards: [
+          "Example 2: **BurgerRush**",
+          "This is the known-good path",
+          "Words become cart",
+        ],
+      },
+      ...MOBILE_GENERAL_OPEN_COMMANDS,
+    ],
+  },
+  {
+    id: "mobile-order-query",
+    chapter: "BurgerRush",
+    label: "Messy order to cart",
+    helper: "Use the real BurgerRush mobile fixture shell.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "typeInput",
+        targetSelector: '[data-smartbar-mobile-entry-input="true"]',
+        value: "dbl chzbrger combo lg friez diet coke pie",
+        delayMs: 250,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1600,
+        cards: [
+          "Plain English",
+          "Typos included",
+          "Cart renderer fills itself",
+        ],
+      },
+      ...MOBILE_GENERAL_SUBMIT_COMMANDS,
+      { kind: "pause", delayMs: 5200 },
+    ],
+  },
+  {
+    id: "mobile-order-checkout",
+    chapter: "BurgerRush",
+    label: "Checkout handoff",
+    helper: "Tap the real checkout control.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1400,
+        cards: [
+          "Cart loaded",
+          "Checkout-ready",
+        ],
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-checkout="true"], [data-tourbar-order-cta="checkout"]',
+        label: "",
+        click: true,
+        delayMs: 250,
+        pulseMs: 820,
+        anchorY: 0.68,
+      },
+      { kind: "pause", delayMs: 2200 },
+    ],
+  },
+  {
+    id: "mobile-domi-open",
+    chapter: "Domi",
+    label: "Open Domi SmartBar",
+    helper: "Real Domi mobile shell, not general fixture UI.",
+    surface: "booking",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1350,
+        cards: [
+          "Example 3: **Domi Hotel**",
+          "Real booking shell",
+          "Booking adapter owns panel",
+        ],
+      },
+      ...MOBILE_GENERAL_OPEN_COMMANDS,
+    ],
+  },
+  {
+    id: "mobile-domi-query",
+    chapter: "Domi",
+    label: "Room request",
+    helper: "Type into the real Domi entry box.",
+    surface: "booking",
+    commands: [
+      {
+        kind: "typeInput",
+        targetSelector: '[data-smartbar-mobile-entry-input="true"]',
+        value: "Aug 4 to 9, nice room with a view and breakfast, just me",
+        delayMs: 250,
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 950,
+        finalHoldMs: 1600,
+        cards: [
+          "Dates included",
+          "Guest included",
+          "Adapter ranks options",
+        ],
+      },
+      ...MOBILE_GENERAL_SUBMIT_COMMANDS,
+      { kind: "pause", delayMs: 7600 },
+    ],
+  },
+  {
+    id: "mobile-finale",
+    chapter: "Finale",
+    label: "Closeout",
+    helper: "Cards own the closeout, just like BurgerRush.",
+    surface: "finale",
+    commands: [
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 850,
+        finalHoldMs: 1400,
+        cards: [
+          "Real mobile shells.",
+          "One director layer.",
+          "No fake general UI.",
+        ],
+      },
+      {
+        kind: "cards",
+        mode: "standard",
+        density: "normal",
+        holdMs: 850,
+        finalHoldMs: 1800,
+        cards: [
+          "Nexa.",
+          "BurgerRush.",
+          "Domi.",
+          "Same SmartBar pattern.",
+        ],
+      },
+    ],
+  },
+];
+
 export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
 {
     id: "food-open",
