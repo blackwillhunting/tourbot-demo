@@ -141,6 +141,14 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
           "Visitor asks for specifics",
         ],
       },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-cart-toggle="true"]',
+        label: "",
+        click: true,
+        delayMs: 180,
+        pulseMs: 720,
+      },
       { kind: "typeFollowUp", value: "that doesn't say what you actually do", delayMs: 1250 },
       { kind: "pause", delayMs: 900 },
       {
@@ -191,6 +199,14 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Consultant starts with the visitor’s context.",
     surface: "info",
     commands: [
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-mobile-cart-toggle="true"]',
+        label: "",
+        click: true,
+        delayMs: 180,
+        pulseMs: 720,
+      },
       { kind: "typeFollowUp", value: "Perfect, can I talk to someone?", delayMs: 3250 },
       { kind: "pause", delayMs: 1600 },
       {
