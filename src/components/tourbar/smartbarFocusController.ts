@@ -1,6 +1,8 @@
 const SMARTBAR_FOCUS_DEFAULT_DELAY_MS = 700;
 const SMARTBAR_FOCUS_OVERLAY_Z_INDEX = 10040;
 const SMARTBAR_FOCUS_MOBILE_TOP_ANCHOR_Y = 52;
+const SMARTBAR_FOCUS_MOBILE_HEADER_CLEARANCE_PX = 18;
+const SMARTBAR_FOCUS_MOBILE_MIN_SAFE_TOP_PX = 72;
 const SMARTBAR_FOCUS_ROOT_SELECTOR = "[data-tourbar-shell-root='true']";
 const SMARTBAR_OPEN_PANEL_SELECTORS = [
   "[data-tourbar-open-panel='true']",
@@ -257,15 +259,45 @@ function rectsOverlapHorizontally(targetRect: DOMRect, panelRect: SmartBarPanelR
   return targetCenterCovered || overlapShareOfTarget >= 0.45;
 }
 
+function smartbarStickyHeaderBottom() {
+  if (typeof document === "undefined") return 0;
+
+  const candidates = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      "header, [data-smartbar-sticky-header='true'], [data-smartbar-mobile-safe-top='true']",
+    ),
+  );
+
+  return candidates.reduce((bottom, element) => {
+    const style = window.getComputedStyle(element);
+    const position = style.position;
+    if (position !== "sticky" && position !== "fixed") return bottom;
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return bottom;
+    if (rect.bottom <= 0 || rect.top >= viewportHeight()) return bottom;
+
+    return Math.max(bottom, Math.min(viewportHeight(), rect.bottom));
+  }, 0);
+}
+
 function smartBarSafeTop(targetRect?: DOMRect | null) {
   const baseTop = 92;
 
   if (smartBarFocusIsPhoneViewport()) {
-    // On phones, SmartBar sheets occupy the lower viewport. Reserving their
-    // height as top-safe space pushes targets down and causes the focused card
-    // to disappear under the sheet. Keep the target anchored near the physical
-    // top of the phone instead.
-    return Math.min(SMARTBAR_FOCUS_MOBILE_TOP_ANCHOR_Y, Math.max(40, viewportHeight() - 240));
+    // On phones, the site header is usually sticky. Anchor the highlighted
+    // section below that header instead of at the physical top of the viewport;
+    // otherwise the correct target scrolls under the header and looks lost.
+    const headerBottom = smartbarStickyHeaderBottom();
+    const headerSafeTop =
+      headerBottom > 0
+        ? Math.ceil(headerBottom + SMARTBAR_FOCUS_MOBILE_HEADER_CLEARANCE_PX)
+        : SMARTBAR_FOCUS_MOBILE_TOP_ANCHOR_Y;
+
+    return Math.min(
+      Math.max(SMARTBAR_FOCUS_MOBILE_MIN_SAFE_TOP_PX, headerSafeTop),
+      Math.max(SMARTBAR_FOCUS_MOBILE_MIN_SAFE_TOP_PX, viewportHeight() - 220),
+    );
   }
 
   const relevantPanels = targetRect
