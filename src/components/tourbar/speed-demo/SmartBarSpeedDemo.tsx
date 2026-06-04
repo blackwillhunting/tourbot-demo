@@ -37,7 +37,7 @@ import {
   type SmartBarFlashCardNotice,
   type SmartBarTutorCard,
 } from "./SmartBarFlashCardRail";
-import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_MOBILE_GENERAL_REAL_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const MOBILE_TYPE_DELAY_MS = 42;
@@ -1913,11 +1913,10 @@ export default function SmartBarSpeedDemo({
   const directMobileShell = mobileBurgerRushShell || mobileFullShell;
   const demoSteps = useMemo(
     () => {
-      if (mobileFullShell) return SMARTBAR_MOBILE_GENERAL_REAL_STEPS;
       if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
       return mobileBurgerRushShell ? SMARTBAR_BURGERRUSH_MOBILE_STEPS : SMARTBAR_BURGERRUSH_ONLY_STEPS;
     },
-    [mobileBurgerRushShell, mobileFullShell, variant],
+    [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
@@ -2208,7 +2207,7 @@ export default function SmartBarSpeedDemo({
     setTutorNoticeB(null);
     resetSpeedDemoStageToTop(targetStageRef.current);
     setMobileBurgerRushStage("demo");
-  }, [mobileBurgerRushShell]);
+  }, [directMobileShell]);
 
   useEffect(() => {
     if (!mobileBurgerRushShell || mobileBurgerRushStage !== "outro") return;
