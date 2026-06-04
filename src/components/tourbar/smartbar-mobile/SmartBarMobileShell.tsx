@@ -1489,8 +1489,10 @@ export default function SmartBarMobileShell({
                     )}
 
                     <div
-                      className={`${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : genericResult?.surfaceKind === "chat" ? "mt-0 shrink-0 overflow-visible" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`} 
-                      style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
+                      className={genericResult?.surfaceKind === "chat"
+                        ? "mt-0 min-h-0 shrink-0 overflow-visible pr-0 pb-0"
+                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-3 flex-1"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                      style={genericResult?.surfaceKind === "chat" ? undefined : { WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
                         <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}>{genericResult.content}</div>

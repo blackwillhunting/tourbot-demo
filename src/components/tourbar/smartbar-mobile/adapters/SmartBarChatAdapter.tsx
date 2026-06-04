@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { SendHorizonal } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
@@ -71,6 +71,12 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
     resizeDraftInput();
   }, [draft]);
 
+  useLayoutEffect(() => {
+    window.requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    });
+  }, [thread, isWaiting]);
+
   const submit = (event?: FormEvent) => {
     event?.preventDefault();
     const text = compactText(draft);
@@ -106,7 +112,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
     <div className="overflow-hidden rounded-[26px] border border-white/14 bg-slate-950/58 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.16)] ring-1 ring-white/10">
       <div
         ref={scrollRef}
-        className="max-h-[min(42svh,340px)] space-y-2 overflow-y-auto px-3 py-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+        className="max-h-[min(58svh,500px)] space-y-2 overflow-y-auto px-3 py-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
       >
         {thread.map((message) => {
           const visitor = message.role === "visitor";
@@ -173,7 +179,7 @@ function buildChatResult(initialContext: string): SmartBarMobileGenericResult {
     eyebrow: "Live handoff",
     title: "Consultant chat",
     statusLabel: "Chat open",
-    height: 340,
+    height: 480,
     content: <SmartBarMobileChatSurface initialContext={initialContext} />,
   };
 }
