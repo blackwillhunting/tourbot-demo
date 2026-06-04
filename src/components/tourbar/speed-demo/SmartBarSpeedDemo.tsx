@@ -1910,6 +1910,7 @@ export default function SmartBarSpeedDemo({
   const followUpDraftRef = useRef("");
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const mobileFullShell = variant === "full" && speedDemoIsPhoneViewport();
+  const directMobileShell = mobileBurgerRushShell || mobileFullShell;
   const demoSteps = useMemo(
     () => {
       if (mobileFullShell) return SMARTBAR_MOBILE_GENERAL_REAL_STEPS;
@@ -1921,7 +1922,7 @@ export default function SmartBarSpeedDemo({
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
   useLayoutEffect(() => {
-    if (!mobileBurgerRushShell || typeof document === "undefined") return;
+    if (!directMobileShell || typeof document === "undefined") return;
 
     const html = document.documentElement;
     const body = document.body;
@@ -2002,7 +2003,7 @@ export default function SmartBarSpeedDemo({
         root.style.overflow = previous.rootOverflow;
       }
     };
-  }, [mobileBurgerRushShell]);
+  }, [directMobileShell]);
 
   const sendCommand = useCallback((command: Omit<TourBarShellDemoCommand, "id">) => {
     commandIdRef.current += 1;
@@ -2448,12 +2449,168 @@ export default function SmartBarSpeedDemo({
     [],
   );
 
+  const mobileFullPointerCommand = useCallback(
+    (command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>): Extract<SmartBarSpeedCommand, { kind: "pointerClick" }> => {
+      const selector = command.targetSelector || "";
+
+      if (selector.includes("data-smartbar-launcher-hotspot")) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
+          click: true,
+        };
+      }
+
+      if (selector.includes("data-smartbar-primary-submit") || selector.includes("data-smartbar-followup-submit")) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+          click: true,
+        };
+      }
+
+      if (selector.includes('data-tourbar-order-cta="checkout"')) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-checkout="true"], [data-tourbar-order-cta="checkout"]',
+          click: true,
+        };
+      }
+
+      if (selector.includes('data-tourbar-booking-nav="next"')) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-tourbar-booking-nav="next"]:not(:disabled)',
+          click: true,
+        };
+      }
+
+      if (selector.includes('data-tourbar-nextmove-query="__case_studies"')) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-generic-action="show-proof"], [data-tourbar-nextmove-query="__case_studies"]',
+          click: true,
+        };
+      }
+
+      if (selector.includes('data-tourbar-sheet-panel="true"')) {
+        return {
+          ...command,
+          targetSelector: '[data-smartbar-mobile-generic-action]:not([disabled]), [data-tourbar-sheet-panel="true"] button:not([aria-label]):not(:disabled)',
+          click: true,
+        };
+      }
+
+      return command;
+    },
+    [],
+  );
+
+  const openMobileFullEntry = useCallback(
+    async (cancelled: () => boolean) => {
+      const existingInput = document.querySelector<HTMLElement>('[data-smartbar-mobile-entry-input="true"]');
+      if (existingInput && speedDemoElementLooksVisible(existingInput)) return;
+
+      await showPointerClick(
+        {
+          kind: "pointerClick",
+          targetSelector: '[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]',
+          label: "",
+          click: true,
+          delayMs: 80,
+          pulseMs: 720,
+        },
+        cancelled,
+      );
+      await wait(260);
+    },
+    [showPointerClick],
+  );
+
+  const runMobileFullCommand = useCallback(
+    async (command: SmartBarSpeedCommand, cancelled: () => boolean) => {
+      if (!mobileFullShell) return false;
+
+      if (command.kind === "shell") {
+        if (command.type === "open") {
+          await openMobileFullEntry(cancelled);
+        }
+
+        if (command.settleMs) await wait(command.settleMs);
+        return true;
+      }
+
+      if (command.kind === "typePrimary" || command.kind === "typeFollowUp") {
+        await openMobileFullEntry(cancelled);
+        if (cancelled()) return true;
+
+        const value = command.value;
+        primaryDraftRef.current = value;
+        followUpDraftRef.current = value;
+        await typeIntoElement('[data-smartbar-mobile-entry-input="true"]', value, cancelled, true);
+        return true;
+      }
+
+      if (command.kind === "submitPrimary" || command.kind === "submitFollowUp") {
+        const submittedValue = command.value ?? primaryDraftRef.current ?? followUpDraftRef.current;
+        await showPointerClick(
+          {
+            kind: "pointerClick",
+            targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+            label: "",
+            click: true,
+            delayMs: 80,
+            pulseMs: 720,
+          },
+          cancelled,
+        );
+        await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
+        return true;
+      }
+
+      if (command.kind === "typeInput") {
+        await typeIntoElement(command.targetSelector, command.value, cancelled, command.clearFirst ?? true);
+        return true;
+      }
+
+      if (command.kind === "pointerClick") {
+        await showPointerClick(mobileFullPointerCommand(command), cancelled);
+        return true;
+      }
+
+      if (
+        command.kind === "typeChat" ||
+        command.kind === "submitChat" ||
+        command.kind === "openBookingContext" ||
+        command.kind === "setBookingContext" ||
+        command.kind === "selectBookingDate" ||
+        command.kind === "setBookingGuestCount" ||
+        command.kind === "commitBookingContext" ||
+        command.kind === "showFixture"
+      ) {
+        await wait(command.delayMs ?? 0);
+        if ("settleMs" in command && command.settleMs) await wait(command.settleMs);
+        return true;
+      }
+
+      return false;
+    },
+    [mobileFullPointerCommand, mobileFullShell, openMobileFullEntry, showPointerClick, typeIntoElement],
+  );
+
+
   const runCommand = useCallback(
     async (command: SmartBarSpeedCommand, cancelled: () => boolean) => {
       if (command.delayMs) await wait(command.delayMs);
       if (cancelled()) return;
 
       if (command.kind === "pause") return;
+
+      if (mobileFullShell && command.kind !== "cards" && command.kind !== "focusTarget") {
+        const handled = await runMobileFullCommand(command, cancelled);
+        if (handled) return;
+      }
+
       if (command.kind === "typePrimary") return typeIntoShell("primary", command.value, cancelled);
       if (command.kind === "typeFollowUp") return typeIntoShell("followup", command.value, cancelled);
       if (command.kind === "typeInput") return typeIntoElement(command.targetSelector, command.value, cancelled, command.clearFirst ?? true);
@@ -2554,7 +2711,7 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [sendCommand, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
+    [mobileFullShell, runMobileFullCommand, sendCommand, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
   );
 
   useEffect(() => {
