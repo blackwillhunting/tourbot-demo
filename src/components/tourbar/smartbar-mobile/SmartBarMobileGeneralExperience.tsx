@@ -428,96 +428,6 @@ function GeneralMiniCard({
   );
 }
 
-type GeneralChatRole = "smartbar" | "consultant" | "visitor";
-
-const GENERAL_CHAT_ROLE_CLASS: Record<GeneralChatRole, {
-  shell: string;
-  icon: string;
-  eyebrow: string;
-  title: string;
-  body: string;
-}> = {
-  smartbar: {
-    shell: "border-sky-100/42 bg-sky-400/80 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(14,165,233,0.20)] ring-sky-100/32",
-    icon: "bg-slate-950/88 text-sky-200 ring-slate-950/18",
-    eyebrow: "text-slate-950/52",
-    title: "text-slate-950",
-    body: "text-slate-950/78",
-  },
-  consultant: {
-    shell: "border-violet-100/34 bg-violet-500/84 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_30px_rgba(124,58,237,0.24)] ring-violet-100/24",
-    icon: "bg-white/14 text-white ring-white/18",
-    eyebrow: "text-white/56",
-    title: "text-white",
-    body: "text-white/78",
-  },
-  visitor: {
-    shell: "border-white/24 bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_26px_rgba(1,33,105,0.30)] ring-white/20",
-    icon: "bg-white/12 text-white ring-white/18",
-    eyebrow: "text-white/52",
-    title: "text-white",
-    body: "text-white/78",
-  },
-};
-
-function GeneralChatBubble({
-  role,
-  eyebrow,
-  title,
-  body,
-  icon,
-}: {
-  role: GeneralChatRole;
-  eyebrow: string;
-  title: string;
-  body: string;
-  icon?: ReactNode;
-}) {
-  const roleClass = GENERAL_CHAT_ROLE_CLASS[role];
-
-  return (
-    <div className={`rounded-[26px] border px-3.5 py-3 ring-1 ${roleClass.shell}`}>
-      <div className="flex items-start gap-3">
-        {icon ? <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1 ${roleClass.icon}`}>{icon}</div> : null}
-        <div className="min-w-0">
-          <div className={`mb-1 text-[10px] font-black uppercase tracking-[0.14em] ${roleClass.eyebrow}`}>
-            {eyebrow}
-          </div>
-          <div className={`text-sm font-semibold leading-5 ${roleClass.title}`}>{title}</div>
-          <div className={`mt-1 text-xs font-normal leading-5 ${roleClass.body}`}>{body}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ChatPreviewContent() {
-  return (
-    <div className="space-y-2.5">
-      <GeneralChatBubble
-        role="smartbar"
-        eyebrow="SmartBar"
-        title="Context brief"
-        body="Context received — handing this to a consultant."
-        icon={<Sparkles className="h-4 w-4" />}
-      />
-      <GeneralChatBubble
-        role="consultant"
-        eyebrow="Consultant desk"
-        title="Handoff accepted"
-        body="Hi there — I have the hedge-fund Copilot context SmartBar captured."
-        icon={<MessageSquare className="h-4 w-4" />}
-      />
-      <GeneralChatBubble
-        role="visitor"
-        eyebrow="Visitor"
-        title="Follow-up"
-        body="Hi — curious about pricing."
-      />
-    </div>
-  );
-}
-
 type GeneralDomiRoom = {
   id: string;
   label: string;
@@ -1028,15 +938,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       return {
         surfaceKind: "info",
         eyebrow: "NexaPath Advisory",
-        title: "What we would actually do",
+        title: "What NexaPath would do",
         statusLabel: "Use cases",
-        body: "For a hedge fund, practical Copilot and agent work usually means readiness review, use-case selection, agent design, and a controlled pilot.",
-        helper: "This is the phone equivalent of the desktop follow-up sheet before the case-study next move.",
+        body: "Readiness review, secure Copilot rollout, agent design, and a controlled pilot for finance operations.",
+        helper: "The visible page carries the detail; the bar stays compact and action-oriented.",
         actions: [
           { id: "show-proof", label: "Show relevant case studies", helper: "Surface proof points" },
           { id: "consultant", label: "Talk to consultant", variant: "secondary" },
         ],
-        height: 470,
+        height: 330,
       };
     }
 
@@ -1044,15 +954,15 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       return {
         surfaceKind: "info",
         eyebrow: "NexaPath Advisory",
-        title: "Relevant case studies",
+        title: "Relevant proof points",
         statusLabel: "Proof ready",
-        body: "Hedge-fund operations assistant. Compliance evidence helper. Copilot adoption sprint.",
-        helper: "SmartBar moves from an advisory answer to proof points, then offers the same consultant handoff as the desktop demo.",
+        body: "Ops assistant, compliance evidence helper, and Copilot adoption sprint.",
+        helper: "SmartBar moves from answer to proof, then to handoff.",
         actions: [
           { id: "consultant", label: "Talk to someone about Copilot support", helper: "Open the handoff surface" },
           { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
         ],
-        height: 470,
+        height: 330,
       };
     }
 
@@ -1062,12 +972,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       title: "Copilot journey found",
       statusLabel: "Answer ready",
       body: "For a hedge fund, SmartBar routes the visitor toward secure Copilot adoption, data readiness, compliance pressure, and operating-model fit.",
-      helper: "A normal search bar returns links. SmartBar returns the next useful buyer step.",
+      helper: "A search bar returns links. SmartBar returns the next useful buyer step.",
       actions: [
         { id: "show-proof", label: "Show proof points", helper: "Drill into concrete examples" },
         { id: "consultant", label: "Talk to consultant", variant: "secondary" },
       ],
-      height: 450,
+      height: 330,
     };
   }, [focusTarget]);
 
@@ -1080,11 +990,12 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       eyebrow: "Live handoff",
       title: "Consultant desk opened",
       statusLabel: "Chat open",
-      content: <ChatPreviewContent />,
+      body: "Context received — handing the hedge-fund Copilot brief to a consultant.",
+      helper: "This keeps the handoff compact instead of rendering a fake chat transcript inside the shell.",
       actions: [
         { id: "start-order", label: "Next: ordering demo", helper: "Move to BurgerRush" },
       ],
-      height: 510,
+      height: 330,
     };
   }, [focusTarget]);
 
