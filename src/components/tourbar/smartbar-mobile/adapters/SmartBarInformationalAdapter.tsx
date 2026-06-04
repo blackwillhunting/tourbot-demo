@@ -359,7 +359,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
         "The concrete work is: map support and knowledge workflows, audit source content, define security boundaries, build Copilot-ready knowledge paths, connect systems where needed, test answer quality, and create a rollout plan for the teams using it.",
       nextMove: {
         type: "case_studies",
-        label: "Show proof points",
+        label: "See secure Copilot rollout examples",
         query: "show case studies",
         focusAreaId,
       },
@@ -378,7 +378,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
     answerMode: "summary",
     answer:
       "For a hedge fund, the starting point is usually Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath can help design the IT foundation, connect service and knowledge systems, and plan a Copilot rollout that does not expose sensitive data.",
-    suggestions: ["Ask for specifics"],
+    suggestions: ["Map your Copilot readiness path"],
   };
 }
 
