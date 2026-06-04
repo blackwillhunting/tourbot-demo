@@ -1235,16 +1235,20 @@ export default function SmartBarMobileShell({
 
     Promise.resolve(actionResult)
       .then((nextResult) => {
-        if (smartBarMobileResultIsGeneric(nextResult) && nextResult.navigationRevealDelayMs && nextResult.navigationRevealDelayMs > 0) {
-          setBuildingStatusLabel(nextResult.navigationRevealLabel || "Spotlighting...");
-          buildTimerRef.current = window.setTimeout(() => {
-            buildTimerRef.current = null;
-            revealGenericActionResult(nextResult);
-          }, nextResult.navigationRevealDelayMs);
-          return;
-        }
+        buildTimerRef.current = window.setTimeout(() => {
+          buildTimerRef.current = null;
 
-        revealGenericActionResult(nextResult);
+          if (smartBarMobileResultIsGeneric(nextResult) && nextResult.navigationRevealDelayMs && nextResult.navigationRevealDelayMs > 0) {
+            setBuildingStatusLabel(nextResult.navigationRevealLabel || "Spotlighting...");
+            buildTimerRef.current = window.setTimeout(() => {
+              buildTimerRef.current = null;
+              revealGenericActionResult(nextResult);
+            }, nextResult.navigationRevealDelayMs);
+            return;
+          }
+
+          revealGenericActionResult(nextResult);
+        }, 850);
       })
       .catch(() => {
         setGenericResult({
