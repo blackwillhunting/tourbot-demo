@@ -121,166 +121,11 @@ function collectDomOutline(): DomOutlineItem[] {
         id,
         label: compactText(heading),
         selector: selectorForElement(element),
-        textSample: compactText(element.innerText || element.textContent || "").slice(0, 720),
+        textSample: compactText(element.innerText || element.textContent || "").slice(0, 420),
         tagName: element.tagName.toLowerCase(),
       };
     })
     .filter((item): item is DomOutlineItem => Boolean(item));
-}
-
-function safeSelectorForTourId(value: string) {
-  const id = value.trim();
-  if (!id) return "";
-
-  const escaped = typeof CSS !== "undefined" && CSS.escape
-    ? CSS.escape(id)
-    : id.replace(/["\\]/g, "\\$&");
-
-  return `[data-tour-id="${escaped}"], #${escaped}`;
-}
-
-function navigationTargetFromResult(result: TourBarResult | null): TourBarFocusTarget | null {
-  if (!result) return null;
-
-  const targetId = String(
-    result.targetId ||
-      result.focusAreaId ||
-      result.nextMove?.focusAreaId ||
-      "",
-  ).trim();
-  const rawTargetSelector = String(result.targetSelector || "").trim();
-  const targetSelector = targetId ? safeSelectorForTourId(targetId) : rawTargetSelector;
-
-  if (!targetId && !targetSelector) return null;
-
-  return {
-    pageId: result.pageId,
-    targetId: targetId || undefined,
-    targetSelector: targetSelector || undefined,
-    label: result.label,
-  };
-}
-
-function queryWords(value: string) {
-  return new Set(
-    compactText(value)
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]+/g, " ")
-      .split(/[\s-]+/)
-      .filter((word) => word.length > 2),
-  );
-}
-
-function fallbackNavigationItemForQuery(query: string, outline: DomOutlineItem[]): DomOutlineItem | null {
-  const words = queryWords(query);
-  if (!words.size || !outline.length) return null;
-
-  const aliasTargets: Array<[RegExp, string[]]> = [
-    [/\b(price|pricing|cost|budget|engagement|plans?)\b/i, ["pricing"]],
-    [/\b(service|services|solutions|offerings|capabilities)\b/i, ["solutions-grid", "solutions", "solution-comparison"]],
-    [/\b(cyber|security|xdr|risk|phishing|incident|vulnerabilit|governance)\b/i, ["solution-cyber", "cyber-hero", "managed-xdr"]],
-    [/\b(ai|data|copilot|automation)\b/i, ["solution-ai-data", "hedgefund-ai-data", "hedgefund-copilot"]],
-    [/\b(cloud|infrastructure|platform|migration)\b/i, ["solution-cloud", "hedgefund-cloud"]],
-    [/\b(compliance|dora|finra|sec|gdpr|regulat)\b/i, ["compliance-preview", "compliance-hero", "topic-dora"]],
-    [/\b(hedge|fund|investment)\b/i, ["hedgefund-overview", "hedgefund-cloud", "hedgefund-cyber"]],
-    [/\b(consult|consultation|handoff|contact|advisor|specialist|expert|talk|person|human)\b/i, ["contact-cta", "cyber-contact-cta", "hedgefund-contact-cta", "compliance-contact-cta", "adaptive-contact-button"]],
-  ];
-
-  for (const [pattern, ids] of aliasTargets) {
-    if (!pattern.test(query)) continue;
-
-    for (const id of ids) {
-      const exact = outline.find((item) => item.id.toLowerCase() === id.toLowerCase());
-      if (exact) return exact;
-    }
-
-    const partial = outline.find((item) =>
-      ids.some((id) => item.id.toLowerCase().includes(id.toLowerCase())),
-    );
-    if (partial) return partial;
-  }
-
-  let bestItem: DomOutlineItem | null = null;
-  let bestScore = 0;
-
-  for (const item of outline) {
-    const idText = item.id.toLowerCase();
-    const labelText = item.label.toLowerCase();
-    const sampleText = item.textSample.toLowerCase();
-    let score = 0;
-
-    for (const word of words) {
-      if (idText.includes(word)) score += 5;
-      if (labelText.includes(word)) score += 4;
-      if (sampleText.includes(word)) score += 1;
-    }
-
-    if (score > bestScore) {
-      bestItem = item;
-      bestScore = score;
-    }
-  }
-
-  return bestScore >= 5 ? bestItem : null;
-}
-
-
-function outlineHasTarget(outline: DomOutlineItem[], target: TourBarFocusTarget | null) {
-  if (!target) return false;
-
-  const cleanTargetId = String(target.targetId || "").trim().toLowerCase();
-  const cleanSelector = String(target.targetSelector || "").trim();
-
-  if (cleanTargetId && outline.some((item) => item.id.toLowerCase() === cleanTargetId)) {
-    return true;
-  }
-
-  if (cleanSelector && outline.some((item) => item.selector === cleanSelector)) {
-    return true;
-  }
-
-  return false;
-}
-
-function resultPointsToDifferentPage(result: TourBarResult, currentPageId?: string) {
-  return Boolean(result.pageId && result.pageId !== currentPageId);
-}
-
-function withFallbackNavigation(
-  result: TourBarResult,
-  query: string,
-  outline: DomOutlineItem[],
-  currentPageId?: string,
-) {
-  const backendTarget = navigationTargetFromResult(result);
-
-  if (
-    backendTarget &&
-    (resultPointsToDifferentPage(result, currentPageId) || outlineHasTarget(outline, backendTarget))
-  ) {
-    return result;
-  }
-
-  if (result.action === "CLARIFY" || result.action === "OUT_OF_SCOPE") return result;
-
-  const fallback = fallbackNavigationItemForQuery(query, outline);
-  if (!fallback) {
-    return {
-      ...result,
-      focusAreaId: undefined,
-      targetId: undefined,
-      targetSelector: undefined,
-    } satisfies TourBarResult;
-  }
-
-  return {
-    ...result,
-    action: result.action === "ANSWER_ONLY" ? "NAVIGATE_AND_ANSWER" : result.action,
-    focusAreaId: fallback.id,
-    targetId: fallback.id,
-    targetSelector: fallback.selector,
-    label: result.label || fallback.label,
-  } satisfies TourBarResult;
 }
 
 async function postTourBar(payload: Record<string, unknown>) {
@@ -307,7 +152,7 @@ async function postTourBar(payload: Record<string, unknown>) {
 }
 
 function hasNavigation(result: TourBarResult | null) {
-  return Boolean(navigationTargetFromResult(result));
+  return Boolean(result?.targetId || result?.targetSelector);
 }
 
 function resultTitle(result: TourBarResult | null) {
@@ -329,7 +174,7 @@ function messageFromResult(result: TourBarResult) {
 }
 
 function queryLooksLikeNewRoute(query: string) {
-  return /\b(show|find|open|go to|where|pricing|services|implementation|consultation|contact|support|options|plans?)\b/i.test(query);
+  return /\b(show|find|open|go to|where|pricing|services|implementation|consultation|contact|support|options|plans?|cyber|security|ai|data|cloud|compliance|dora|hedge|fund)\b/i.test(query);
 }
 
 function helperText(result: TourBarResult) {
@@ -430,10 +275,15 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
 }
 
 function focusResult(result: TourBarResult, currentPageId?: string, onNavigateToFocus?: (target: TourBarFocusTarget) => void) {
-  const target = navigationTargetFromResult(result);
-  if (!target) return;
+  if (!result.targetId && !result.targetSelector) return;
 
-  const pageWillChange = Boolean(target.pageId && target.pageId !== currentPageId);
+  const target = {
+    pageId: result.pageId,
+    targetId: result.targetId,
+    targetSelector: result.targetSelector,
+    label: result.label,
+  };
+  const pageWillChange = Boolean(result.pageId && result.pageId !== currentPageId);
 
   onNavigateToFocus?.(target);
   void smartbarFocusTarget(target, {
@@ -456,7 +306,6 @@ export default function SmartBarInformationalAdapter({
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const activeResult = activeResultRef.current;
     const shouldAnswerFollowUp = Boolean(activeResult?.focusAreaId && !queryLooksLikeNewRoute(query));
-    const domOutline = shouldAnswerFollowUp ? [] : collectDomOutline();
     const response = shouldAnswerFollowUp
       ? await postTourBar({
           mode: "answer",
@@ -472,25 +321,24 @@ export default function SmartBarInformationalAdapter({
           siteId,
           query,
           currentPageId,
-          domOutline,
+          domOutline: collectDomOutline(),
           url: window.location.href,
         });
-    const normalizedResponse = shouldAnswerFollowUp ? response : withFallbackNavigation(response, query, domOutline, currentPageId);
 
-    activeResultRef.current = normalizedResponse;
+    activeResultRef.current = response;
     threadRef.current = [
       ...threadRef.current.slice(-6),
       { role: "visitor", content: query },
       {
         role: "tourbar",
-        content: messageFromResult(normalizedResponse),
-        focusAreaId: normalizedResponse.focusAreaId,
-        answerMode: normalizedResponse.answerMode,
+        content: messageFromResult(response),
+        focusAreaId: response.focusAreaId,
+        answerMode: response.answerMode,
       },
     ];
 
-    focusResult(normalizedResponse, currentPageId, onNavigateToFocus);
-    return toGenericResult(normalizedResponse);
+    focusResult(response, currentPageId, onNavigateToFocus);
+    return toGenericResult(response);
   };
 
   const submitGenericAction = (action: SmartBarMobileGenericAction) => {
