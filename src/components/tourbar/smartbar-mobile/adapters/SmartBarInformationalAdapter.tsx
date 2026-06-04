@@ -324,7 +324,6 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
       answerMode: "case_studies",
       answer:
         "Relevant proof points: Copilot readiness planning, knowledge cleanup, secure access design, workflow automation, and service-desk handoff. SmartBar can explain the work, show the matching service area, and move the visitor toward a consultant without losing context.",
-      suggestions: ["Talk to a consultant", "Ask about rollout timing"],
       nextMove: {
         type: "handoff",
         label: "Talk to a consultant",
@@ -364,7 +363,6 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
       answerMode: "details",
       answer:
         "The concrete work is: map support and knowledge workflows, audit source content, define security boundaries, build Copilot-ready knowledge paths, connect systems where needed, test answer quality, and create a rollout plan for the teams using it.",
-      suggestions: ["Show proof points", "Talk to a consultant"],
       nextMove: {
         type: "case_studies",
         label: "Show proof points",
@@ -386,7 +384,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
     answerMode: "summary",
     answer:
       "For a hedge fund, the starting point is usually Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath can help design the IT foundation, connect service and knowledge systems, and plan a Copilot rollout that does not expose sensitive data.",
-    suggestions: ["Ask for specifics", "Show proof points"],
+    suggestions: ["Ask for specifics"],
   };
 }
 
