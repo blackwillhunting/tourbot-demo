@@ -2464,7 +2464,7 @@ export default function SmartBarSpeedDemo({
         return {
           ...command,
           targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
-          click: true,
+          click: false,
         };
       }
 

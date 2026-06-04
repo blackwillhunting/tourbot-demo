@@ -123,8 +123,12 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
 
     scriptedHandoffStartedRef.current = true;
     const timers: number[] = [];
+    const intervals: number[] = [];
+    const visitorPricingText = "Hi, I'm curious about your pricing";
+    let cancelled = false;
 
     timers.push(window.setTimeout(() => {
+      if (cancelled) return;
       setThread((current) => [
         ...current,
         {
@@ -133,32 +137,59 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           body: "Hi there — so you're interested in Copilots?",
         },
       ]);
-    }, 1000));
+    }, 500));
 
     timers.push(window.setTimeout(() => {
-      setThread((current) => [
-        ...current,
-        {
-          id: "visitor-pricing",
-          role: "visitor",
-          body: "Hi, I'm curious about your pricing",
-        },
-      ]);
-    }, 1500));
+      if (cancelled) return;
 
-    timers.push(window.setTimeout(() => {
-      setThread((current) => [
-        ...current,
-        {
-          id: "consultant-call",
-          role: "consultant",
-          body: "Sure, lets set up a call",
-        },
-      ]);
-    }, 2200));
+      let index = 0;
+      setDraft("");
+
+      const typingInterval = window.setInterval(() => {
+        if (cancelled) return;
+
+        index += 1;
+        setDraft(visitorPricingText.slice(0, index));
+
+        if (index >= visitorPricingText.length) {
+          window.clearInterval(typingInterval);
+
+          timers.push(window.setTimeout(() => {
+            if (cancelled) return;
+
+            setDraft("");
+            setThread((current) => [
+              ...current,
+              {
+                id: "visitor-pricing",
+                role: "visitor",
+                body: visitorPricingText,
+              },
+            ]);
+
+            timers.push(window.setTimeout(() => {
+              if (cancelled) return;
+
+              setThread((current) => [
+                ...current,
+                {
+                  id: "consultant-call",
+                  role: "consultant",
+                  body: "Sure, lets set up a call",
+                },
+              ]);
+            }, 700));
+          }, 120));
+        }
+      }, 32);
+
+      intervals.push(typingInterval);
+    }, 1200));
 
     return () => {
+      cancelled = true;
       timers.forEach((timer) => window.clearTimeout(timer));
+      intervals.forEach((timer) => window.clearInterval(timer));
     };
   }, [initialContext]);
 

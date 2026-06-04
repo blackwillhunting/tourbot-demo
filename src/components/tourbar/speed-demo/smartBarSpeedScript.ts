@@ -233,8 +233,6 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
           "Hands off context",
         ],
       },
-      { kind: "typeChat", value: "Hi — curious about pricing.", delayMs: 140 },
-      { kind: "submitChat", delayMs: 420 },
       { kind: "pause", delayMs: 3200 },
       { kind: "shell", type: "closeChat", delayMs: 350 },
     ],
