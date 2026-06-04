@@ -53,6 +53,7 @@ type TourBarWorkingStayContext = {
 
 type SmartBarBookingAdapterProps = {
   site: TourBarBookingSiteAdapter;
+  demoFixtureMode?: boolean;
 };
 
 type SmartBarBookingThreadMessage = {
@@ -639,7 +640,7 @@ async function postTourBarHotelBooking(
   return raw;
 }
 
-export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterProps) {
+export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }: SmartBarBookingAdapterProps) {
   const [workingStay, setWorkingStay] = useState<TourBarWorkingStayContext>({
     roomId: site.selectedRoom || site.roomStepOrder[0] || null,
     packageIds: site.selectedPackages,
@@ -1792,13 +1793,200 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     };
   };
 
+  const buildDemoBookingRaw = (
+    query: string,
+    promptContext: TourBarBookingContext,
+    requestContext: TourBarBookingRequestContext,
+  ): TourBarBookingRawResponse => {
+    const normalized = compactText(query).toLowerCase();
+    const visibleContext = asRecord(requestContext.visibleContext);
+    const requestBookingContext = asRecord(visibleContext.bookingContext);
+
+    const checkInDate = String(promptContext.checkInDate || requestBookingContext.checkInDate || site.checkInDate || "2026-08-04");
+    const checkOutDate = String(promptContext.checkOutDate || requestBookingContext.checkOutDate || site.checkOutDate || "2026-08-09");
+    const adults = Math.max(1, Number(promptContext.guestAdults ?? promptContext.adults ?? requestBookingContext.adults ?? site.guestAdults ?? 1));
+    const children = Math.max(0, Number(promptContext.guestChildren ?? promptContext.children ?? requestBookingContext.children ?? site.guestChildren ?? 0));
+    const guestLabel = String(promptContext.guestLabel || requestBookingContext.guestLabel || site.guestLabelFromCounts(adults, children));
+
+    const bookingContext = {
+      checkInDate,
+      checkOutDate,
+      datesLabel: site.formatDateRange(checkInDate, checkOutDate),
+      nights: site.bookingNights(checkInDate, checkOutDate),
+      adults,
+      children,
+      guests: adults + children,
+      guestLabel,
+    };
+
+    const roomPrices: Record<string, number> = {
+      "room-garden-terrace": 239,
+      "room-ocean-view-suite": 379,
+      "room-coastal-villa": 549,
+      "room-family-double": 249,
+    };
+
+    const makeCombo = (roomId: string, packageIds: string[] = []) => {
+      const roomMeta = site.getRoomMeta(roomId);
+      return {
+        comboId: `${roomId}${packageIds.length ? "-with-addons" : ""}`,
+        roomId,
+        roomTitle: roomMeta?.title || roomId,
+        roomShortTitle: roomMeta?.title || roomId,
+        packageIds,
+        packageTitles: packageIds
+          .map((packageId) => site.getPackageMeta(packageId)?.title || packageId)
+          .filter(Boolean),
+        pricing: {
+          effectiveNightlyUsd: roomPrices[roomId] || 299,
+        },
+        roomTarget: {
+          pageId: pageIdFromTarget(roomId),
+          targetId: roomId,
+          targetSelector: `[data-tour-id="${roomId}"], #${roomId}`,
+        },
+      };
+    };
+
+    const isBreakfastFollowUp = /\b(add|include|with)\s+breakfast\b|\bbreakfast\s+(plan|package|add)/.test(normalized) && !normalized.includes("nice room");
+    const isFamilyRecommendation = /family recommendation|family room|family double/.test(normalized);
+    const isSummary = /\b(book|reserve|reservation|summary|prepare)\b/.test(normalized);
+
+    const activeRoomId = isFamilyRecommendation
+      ? "room-family-double"
+      : isBreakfastFollowUp || isSummary
+        ? workingStay.roomId || site.selectedRoom || "room-ocean-view-suite"
+        : "room-garden-terrace";
+
+    const packageIds = isBreakfastFollowUp || isSummary ? ["package-breakfast-flex"] : [];
+    const selectedCombination = makeCombo(activeRoomId, packageIds);
+    const activeStayPlan = {
+      roomId: activeRoomId,
+      roomTargetId: activeRoomId,
+      room: {
+        roomId: activeRoomId,
+        targetId: activeRoomId,
+        title: selectedCombination.roomShortTitle,
+        price: site.getRoomMeta(activeRoomId)?.price || "",
+        signal: site.getRoomMeta(activeRoomId)?.signal || "",
+      },
+      packageIds,
+      packages: packageIds.map((packageId) => ({
+        packageId,
+        targetId: packageId,
+        title: site.getPackageMeta(packageId)?.title || packageId,
+        price: site.getPackageMeta(packageId)?.price || "",
+        signal: site.getPackageMeta(packageId)?.signal || "",
+      })),
+      activeTargetId: packageIds[0] || activeRoomId,
+      activeRoomId,
+      activePackageId: packageIds[0] || null,
+      bookingContext,
+    };
+
+    const matrixResults = [
+      makeCombo("room-garden-terrace"),
+      makeCombo("room-ocean-view-suite"),
+      makeCombo("room-coastal-villa"),
+    ];
+
+    const rankedDestinations = isBreakfastFollowUp
+      ? [
+          {
+            pageId: "packages",
+            targetId: "package-breakfast-flex",
+            targetSelector: '[data-tour-id="package-breakfast-flex"], #package-breakfast-flex',
+            targetText: site.getPackageMeta("package-breakfast-flex")?.title || "Breakfast Flex Plan",
+          },
+        ]
+      : isFamilyRecommendation
+        ? [
+            {
+              pageId: "rooms",
+              targetId: "room-family-double",
+              targetSelector: '[data-tour-id="room-family-double"], #room-family-double',
+              targetText: site.getRoomMeta("room-family-double")?.title || "Family Double Room",
+            },
+          ]
+        : [
+            {
+              pageId: "rooms",
+              targetId: "room-garden-terrace",
+              targetSelector: '[data-tour-id="room-garden-terrace"], #room-garden-terrace',
+              targetText: site.getRoomMeta("room-garden-terrace")?.title || "Garden Terrace King",
+            },
+            {
+              pageId: "rooms",
+              targetId: "room-ocean-view-suite",
+              targetSelector: '[data-tour-id="room-ocean-view-suite"], #room-ocean-view-suite',
+              targetText: site.getRoomMeta("room-ocean-view-suite")?.title || "Ocean View Suite",
+            },
+            {
+              pageId: "rooms",
+              targetId: "room-coastal-villa",
+              targetSelector: '[data-tour-id="room-coastal-villa"], #room-coastal-villa',
+              targetText: site.getRoomMeta("room-coastal-villa")?.title || "Coastal Villa Suite",
+            },
+          ];
+
+    const summaryMode = isSummary;
+    const body = summaryMode
+      ? "SmartBar has staged the room, add-ons, dates, guests, and estimate for handoff."
+      : isBreakfastFollowUp
+        ? "Breakfast Flex has been added to the active stay. The room context stays intact, and the booking summary can be prepared next."
+        : isFamilyRecommendation
+          ? "For a family room, the Family Double is the best fit. It keeps the stay practical while preserving enough guest capacity."
+          : "Best fit: Garden Terrace King. It keeps the stay in a better-value band while still matching the view and breakfast intent. You can compare the Ocean View Suite and Coastal Villa next.";
+
+    return {
+      ok: true,
+      mode: TOURBAR_HOTEL_BOOKING_MODE,
+      catalogMode: TOURBAR_HOTEL_BOOKING_MODE,
+      displayMode: summaryMode ? "prepare_booking" : "booking_recommendation",
+      intent: summaryMode ? "prepare_booking" : "recommend_booking",
+      commerceAction: summaryMode ? "prepare_booking" : "booking_recommendation",
+      message: query,
+      prompt: query,
+      title: summaryMode ? "Booking summary" : selectedCombination.roomShortTitle,
+      body,
+      answer: body,
+      selectedCombination,
+      nextStepCombination: selectedCombination,
+      matrixResults,
+      rankedDestinations,
+      visibleContext: {
+        ...visibleContext,
+        bookingContext,
+        selectedRoomId: activeRoomId,
+        selectedPackageIds: packageIds,
+        activeStayPlan,
+      },
+      activeStayPlan,
+      nextStepStayPlan: activeStayPlan,
+      bookingArtifacts: {
+        rawPrompt: query,
+        normalizedPrompt: query,
+      },
+      chips: summaryMode ? [] : ["Prepare booking summary", "Add breakfast"],
+      nextStep: summaryMode
+        ? undefined
+        : {
+            type: "booking_handoff",
+            label: "Prepare booking summary",
+            query: "prepare booking summary",
+            comboId: selectedCombination.comboId,
+          },
+    };
+  };
+
   const submitBookingQuery = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const promptContext = mergePromptContext(query);
     syncPromptContextToDraft(promptContext);
 
     const draft = selectorDraftFromSite();
-    const hasDates = Boolean(promptContext.datesSelected || site.datesSelected || draft.datesSelected);
-    const hasGuests = Boolean(promptContext.guestsSelected || site.guestsSelected || draft.guestsSelected);
+    const demoForcesMissingBookingContext = demoFixtureMode && /\bneed a family room\b/i.test(query);
+    const hasDates = !demoForcesMissingBookingContext && Boolean(promptContext.datesSelected || site.datesSelected || draft.datesSelected);
+    const hasGuests = !demoForcesMissingBookingContext && Boolean(promptContext.guestsSelected || site.guestsSelected || draft.guestsSelected);
 
     if (!hasDates || !hasGuests) {
       navigationStateRef.current = null;
@@ -1811,7 +1999,9 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
       thread: threadRef.current.slice(-8),
       bookingContext: promptContext,
     };
-    const raw = await postTourBarHotelBooking(query, turnContext, requestContext);
+    const raw = demoFixtureMode
+      ? buildDemoBookingRaw(query, promptContext, requestContext)
+      : await postTourBarHotelBooking(query, turnContext, requestContext);
     const shellResult = buildTourBarBookingShellResult(
       raw,
       requestContext.resultTarget || primaryTargetFromRaw(raw) || {},

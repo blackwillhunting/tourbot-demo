@@ -64,6 +64,7 @@ type SmartBarInformationalAdapterProps = {
   siteId?: string;
   currentPageId?: string;
   onNavigateToFocus?: (target: TourBarFocusTarget) => void;
+  demoFixtureMode?: boolean;
 };
 
 function getTourBotDemoToken() {
@@ -309,6 +310,86 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
   };
 }
 
+function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | null): TourBarResult {
+  const normalized = compactText(query).toLowerCase();
+  const focusAreaId = activeResult?.focusAreaId || "hedgefund-copilot";
+
+  if (/\b(case|proof|study|studies|examples?)\b/.test(normalized) || normalized.includes("__case_studies")) {
+    return {
+      ok: true,
+      mode: "answer",
+      action: "ANSWER_ONLY",
+      focusAreaId,
+      label: "Proof points for Copilot and IT modernization",
+      answerMode: "case_studies",
+      answer:
+        "Relevant proof points: Copilot readiness planning, knowledge cleanup, secure access design, workflow automation, and service-desk handoff. SmartBar can explain the work, show the matching service area, and move the visitor toward a consultant without losing context.",
+      suggestions: ["Talk to a consultant", "Ask about rollout timing"],
+      nextMove: {
+        type: "handoff",
+        label: "Talk to a consultant",
+        query: "Perfect, can I talk to someone?",
+        focusAreaId,
+      },
+    };
+  }
+
+  if (queryRequestsHumanHandoff(query)) {
+    return {
+      ok: true,
+      mode: "answer",
+      action: "ANSWER_ONLY",
+      focusAreaId,
+      label: "Consultant handoff ready",
+      answerMode: "handoff",
+      answer:
+        "Yes. I can hand this to a consultant with the hedge-fund Copilot and IT modernization context already attached.",
+      handoffRecommended: true,
+      nextMove: {
+        type: "handoff",
+        label: "Start consultant chat",
+        query: "Start consultant chat",
+        focusAreaId,
+      },
+    };
+  }
+
+  if (activeResult?.focusAreaId && /actually|specific|what you do|doesn.t say|does not say|drill|details?/.test(normalized)) {
+    return {
+      ok: true,
+      mode: "answer",
+      action: "ANSWER_ONLY",
+      focusAreaId,
+      label: "Concrete Copilot implementation work",
+      answerMode: "details",
+      answer:
+        "The concrete work is: map support and knowledge workflows, audit source content, define security boundaries, build Copilot-ready knowledge paths, connect systems where needed, test answer quality, and create a rollout plan for the teams using it.",
+      suggestions: ["Show proof points", "Talk to a consultant"],
+      nextMove: {
+        type: "case_studies",
+        label: "Show proof points",
+        query: "show case studies",
+        focusAreaId,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    mode: "route",
+    action: "NAVIGATE_AND_ANSWER",
+    focusAreaId: "hedgefund-copilot",
+    label: "Copilot journeys for financial-services teams",
+    pageId: "services",
+    targetId: "hedgefund-copilot",
+    targetSelector: '[data-tour-id="hedgefund-copilot"], #hedgefund-copilot',
+    answerMode: "summary",
+    answer:
+      "For a hedge fund, the starting point is usually Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath can help design the IT foundation, connect service and knowledge systems, and plan a Copilot rollout that does not expose sensitive data.",
+    suggestions: ["Ask for specifics", "Show proof points"],
+  };
+}
+
 function focusResult(result: TourBarResult, currentPageId?: string, onNavigateToFocus?: (target: TourBarFocusTarget) => void) {
   if (!result.targetId && !result.targetSelector) return;
 
@@ -334,6 +415,7 @@ export default function SmartBarInformationalAdapter({
   siteId = "nexapath",
   currentPageId,
   onNavigateToFocus,
+  demoFixtureMode = false,
 }: SmartBarInformationalAdapterProps) {
   const activeResultRef = useRef<TourBarResult | null>(null);
   const threadRef = useRef<SmartBarInformationalThreadMessage[]>([]);
@@ -342,8 +424,10 @@ export default function SmartBarInformationalAdapter({
   const submitPrompt = async (query: string): Promise<SmartBarMobileSubmitResult> => {
     const activeResult = activeResultRef.current;
     const shouldAnswerFollowUp = Boolean(activeResult?.focusAreaId && !queryLooksLikeNewRoute(query));
-    const response = shouldAnswerFollowUp
-      ? await postTourBar({
+    const response = demoFixtureMode
+      ? nexaPathDemoFixtureResult(query, activeResult)
+      : shouldAnswerFollowUp
+        ? await postTourBar({
           mode: "answer",
           siteId,
           query,
@@ -352,7 +436,7 @@ export default function SmartBarInformationalAdapter({
           thread: threadRef.current.slice(-8),
           url: window.location.href,
         })
-      : await postTourBar({
+        : await postTourBar({
           mode: "route",
           siteId,
           query,

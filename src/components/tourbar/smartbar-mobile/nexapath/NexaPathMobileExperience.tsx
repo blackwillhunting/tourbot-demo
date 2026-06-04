@@ -7,6 +7,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "../../speed-demo/SmartBarSpeedTargetWall";
+import SmartBarInformationalAdapter from "../adapters/SmartBarInformationalAdapter";
 
 type MobileFocusSnapshot = {
   element: HTMLElement;
@@ -216,7 +217,11 @@ function NexaPathProofContent() {
   );
 }
 
-export default function NexaPathMobileExperience() {
+type NexaPathMobileExperienceProps = {
+  demoFixtureMode?: boolean;
+};
+
+export default function NexaPathMobileExperience({ demoFixtureMode = false }: NexaPathMobileExperienceProps) {
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
   const focusTimerRef = useRef<number | null>(null);
   const submissionIdRef = useRef(0);
@@ -370,14 +375,22 @@ export default function NexaPathMobileExperience() {
       >
         <SmartBarSpeedTargetWall surface="info" />
       </section>
-      <SmartBarMobileShell
-        mode="overlay"
-        entryModeLabel="Ask SmartBar"
-        buildingLabel="Thinking..."
-        demoSubmission={demoSubmission}
-        onSubmitPrompt={handleSubmitPrompt}
-        onGenericAction={handleGenericAction}
-      />
+      {demoFixtureMode ? (
+        <SmartBarInformationalAdapter
+          demoFixtureMode
+          siteId="nexapath"
+          currentPageId="services"
+        />
+      ) : (
+        <SmartBarMobileShell
+          mode="overlay"
+          entryModeLabel="Ask SmartBar"
+          buildingLabel="Thinking..."
+          demoSubmission={demoSubmission}
+          onSubmitPrompt={handleSubmitPrompt}
+          onGenericAction={handleGenericAction}
+        />
+      )}
     </main>
   );
 }

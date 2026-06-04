@@ -2479,7 +2479,7 @@ export default function SmartBarSpeedDemo({
       if (selector.includes('data-tourbar-booking-nav="next"')) {
         return {
           ...command,
-          targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-tourbar-booking-nav="next"]:not(:disabled)',
+          targetSelector: '[data-smartbar-mobile-generic-action="booking-nav-next"], [data-smartbar-mobile-generic-action="next-room"], [data-tourbar-booking-nav="next"]:not(:disabled)',
           click: true,
         };
       }
@@ -2487,7 +2487,7 @@ export default function SmartBarSpeedDemo({
       if (selector.includes('data-tourbar-nextmove-query="__case_studies"')) {
         return {
           ...command,
-          targetSelector: '[data-smartbar-mobile-generic-action="show-proof"], [data-tourbar-nextmove-query="__case_studies"]',
+          targetSelector: '[data-smartbar-mobile-generic-action="show-proof"], [data-smartbar-mobile-generic-action*="proof"], [data-smartbar-mobile-generic-action*="case"], [data-tourbar-nextmove-query="__case_studies"]',
           click: true,
         };
       }
@@ -2878,9 +2878,9 @@ export default function SmartBarSpeedDemo({
       toolbarSurface === "ordering" ? (
         <BurgerRushMobileExperience demoFixtureMode />
       ) : toolbarSurface === "booking" ? (
-        <DomiMobileExperience />
+        <DomiMobileExperience demoFixtureMode />
       ) : (
-        <NexaPathMobileExperience />
+        <NexaPathMobileExperience demoFixtureMode />
       );
 
     return (

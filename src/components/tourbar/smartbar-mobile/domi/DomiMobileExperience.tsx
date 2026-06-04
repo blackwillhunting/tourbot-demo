@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BedDouble, CalendarDays, Coffee, CreditCard, Users } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
@@ -7,6 +7,8 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "../../speed-demo/SmartBarSpeedTargetWall";
+import SmartBarBookingAdapter from "../adapters/SmartBarBookingAdapter";
+import type { TourBarBookingPageId, TourBarBookingSiteAdapter } from "../../TourBarBooking";
 
 type MobileFocusSnapshot = {
   element: HTMLElement;
@@ -56,6 +58,124 @@ const DOMI_ROOMS: DomiRoom[] = [
     price: "$549/night",
   },
 ];
+
+const DOMI_ROOM_BOOKING_META: Record<string, { title: string; price: string; signal: string }> = {
+  "room-garden-terrace": {
+    title: "Garden Terrace King",
+    price: "$239/night",
+    signal: "Quiet resort feel without oceanfront pricing",
+  },
+  "room-ocean-view-suite": {
+    title: "Ocean View Suite",
+    price: "$379/night",
+    signal: "Best balance of view, comfort, and breakfast compatibility",
+  },
+  "room-coastal-villa": {
+    title: "Coastal Villa Suite",
+    price: "$549/night",
+    signal: "Premium villa-style stay with the strongest view",
+  },
+  "room-family-double": {
+    title: "Family Double Room",
+    price: "$249/night",
+    signal: "Flexible room for families or groups",
+  },
+};
+
+const DOMI_ROOM_STEP_ORDER = [
+  "room-garden-terrace",
+  "room-ocean-view-suite",
+  "room-coastal-villa",
+  "room-family-double",
+];
+
+const DOMI_PACKAGE_BOOKING_META: Record<string, { title: string; price: string; signal: string }> = {
+  "package-breakfast-flex": {
+    title: "Breakfast Flex Plan",
+    price: "+$32/night",
+    signal: "Breakfast package for the active stay",
+  },
+};
+
+const DOMI_TARGET_IDS = [
+  ...DOMI_ROOM_STEP_ORDER,
+  ...Object.keys(DOMI_PACKAGE_BOOKING_META),
+  "smartbar-booking-summary",
+  "payment-module",
+];
+
+function domiGetRoomMeta(roomId?: string | null) {
+  if (!roomId) return null;
+  return DOMI_ROOM_BOOKING_META[roomId] || null;
+}
+
+function domiGetPackageMeta(packageId?: string | null) {
+  if (!packageId) return null;
+  return DOMI_PACKAGE_BOOKING_META[packageId] || null;
+}
+
+function domiNormalizePackageIds(values?: Array<string | null | undefined> | null) {
+  const seen = new Set<string>();
+  return (values || [])
+    .map((value) => String(value || "").trim())
+    .filter((value) => value && Boolean(DOMI_PACKAGE_BOOKING_META[value]))
+    .filter((value) => {
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+}
+
+function domiDateFromIso(value?: string | null) {
+  if (!value) return null;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(year, month - 1, day);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function domiFormatDateRange(checkIn: string, checkOut: string) {
+  const start = domiDateFromIso(checkIn);
+  const end = domiDateFromIso(checkOut);
+  if (!start || !end) return "Dates pending";
+
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  const endLabel = end.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return `${startLabel} to ${endLabel}`;
+}
+
+function domiBookingNights(checkIn: string, checkOut: string) {
+  const start = domiDateFromIso(checkIn);
+  const end = domiDateFromIso(checkOut);
+  if (!start || !end) return null;
+  const nights = Math.round((end.getTime() - start.getTime()) / 86400000);
+  return nights > 0 ? nights : null;
+}
+
+function domiGuestLabelFromCounts(adults: number, children: number) {
+  const adultCount = Math.max(1, Math.floor(adults || 1));
+  const childCount = Math.max(0, Math.floor(children || 0));
+  return `${adultCount} adult${adultCount === 1 ? "" : "s"}${childCount > 0 ? `, ${childCount} child${childCount === 1 ? "" : "ren"}` : ""}`;
+}
+
+function domiGuestCountsFromLabel(label: string) {
+  const adults = Number(label.match(/(\d+)\s+adult/i)?.[1] || 1);
+  const children = Number(label.match(/(\d+)\s+child/i)?.[1] || 0);
+  return {
+    adults: Math.max(1, adults || 1),
+    children: Math.max(0, children || 0),
+  };
+}
 
 const DOMI_TONE_CLASS: Record<DomiMobileTone, {
   card: string;
@@ -239,13 +359,82 @@ function DomiBookingSummaryContent() {
   );
 }
 
-export default function DomiMobileExperience() {
+type DomiMobileExperienceProps = {
+  demoFixtureMode?: boolean;
+};
+
+export default function DomiMobileExperience({ demoFixtureMode = false }: DomiMobileExperienceProps) {
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
   const focusTimerRef = useRef<number | null>(null);
   const submissionIdRef = useRef(0);
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
   const [activeRoomIndex, setActiveRoomIndex] = useState(1);
   const [breakfastAdded, setBreakfastAdded] = useState(false);
+  const [currentPage, setCurrentPage] = useState<TourBarBookingPageId>("home");
+  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const [selectedPackages, setSelectedPackages] = useState<string[]>([]);
+  const [datesSelected, setDatesSelected] = useState(false);
+  const [guestsSelected, setGuestsSelected] = useState(false);
+  const [guestAdults, setGuestAdults] = useState(1);
+  const [guestChildren, setGuestChildren] = useState(0);
+  const [guestLabel, setGuestLabel] = useState("1 adult");
+  const [budgetBand, setBudgetBand] = useState("");
+  const [checkInDate, setCheckInDate] = useState("2026-08-04");
+  const [checkOutDate, setCheckOutDate] = useState("2026-08-09");
+  const [, setActiveFormSpotlight] = useState<"guests" | null>(null);
+  const [, setBookingRailSpotlight] = useState(false);
+
+  const tourBarBookingSite = useMemo<TourBarBookingSiteAdapter>(() => ({
+    currentPage,
+    activeAnchor,
+    targetIds: DOMI_TARGET_IDS,
+    roomStepOrder: DOMI_ROOM_STEP_ORDER,
+    selectedRoom,
+    selectedPackages,
+    datesSelected,
+    guestsSelected,
+    guestAdults,
+    guestChildren,
+    guestLabel,
+    budgetBand,
+    checkInDate,
+    checkOutDate,
+    setCurrentPage,
+    setActiveAnchor,
+    setSelectedRoom,
+    setSelectedPackages,
+    setDatesSelected,
+    setGuestsSelected,
+    setGuestAdults,
+    setGuestChildren,
+    setGuestLabel,
+    setBudgetBand,
+    setCheckInDate,
+    setCheckOutDate,
+    setActiveFormSpotlight,
+    setBookingRailSpotlight,
+    getRoomMeta: domiGetRoomMeta,
+    getPackageMeta: domiGetPackageMeta,
+    normalizePackageIds: domiNormalizePackageIds,
+    formatDateRange: domiFormatDateRange,
+    bookingNights: domiBookingNights,
+    guestLabelFromCounts: domiGuestLabelFromCounts,
+    guestCountsFromLabel: domiGuestCountsFromLabel,
+  }), [
+    activeAnchor,
+    budgetBand,
+    checkInDate,
+    checkOutDate,
+    currentPage,
+    datesSelected,
+    guestAdults,
+    guestChildren,
+    guestLabel,
+    guestsSelected,
+    selectedPackages,
+    selectedRoom,
+  ]);
 
   const clearFocus = useCallback(() => {
     if (focusTimerRef.current !== null) {
@@ -421,14 +610,18 @@ export default function DomiMobileExperience() {
       >
         <SmartBarSpeedTargetWall surface="booking" />
       </section>
-      <SmartBarMobileShell
-        mode="overlay"
-        entryModeLabel="Ask SmartBar"
-        buildingLabel="Thinking..."
-        demoSubmission={demoSubmission}
-        onSubmitPrompt={handleSubmitPrompt}
-        onGenericAction={handleGenericAction}
-      />
+      {demoFixtureMode ? (
+        <SmartBarBookingAdapter site={tourBarBookingSite} demoFixtureMode />
+      ) : (
+        <SmartBarMobileShell
+          mode="overlay"
+          entryModeLabel="Ask SmartBar"
+          buildingLabel="Thinking..."
+          demoSubmission={demoSubmission}
+          onSubmitPrompt={handleSubmitPrompt}
+          onGenericAction={handleGenericAction}
+        />
+      )}
     </main>
   );
 }
