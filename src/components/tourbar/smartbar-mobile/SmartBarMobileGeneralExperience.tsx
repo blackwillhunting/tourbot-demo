@@ -7,7 +7,9 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitMeta,
   type SmartBarMobileSubmitResult,
 } from "./SmartBarMobileShell";
-import SmartBarSpeedTargetWall from "../speed-demo/SmartBarSpeedTargetWall";
+import BurgerRushMobileExperience from "./burgerrush/BurgerRushMobileExperience";
+import DomiMobileExperience from "./domi/DomiMobileExperience";
+import NexaPathMobileExperience from "./nexapath/NexaPathMobileExperience";
 import {
   SmartBarFakePointerOverlay,
   makeSmartBarFakePointerState,
@@ -298,6 +300,34 @@ function smartBarGeneralMobileWaitMs(ms: number, fastMode: boolean) {
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function SmartBarMobileGeneralRealSurface({ surface }: { surface: SmartBarSpeedSurface }) {
+  const child =
+    surface === "ordering" ? (
+      <BurgerRushMobileExperience demoFixtureMode />
+    ) : surface === "booking" ? (
+      <DomiMobileExperience />
+    ) : surface === "finale" ? (
+      <div data-tour-id="smartbar-booking-toolbelt" id="smartbar-booking-toolbelt">
+        <NexaPathMobileExperience />
+      </div>
+    ) : (
+      <NexaPathMobileExperience />
+    );
+
+  return (
+    <div className="smartbar-mobile-general-real-surface relative min-h-[100dvh] overflow-x-hidden">
+      <style>
+        {`
+          .smartbar-mobile-general-real-surface [data-smartbar-mobile-shell="true"] {
+            display: none !important;
+          }
+        `}
+      </style>
+      {child}
+    </div>
+  );
 }
 
 function smartBarGeneralElementLooksVisible(element: HTMLElement | null) {
@@ -932,9 +962,9 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface={surface}
-        className="relative z-10 min-h-[4200px] overflow-x-hidden px-3 pb-[640px] pt-3"
+        className="relative z-10 min-h-[100dvh] overflow-x-hidden pb-[680px]"
       >
-        <SmartBarSpeedTargetWall surface={surface} />
+        <SmartBarMobileGeneralRealSurface surface={surface} />
       </section>
       <SmartBarMobileShell
         mode="overlay"
