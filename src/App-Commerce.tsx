@@ -20,7 +20,8 @@ import {
 import GuideShellStatic, {
   type GuideShellDemoCommand,
 } from "./components/GuideShellStatic";
-import TourBarBooking from "./components/tourbar/TourBarBooking";
+import TourBarBooking, { type TourBarBookingSiteAdapter } from "./components/tourbar/TourBarBooking";
+import SmartBarBookingAdapter from "./components/tourbar/smartbar-mobile/adapters/SmartBarBookingAdapter";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
   guidedCommerceRichIntentDemo,
@@ -32,6 +33,39 @@ import { commerceGuideConfig } from "./commerce/commerceGuideConfig";
 type AppCommerceProps = {
   tourBarMode?: boolean;
 };
+
+function smartBarBookingMobileViewportMatches() {
+  if (typeof window === "undefined") return false;
+
+  return (
+    window.matchMedia("(max-width: 767px)").matches ||
+    /Android|iPhone|iPod|Mobile/i.test(window.navigator.userAgent)
+  );
+}
+
+function useSmartBarBookingMobileViewport() {
+  const [matches, setMatches] = useState(() => smartBarBookingMobileViewportMatches());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setMatches(smartBarBookingMobileViewportMatches());
+
+    update();
+    media.addEventListener?.("change", update);
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+
+    return () => {
+      media.removeEventListener?.("change", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+
+  return matches;
+}
 function guestCountFromLabel(label: string): number | null {
   const direct = Number(label);
   if (Number.isFinite(direct) && direct > 0) return Math.floor(direct);
@@ -1856,6 +1890,7 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("mode") === "self_drive";
   }, []);
+  const isSmartBarMobileViewport = useSmartBarBookingMobileViewport();
 
   const page = PAGES[currentPage];
   const pageIndex = pageOrder.indexOf(currentPage);
@@ -2119,6 +2154,45 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   const nextPage = pageOrder[pageIndex + 1] ?? null;
   const prevPage = pageOrder[pageIndex - 1] ?? null;
   const anchorButtons = useMemo(() => page.sections.slice(0, 7), [page]);
+  const tourBarBookingSite: TourBarBookingSiteAdapter = {
+    currentPage,
+    activeAnchor,
+    targetIds: Object.values(PAGES).flatMap((page) =>
+      page.sections.map((section) => section.id),
+    ),
+    roomStepOrder,
+    selectedRoom,
+    selectedPackages,
+    datesSelected,
+    guestsSelected,
+    guestAdults,
+    guestChildren,
+    guestLabel,
+    budgetBand,
+    checkInDate,
+    checkOutDate,
+    setCurrentPage,
+    setActiveAnchor,
+    setSelectedRoom,
+    setSelectedPackages,
+    setDatesSelected,
+    setGuestsSelected,
+    setGuestAdults,
+    setGuestChildren,
+    setGuestLabel,
+    setBudgetBand,
+    setCheckInDate,
+    setCheckOutDate,
+    setActiveFormSpotlight,
+    setBookingRailSpotlight,
+    getRoomMeta,
+    getPackageMeta,
+    normalizePackageIds: normalizeBookingPackageIds,
+    formatDateRange: formatBookingDateRange,
+    bookingNights,
+    guestLabelFromCounts: tourBarGuestLabel,
+    guestCountsFromLabel: tourBarGuestCountsFromLabel,
+  };
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.26),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(79,70,229,0.18),transparent_34%),linear-gradient(180deg,#020617_0%,#0f172a_46%,#111827_100%)] text-slate-100">
@@ -2276,49 +2350,13 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
       </main>
 
       {tourBarMode ? (
-        <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
-          <TourBarBooking
-            site={{
-              currentPage,
-              activeAnchor,
-              targetIds: Object.values(PAGES).flatMap((page) =>
-                page.sections.map((section) => section.id),
-              ),
-              roomStepOrder,
-              selectedRoom,
-              selectedPackages,
-              datesSelected,
-              guestsSelected,
-              guestAdults,
-              guestChildren,
-              guestLabel,
-              budgetBand,
-              checkInDate,
-              checkOutDate,
-              setCurrentPage,
-              setActiveAnchor,
-              setSelectedRoom,
-              setSelectedPackages,
-              setDatesSelected,
-              setGuestsSelected,
-              setGuestAdults,
-              setGuestChildren,
-              setGuestLabel,
-              setBudgetBand,
-              setCheckInDate,
-              setCheckOutDate,
-              setActiveFormSpotlight,
-              setBookingRailSpotlight,
-              getRoomMeta,
-              getPackageMeta,
-              normalizePackageIds: normalizeBookingPackageIds,
-              formatDateRange: formatBookingDateRange,
-              bookingNights,
-              guestLabelFromCounts: tourBarGuestLabel,
-              guestCountsFromLabel: tourBarGuestCountsFromLabel,
-            }}
-          />
-        </div>
+        isSmartBarMobileViewport ? (
+          <SmartBarBookingAdapter site={tourBarBookingSite} />
+        ) : (
+          <div className="fixed right-4 top-4 z-[10060] sm:right-6 sm:top-6">
+            <TourBarBooking site={tourBarBookingSite} />
+          </div>
+        )
       ) : (
         <>
           <DemoController
