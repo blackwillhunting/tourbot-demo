@@ -1503,6 +1503,55 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     ];
   };
 
+  const rawIsBookingSummaryMode = (raw: TourBarBookingRawResponse) => {
+    const text = [
+      raw.displayMode,
+      raw.intent,
+      raw.commerceAction,
+      raw.mode,
+      asRecord(raw.action || raw.suggestedAction).type,
+      asRecord(raw.action || raw.suggestedAction).kind,
+      asRecord(raw.action || raw.suggestedAction).intent,
+      asRecord(raw.action || raw.suggestedAction).commerceAction,
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+
+    return (
+      text.includes("prepare_booking") ||
+      text.includes("booking_handoff") ||
+      text.includes("checkout_handoff") ||
+      text.includes("booking_summary")
+    );
+  };
+
+  const rawHasBookableStay = (raw: TourBarBookingRawResponse) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const roomId = String(
+      activeStayPlan.roomId ||
+        activeStayPlan.roomTargetId ||
+        activeRoom.targetId ||
+        activeRoom.roomId ||
+        selected.roomId ||
+        selected.comboId ||
+        visibleContext.selectedRoomId ||
+        site.selectedRoom ||
+        "",
+    );
+
+    return Boolean(roomId.trim());
+  };
+
+  const prepareBookingSummaryRaw = (raw: TourBarBookingRawResponse): TourBarBookingRawResponse => ({
+    ...raw,
+    commerceAction: raw.commerceAction || "prepare_booking",
+    displayMode: raw.displayMode || "prepare_booking",
+    intent: raw.intent || "prepare_booking",
+  });
+
   const actionsForRaw = (raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
     const actions: SmartBarMobileGenericAction[] = [];
     const shellResult = buildTourBarBookingShellResult(raw, primaryTargetFromRaw(raw), {
@@ -1511,20 +1560,32 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const nextLabel = shellResult.nextMove?.label || shellResult.invitation?.text || "";
     const nextQuery = shellResult.nextMove?.query || shellResult.nextMove?.label || shellResult.invitation?.text || "";
 
+    const isSummaryMode = rawIsBookingSummaryMode(raw);
+
     actionQueriesRef.current = {};
-    actions.push(...navigationActionsForRaw(raw));
+    actions.push(...(isSummaryMode ? [] : navigationActionsForRaw(raw)));
 
     if (nextLabel && nextQuery) {
-      const id = isBookingNextStepLabel(`${nextLabel} ${nextQuery}`)
+      const nextStepIsBooking = isBookingNextStepLabel(`${nextLabel} ${nextQuery}`);
+      const id = nextStepIsBooking
         ? "booking-handoff"
         : actionId("next", nextQuery);
       actionQueriesRef.current[id] = nextQuery;
       actions.push({
         id,
-        label: nextLabel,
-        helper: isBookingNextStepLabel(`${nextLabel} ${nextQuery}`)
-          ? "Prepare the stay handoff"
+        label: nextStepIsBooking ? "Prepare booking summary" : nextLabel,
+        helper: nextStepIsBooking
+          ? "Room, add-ons, dates, guests, estimate"
           : "Continue with SmartBar",
+        variant: "primary",
+      });
+    }
+
+    if (!isSummaryMode && rawHasBookableStay(raw) && !actions.some((action) => action.id === "booking-handoff")) {
+      actions.push({
+        id: "booking-summary",
+        label: "Prepare booking summary",
+        helper: "Room, add-ons, dates, guests, estimate",
         variant: "primary",
       });
     }
@@ -1596,7 +1657,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
   };
 
   const contentForRaw = (raw: TourBarBookingRawResponse, summary = false): ReactNode => {
-    const body = bookingResponseBody(raw);
+    const body = summary ? "Review the stay details SmartBar has staged for handoff." : bookingResponseBody(raw);
     const rows = summary ? bookingSummaryRows(raw) : [];
 
     return (
@@ -1630,8 +1691,10 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const shellResult = buildTourBarBookingShellResult(raw, target, {
       mode: TOURBAR_HOTEL_BOOKING_MODE,
     });
-    const actions = actionsForRaw(raw);
-    const summary = target.isBookingAction || String(raw.displayMode || raw.intent || raw.commerceAction || "").includes("prepare_booking");
+    const summary = target.isBookingAction || rawIsBookingSummaryMode(raw);
+    const actions = actionsForRaw(raw).filter((action) =>
+      summary ? action.id !== "booking-handoff" && action.id !== "booking-summary" : true,
+    );
     const body = bookingResponseBody(raw);
     const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
     const estimatedHeight = Math.min(
@@ -1650,9 +1713,9 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     return {
       surfaceKind: summary ? "booking_summary" : "booking_tour",
       eyebrow: summary ? "Booking preload" : "Domi stay match",
-      title: shellResult.title || "Domi booking match",
+      title: summary ? "Booking summary" : shellResult.title || "Domi booking match",
       helper: summary
-        ? "SmartBar carried the room, add-ons, dates, and guests into a booking-ready summary."
+        ? "Room, add-ons, dates, guests, and estimate are ready for handoff."
         : navigates
           ? "SmartBar opened the matching stay option on the site."
           : "Refine this stay or ask SmartBar for another option.",
@@ -1734,7 +1797,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
       return toGenericResult(raw);
     }
 
-    if (action.id === "booking-handoff" && raw) {
+    if ((action.id === "booking-handoff" || action.id === "booking-summary") && raw) {
       applyBookingContext(raw, { preferNextStep: true });
       const bookingTarget = bookingFocusTarget(raw);
       if (bookingTarget) {
@@ -1742,11 +1805,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         if (bookingTarget.pageId) site.setCurrentPage(bookingTarget.pageId);
         spotlightAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 180);
       }
-      return toGenericResult({
-        ...raw,
-        commerceAction: raw.commerceAction || "prepare_booking",
-        displayMode: raw.displayMode || "prepare_booking",
-      });
+      return toGenericResult(prepareBookingSummaryRaw(raw));
     }
 
     const query = actionQueriesRef.current[action.id] || action.label;
