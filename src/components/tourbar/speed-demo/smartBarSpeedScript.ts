@@ -232,7 +232,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       pulseMs: 820,
     },
     { kind: "submitFollowUp", delayMs: 350 },
-    { kind: "pause", delayMs: 5200 },
+    { kind: "pause", delayMs: 10500 },
     { kind: "shell", type: "closeChat", delayMs: 350 },
   ],
 },
