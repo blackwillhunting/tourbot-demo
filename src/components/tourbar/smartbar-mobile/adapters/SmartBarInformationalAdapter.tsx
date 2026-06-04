@@ -314,7 +314,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
   const normalized = compactText(query).toLowerCase();
   const focusAreaId = activeResult?.focusAreaId || "hedgefund-copilot";
 
-  if (/(case|proof|study|studies|examples?)/.test(normalized) || normalized.includes("__case_studies")) {
+  if (normalized.includes("case") || normalized.includes("proof") || normalized.includes("study") || normalized.includes("example") || normalized.includes("agent build") || normalized.includes("__case_studies")) {
     return {
       ok: true,
       mode: "answer",
@@ -326,7 +326,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
         "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
       nextMove: {
         type: "consultant_cta",
-        label: "Talk to a consultant",
+        label: "Plan a quick call",
         query: "Perfect, can I talk to someone?",
         focusAreaId,
       },
@@ -359,7 +359,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
         "The concrete work is: map support and knowledge workflows, audit source content, define security boundaries, build Copilot-ready knowledge paths, connect systems where needed, test answer quality, and create a rollout plan for the teams using it.",
       nextMove: {
         type: "case_studies",
-        label: "See secure Copilot rollout examples",
+        label: "See example agent builds",
         query: "show case studies",
         focusAreaId,
       },
@@ -378,7 +378,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
     answerMode: "summary",
     answer:
       "For a hedge fund, the starting point is usually Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath can help design the IT foundation, connect service and knowledge systems, and plan a Copilot rollout that does not expose sensitive data.",
-    suggestions: ["Map your Copilot readiness path"],
+    suggestions: ["Explore Copilot readiness"],
   };
 }
 

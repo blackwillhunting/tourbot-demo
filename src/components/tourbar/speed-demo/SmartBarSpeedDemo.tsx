@@ -2552,17 +2552,21 @@ export default function SmartBarSpeedDemo({
 
       if (command.kind === "submitPrimary" || command.kind === "submitFollowUp") {
         const submittedValue = command.value ?? primaryDraftRef.current ?? followUpDraftRef.current;
-        await showPointerClick(
-          {
-            kind: "pointerClick",
-            targetSelector: '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
-            label: "",
-            click: true,
-            delayMs: 80,
-            pulseMs: 720,
-          },
-          cancelled,
+        await wait(80);
+        if (cancelled()) return true;
+
+        const submitTarget = firstVisibleSpeedDemoElement(
+          Array.from(
+            document.querySelectorAll<HTMLElement>(
+              '[data-smartbar-mobile-submit="true"], [data-smartbar-mobile-companion="true"]',
+            ),
+          ),
         );
+
+        submitTarget?.click();
+        await wait(80);
+        if (cancelled()) return true;
+
         await wait(speedDemoFixtureThinkingMsForQuery(submittedValue) + SCRIPTED_SUBMIT_SETTLE_BUFFER_MS);
         return true;
       }
