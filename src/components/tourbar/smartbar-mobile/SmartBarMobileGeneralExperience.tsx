@@ -312,6 +312,20 @@ function smartBarGeneralFindPointerTarget(selector?: string) {
 }
 
 
+function smartBarGeneralShouldClickPointerTarget(
+  target: HTMLElement | null,
+  step: SmartBarGeneralMobileAutoStep,
+) {
+  if (!target) return false;
+
+  if (target.closest('[data-smartbar-mobile-generic-action]')) return true;
+  if (target.closest('[data-smartbar-mobile-launcher="true"]')) return true;
+  if (target.closest('[data-smartbar-mobile-checkout="true"]')) return true;
+
+  return !step.query && Boolean(target.closest('[data-smartbar-mobile-companion="true"]'));
+}
+
+
 function smartBarGeneralCssEscape(value: string) {
   if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
   return value.replace(/["\\]/g, "\\$&");
@@ -881,7 +895,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
 
   const pointToStep = useCallback(async (step: SmartBarGeneralMobileAutoStep) => {
     const target = smartBarGeneralFindPointerTarget(step.targetSelector);
-    if (!target) return;
+    if (!target) return null;
 
     pointerIdRef.current += 1;
     const id = pointerIdRef.current;
@@ -891,6 +905,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setPointer(makeSmartBarFakePointerState(target, { id: id + 10000, label: step.label, phase: "pulse", anchorY: 0.58, offsetY: 4 }));
     await wait(760);
     setPointer(null);
+    return target;
   }, []);
 
   useEffect(() => () => clearFocus(), [clearFocus]);
@@ -913,10 +928,16 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         await wait(smartBarGeneralMobileWaitMs(step.cardMs ?? 2000, fastMode));
         if (cancelled) return;
 
-        await pointToStep(step);
+        const target = await pointToStep(step);
         if (cancelled) return;
 
-        if (step.query) {
+        const clickedTarget = smartBarGeneralShouldClickPointerTarget(target, step);
+        if (clickedTarget) {
+          target?.click();
+          await wait(180);
+        }
+
+        if (step.query && !clickedTarget) {
           submitDemoQuery(step.query);
         }
         await wait(smartBarGeneralMobileWaitMs(step.afterSubmitMs ?? 5000, fastMode));
