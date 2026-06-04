@@ -211,7 +211,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       delayMs: 180,
       pulseMs: 720,
     },
-    { kind: "typeFollowUp", value: "Perfect, can I talk to someone?", delayMs: 3250 },
+    { kind: "typeFollowUp", value: "Perfect, can I talk to someone?", delayMs: 2250 },
     { kind: "pause", delayMs: 1200 },
     {
       kind: "cards",
