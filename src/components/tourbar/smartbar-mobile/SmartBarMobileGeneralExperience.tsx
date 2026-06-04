@@ -214,6 +214,75 @@ const SMARTBAR_GENERAL_MOBILE_AUTO_STEPS: SmartBarGeneralMobileAutoStep[] = [
     surface: "finale",
   },
 ];
+function smartBarGeneralMobileReadStartIndex() {
+  if (typeof window === "undefined") return 0;
+
+  const params = new URLSearchParams(window.location.search);
+  const rawStart =
+    params.get("mobileDemoStart") ||
+    params.get("mobileStart") ||
+    params.get("mobileStep") ||
+    "";
+
+  if (!rawStart) return 0;
+
+  const normalized = rawStart.trim().toLowerCase();
+  const aliases: Record<string, string> = {
+    start: "open",
+    nexa: "open",
+    info: "open",
+    proof: "case-studies",
+    consultant: "consultant-chat",
+    burger: "complete-order",
+    burgerrush: "complete-order",
+    order: "complete-order",
+    ordering: "complete-order",
+    checkout: "checkout",
+    domi: "booking-complete",
+    booking: "booking-complete",
+    hotel: "booking-complete",
+    nextroom: "booking-next-ocean",
+    breakfast: "booking-breakfast",
+    summary: "booking-summary",
+    family: "booking-incomplete",
+    selectors: "booking-selectors",
+    finale: "finale-setup",
+  };
+
+  const requestedId = aliases[normalized] || normalized;
+  const numeric = Number(requestedId);
+
+  if (Number.isFinite(numeric)) {
+    // 1-based is friendlier in a URL. 0 also works and means the first step.
+    const zeroBased = numeric > 0 ? numeric - 1 : 0;
+    return Math.min(Math.max(0, zeroBased), SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.length - 1);
+  }
+
+  const exactIndex = SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.findIndex(
+    (step) => step.desktopStepId.toLowerCase() === requestedId,
+  );
+
+  return exactIndex >= 0 ? exactIndex : 0;
+}
+
+function smartBarGeneralMobileReadFastMode() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return (
+    params.get("mobileDemoFast") === "1" ||
+    params.get("mobileFast") === "1" ||
+    params.get("fast") === "1"
+  );
+}
+
+function smartBarGeneralMobileWaitMs(ms: number, fastMode: boolean) {
+  if (!fastMode) return ms;
+  if (ms <= 0) return 0;
+
+  return Math.min(900, Math.max(80, Math.round(ms * 0.16)));
+}
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -832,13 +901,16 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     let cancelled = false;
 
     const run = async () => {
-      for (const step of SMARTBAR_GENERAL_MOBILE_AUTO_STEPS) {
-        await wait(step.introMs ?? 0);
+      const startIndex = smartBarGeneralMobileReadStartIndex();
+      const fastMode = smartBarGeneralMobileReadFastMode();
+
+      for (const step of SMARTBAR_GENERAL_MOBILE_AUTO_STEPS.slice(startIndex)) {
+        await wait(smartBarGeneralMobileWaitMs(step.introMs ?? 0, fastMode));
         if (cancelled) return;
 
         if (step.surface) setSurface(step.surface);
         setNarratorCards(step.cards);
-        await wait(step.cardMs ?? 2000);
+        await wait(smartBarGeneralMobileWaitMs(step.cardMs ?? 2000, fastMode));
         if (cancelled) return;
 
         await pointToStep(step);
@@ -847,13 +919,13 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
         if (step.query) {
           submitDemoQuery(step.query);
         }
-        await wait(step.afterSubmitMs ?? 5000);
+        await wait(smartBarGeneralMobileWaitMs(step.afterSubmitMs ?? 5000, fastMode));
         if (cancelled) return;
 
         setNarratorCards([]);
       }
 
-      await wait(900);
+      await wait(smartBarGeneralMobileWaitMs(900, fastMode));
       if (!cancelled) setNarratorCards(["Same bar. Different jobs.", "Answers, carts, bookings, and handoffs."]);
     };
 
