@@ -158,6 +158,10 @@ const demoLines: SmartBarMobileOrderLine[] = [
 
 const estimatedTotal = "$19.46";
 
+
+const SMARTBAR_MOBILE_ACTION_PILL_INTENSITY: "soft" | "strong" = "strong";
+const SMARTBAR_MOBILE_STRONG_ACTION_PILLS = SMARTBAR_MOBILE_ACTION_PILL_INTENSITY === "strong";
+
 function smartBarMobileResultIsGeneric(
   result: SmartBarMobileSubmitResult,
 ): result is SmartBarMobileGenericResult {
@@ -1298,16 +1302,28 @@ export default function SmartBarMobileShell({
     action.id !== "booking-nav-back" && action.id !== "booking-nav-next",
   );
   const genericActionButtonClass = (action: SmartBarMobileGenericAction) => {
+    const strongPills = SMARTBAR_MOBILE_STRONG_ACTION_PILLS;
+
     if (action.id === "booking-nav-back") {
-      return "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/18 bg-slate-950/82 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+      return strongPills
+        ? "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/26 bg-slate-950/92 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_rgba(2,6,23,0.28)] ring-1 ring-white/18 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+        : "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/18 bg-slate-950/82 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
     }
 
     if (action.id === "booking-nav-next") {
-      return "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/94 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_10px_24px_rgba(14,165,233,0.22)] ring-1 ring-sky-100/46 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+      return strongPills
+        ? "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/98 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.52),0_10px_24px_rgba(14,165,233,0.28)] ring-1 ring-sky-50/56 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+        : "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/94 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_10px_24px_rgba(14,165,233,0.22)] ring-1 ring-sky-100/46 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
     }
 
-    return action.variant === "secondary"
-      ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+    if (action.variant === "secondary") {
+      return strongPills
+        ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/26 bg-slate-950/90 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_24px_rgba(2,6,23,0.26)] ring-1 ring-white/16 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+    }
+
+    return strongPills
+      ? "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/98 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.50),0_10px_24px_rgba(14,165,233,0.26)] ring-1 ring-sky-50/54 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
       : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
   };
 
@@ -1319,11 +1335,71 @@ export default function SmartBarMobileShell({
       className={`fixed inset-0 z-[10080] overflow-visible ${rootTextClass} ${
         isOverlay
           ? "pointer-events-none bg-transparent"
-          : "bg-[radial-gradient(circle_at_24%_16%,rgba(16,185,129,0.18),transparent_34%),radial-gradient(circle_at_84%_74%,rgba(59,130,246,0.18),transparent_32%),linear-gradient(180deg,#07111f_0%,#020617_100%)]"
+          : "bg-[radial-gradient(circle_at_18%_10%,rgba(16,185,129,0.24),transparent_28%),radial-gradient(circle_at_82%_24%,rgba(14,165,233,0.22),transparent_30%),radial-gradient(circle_at_46%_92%,rgba(249,115,22,0.16),transparent_30%),linear-gradient(180deg,#172033_0%,#263449_44%,#182235_100%)]"
       }`}
     >
       {!isOverlay && (
-        <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] [background-size:38px_38px]" />
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute inset-0 opacity-[0.24] [background-image:linear-gradient(rgba(255,255,255,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.16)_1px,transparent_1px)] [background-size:32px_32px]" />
+          <div className="absolute inset-x-4 bottom-[18px] top-5 flex flex-col justify-between gap-3">
+            <div className="rounded-[30px] border border-white/20 bg-slate-950/54 p-4 shadow-xl shadow-slate-950/20 ring-1 ring-white/10">
+              <div className="h-3 w-32 rounded-full bg-emerald-300/80" />
+              <div className="mt-4 h-8 w-56 rounded-2xl bg-white/84" />
+              <div className="mt-3 h-3 w-full rounded-full bg-white/42" />
+              <div className="mt-2 h-3 w-5/6 rounded-full bg-white/30" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-[26px] border border-emerald-200/32 bg-emerald-400/30 p-4 shadow-lg shadow-slate-950/16 ring-1 ring-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-emerald-200/88" />
+                <div className="mt-4 h-3 w-24 rounded-full bg-white/76" />
+                <div className="mt-2 h-3 w-full rounded-full bg-white/36" />
+                <div className="mt-2 h-3 w-2/3 rounded-full bg-white/24" />
+              </div>
+              <div className="rounded-[26px] border border-sky-200/32 bg-sky-400/30 p-4 shadow-lg shadow-slate-950/16 ring-1 ring-white/10">
+                <div className="h-10 w-10 rounded-2xl bg-sky-200/88" />
+                <div className="mt-4 h-3 w-24 rounded-full bg-white/76" />
+                <div className="mt-2 h-3 w-full rounded-full bg-white/36" />
+                <div className="mt-2 h-3 w-2/3 rounded-full bg-white/24" />
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-white/18 bg-white/18 p-4 shadow-lg shadow-slate-950/16 ring-1 ring-white/12">
+              <div className="flex gap-3">
+                <div className="h-20 w-20 rounded-[24px] bg-orange-300/78" />
+                <div className="flex-1 space-y-2 pt-1">
+                  <div className="h-4 w-40 rounded-full bg-white/86" />
+                  <div className="h-3 w-full rounded-full bg-white/44" />
+                  <div className="h-3 w-5/6 rounded-full bg-white/34" />
+                  <div className="h-3 w-2/3 rounded-full bg-white/24" />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-[1fr_0.72fr] gap-3">
+              <div className="rounded-[28px] border border-violet-200/28 bg-violet-400/24 p-4 shadow-lg shadow-slate-950/16 ring-1 ring-white/10">
+                <div className="h-3 w-28 rounded-full bg-white/78" />
+                <div className="mt-3 h-12 rounded-[22px] bg-white/24" />
+                <div className="mt-3 h-3 w-full rounded-full bg-white/34" />
+              </div>
+              <div className="rounded-[28px] border border-amber-200/30 bg-amber-300/30 p-4 shadow-lg shadow-slate-950/16 ring-1 ring-white/10">
+                <div className="h-14 rounded-[22px] bg-white/30" />
+                <div className="mt-3 h-3 w-full rounded-full bg-white/42" />
+              </div>
+            </div>
+
+            <div className="mb-[84px] rounded-[30px] border border-white/20 bg-slate-950/48 p-4 shadow-xl shadow-slate-950/22 ring-1 ring-white/12">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-300/78" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-4 w-44 rounded-full bg-white/86" />
+                  <div className="h-3 w-full rounded-full bg-white/38" />
+                  <div className="h-3 w-3/4 rounded-full bg-white/28" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <main className={`relative z-[1] min-h-0 pb-[88px] ${isOverlay ? "pointer-events-none overflow-visible" : "h-full overflow-hidden"}`}>
@@ -1515,7 +1591,7 @@ export default function SmartBarMobileShell({
                             <button
                               key={detail}
                               type="button"
-                              className="inline-flex items-center gap-1 rounded-full bg-emerald-300/90 px-3 py-1.5 text-xs font-black text-slate-950 shadow-sm"
+                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black text-slate-950 shadow-sm ${SMARTBAR_MOBILE_STRONG_ACTION_PILLS ? "bg-emerald-300/98 ring-1 ring-emerald-50/46" : "bg-emerald-300/90"}`}
                             >
                               <Check className="h-3.5 w-3.5" />
                               {smartBarMobileShortLabel(detail)}
@@ -1550,10 +1626,16 @@ export default function SmartBarMobileShell({
                                     disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
                                     className={`min-w-0 rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
                                       isSelected
-                                        ? "bg-emerald-300 text-slate-950 ring-2 ring-emerald-500/40"
+                                        ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
+                                          ? "bg-emerald-300/98 text-slate-950 ring-2 ring-emerald-50/54"
+                                          : "bg-emerald-300 text-slate-950 ring-2 ring-emerald-500/40"
                                         : isLocked
-                                          ? "bg-white/50 text-slate-500"
-                                          : "bg-white/88 text-slate-950"
+                                          ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
+                                            ? "bg-white/68 text-slate-600"
+                                            : "bg-white/50 text-slate-500"
+                                          : SMARTBAR_MOBILE_STRONG_ACTION_PILLS
+                                            ? "bg-white/96 text-slate-950 ring-1 ring-white/54"
+                                            : "bg-white/88 text-slate-950"
                                     }`}
                                   >
                                     <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
@@ -1699,7 +1781,7 @@ export default function SmartBarMobileShell({
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="text-xl font-black tracking-tight">
+                        <div className="inline-flex w-fit items-center rounded-full border border-sky-100/24 bg-[#012169]/88 px-4 py-2 text-xl font-black tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(1,33,105,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_2px_rgba(0,0,0,0.58)]">
                           Review order
                         </div>
                       </div>
@@ -1778,14 +1860,10 @@ export default function SmartBarMobileShell({
                                     event.stopPropagation();
                                     removeLine(line);
                                   }}
-                                  className={
-                                    isOverlay
-                                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.08] text-white/74 ring-1 ring-white/12 transition active:scale-95"
-                                      : "inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.08] text-white/74 ring-1 ring-white/12 transition active:scale-95"
-                                  }
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300/50 bg-slate-900/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_5px_12px_rgba(2,6,23,0.30)] ring-1 ring-white/18 transition active:scale-95"
                                   aria-label={`Remove ${line.title}`}
                                 >
-                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <Trash2 className="h-4 w-4 stroke-[2.75]" />
                                 </button>
                               )}
                             </div>
@@ -1796,14 +1874,14 @@ export default function SmartBarMobileShell({
 
                     <div className={totalsBoxClass}>
                       <div className="flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                        <span className={quietTextClass}>Subtotal</span>
+                        <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Subtotal</span>
                         <span className="tabular-nums">{cartTotals.subtotalLabel}</span>
                       </div>
                       <div className="mt-1 flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                        <span className={quietTextClass}>Est. tax</span>
+                        <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Est. tax</span>
                         <span className="tabular-nums">{cartTotals.taxLabel}</span>
                       </div>
-                      <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/12" : "border-slate-950/10"}`}>
+                      <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/24" : "border-white/20"}`}>
                         <span>Total</span>
                         <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
                       </div>
