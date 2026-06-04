@@ -292,16 +292,20 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
   const body = resultBody(result);
   const estimatedHeight = estimateInfoResultHeight(body, actions.length);
 
+  const navigates = hasNavigation(result);
+
   return {
     surfaceKind: "info",
-    eyebrow: hasNavigation(result) ? "Site match" : result.action === "ANSWER_ONLY" ? "SmartBar answer" : "SmartBar guide",
+    eyebrow: navigates ? "Site match" : result.action === "ANSWER_ONLY" ? "SmartBar answer" : "SmartBar guide",
     title: resultTitle(result),
     body: contentFor(result) ? undefined : resultBody(result),
     helper: helperText(result),
-    statusLabel: hasNavigation(result) ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
+    statusLabel: navigates ? "Site match" : result.action === "CLARIFY" ? "Clarify" : "Answer ready",
     actions,
     height: estimatedHeight,
     content: contentFor(result),
+    navigationRevealDelayMs: navigates ? 3000 : undefined,
+    navigationRevealLabel: navigates ? "Spotlighting..." : undefined,
   };
 }
 

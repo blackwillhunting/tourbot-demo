@@ -87,6 +87,10 @@ export type SmartBarMobileGenericResult = {
   height?: number;
   /** Optional custom content for non-cart SmartBar templates. */
   content?: ReactNode;
+  /** Delay opening the result panel so navigation/spotlight can complete first. */
+  navigationRevealDelayMs?: number;
+  /** Temporary ThinkingText label while navigation/spotlight is running. */
+  navigationRevealLabel?: string;
 };
 
 export type SmartBarMobileSubmitResult = SmartBarMobileOrderResult | SmartBarMobileGenericResult;
@@ -453,6 +457,7 @@ export default function SmartBarMobileShell({
   const [entryDraft, setEntryDraft] = useState("");
   const [hasEditedEntryDraft, setHasEditedEntryDraft] = useState(false);
   const [submittedPromptPreview, setSubmittedPromptPreview] = useState("");
+  const [buildingStatusLabel, setBuildingStatusLabel] = useState(buildingLabel);
   const [retryDraft, setRetryDraft] = useState("");
   const [orderLines, setOrderLines] = useState<SmartBarMobileOrderLine[]>(demoLines);
   const [orderEstimatedSubtotal, setOrderEstimatedSubtotal] = useState<string | undefined>(undefined);
@@ -593,6 +598,12 @@ export default function SmartBarMobileShell({
   };
 
   useEffect(() => {
+    if (phase !== "building_cart") {
+      setBuildingStatusLabel(buildingLabel);
+    }
+  }, [buildingLabel, phase]);
+
+  useEffect(() => {
     return () => {
       clearCloseArmTimer();
       clearBuildTimer();
@@ -668,6 +679,7 @@ export default function SmartBarMobileShell({
     setGenericResult(null);
     setCartExpanded(true);
     setSubmittedPromptPreview(submittedDraft);
+    setBuildingStatusLabel(buildingLabel);
     setPhase("building_cart");
 
     const orderResultPromise = onSubmitPrompt
@@ -679,21 +691,34 @@ export default function SmartBarMobileShell({
 
       orderResultPromise
         .then((result) => {
-          if (smartBarMobileResultIsGeneric(result)) {
-            setGenericResult(result);
-            setOrderLines([]);
-            setOrderEstimatedSubtotal(undefined);
-            setOrderEstimatedTax(undefined);
-            setOrderEstimatedTotal("—");
-          } else {
-            setGenericResult(null);
-            if (result.lines.length > 0) {
-              setOrderLines(result.lines);
-              applyOrderResultEstimates(result, estimatedTotal);
+          const revealResult = () => {
+            if (smartBarMobileResultIsGeneric(result)) {
+              setGenericResult(result);
+              setOrderLines([]);
+              setOrderEstimatedSubtotal(undefined);
+              setOrderEstimatedTax(undefined);
+              setOrderEstimatedTotal("—");
+            } else {
+              setGenericResult(null);
+              if (result.lines.length > 0) {
+                setOrderLines(result.lines);
+                applyOrderResultEstimates(result, estimatedTotal);
+              }
             }
+            setHasCart(true);
+            setPhase("cart");
+          };
+
+          if (smartBarMobileResultIsGeneric(result) && result.navigationRevealDelayMs && result.navigationRevealDelayMs > 0) {
+            setBuildingStatusLabel(result.navigationRevealLabel || "Spotlighting...");
+            buildTimerRef.current = window.setTimeout(() => {
+              buildTimerRef.current = null;
+              revealResult();
+            }, result.navigationRevealDelayMs);
+            return;
           }
-          setHasCart(true);
-          setPhase("cart");
+
+          revealResult();
         })
         .catch(() => {
           setGenericResult(null);
@@ -1027,7 +1052,7 @@ export default function SmartBarMobileShell({
     if (handoffState === "handing_off") return "Handing off";
     if (handoffState === "complete") return "Handoff complete";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
-    if (phase === "building_cart") return hasCart ? "Updating SmartBar..." : buildingLabel;
+    if (phase === "building_cart") return hasCart ? "Updating SmartBar..." : buildingStatusLabel;
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLine.id ? "Checking menu..." : "Re-enter";
