@@ -137,7 +137,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
           body: "Hi there — so you're interested in Copilots?",
         },
       ]);
-    }, 500));
+    }, 2000));
 
     timers.push(window.setTimeout(() => {
       if (cancelled) return;
@@ -178,13 +178,13 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
                   body: "Sure, lets set up a call",
                 },
               ]);
-            }, 700));
-          }, 120));
+            }, 2000));
+          }, 700));
         }
       }, 32);
 
       intervals.push(typingInterval);
-    }, 1200));
+    }, 3500));
 
     return () => {
       cancelled = true;
