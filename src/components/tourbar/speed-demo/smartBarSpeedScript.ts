@@ -185,8 +185,11 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         kind: "pointerClick",
         targetSelector: '[data-tourbar-nextmove-query="__case_studies"]',
         label: "",
+        click: true,
         delayMs: 250,
-        pulseMs: 1820,
+        aimMs: 650,
+        pulseMs: 2600,
+        exitMs: 450,
       },
       { kind: "shell", type: "runNextMove", delayMs: 350 },
       { kind: "pause", delayMs: 1800 },
@@ -199,6 +202,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
     helper: "Consultant starts with the visitor’s context.",
     surface: "info",
     commands: [
+      { kind: "pause", delayMs: 2000 },
       {
         kind: "pointerClick",
         targetSelector: '[data-smartbar-mobile-cart-toggle="true"]',
