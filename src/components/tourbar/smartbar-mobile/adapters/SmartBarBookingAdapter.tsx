@@ -62,6 +62,11 @@ type SmartBarBookingThreadMessage = {
   answerMode?: string;
 };
 
+type SmartBarBookingNavigationState = {
+  steps: TourBarBookingPageTarget[];
+  activeIndex: number;
+};
+
 function asRecord(value: unknown): Record<string, any> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, any>)
@@ -84,6 +89,10 @@ function asStringArray(value: unknown): string[] {
 
 function compactText(value?: string | null) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 function fallbackPageIdFromTarget(targetId?: string | null): TourBarBookingPageId {
@@ -236,6 +245,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
   const currentRawRef = useRef<TourBarBookingRawResponse | null>(null);
   const threadRef = useRef<SmartBarBookingThreadMessage[]>([]);
   const actionQueriesRef = useRef<Record<string, string>>({});
+  const navigationStateRef = useRef<SmartBarBookingNavigationState | null>(null);
   const navigationRunRef = useRef(0);
 
   const pageIdFromTarget = (targetId?: string | null): TourBarBookingPageId =>
@@ -758,12 +768,35 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     }, delay);
   };
 
+  const focusNavigationStep = (
+    state: SmartBarBookingNavigationState,
+    nextIndex: number,
+    delay = 180,
+  ) => {
+    if (!state.steps.length) return state;
+
+    const activeIndex = Math.min(Math.max(nextIndex, 0), state.steps.length - 1);
+    const step = state.steps[activeIndex];
+    const nextState = { ...state, activeIndex };
+    navigationStateRef.current = nextState;
+
+    navigationRunRef.current += 1;
+    updateWorkingStayFromTarget(step);
+
+    const pageId = step.pageId || pageIdFromTarget(step.targetId);
+    site.setCurrentPage(pageId);
+    spotlightAnchor(step.targetId, step.targetSelector, delay);
+
+    return nextState;
+  };
+
   const focusResult = (raw: TourBarBookingRawResponse) => {
     const target = primaryTargetFromRaw(raw);
 
     applyBookingContext(raw);
 
     if (target.isBookingAction && isExplicitTourBarBookingRequest(raw)) {
+      navigationStateRef.current = null;
       applyBookingContext(raw, { preferNextStep: true });
       const bookingTarget = bookingFocusTarget(raw);
       if (bookingTarget) {
@@ -776,17 +809,16 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
 
     const navigationTargets = navigationTargetsFromRaw(raw);
     if (navigationTargets.length) {
-      navigationRunRef.current += 1;
-      const first = navigationTargets[0];
-      const pageId = first.pageId || pageIdFromTarget(first.targetId);
-      updateWorkingStayFromTarget(first);
-      site.setCurrentPage(pageId);
-      spotlightAnchor(first.targetId, first.targetSelector, 520);
+      focusNavigationStep({ steps: navigationTargets, activeIndex: 0 }, 0, 520);
       return;
     }
 
-    if (!target.targetId && !target.targetSelector) return;
+    if (!target.targetId && !target.targetSelector) {
+      navigationStateRef.current = null;
+      return;
+    }
 
+    navigationStateRef.current = null;
     const pageId = target.pageId || pageIdFromTarget(target.targetId);
     navigationRunRef.current += 1;
     site.setCurrentPage(pageId);
@@ -910,6 +942,36 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     };
   };
 
+  const navigationActionsForRaw = (_raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
+    const state = navigationStateRef.current;
+    if (!state || state.steps.length < 2) return [];
+
+    const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+    const isFirst = activeIndex <= 0;
+    const isLast = activeIndex >= state.steps.length - 1;
+    const currentLabel = state.steps[activeIndex]?.targetText || state.steps[activeIndex]?.targetId || "stay option";
+    const nextLabel = !isLast
+      ? state.steps[activeIndex + 1]?.targetText || state.steps[activeIndex + 1]?.targetId || "next option"
+      : currentLabel;
+
+    return [
+      {
+        id: "booking-nav-back",
+        label: "Back",
+        helper: `Stop ${activeIndex + 1} of ${state.steps.length}`,
+        variant: "back",
+        disabled: isFirst,
+      },
+      {
+        id: "booking-nav-next",
+        label: "Next",
+        helper: isLast ? `Stop ${activeIndex + 1} of ${state.steps.length}` : compactText(nextLabel).slice(0, 28),
+        variant: "next",
+        disabled: isLast,
+      },
+    ];
+  };
+
   const actionsForRaw = (raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
     const actions: SmartBarMobileGenericAction[] = [];
     const shellResult = buildTourBarBookingShellResult(raw, primaryTargetFromRaw(raw), {
@@ -919,6 +981,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
     const nextQuery = shellResult.nextMove?.query || shellResult.nextMove?.label || shellResult.invitation?.text || "";
 
     actionQueriesRef.current = {};
+    actions.push(...navigationActionsForRaw(raw));
 
     if (nextLabel && nextQuery) {
       const id = isBookingNextStepLabel(`${nextLabel} ${nextQuery}`)
@@ -1045,6 +1108,13 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
       Math.max(summary ? 430 : actions.length ? 360 : 300, 120 + estimatedLines * 26 + actions.length * 66 + (summary ? 190 : 0)),
     );
     const navigates = resultHasNavigation(raw);
+    const navigationState = navigationStateRef.current;
+    const guidedProgress = navigationState && navigationState.steps.length > 1
+      ? {
+          current: Math.min(Math.max(navigationState.activeIndex, 0), navigationState.steps.length - 1) + 1,
+          total: navigationState.steps.length,
+        }
+      : null;
 
     return {
       surfaceKind: summary ? "booking_summary" : "booking_tour",
@@ -1055,8 +1125,11 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         : navigates
           ? "SmartBar opened the matching stay option on the site."
           : "Refine this stay or ask SmartBar for another option.",
-      statusLabel: summary ? "Ready" : navigates ? "Spotlight" : "Match ready",
+      statusLabel: guidedProgress ? `Stop ${guidedProgress.current}/${guidedProgress.total}` : summary ? "Ready" : navigates ? "Spotlight" : "Match ready",
       actions,
+      progressLabel: guidedProgress ? "Guided stops" : undefined,
+      progressCurrent: guidedProgress?.current,
+      progressTotal: guidedProgress?.total,
       height: estimatedHeight,
       content: contentForRaw(raw, summary),
       navigationRevealDelayMs: navigates ? 3000 : undefined,
@@ -1101,6 +1174,20 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
   ): Promise<SmartBarMobileSubmitResult> => {
     const raw = currentRawRef.current;
 
+    if ((action.id === "booking-nav-back" || action.id === "booking-nav-next") && raw) {
+      const state = navigationStateRef.current;
+      if (state && state.steps.length > 1) {
+        const nextIndex = action.id === "booking-nav-next"
+          ? state.activeIndex + 1
+          : state.activeIndex - 1;
+        focusNavigationStep(state, nextIndex, 160);
+        await wait(2600);
+        return toGenericResult(raw);
+      }
+
+      return toGenericResult(raw);
+    }
+
     if (action.id === "booking-handoff" && raw) {
       applyBookingContext(raw, { preferNextStep: true });
       const bookingTarget = bookingFocusTarget(raw);
@@ -1143,6 +1230,7 @@ export default function SmartBarBookingAdapter({ site }: SmartBarBookingAdapterP
         currentRawRef.current = null;
         threadRef.current = [];
         actionQueriesRef.current = {};
+        navigationStateRef.current = null;
       }}
     />
   );

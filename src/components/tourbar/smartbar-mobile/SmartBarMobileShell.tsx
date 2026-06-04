@@ -68,7 +68,7 @@ export type SmartBarMobileGenericAction = {
   id: string;
   label: string;
   helper?: string;
-  variant?: "primary" | "secondary";
+  variant?: "primary" | "secondary" | "back" | "next";
   disabled?: boolean;
 };
 
@@ -1211,6 +1211,27 @@ export default function SmartBarMobileShell({
     totalsBoxClass,
   } = getSmartBarMobileShellStyles(isOverlay, checkoutReady);
 
+  const genericActions = genericResult?.actions || [];
+  const bookingNavActions = genericActions.filter((action) =>
+    action.id === "booking-nav-back" || action.id === "booking-nav-next",
+  );
+  const standardGenericActions = genericActions.filter((action) =>
+    action.id !== "booking-nav-back" && action.id !== "booking-nav-next",
+  );
+  const genericActionButtonClass = (action: SmartBarMobileGenericAction) => {
+    if (action.id === "booking-nav-back") {
+      return "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/18 bg-slate-950/82 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+    }
+
+    if (action.id === "booking-nav-next") {
+      return "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/94 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_10px_24px_rgba(14,165,233,0.22)] ring-1 ring-sky-100/46 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+    }
+
+    return action.variant === "secondary"
+      ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+      : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+  };
+
   return (
     <div
       data-smartbar-mobile-shell="true"
@@ -1537,19 +1558,38 @@ export default function SmartBarMobileShell({
                       )}
                     </div>
 
-                    {!!genericResult.actions?.length && (
+                    {!!genericActions.length && (
                       <div className={genericResult?.surfaceKind === "info" ? "mt-2 shrink-0 space-y-2" : "mt-2 shrink-0 space-y-2"}>
-                        {genericResult.actions.map((action) => (
+                        {!!bookingNavActions.length && (
+                          <div className="grid grid-cols-2 gap-2">
+                            {bookingNavActions.map((action) => (
+                              <button
+                                key={action.id}
+                                type="button"
+                                data-smartbar-mobile-generic-action={action.id}
+                                disabled={action.disabled}
+                                onClick={() => handleGenericActionClick(action, genericResult)}
+                                className={genericActionButtonClass(action)}
+                              >
+                                {action.id === "booking-nav-back" && <ArrowRight className="h-4 w-4 shrink-0 rotate-180" />}
+                                <span className="min-w-0">
+                                  <span className="block leading-5">{action.label}</span>
+                                  {action.helper && <span className="mt-0.5 block truncate text-[11px] font-semibold opacity-72">{action.helper}</span>}
+                                </span>
+                                {action.id === "booking-nav-next" && <ArrowRight className="h-4 w-4 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {standardGenericActions.map((action) => (
                           <button
                             key={action.id}
                             type="button"
                             data-smartbar-mobile-generic-action={action.id}
                             disabled={action.disabled}
                             onClick={() => handleGenericActionClick(action, genericResult)}
-                            className={action.variant === "secondary"
-                              ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-                              : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-                            }
+                            className={genericActionButtonClass(action)}
                           >
                             <span className="min-w-0 flex-1 pr-2">
                               <span className="block whitespace-normal break-words leading-5">{action.label}</span>
