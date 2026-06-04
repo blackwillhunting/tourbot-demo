@@ -1114,13 +1114,13 @@ export default function SmartBarMobileShell({
   const companionLabel = (() => {
     if (phase === "rest") return "SmartBar";
     if (closeArmed) return "Tap again...";
-    if (handoffState === "handing_off") return "Handing off";
-    if (handoffState === "complete") return "Handoff complete";
+    if (handoffState === "handing_off") return "Sending...";
+    if (handoffState === "complete") return "Complete";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
-    if (phase === "building_cart") return hasCart ? "Updating SmartBar..." : buildingStatusLabel;
+    if (phase === "building_cart") return hasCart ? "Updating..." : buildingStatusLabel;
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      return retryCheckingLineId === selectedLine.id ? "Checking menu..." : "Re-enter";
+      return retryCheckingLineId === selectedLine.id ? "Checking..." : "Re-enter";
     }
     if (phase === "cart" && selectedLine) return "Tap to reopen";
     if (phase === "cart") return checkoutReady ? "Tap for checkout" : `${blockingIssueCount} need attention`;
