@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowRight,
@@ -72,7 +72,7 @@ export type SmartBarMobileGenericAction = {
 };
 
 export type SmartBarMobileGenericResult = {
-  surfaceKind: "info" | "chat" | "booking_tour" | "booking_summary";
+  surfaceKind: "info" | "chat" | "chat_shell" | "booking_tour" | "booking_summary";
   eyebrow?: string;
   title: string;
   body?: string;
@@ -160,6 +160,30 @@ const estimatedTotal = "$19.46";
 
 const SMARTBAR_MOBILE_ACTION_PILL_INTENSITY: "soft" | "strong" = "strong";
 const SMARTBAR_MOBILE_STRONG_ACTION_PILLS = SMARTBAR_MOBILE_ACTION_PILL_INTENSITY === "strong";
+
+// Foggy glass is applied only to the shared SmartBar substrate/chrome.
+// The objects sitting on top of the glass keep their existing crisp styling.
+const SMARTBAR_MOBILE_FOG_GLASS_STYLE: CSSProperties = {
+  background:
+    "radial-gradient(circle at 78% 18%, rgba(103,232,249,0.22) 0%, rgba(103,232,249,0.11) 20%, transparent 46%), radial-gradient(circle at 10% 82%, rgba(147,197,253,0.20) 0%, rgba(147,197,253,0.10) 24%, transparent 50%), linear-gradient(180deg, rgba(226,232,240,0.42) 0%, rgba(148,163,184,0.50) 36%, rgba(71,85,105,0.58) 100%)",
+  borderColor: "rgba(255,255,255,0.34)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.42), inset 0 0 34px rgba(255,255,255,0.12), inset 0 -1px 0 rgba(15,23,42,0.50), 0 22px 52px rgba(2,6,23,0.44), 0 6px 18px rgba(2,6,23,0.28)",
+  backdropFilter: "blur(38px) saturate(155%) brightness(1.08)",
+  WebkitBackdropFilter: "blur(38px) saturate(155%) brightness(1.08)",
+};
+
+const SMARTBAR_MOBILE_FOG_CHROME_STYLE: CSSProperties = {
+  background:
+    "radial-gradient(circle at 82% 16%, rgba(103,232,249,0.18) 0%, rgba(103,232,249,0.08) 24%, transparent 50%), linear-gradient(180deg, rgba(226,232,240,0.38) 0%, rgba(148,163,184,0.48) 42%, rgba(51,65,85,0.58) 100%)",
+  borderColor: "rgba(255,255,255,0.32)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.40), inset 0 0 26px rgba(255,255,255,0.10), inset 0 -1px 0 rgba(15,23,42,0.48), 0 16px 40px rgba(2,6,23,0.38)",
+  backdropFilter: "blur(34px) saturate(150%) brightness(1.07)",
+  WebkitBackdropFilter: "blur(34px) saturate(150%) brightness(1.07)",
+};
+
+
 
 function smartBarMobileResultIsGeneric(
   result: SmartBarMobileSubmitResult,
@@ -473,6 +497,7 @@ export default function SmartBarMobileShell({
   const [orderEstimatedTax, setOrderEstimatedTax] = useState<string | undefined>(undefined);
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
   const [genericResult, setGenericResult] = useState<SmartBarMobileGenericResult | null>(null);
+  const [measuredGenericPanelHeight, setMeasuredGenericPanelHeight] = useState<number | null>(null);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
@@ -538,11 +563,48 @@ export default function SmartBarMobileShell({
     total: orderEstimatedTotal,
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
+  const chatPanelEstimatedHeight = measuredGenericPanelHeight
+    ? Math.min(maxCartPanelHeight, Math.max(200, measuredGenericPanelHeight))
+    : Math.min(maxCartPanelHeight, Math.max(200, genericResult?.height ?? 200));
+  const shellChatPanelHeight = Math.min(maxCartPanelHeight, Math.max(456, genericResult?.height ?? 456));
   const genericPanelHeight = genericResult
-    ? genericResult.surfaceKind === "info"
-      ? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
-      : Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
+    ? genericResult.surfaceKind === "chat_shell"
+      ? shellChatPanelHeight
+      : genericResult.surfaceKind === "chat"
+        ? chatPanelEstimatedHeight
+        : genericResult.surfaceKind === "info"
+          ? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
+          : Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
     : 0;
+
+  useEffect(() => {
+    if (genericResult?.surfaceKind !== "chat") {
+      setMeasuredGenericPanelHeight(null);
+      return;
+    }
+
+    const fallbackHeight = Math.min(maxCartPanelHeight, Math.max(200, genericResult.height ?? 200));
+    setMeasuredGenericPanelHeight(fallbackHeight);
+
+    const handleChatHeight = (event: Event) => {
+      const detail = (event as CustomEvent<{ height?: number }>).detail;
+      const nextHeight = Number(detail?.height);
+
+      if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+
+      setMeasuredGenericPanelHeight((current) => {
+        const clampedHeight = Math.min(maxCartPanelHeight, Math.max(200, Math.ceil(nextHeight)));
+        return current === clampedHeight ? current : clampedHeight;
+      });
+    };
+
+    window.addEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
+    };
+  }, [genericResult?.surfaceKind, genericResult?.height, maxCartPanelHeight]);
+
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
     : Math.min(
@@ -686,6 +748,7 @@ export default function SmartBarMobileShell({
     setSelectedLineId(null);
     setLineOverrides({});
     setGenericResult(null);
+    setMeasuredGenericPanelHeight(null);
     setCartExpanded(true);
     setSubmittedPromptPreview(submittedDraft);
     setBuildingStatusLabel(buildingLabel);
@@ -1071,6 +1134,7 @@ export default function SmartBarMobileShell({
     setOrderEstimatedTax(undefined);
     setOrderEstimatedTotal(estimatedTotal);
     setGenericResult(null);
+    setMeasuredGenericPanelHeight(null);
     setLineOverrides({});
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
@@ -1271,6 +1335,32 @@ export default function SmartBarMobileShell({
       });
   };
 
+  const handleShellContentActionClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement | null;
+    const actionElement = target?.closest<HTMLElement>("[data-smartbar-mobile-content-action]");
+
+    if (!actionElement || !genericResult || handoffLocked) return;
+
+    const actionId = actionElement.getAttribute("data-smartbar-mobile-content-action") || "";
+    if (!actionId) return;
+
+    const actionLabel =
+      actionElement.getAttribute("data-smartbar-mobile-content-action-label") ||
+      actionElement.textContent ||
+      actionId;
+
+    handleGenericActionClick(
+      {
+        id: actionId,
+        label: actionLabel.replace(/→/g, "").replace(/\s+/g, " ").trim(),
+        variant: actionElement.getAttribute("data-smartbar-mobile-content-action-variant") === "secondary"
+          ? "secondary"
+          : "primary",
+      },
+      genericResult,
+    );
+  };
+
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
   const {
@@ -1297,9 +1387,32 @@ export default function SmartBarMobileShell({
   const bookingNavActions = genericActions.filter((action) =>
     action.id === "booking-nav-back" || action.id === "booking-nav-next",
   );
-  const standardGenericActions = genericActions.filter((action) =>
-    action.id !== "booking-nav-back" && action.id !== "booking-nav-next",
-  );
+  const standardGenericActions = genericActions
+    .filter((action) => action.id !== "booking-nav-back" && action.id !== "booking-nav-next")
+    .filter((action) => {
+      const isBookingSurface =
+        genericResult?.surfaceKind === "booking_tour" ||
+        genericResult?.surfaceKind === "booking_summary";
+
+      if (!isBookingSurface) return true;
+
+      // Booking surfaces already render their deliberate CTA and Back/Next rail.
+      // Do not also render suggestion chips as extra dark default buttons.
+      return !action.id.startsWith("suggestion");
+    })
+    .filter((action, index, actions) => {
+      const isBookingSurface =
+        genericResult?.surfaceKind === "booking_tour" ||
+        genericResult?.surfaceKind === "booking_summary";
+
+      if (!isBookingSurface) return true;
+
+      const labelKey = `${String(action.label || "").trim().toLowerCase()}|${String(action.helper || "").trim().toLowerCase()}`;
+      return actions.findIndex((candidate) => {
+        const candidateKey = `${String(candidate.label || "").trim().toLowerCase()}|${String(candidate.helper || "").trim().toLowerCase()}`;
+        return candidateKey === labelKey;
+      }) === index;
+    });
   const genericActionButtonClass = (action: SmartBarMobileGenericAction) => {
     const strongPills = SMARTBAR_MOBILE_STRONG_ACTION_PILLS;
 
@@ -1317,13 +1430,13 @@ export default function SmartBarMobileShell({
 
     if (action.variant === "secondary") {
       return strongPills
-        ? "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/26 bg-slate-950/90 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_24px_rgba(2,6,23,0.26)] ring-1 ring-white/16 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-        : "flex w-full items-center justify-between gap-3 rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-3 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+        ? "flex h-[62px] w-full items-center justify-between gap-3 overflow-hidden rounded-[22px] border border-white/26 bg-slate-950/90 px-4 py-0 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_24px_rgba(2,6,23,0.26)] ring-1 ring-white/16 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex h-[62px] w-full items-center justify-between gap-3 overflow-hidden rounded-[22px] border border-white/18 bg-slate-950/76 px-4 py-0 text-left text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/10 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
     }
 
     return strongPills
-      ? "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/98 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.50),0_10px_24px_rgba(14,165,233,0.26)] ring-1 ring-sky-50/54 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
-      : "flex w-full items-center justify-between gap-3 rounded-[22px] bg-sky-200/92 px-4 py-3 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+      ? "flex h-[62px] w-full items-center justify-between gap-3 overflow-hidden rounded-[22px] bg-sky-200/98 px-4 py-0 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.50),0_10px_24px_rgba(14,165,233,0.26)] ring-1 ring-sky-50/54 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+      : "flex h-[62px] w-full items-center justify-between gap-3 overflow-hidden rounded-[22px] bg-sky-200/92 px-4 py-0 text-left text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_24px_rgba(14,165,233,0.18)] ring-1 ring-sky-100/42 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
   };
 
   return (
@@ -1331,6 +1444,7 @@ export default function SmartBarMobileShell({
       data-smartbar-mobile-shell="true"
       data-smartbar-mobile-phase={phase}
       data-smartbar-mobile-cart-open={phase === "cart" ? "true" : undefined}
+      onClick={handleShellContentActionClick}
       className={`fixed inset-0 z-[10080] overflow-visible ${rootTextClass} ${
         isOverlay
           ? "pointer-events-none bg-transparent"
@@ -1458,7 +1572,7 @@ export default function SmartBarMobileShell({
           >
             <div
               className={upperGlassClass}
-              style={{ width: entryPillWidth, height: realComposerHeight, borderRadius: 999 }}
+              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, height: realComposerHeight, borderRadius: 999 }}
             >
               <div className="relative h-full px-3 py-2">
                 <textarea
@@ -1508,7 +1622,7 @@ export default function SmartBarMobileShell({
           >
             <motion.div
               className={upperGlassClass}
-              style={{ width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
+              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
               initial={{ height: realComposerHeight, borderRadius: 999 }}
               animate={{
                 height: fakeCartPanelHeight,
@@ -1658,7 +1772,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-3 pt-1" : "flex h-full min-h-0 flex-col px-4 pb-3 pt-3"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-2" : "flex h-full min-h-0 flex-col px-4 pb-3 pt-3"}
                   >
                     <div className="hidden">
                       <div className="min-w-0">
@@ -1702,7 +1816,7 @@ export default function SmartBarMobileShell({
                               variant: "secondary",
                             }, genericResult);
                           }}
-                          className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}
+                          className={genericResult?.surfaceKind === "chat" ? "min-h-0 text-[15px] leading-6 text-white/86" : genericResult?.surfaceKind === "info" ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}
                         >
                           {genericResult.content}
                         </div>
@@ -1756,8 +1870,8 @@ export default function SmartBarMobileShell({
                             className={genericActionButtonClass(action)}
                           >
                             <span className="min-w-0 flex-1 pr-2">
-                              <span className="block whitespace-normal break-words leading-5">{action.label}</span>
-                              {action.helper && <span className="mt-0.5 block truncate text-xs font-semibold opacity-72">{action.helper}</span>}
+                              <span className="block truncate leading-5">{action.label}</span>
+                              {action.helper && <span className="mt-0.5 block truncate text-[10px] font-semibold leading-3 opacity-70">{action.helper}</span>}
                             </span>
                             <ArrowRight className="h-4 w-4 shrink-0" />
                           </button>
@@ -1778,7 +1892,7 @@ export default function SmartBarMobileShell({
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="inline-flex w-fit items-center rounded-full border border-sky-100/24 bg-[#012169]/88 px-4 py-2 text-xl font-black tracking-tight text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(1,33,105,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_2px_rgba(0,0,0,0.58)]">
+                        <div className="block w-fit text-xl font-black tracking-tight text-[#06143A]">
                           Review order
                         </div>
                       </div>
@@ -1905,7 +2019,7 @@ export default function SmartBarMobileShell({
                 type="button"
                 onClick={handleClosePillClick}
                 className={`${chromePillClass} left-0`}
-                style={{ width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
@@ -1929,7 +2043,7 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
             className={`${chromePillClass} h-[46px] min-w-0 justify-center px-4`}
-            style={{ width: launcherPillWidth, left: launcherPillLeft }}
+            style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: launcherPillWidth, left: launcherPillLeft }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
@@ -1956,7 +2070,7 @@ export default function SmartBarMobileShell({
                 data-smartbar-mobile-cart-toggle="true"
                 onClick={handleCartToggleClick}
                 className={`${chromePillClass} right-0`}
-                style={{ width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}

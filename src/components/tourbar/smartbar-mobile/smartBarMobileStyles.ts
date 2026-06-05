@@ -113,22 +113,22 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
     ? "font-semibold text-white/98 [text-shadow:0_1px_3px_rgba(0,0,0,0.72)]"
     : "font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.66)]";
   const chromeBlueBadgeClass =
-    "inline-flex min-w-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_5px_12px_rgba(1,33,105,0.24)] ring-1 ring-white/22";
+    "inline-flex min-w-0 items-center justify-center rounded-none bg-transparent text-[#06143A] shadow-none ring-0";
   const chromeBlueIconClass =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_4px_10px_rgba(1,33,105,0.22)] ring-1 ring-white/24";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-none bg-transparent text-[#06143A] shadow-none ring-0";
   const chromeBlueLabelClass =
-    "min-w-0 truncate text-center font-semibold tracking-normal text-white antialiased";
+    "min-w-0 truncate text-center font-black tracking-normal text-[#06143A] antialiased [text-shadow:0_1px_0_rgba(255,255,255,0.42)]";
   const inputDraftCapsuleClass =
-    "mx-auto inline-flex max-h-[64px] max-w-full items-center justify-center overflow-hidden rounded-full bg-[#012169] px-4 py-2 text-center text-[16px] font-normal leading-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_8px_20px_rgba(1,33,105,0.32)] ring-1 ring-white/24 [text-shadow:0_1px_1px_rgba(0,0,0,0.28)] whitespace-pre-wrap break-words";
+    "mx-auto inline-flex max-h-[64px] max-w-full items-center justify-center overflow-hidden rounded-none bg-transparent px-4 py-2 text-center text-[17px] font-semibold leading-5 text-[#06143A] shadow-none ring-0 whitespace-pre-wrap break-words";
   const mainMutedTextClass = isOverlay ? "text-slate-950/78 [text-shadow:0_1px_0_rgba(255,255,255,0.10)]" : "text-slate-950/74";
   const softTextClass = isOverlay ? "text-white/72" : "text-white/62";
   const quietTextClass = isOverlay
-    ? "inline-flex w-fit items-center rounded-full border border-white/16 bg-slate-950/56 px-2.5 py-1 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(2,6,23,0.18)] ring-1 ring-white/10 [text-shadow:0_1px_2px_rgba(0,0,0,0.62)]"
-    : "inline-flex w-fit items-center rounded-full border border-white/14 bg-slate-950/50 px-2.5 py-1 text-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_4px_12px_rgba(2,6,23,0.16)] ring-1 ring-white/10 [text-shadow:0_1px_2px_rgba(0,0,0,0.58)]";
+    ? "block w-fit text-white/78 shadow-none ring-0"
+    : "block w-fit text-white/72 shadow-none ring-0";
   const skyEyebrowClass = isOverlay
-    ? "inline-flex w-fit items-center rounded-full border border-sky-100/22 bg-[#012169]/82 px-2.5 py-1 text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_12px_rgba(1,33,105,0.22)] ring-1 ring-white/12 [text-shadow:0_1px_2px_rgba(0,0,0,0.58)]"
-    : "inline-flex w-fit items-center rounded-full border border-sky-100/20 bg-[#012169]/78 px-2.5 py-1 text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(1,33,105,0.20)] ring-1 ring-white/10 [text-shadow:0_1px_2px_rgba(0,0,0,0.54)]";
-  const inputTextClass = isOverlay ? "text-white caret-white" : "text-white caret-white";
+    ? "block w-fit text-sky-50/86 shadow-none ring-0"
+    : "block w-fit text-sky-50/82 shadow-none ring-0";
+  const inputTextClass = isOverlay ? "text-[#06143A] caret-[#06143A] placeholder:text-[#06143A]/50" : "text-[#06143A] caret-[#06143A] placeholder:text-[#06143A]/50";
   const retryInputClass = isOverlay
     ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/12 bg-slate-950/20 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/38 caret-white"
     : "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/10 bg-slate-950/28 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/28 caret-white";
