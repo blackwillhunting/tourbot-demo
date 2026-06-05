@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  ShoppingBag,
   Sparkles,
   Trash2,
   X,
@@ -541,8 +540,8 @@ export default function SmartBarMobileShell({
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const genericPanelHeight = genericResult
     ? genericResult.surfaceKind === "info"
-      ? Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 320))
-      : Math.min(maxCartPanelHeight, Math.max(260, genericResult.height ?? 388))
+      ? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
+      : Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
     : 0;
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
@@ -1500,24 +1499,22 @@ export default function SmartBarMobileShell({
         {(phase === "building_cart" || phase === "cart") && (
           <motion.section
             key="fake-cart-surface"
-            initial={{ opacity: 0, y: 18, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.985 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
             style={{ bottom: 76 + keyboardLift }}
           >
             <motion.div
               className={upperGlassClass}
-              style={{ width: entryPillWidth, maxHeight: `calc(100svh - ${88 + keyboardLift}px)` }}
+              style={{ width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
               initial={{ height: realComposerHeight, borderRadius: 999 }}
               animate={{
-                height: phase === "cart" && cartExpanded && !selectedLine && (genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat")
-                  ? "auto"
-                  : fakeCartPanelHeight,
+                height: fakeCartPanelHeight,
                 borderRadius: fakeCartPanelRadius,
               }}
-              transition={{ type: "spring", stiffness: 230, damping: 52, mass: 1.05 }}
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
             >
               <AnimatePresence initial={false}>
                 {phase === "building_cart" && (
@@ -1541,10 +1538,10 @@ export default function SmartBarMobileShell({
                 {phase === "cart" && cartExpanded && selectedLine && (
                   <motion.div
                     key={`fake-item-detail-${selectedLine.id}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
                     className="flex h-full min-h-0 flex-col p-3"
                   >
                     <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
@@ -1661,7 +1658,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-1" : "flex h-full min-h-0 flex-col px-4 pb-4 pt-3"}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-3 pt-1" : "flex h-full min-h-0 flex-col px-4 pb-3 pt-3"}
                   >
                     <div className="hidden">
                       <div className="min-w-0">
@@ -1726,7 +1723,7 @@ export default function SmartBarMobileShell({
                     </div>
 
                     {!!genericActions.length && (
-                      <div className={genericResult?.surfaceKind === "info" ? "mt-2 shrink-0 space-y-2" : "mt-2 shrink-0 space-y-2"}>
+                      <div className={genericResult?.surfaceKind === "info" ? "mt-3 shrink-0 space-y-2 pb-0" : "mt-3 shrink-0 space-y-2 pb-0"}>
                         {!!bookingNavActions.length && (
                           <div className="grid grid-cols-2 gap-2">
                             {bookingNavActions.map((action) => (
@@ -1931,24 +1928,14 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
-            className={`${chromePillClass} h-[46px] min-w-0 ${
-              phase === "rest" ? "justify-between gap-2 px-2.5" : "justify-center px-4"
-            }`}
+            className={`${chromePillClass} h-[46px] min-w-0 justify-center px-4`}
             style={{ width: launcherPillWidth, left: launcherPillLeft }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <>
-                <span className={chromeBlueIconClass}>
-                  <Sparkles className="h-3.5 w-3.5" />
-                </span>
-                <span className={`${chromeBlueBadgeClass} h-8 flex-1 px-3 text-[16px]`}>
-                  <span className={chromeBlueLabelClass}>{companionLabel}</span>
-                </span>
-                <span className={chromeBlueIconClass}>
-                  <ShoppingBag className="h-3.5 w-3.5" />
-                </span>
-              </>
+              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
+                <span className={chromeBlueLabelClass}>{companionLabel}</span>
+              </span>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
               <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
                 <span className={chromeBlueLabelClass}>

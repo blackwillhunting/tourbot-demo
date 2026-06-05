@@ -12,7 +12,6 @@ import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/bur
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import SmartBarLiveMobileRuntime from "./components/tourbar/smartbar-mobile/SmartBarLiveMobileRuntime";
-import SmartBarInformationalAdapter from "./components/tourbar/smartbar-mobile/adapters/SmartBarInformationalAdapter";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -192,12 +191,7 @@ function ProtectedDemoRoute({ children }: { children: ReactNode }) {
 }
 
 function SmartBarMobileOnRealInformationalSite() {
-  return (
-    <>
-      <App />
-      <SmartBarInformationalAdapter siteId="nexapath" />
-    </>
-  );
+  return <App />;
 }
 
 function Router() {
@@ -285,6 +279,10 @@ function Router() {
   }
 
   if (path === "/informational") {
+    if (isLocalDemoAuthBypassEnabled()) {
+      return <SmartBarMobileOnRealInformationalSite />;
+    }
+
     return (
       <ProtectedDemoRoute>
         <App />

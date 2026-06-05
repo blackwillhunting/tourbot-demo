@@ -413,12 +413,12 @@ function smartBarFocusIsPhoneViewport() {
 }
 
 function smartBarScrollDuration(distance: number) {
-  // Fast enough for a guided UI, slow enough to read as intentional movement.
+  // Theatrical enough to see the page move, but still tight enough for a demo.
   if (smartBarFocusIsPhoneViewport()) {
-    return Math.min(1500, Math.max(620, Math.abs(distance) * 0.88));
+    return Math.min(2600, Math.max(1100, Math.abs(distance) * 1.35));
   }
 
-  return Math.min(920, Math.max(340, Math.abs(distance) * 0.58));
+  return Math.min(1500, Math.max(520, Math.abs(distance) * 0.82));
 }
 
 function scrollWindowDeterministicallyTo(

@@ -67,6 +67,20 @@ type SmartBarInformationalAdapterProps = {
   demoFixtureMode?: boolean;
 };
 
+function smartBarInformationalShouldUseLocalFixtures() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("devBypass")) return true;
+
+  const hostname = window.location.hostname;
+
+  return (
+    ["localhost", "127.0.0.1"].includes(hostname) ||
+    /^192\.168\.\d+\.\d+$/.test(hostname)
+  );
+}
+
 function getTourBotDemoToken() {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(TOURBOT_AUTH_TOKEN_KEY) || "";
@@ -255,7 +269,7 @@ function renderInlineEmphasis(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
-        <strong key={`${part}-${index}`} className="font-black text-white">
+        <strong key={`${part}-${index}`} className="font-black text-slate-950">
           {part.slice(2, -2)}
         </strong>
       );
@@ -272,7 +286,7 @@ function contentFor(result: TourBarResult): ReactNode | undefined {
 
   return (
     <div className="contents">
-      <div className="rounded-[24px] border border-white/16 bg-slate-950/68 px-4 py-2 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_18px_rgba(2,6,23,0.14)] ring-1 ring-white/10">
+      <div className="rounded-[24px] border border-orange-200/80 bg-orange-100/96 px-4 py-2 text-[15px] font-semibold leading-6 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_8px_18px_rgba(251,146,60,0.14)] ring-1 ring-white/44">
         {renderInlineEmphasis(body)}
       </div>
     </div>
@@ -308,6 +322,26 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     navigationRevealDelayMs: navigates ? 3000 : undefined,
     navigationRevealLabel: navigates ? "Spotlighting..." : undefined,
   };
+}
+
+function smartBarInformationalFixtureDelayMs(query: string) {
+  const normalized = compactText(query).toLowerCase();
+
+  if (normalized.includes("case") || normalized.includes("proof") || normalized.includes("study") || normalized.includes("example")) {
+    return 1100;
+  }
+
+  if (queryRequestsHumanHandoff(query)) {
+    return 900;
+  }
+
+  return 1500;
+}
+
+function waitForSmartBarInformationalFixture(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, Math.max(0, ms));
+  });
 }
 
 function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | null): TourBarResult {
@@ -372,7 +406,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
     action: "NAVIGATE_AND_ANSWER",
     focusAreaId: "hedgefund-copilot",
     label: "Copilot journeys for financial-services teams",
-    pageId: "services",
+    pageId: "hedge-fund",
     targetId: "hedgefund-copilot",
     targetSelector: '[data-tour-id="hedgefund-copilot"], #hedgefund-copilot',
     answerMode: "summary",
@@ -398,7 +432,7 @@ function focusResult(result: TourBarResult, currentPageId?: string, onNavigateTo
     initialDelayMs: pageWillChange ? 980 : 420,
     attempts: 28,
     scrollBehavior: "smooth",
-    overlayDurationMs: 3600,
+    overlayDurationMs: 4200,
     dispatchLegacyEvent: false,
   });
 }
@@ -407,7 +441,7 @@ export default function SmartBarInformationalAdapter({
   siteId = "nexapath",
   currentPageId,
   onNavigateToFocus,
-  demoFixtureMode = false,
+  demoFixtureMode = smartBarInformationalShouldUseLocalFixtures(),
 }: SmartBarInformationalAdapterProps) {
   const activeResultRef = useRef<TourBarResult | null>(null);
   const threadRef = useRef<SmartBarInformationalThreadMessage[]>([]);
@@ -417,7 +451,7 @@ export default function SmartBarInformationalAdapter({
     const activeResult = activeResultRef.current;
     const shouldAnswerFollowUp = Boolean(activeResult?.focusAreaId && !queryLooksLikeNewRoute(query));
     const response = demoFixtureMode
-      ? nexaPathDemoFixtureResult(query, activeResult)
+      ? await waitForSmartBarInformationalFixture(smartBarInformationalFixtureDelayMs(query)).then(() => nexaPathDemoFixtureResult(query, activeResult))
       : shouldAnswerFollowUp
         ? await postTourBar({
           mode: "answer",

@@ -113,11 +113,11 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
     ? "font-semibold text-white/98 [text-shadow:0_1px_3px_rgba(0,0,0,0.72)]"
     : "font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.66)]";
   const chromeBlueBadgeClass =
-    "inline-flex min-w-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_18px_rgba(1,33,105,0.34)] ring-1 ring-white/24";
+    "inline-flex min-w-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_5px_12px_rgba(1,33,105,0.24)] ring-1 ring-white/22";
   const chromeBlueIconClass =
-    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_5px_14px_rgba(1,33,105,0.32)] ring-1 ring-white/24";
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.20),0_4px_10px_rgba(1,33,105,0.22)] ring-1 ring-white/24";
   const chromeBlueLabelClass =
-    "min-w-0 truncate text-center font-normal tracking-normal text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.30)]";
+    "min-w-0 truncate text-center font-semibold tracking-normal text-white antialiased";
   const inputDraftCapsuleClass =
     "mx-auto inline-flex max-h-[64px] max-w-full items-center justify-center overflow-hidden rounded-full bg-[#012169] px-4 py-2 text-center text-[16px] font-normal leading-5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_8px_20px_rgba(1,33,105,0.32)] ring-1 ring-white/24 [text-shadow:0_1px_1px_rgba(0,0,0,0.28)] whitespace-pre-wrap break-words";
   const mainMutedTextClass = isOverlay ? "text-slate-950/78 [text-shadow:0_1px_0_rgba(255,255,255,0.10)]" : "text-slate-950/74";
