@@ -5,7 +5,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
 import { smartbarFocusTarget } from "../../smartbarFocusController";
-import SmartBarChatAdapter from "./SmartBarChatAdapter";
+import { SmartBarMobileGrowingChatShell } from "../SmartBarMobileChatShellTrial";
 
 const TOURBAR_API_URL = "/api/tourbar";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
@@ -293,13 +293,39 @@ function contentFor(result: TourBarResult): ReactNode | undefined {
   );
 }
 
-function estimateInfoResultHeight(body: string, actionCount: number) {
-  const cleanBody = compactText(body);
-  const estimatedLines = Math.max(1, Math.ceil(cleanBody.length / 48));
-  const answerBlockHeight = 46 + estimatedLines * 26;
-  const actionBlockHeight = actionCount > 0 ? 18 + actionCount * 68 : 0;
+const NEXA_MOBILE_RESPONSE_HEIGHT_BY_ROW_COUNT = [
+  { maxRows: 3, withoutActions: 210, withActions: 215 },
+  { maxRows: 4, withoutActions: 230, withActions: 240 },
+  { maxRows: 5, withoutActions: 250, withActions: 265 },
+  { maxRows: 6, withoutActions: 275, withActions: 290 },
+  { maxRows: 7, withoutActions: 300, withActions: 315 },
+  { maxRows: 8, withoutActions: 325, withActions: 345 },
+  { maxRows: 10, withoutActions: 370, withActions: 390 },
+] as const;
 
-  return Math.min(620, Math.max(actionCount > 0 ? 300 : 240, answerBlockHeight + actionBlockHeight + 24));
+function estimateNexaMobileVisualRows(body: string) {
+  const lines = body
+    .split("\n")
+    .map((line) => compactText(line.replace(/\*\*/g, "")))
+    .filter(Boolean);
+
+  if (!lines.length) return 1;
+
+  return lines.reduce((total, line) => {
+    return total + Math.max(1, Math.ceil(line.length / 44));
+  }, 0);
+}
+
+function estimateInfoResultHeight(body: string, actionCount: number) {
+  const estimatedRows = estimateNexaMobileVisualRows(body);
+  const band =
+    NEXA_MOBILE_RESPONSE_HEIGHT_BY_ROW_COUNT.find((item) => estimatedRows <= item.maxRows) ||
+    NEXA_MOBILE_RESPONSE_HEIGHT_BY_ROW_COUNT[NEXA_MOBILE_RESPONSE_HEIGHT_BY_ROW_COUNT.length - 1];
+
+  const baseHeight = actionCount > 0 ? band.withActions : band.withoutActions;
+  const extraActionHeight = Math.max(0, actionCount - 1) * 54;
+
+  return Math.min(620, baseHeight + extraActionHeight);
 }
 
 function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
@@ -319,7 +345,7 @@ function toGenericResult(result: TourBarResult): SmartBarMobileGenericResult {
     actions,
     height: estimatedHeight,
     content: contentFor(result),
-    navigationRevealDelayMs: navigates ? 3000 : undefined,
+    navigationRevealDelayMs: navigates ? 4500 : undefined,
     navigationRevealLabel: navigates ? "Spotlighting..." : undefined,
   };
 }
@@ -357,7 +383,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
       label: "Relevant case studies",
       answerMode: "case_studies",
       answer:
-        "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
+        "- **Hedge-fund assistant:** routes analyst and ops questions to approved sources.\n- **Compliance helper:** organizes audit, policy, and vendor-risk evidence.\n- **Copilot sprint:** cleans permissions, tests answers, and trains first users.",
       nextMove: {
         type: "consultant_cta",
         label: "Plan a quick call",
@@ -411,7 +437,7 @@ function nexaPathDemoFixtureResult(query: string, activeResult: TourBarResult | 
     targetSelector: '[data-tour-id="hedgefund-copilot"], #hedgefund-copilot',
     answerMode: "summary",
     answer:
-      "For a hedge fund, the starting point is usually Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath can help design the IT foundation, connect service and knowledge systems, and plan a Copilot rollout that does not expose sensitive data.",
+      "Start with Copilot readiness, secure knowledge access, workflow mapping, and governance. NexaPath helps design the IT foundation and rollout plan without exposing sensitive data.",
     suggestions: ["Explore Copilot readiness"],
   };
 }
@@ -495,22 +521,22 @@ export default function SmartBarInformationalAdapter({
     return submitPrompt(action.label);
   };
 
-  if (chatContext) {
-    return <SmartBarChatAdapter initialContext={chatContext} />;
-  }
-
   return (
-    <SmartBarMobileShell
-      mode="overlay"
-      entryModeLabel="Ask SmartBar"
-      buildingLabel="Searching site..."
-      onSubmitPrompt={submitPrompt}
-      onGenericAction={submitGenericAction}
-      onResetCart={() => {
-        activeResultRef.current = null;
-        threadRef.current = [];
-        setChatContext("");
-      }}
-    />
+    <>
+      <SmartBarMobileShell
+        key={chatContext ? "nexa-chat-handoff-footer" : "nexa-smartbar-normal"}
+        mode="overlay"
+        entryModeLabel="Ask SmartBar"
+        buildingLabel="Searching site..."
+        onSubmitPrompt={submitPrompt}
+        onGenericAction={submitGenericAction}
+        onResetCart={() => {
+          activeResultRef.current = null;
+          threadRef.current = [];
+          setChatContext("");
+        }}
+      />
+      {chatContext ? <SmartBarMobileGrowingChatShell initialContext={chatContext} onClose={() => setChatContext("")} showFooterControls /> : null}
+    </>
   );
 }
