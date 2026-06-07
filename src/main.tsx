@@ -1,3 +1,4 @@
+import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
 import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -318,6 +319,10 @@ function Router() {
 
   if (path === "/local-smartbar-domi" || path === "/local-domi-demo") {
     return <DomiMobileExperience demoFixtureMode autoPlay />;
+  }
+
+  if (path === "/local-food-trio-demo" || path === "/food-trio-demo") {
+    return <FoodTrioMobileExperience />;
   }
 
   if (isSmartBarHostname()) {
