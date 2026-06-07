@@ -6,11 +6,13 @@ import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
 import LaunchSelector from "./LaunchSelector";
 import LaunchSelectorTourBar from "./LaunchSelector_TourBar";
+import SmartBarSpeedDemo from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarMobileShell from "./components/tourbar/smartbar-mobile/SmartBarMobileShell";
 import SmartBarMobileGlassLab from "./components/tourbar/smartbar-mobile/SmartBarMobileGlassLab";
 import BurgerRushMobileExperience from "./components/tourbar/smartbar-mobile/burgerrush/BurgerRushMobileExperience";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
+import SmartBarMobileFinaleExperience from "./components/tourbar/smartbar-mobile/finale/SmartBarMobileFinaleExperience";
 import SmartBarLiveMobileRuntime from "./components/tourbar/smartbar-mobile/SmartBarLiveMobileRuntime";
 import "./index.css";
 
@@ -304,6 +306,18 @@ function Router() {
         <LaunchSelectorTourBar variant="burgerRushOnly" />
       </ProtectedDemoRoute>
     );
+  }
+
+  if (path === "/local-speed-demo" || path === "/direct-speed-demo") {
+    return <SmartBarSpeedDemo autoPlay variant="full" />;
+  }
+
+  if (path === "/local-smartbar-finale" || path === "/local-finale-demo") {
+    return <SmartBarMobileFinaleExperience autoPlay />;
+  }
+
+  if (path === "/local-smartbar-domi" || path === "/local-domi-demo") {
+    return <DomiMobileExperience demoFixtureMode autoPlay />;
   }
 
   if (isSmartBarHostname()) {

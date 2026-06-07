@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import SmartBarMobileShell, {
+  type SmartBarMobileDemoSubmission,
   type SmartBarMobileGenericAction,
   type SmartBarMobileGenericResult,
   type SmartBarMobileSubmitResult,
@@ -54,6 +55,7 @@ type TourBarWorkingStayContext = {
 type SmartBarBookingAdapterProps = {
   site: TourBarBookingSiteAdapter;
   demoFixtureMode?: boolean;
+  demoSubmission?: SmartBarMobileDemoSubmission | null;
 };
 
 type SmartBarBookingThreadMessage = {
@@ -292,13 +294,27 @@ function SmartBarBookingCounterRow({
         <div className="mt-0.5 text-[11px] font-semibold leading-4 text-white/58">{helper}</div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={decrease} disabled={value <= min} className={buttonClass} aria-label={`Decrease ${label.toLowerCase()}`}>
+        <button
+          type="button"
+          data-tourbar-guest-control={`${label.toLowerCase().startsWith("adult") ? "adults" : "children"}-decrement`}
+          onClick={decrease}
+          disabled={value <= min}
+          className={buttonClass}
+          aria-label={`Decrease ${label.toLowerCase()}`}
+        >
           −
         </button>
         <div className="flex h-10 min-w-[46px] items-center justify-center rounded-full bg-emerald-300/92 px-3 text-[16px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-emerald-100/34">
           {value}
         </div>
-        <button type="button" onClick={increase} disabled={value >= max} className={buttonClass} aria-label={`Increase ${label.toLowerCase()}`}>
+        <button
+          type="button"
+          data-tourbar-guest-control={`${label.toLowerCase().startsWith("adult") ? "adults" : "children"}-increment`}
+          onClick={increase}
+          disabled={value >= max}
+          className={buttonClass}
+          aria-label={`Increase ${label.toLowerCase()}`}
+        >
           +
         </button>
       </div>
@@ -321,7 +337,7 @@ function SmartBarBookingContextSelectors({
 }) {
   const initialStage: SmartBarBookingSelectorStage = missingDates ? "dates" : "guests";
   const initialCalendarDate =
-    dateFromIso(initialDraft.checkInDate) ||
+    (!missingDates && dateFromIso(initialDraft.checkInDate)) ||
     new Date(SMARTBAR_BOOKING_SELECTOR_YEAR, SMARTBAR_BOOKING_SELECTOR_START_MONTH, 1);
   const [stage, setStage] = useState<SmartBarBookingSelectorStage>(initialStage);
   const [calendarMonth, setCalendarMonth] = useState({
@@ -329,8 +345,8 @@ function SmartBarBookingContextSelectors({
     monthIndex: initialCalendarDate.getMonth(),
   });
   const [dateDraft, setDateDraft] = useState({
-    checkInDate: initialDraft.checkInDate || "",
-    checkOutDate: initialDraft.checkOutDate || "",
+    checkInDate: missingDates ? "" : initialDraft.checkInDate || "",
+    checkOutDate: missingDates ? "" : initialDraft.checkOutDate || "",
   });
   const [guestCounts, setGuestCounts] = useState({
     adults: Math.max(1, Math.floor(initialDraft.guestAdults || 1)),
@@ -405,62 +421,62 @@ function SmartBarBookingContextSelectors({
     const cells = calendarCells(calendarMonth.year, calendarMonth.monthIndex);
 
     return (
-      <div className="rounded-[24px] border border-white/18 bg-slate-950/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
-        <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="rounded-[22px] border border-white/18 bg-slate-950/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+        <div className="mb-2 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => shiftMonth(-1)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg font-black text-white ring-1 ring-white/12"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
             aria-label="Previous month"
           >
             ‹
           </button>
           <div className="text-center">
-            <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/62">
+            <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
               {dateDraft.checkInDate && !dateDraft.checkOutDate ? "Select check-out" : "Select check-in"}
             </div>
-            <div className="mt-0.5 text-[15px] font-black leading-5 text-white">
+            <div className="mt-0.5 text-[14px] font-black leading-4 text-white">
               {monthLabel(calendarMonth.year, calendarMonth.monthIndex)}
             </div>
           </div>
           <button
             type="button"
             onClick={() => shiftMonth(1)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-lg font-black text-white ring-1 ring-white/12"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
             aria-label="Next month"
           >
             ›
           </button>
         </div>
 
-        <div className="mb-2 grid grid-cols-2 gap-2">
-          <div className="rounded-[18px] bg-sky-200/92 px-3 py-2 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-sky-100/34">
+        <div className="mb-1.5 grid grid-cols-2 gap-2">
+          <div className="rounded-[16px] bg-sky-200/92 px-3 py-1.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-sky-100/34">
             <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-in</div>
-            <div className="mt-0.5 text-sm font-black">{compactCalendarDateLabel(dateDraft.checkInDate)}</div>
+            <div className="mt-0.5 text-[13px] font-black leading-4">{compactCalendarDateLabel(dateDraft.checkInDate)}</div>
           </div>
-          <div className="rounded-[18px] bg-sky-200/70 px-3 py-2 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ring-1 ring-sky-100/24">
+          <div className="rounded-[16px] bg-sky-200/70 px-3 py-1.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ring-1 ring-sky-100/24">
             <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-out</div>
-            <div className="mt-0.5 text-sm font-black">{compactCalendarDateLabel(dateDraft.checkOutDate)}</div>
+            <div className="mt-0.5 text-[13px] font-black leading-4">{compactCalendarDateLabel(dateDraft.checkOutDate)}</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-black uppercase tracking-[0.06em] text-white/44">
+        <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black uppercase tracking-[0.06em] text-white/44">
           {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
-            <div key={`${day}-${index}`} className="py-1">{day}</div>
+            <div key={`${day}-${index}`} className="py-0.5">{day}</div>
           ))}
         </div>
 
         <div className="grid grid-cols-7 gap-1">
           {cells.map((value, index) => {
-            if (!value) return <div key={`empty-${index}`} className="h-9" />;
+            if (!value) return <div key={`empty-${index}`} className="h-8" />;
 
             const state = dateButtonState(value, dateDraft.checkInDate, dateDraft.checkOutDate);
             const className =
               state === "selected"
-                ? "h-9 rounded-full bg-sky-200 text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),0_6px_14px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40"
+                ? "h-8 rounded-full bg-sky-200 text-[13px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),0_6px_14px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40"
                 : state === "range"
-                  ? "h-9 rounded-full bg-sky-200/34 text-sm font-black text-white ring-1 ring-sky-100/16"
-                  : "h-9 rounded-full bg-white/[0.07] text-sm font-black text-white ring-1 ring-white/8";
+                  ? "h-8 rounded-full bg-sky-200/34 text-[13px] font-black text-white ring-1 ring-sky-100/16"
+                  : "h-8 rounded-full bg-white/[0.07] text-[13px] font-black text-white ring-1 ring-white/8";
 
             return (
               <button
@@ -469,6 +485,7 @@ function SmartBarBookingContextSelectors({
                 onClick={() => selectDate(value)}
                 className={className}
                 aria-label={`Select ${value}`}
+                data-tourbar-calendar-date={value}
               >
                 {dayNumberFromIso(value)}
               </button>
@@ -479,6 +496,7 @@ function SmartBarBookingContextSelectors({
         {datesComplete && missingGuests && (
           <button
             type="button"
+            data-tourbar-booking-apply="dates"
             onClick={() => setStage("guests")}
             className="mt-3 flex w-full items-center justify-center rounded-full bg-emerald-300/92 px-4 py-3 text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_8px_18px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/34"
           >
@@ -534,15 +552,10 @@ function SmartBarBookingContextSelectors({
   );
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-[24px] border border-white/20 bg-slate-950/86 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/14">
-        <div className="text-[11px] font-black uppercase tracking-[0.16em] text-sky-100/82">
+    <div className="space-y-1.5">
+      <div className="rounded-[18px] border border-white/20 bg-slate-950/86 px-3.5 py-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_22px_rgba(2,6,23,0.20)] ring-1 ring-white/14">
+        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-100/82">
           Trip details needed
-        </div>
-        <div className="mt-1 text-[15px] font-bold leading-5 text-white/92">
-          {stage === "dates"
-            ? "Select check-in and check-out dates first."
-            : "Set adults and kids separately, then continue the search."}
         </div>
       </div>
 
@@ -640,7 +653,7 @@ async function postTourBarHotelBooking(
   return raw;
 }
 
-export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }: SmartBarBookingAdapterProps) {
+export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, demoSubmission = null }: SmartBarBookingAdapterProps) {
   const [workingStay, setWorkingStay] = useState<TourBarWorkingStayContext>({
     roomId: site.selectedRoom || site.roomStepOrder[0] || null,
     packageIds: site.selectedPackages,
@@ -1629,6 +1642,52 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
     return actions;
   };
 
+  const activeNavigationStep = () => {
+    const state = navigationStateRef.current;
+    if (!state || !state.steps.length) return null;
+
+    const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+    return state.steps[activeIndex] || null;
+  };
+
+  const guidedStepRoomId = (step?: TourBarBookingPageTarget | null) => {
+    if (!step) return "";
+
+    const roomId = roomIdFromTarget(step.targetId);
+    return roomId || "";
+  };
+
+  const guidedRoomBody = (step?: TourBarBookingPageTarget | null) => {
+    const roomId = guidedStepRoomId(step);
+    if (!roomId) return "";
+
+    if (roomId === "room-garden-terrace") {
+      return "Garden Terrace King keeps the stay in a better-value band while still matching the view and breakfast intent.";
+    }
+
+    if (roomId === "room-ocean-view-suite") {
+      return "Ocean View Suite is the best balance of view, comfort, and breakfast compatibility without jumping to villa pricing.";
+    }
+
+    if (roomId === "room-coastal-villa") {
+      return "Coastal Villa Suite gives the strongest view and most space, but it is the premium option for this stay.";
+    }
+
+    if (roomId === "room-family-double") {
+      return "Family Double Room is the practical fit for the completed family request, with enough guest capacity.";
+    }
+
+    const meta = site.getRoomMeta(roomId);
+    return meta?.signal || "";
+  };
+
+  const guidedRoomTitle = (step?: TourBarBookingPageTarget | null) => {
+    const roomId = guidedStepRoomId(step);
+    if (!roomId) return "";
+
+    return site.getRoomMeta(roomId)?.title || step?.targetText || "";
+  };
+
   const bookingSummaryRows = (raw: TourBarBookingRawResponse) => {
     const visibleContext = asRecord(raw.visibleContext);
     const bookingContext = asRecord(visibleContext.bookingContext);
@@ -1688,7 +1747,9 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
   };
 
   const contentForRaw = (raw: TourBarBookingRawResponse, summary = false): ReactNode => {
-    const body = summary ? "Review the stay details SmartBar has staged for handoff." : bookingResponseBody(raw);
+    const step = activeNavigationStep();
+    const guidedBody = !summary ? guidedRoomBody(step) : "";
+    const body = summary ? "Review the stay details SmartBar has staged for handoff." : guidedBody || bookingResponseBody(raw);
     const rows = summary ? bookingSummaryRows(raw) : [];
 
     return (
@@ -1754,7 +1815,10 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
     const actions = actionsForRaw(raw).filter((action) =>
       summary ? action.id !== "booking-handoff" && action.id !== "booking-summary" : true,
     );
-    const body = summary ? "Review the stay details SmartBar has staged for handoff." : bookingResponseBody(raw);
+    const step = activeNavigationStep();
+    const guidedBody = !summary ? guidedRoomBody(step) : "";
+    const guidedTitle = !summary ? guidedRoomTitle(step) : "";
+    const body = summary ? "Review the stay details SmartBar has staged for handoff." : guidedBody || bookingResponseBody(raw);
     const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
     const summaryRowCount = summary ? bookingSummaryRows(raw).length : 0;
     const estimatedHeight = summary
@@ -1775,7 +1839,7 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
     return {
       surfaceKind: summary ? "booking_summary" : "booking_tour",
       eyebrow: summary ? "Booking preload" : "Domi stay match",
-      title: summary ? "Booking summary" : shellResult.title || "Domi booking match",
+      title: summary ? "Booking summary" : guidedTitle || shellResult.title || "Domi booking match",
       helper: summary
         ? "Room, add-ons, dates, guests, and estimate are ready for handoff."
         : navigates
@@ -1984,7 +2048,7 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
     syncPromptContextToDraft(promptContext);
 
     const draft = selectorDraftFromSite();
-    const demoForcesMissingBookingContext = demoFixtureMode && /\bneed a family room\b/i.test(query);
+    const demoForcesMissingBookingContext = demoFixtureMode && /^\s*need a family room\s*$/i.test(query);
     const hasDates = !demoForcesMissingBookingContext && Boolean(promptContext.datesSelected || site.datesSelected || draft.datesSelected);
     const hasGuests = !demoForcesMissingBookingContext && Boolean(promptContext.guestsSelected || site.guestsSelected || draft.guestsSelected);
 
@@ -2096,11 +2160,52 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false }
     return submitBookingQuery(query);
   };
 
+  useEffect(() => {
+    const handleDomiDemoAction = (event: Event) => {
+      const detail = (event as CustomEvent<{ actionId?: string }>).detail;
+      const actionId = String(detail?.actionId || "").trim();
+
+      if (!["booking-nav-next", "booking-summary", "booking-handoff", "booking-context-continue"].includes(actionId)) return;
+
+      const raw = currentRawRef.current;
+      if (actionId !== "booking-context-continue" && !raw) return;
+
+      const action: SmartBarMobileGenericAction = {
+        id: actionId,
+        label: actionId === "booking-nav-next"
+          ? "Next"
+          : actionId === "booking-context-continue"
+            ? "Continue search"
+            : "Prepare booking summary",
+        variant: actionId === "booking-nav-next" ? "next" : "primary",
+      };
+
+      Promise.resolve(submitGenericAction(action))
+        .then((nextResult) => {
+          window.dispatchEvent(
+            new CustomEvent("smartbar-mobile-domi-demo-result", {
+              detail: { result: nextResult, actionId },
+            }),
+          );
+        })
+        .catch(() => {
+          // Demo-only bridge: keep the current result if the synthetic action cannot run.
+        });
+    };
+
+    window.addEventListener("smartbar-mobile-domi-demo-action", handleDomiDemoAction as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-domi-demo-action", handleDomiDemoAction as EventListener);
+    };
+  }, []);
+
   return (
     <SmartBarMobileShell
       mode="overlay"
       entryModeLabel="Plan stay"
       buildingLabel="Checking stay options..."
+      demoSubmission={demoSubmission}
       onSubmitPrompt={submitBookingQuery}
       onGenericAction={submitGenericAction}
       onResetCart={() => {

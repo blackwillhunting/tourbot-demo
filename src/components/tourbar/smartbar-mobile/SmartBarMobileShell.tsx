@@ -110,6 +110,8 @@ export type SmartBarMobileDemoSubmission = {
   typeDelayMs?: number;
   /** Demo-only pause after typing before submit. */
   submitDelayMs?: number;
+  /** Demo-only: type the query and wait for an external scripted click to submit. */
+  manualSubmit?: boolean;
 };
 
 type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionSelectionMode" | "retryPrompt">>;
@@ -480,6 +482,7 @@ export default function SmartBarMobileShell({
   const isOverlay = mode === "overlay";
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const genericContentMeasureRef = useRef<HTMLDivElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
   const handoffCollapseTimerRef = useRef<number | null>(null);
@@ -563,10 +566,19 @@ export default function SmartBarMobileShell({
     total: orderEstimatedTotal,
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
-  const chatPanelEstimatedHeight = measuredGenericPanelHeight
-    ? Math.min(maxCartPanelHeight, Math.max(200, measuredGenericPanelHeight))
+  const measuredGenericSurfaceHeight = measuredGenericPanelHeight
+    ? Math.min(maxCartPanelHeight, Math.max(220, measuredGenericPanelHeight + 2))
+    : null;
+  const chatPanelEstimatedHeight = measuredGenericSurfaceHeight
+    ? Math.min(maxCartPanelHeight, Math.max(200, measuredGenericSurfaceHeight))
     : Math.min(maxCartPanelHeight, Math.max(200, genericResult?.height ?? 200));
   const shellChatPanelHeight = Math.min(maxCartPanelHeight, Math.max(456, genericResult?.height ?? 456));
+  const bookingPanelMeasuredHeight =
+    genericResult &&
+    (genericResult.surfaceKind === "booking_tour" || genericResult.surfaceKind === "booking_summary") &&
+    measuredGenericSurfaceHeight
+      ? Math.min(maxCartPanelHeight, Math.max(260, measuredGenericSurfaceHeight))
+      : null;
   const genericPanelHeight = genericResult
     ? genericResult.surfaceKind === "chat_shell"
       ? shellChatPanelHeight
@@ -574,19 +586,50 @@ export default function SmartBarMobileShell({
         ? chatPanelEstimatedHeight
         : genericResult.surfaceKind === "info"
           ? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
-          : Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
+          : bookingPanelMeasuredHeight ?? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
     : 0;
 
   useEffect(() => {
-    if (genericResult?.surfaceKind !== "chat") {
+    if (!genericResult) {
       setMeasuredGenericPanelHeight(null);
       return;
     }
 
-    const fallbackHeight = Math.min(maxCartPanelHeight, Math.max(200, genericResult.height ?? 200));
+    const node = genericContentMeasureRef.current;
+    const isChat = genericResult.surfaceKind === "chat";
+    const fallbackHeight = Math.min(maxCartPanelHeight, Math.max(isChat ? 200 : 240, genericResult.height ?? (isChat ? 200 : 280)));
     setMeasuredGenericPanelHeight(fallbackHeight);
 
+    let frame = 0;
+    const measureSurface = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const nextHeight = Math.ceil(node?.scrollHeight || 0);
+        if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
+
+        setMeasuredGenericPanelHeight((current) => {
+          const clampedHeight = Math.min(
+            maxCartPanelHeight,
+            Math.max(isChat ? 200 : 240, nextHeight),
+          );
+          return current === clampedHeight ? current : clampedHeight;
+        });
+      });
+    };
+
+    window.setTimeout(measureSurface, 40);
+    window.setTimeout(measureSurface, 180);
+    window.setTimeout(measureSurface, 520);
+
+    let observer: ResizeObserver | null = null;
+    if (node && typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(measureSurface);
+      observer.observe(node);
+    }
+
     const handleChatHeight = (event: Event) => {
+      if (!isChat) return;
+
       const detail = (event as CustomEvent<{ height?: number }>).detail;
       const nextHeight = Number(detail?.height);
 
@@ -601,9 +644,11 @@ export default function SmartBarMobileShell({
     window.addEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
 
     return () => {
+      window.cancelAnimationFrame(frame);
+      observer?.disconnect();
       window.removeEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
     };
-  }, [genericResult?.surfaceKind, genericResult?.height, maxCartPanelHeight]);
+  }, [genericResult?.surfaceKind, genericResult?.title, genericResult?.content, genericResult?.height, maxCartPanelHeight]);
 
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
@@ -853,6 +898,8 @@ export default function SmartBarMobileShell({
         setEntryDraft(query.slice(0, index));
         await waitFor(typeDelayMs);
       }
+
+      if (demoSubmission.manualSubmit) return;
 
       await waitFor(submitDelayMs);
       if (cancelled) return;
@@ -1180,7 +1227,11 @@ export default function SmartBarMobileShell({
     if (handoffState === "handing_off") return "Sending...";
     if (handoffState === "complete") return "Complete";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
-    if (phase === "building_cart") return hasCart ? "Updating..." : buildingStatusLabel;
+    if (phase === "building_cart") {
+      return buildingStatusLabel && buildingStatusLabel !== buildingLabel
+        ? buildingStatusLabel
+        : hasCart ? "Updating..." : buildingStatusLabel;
+    }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLine.id ? "Checking..." : "Re-enter";
@@ -1334,6 +1385,181 @@ export default function SmartBarMobileShell({
         setPhase("cart");
       });
   };
+
+  useEffect(() => {
+    const handleDemoGenericAction = (event: Event) => {
+      const detail = (event as CustomEvent<{ actionId?: string }>).detail;
+      const actionId = String(detail?.actionId || "").trim();
+
+      if (!actionId || !genericResult || handoffLocked) return;
+
+      const action = (genericResult.actions || []).find((candidate) => candidate.id === actionId);
+      if (!action || action.disabled) return;
+
+      handleGenericActionClick(action, genericResult);
+    };
+
+    window.addEventListener("smartbar-mobile-run-generic-action", handleDemoGenericAction as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-run-generic-action", handleDemoGenericAction as EventListener);
+    };
+  }, [genericResult, handoffLocked, handleGenericActionClick]);
+
+  useEffect(() => {
+    const handleDomiDemoResult = (event: Event) => {
+      const detail = (event as CustomEvent<{ result?: SmartBarMobileSubmitResult; actionId?: string }>).detail;
+      const result = detail?.result;
+      const actionId = String(detail?.actionId || "");
+
+      if (!result) return;
+
+      const revealDomiDemoResult = (nextResult: SmartBarMobileSubmitResult) => {
+        if (smartBarMobileResultIsGeneric(nextResult)) {
+          setGenericResult(nextResult);
+          setOrderLines([]);
+          setOrderEstimatedSubtotal(undefined);
+          setOrderEstimatedTax(undefined);
+          setOrderEstimatedTotal("—");
+        } else {
+          setGenericResult(null);
+          setOrderLines(nextResult.lines);
+          applyOrderResultEstimates(nextResult, estimatedTotal);
+        }
+
+        setHasCart(true);
+        setCartExpanded(true);
+        setPhase("cart");
+      };
+
+      entryTextareaRef.current?.blur();
+      retryTextareaRef.current?.blur();
+      clearBuildTimer();
+      clearHandoffTimers();
+      disarmClose();
+      setHandoffState("idle");
+      setSelectedLineId(null);
+      setLineOverrides({});
+      setMeasuredGenericPanelHeight(null);
+      setCartExpanded(false);
+      setSubmittedPromptPreview(
+        actionId === "booking-nav-next"
+          ? "Next"
+          : actionId === "booking-context-continue"
+            ? "Continue search"
+            : actionId === "booking-summary" || actionId === "booking-handoff"
+              ? "Prepare booking summary"
+              : "SmartBar action",
+      );
+      setBuildingStatusLabel(
+        smartBarMobileResultIsGeneric(result) && result.navigationRevealLabel
+          ? result.navigationRevealLabel
+          : actionId === "booking-summary" || actionId === "booking-handoff"
+            ? "Preparing booking..."
+            : buildingLabel,
+      );
+      setGenericResult(null);
+      setPhase("building_cart");
+
+      if (
+        smartBarMobileResultIsGeneric(result) &&
+        result.navigationRevealDelayMs &&
+        result.navigationRevealDelayMs > 0
+      ) {
+        setBuildingStatusLabel(result.navigationRevealLabel || "Spotlighting...");
+
+        buildTimerRef.current = window.setTimeout(() => {
+          buildTimerRef.current = null;
+          revealDomiDemoResult(result);
+        }, result.navigationRevealDelayMs);
+        return;
+      }
+
+      buildTimerRef.current = window.setTimeout(() => {
+        buildTimerRef.current = null;
+        revealDomiDemoResult(result);
+      }, actionId === "booking-nav-next" ? 1200 : 850);
+    };
+
+    window.addEventListener("smartbar-mobile-domi-demo-result", handleDomiDemoResult as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-domi-demo-result", handleDomiDemoResult as EventListener);
+    };
+  }, [buildingLabel]);
+
+  useEffect(() => {
+    const handleDomiOpenEntry = () => {
+      entryTextareaRef.current?.blur();
+      retryTextareaRef.current?.blur();
+      clearBuildTimer();
+      clearHandoffTimers();
+      disarmClose();
+      choiceLockedLineIdRef.current = null;
+      setSelectedChoice(null);
+      setRetryCheckingLineId(null);
+      setSelectedLineId(null);
+      setLineOverrides({});
+      setGenericResult(null);
+      setMeasuredGenericPanelHeight(null);
+      setOrderLines([]);
+      setOrderEstimatedSubtotal(undefined);
+      setOrderEstimatedTax(undefined);
+      setOrderEstimatedTotal("—");
+      setHasCart(false);
+      setCartExpanded(false);
+      setSubmittedPromptPreview("");
+      setEntryDraft("");
+      setHasEditedEntryDraft(false);
+      setPhase("entry");
+    };
+
+    window.addEventListener("smartbar-mobile-domi-open-entry", handleDomiOpenEntry as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-domi-open-entry", handleDomiOpenEntry as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleDomiDemoPreAction = (event: Event) => {
+      const detail = (event as CustomEvent<{ actionId?: string }>).detail;
+      const actionId = String(detail?.actionId || "");
+
+      entryTextareaRef.current?.blur();
+      retryTextareaRef.current?.blur();
+      clearBuildTimer();
+      clearHandoffTimers();
+      disarmClose();
+      setHandoffState("idle");
+      setSelectedLineId(null);
+      setLineOverrides({});
+      setMeasuredGenericPanelHeight(null);
+      setCartExpanded(false);
+      setSubmittedPromptPreview(
+        actionId === "booking-nav-next"
+          ? "Next"
+          : actionId === "booking-context-continue"
+            ? "Continue search"
+            : actionId === "booking-summary" || actionId === "booking-handoff"
+              ? "Prepare booking summary"
+              : "SmartBar action",
+      );
+      setBuildingStatusLabel(
+        actionId === "booking-summary" || actionId === "booking-handoff"
+          ? "Preparing booking..."
+          : "Spotlighting...",
+      );
+      setGenericResult(null);
+      setPhase("building_cart");
+    };
+
+    window.addEventListener("smartbar-mobile-domi-demo-preaction", handleDomiDemoPreAction as EventListener);
+
+    return () => {
+      window.removeEventListener("smartbar-mobile-domi-demo-preaction", handleDomiDemoPreAction as EventListener);
+    };
+  }, []);
 
   const handleShellContentActionClick = (event: MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement | null;
@@ -1772,7 +1998,8 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-2" : "flex h-full min-h-0 flex-col px-4 pb-3 pt-3"}
+                    ref={genericContentMeasureRef}
+                    className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-2" : "flex min-h-0 flex-col px-4 pb-2 pt-3"}
                   >
                     <div className="hidden">
                       <div className="min-w-0">
@@ -1845,6 +2072,8 @@ export default function SmartBarMobileShell({
                                 key={action.id}
                                 type="button"
                                 data-smartbar-mobile-generic-action={action.id}
+                                data-domi-demo-next-target={action.id === "booking-nav-next" ? "true" : undefined}
+                                data-domi-demo-summary-target={action.id === "booking-summary" || action.id === "booking-handoff" || /prepare booking summary/i.test(action.label) ? "true" : undefined}
                                 disabled={action.disabled}
                                 onClick={() => handleGenericActionClick(action, genericResult)}
                                 className={genericActionButtonClass(action)}
@@ -1865,6 +2094,7 @@ export default function SmartBarMobileShell({
                             key={action.id}
                             type="button"
                             data-smartbar-mobile-generic-action={action.id}
+                            data-domi-demo-summary-target={action.id === "booking-summary" || action.id === "booking-handoff" || /prepare booking summary/i.test(action.label) ? "true" : undefined}
                             disabled={action.disabled}
                             onClick={() => handleGenericActionClick(action, genericResult)}
                             className={genericActionButtonClass(action)}
@@ -2068,6 +2298,7 @@ export default function SmartBarMobileShell({
               <motion.button
                 type="button"
                 data-smartbar-mobile-cart-toggle="true"
+                data-domi-demo-down-target={phase === "cart" ? "true" : undefined}
                 onClick={handleCartToggleClick}
                 className={`${chromePillClass} right-0`}
                 style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}

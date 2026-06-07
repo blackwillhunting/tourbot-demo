@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type HTMLAttributes, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -1553,9 +1553,14 @@ const DOMI_SECTIONS: DomiSection[] = [
   },
 ];
 
-function DomiCard({ className = "", children }: { className?: string; children: ReactNode }) {
+function DomiCard({
+  className = "",
+  children,
+  ...rest
+}: { className?: string; children: ReactNode } & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
+      {...rest}
       className={`overflow-hidden rounded-[16px] border border-white/35 bg-slate-50/82 shadow-sm shadow-slate-950/20 ring-1 ring-white/[0.08] backdrop-blur sm:rounded-[30px] ${className}`}
     >
       {children}
@@ -1563,29 +1568,47 @@ function DomiCard({ className = "", children }: { className?: string; children: 
   );
 }
 
+const DOMI_MOBILE_THEATER_TARGET_IDS = new Set([
+  "room-garden-terrace",
+  "room-ocean-view-suite",
+  "room-coastal-villa",
+  "room-family-double",
+  "package-breakfast-flex",
+]);
+
 function DomiSectionCard({ section, index }: { section: DomiSection; index: number }) {
   const Icon = section.Icon;
   const isRoom = section.kind === "room";
-  const dark = section.kind === "hero" || section.kind === "booking";
+  const isMobileTheaterTarget = DOMI_MOBILE_THEATER_TARGET_IDS.has(section.id);
+  const dark = section.kind === "hero" || section.kind === "booking" || isMobileTheaterTarget;
   const tags = section.tags || [];
   const details = section.details || [];
   const isRecommended = section.id === "room-garden-terrace" || section.id === "room-ocean-view-suite";
+  const mobileTheaterCardClass = isMobileTheaterTarget
+    ? "mx-3 border-slate-700/70 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white shadow-2xl shadow-slate-950/36 ring-slate-900/35 sm:mx-0"
+    : "";
 
   return (
     <motion.section
-      id={section.id}
-      data-tour-id={section.id}
-      data-smartbar-focus-surface="speed-demo"
-      data-spotlight-mode="region"
+      id={isMobileTheaterTarget ? undefined : section.id}
+      data-tour-id={isMobileTheaterTarget ? undefined : section.id}
+      data-smartbar-focus-surface={isMobileTheaterTarget ? undefined : "speed-demo"}
+      data-spotlight-mode={isMobileTheaterTarget ? undefined : "region"}
       layout
       initial={false}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25 }}
       className="relative scroll-mt-20 sm:scroll-mt-28"
     >
-      <DomiCard className={`${dark ? `bg-gradient-to-br ${section.tone} text-white` : ""}`}>
+      <DomiCard
+        id={isMobileTheaterTarget ? section.id : undefined}
+        data-tour-id={isMobileTheaterTarget ? section.id : undefined}
+        data-smartbar-focus-surface={isMobileTheaterTarget ? "speed-demo" : undefined}
+        data-spotlight-mode={isMobileTheaterTarget ? "card" : undefined}
+        className={`${mobileTheaterCardClass} ${dark && !isMobileTheaterTarget ? `bg-gradient-to-br ${section.tone} text-white` : ""}`}
+      >
         <div className={`grid ${isRoom || dark ? "lg:grid-cols-[0.82fr_1.18fr]" : "md:grid-cols-[190px_1fr]"}`}>
-          <div className={`relative min-h-[132px] overflow-hidden border-b text-white sm:min-h-[220px] md:border-b-0 md:border-r md:border-white/10 ${dark ? "bg-white/10" : ""}`}>
+          <div className={`relative ${isMobileTheaterTarget ? "min-h-[96px]" : "min-h-[132px]"} overflow-hidden border-b text-white sm:min-h-[220px] md:border-b-0 md:border-r md:border-white/10 ${dark ? "bg-white/10" : ""}`}>
             <div className={`absolute inset-0 bg-gradient-to-br ${section.tone}`} />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_18%,rgba(255,255,255,0.42),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.14),transparent_45%)]" />
             {isRoom ? (
@@ -1595,7 +1618,7 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
               </>
             ) : null}
 
-            <div className="relative z-10 flex h-full min-h-[132px] flex-col justify-between p-4 sm:min-h-[220px] sm:p-6">
+            <div className={`relative z-10 flex h-full ${isMobileTheaterTarget ? "min-h-[96px] p-3" : "min-h-[132px] p-4"} flex-col justify-between sm:min-h-[220px] sm:p-6`}>
               <div>
                 <div className="inline-flex rounded-xl bg-white/15 p-2 text-white shadow-sm backdrop-blur sm:rounded-2xl sm:p-3">
                   <Icon className="h-5 w-5" />
@@ -1621,7 +1644,7 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
             </div>
           </div>
 
-          <div className="p-4 sm:p-5 md:p-8">
+          <div className={isMobileTheaterTarget ? "p-3 sm:p-5 md:p-8" : "p-4 sm:p-5 md:p-8"}>
             <div className="flex flex-wrap gap-2">
               {tags.map((chip) => (
                 <span
@@ -1638,7 +1661,7 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
                 {section.title}
               </h2>
               {isRecommended ? (
-                <div className="mt-1.5 inline-flex rounded-full bg-cyan-50 px-2 py-0.5 text-[10px] font-semibold text-cyan-800">
+                <div className={`mt-1.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${isMobileTheaterTarget ? "bg-cyan-200/18 text-cyan-100 ring-1 ring-cyan-100/16" : "bg-cyan-50 text-cyan-800"}`}>
                   Recommendation path
                 </div>
               ) : null}

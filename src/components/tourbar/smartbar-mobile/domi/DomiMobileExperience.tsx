@@ -7,6 +7,23 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitResult,
 } from "../SmartBarMobileShell";
 import SmartBarSpeedTargetWall from "../../speed-demo/SmartBarSpeedTargetWall";
+import {
+  SmartBarFakePointerOverlay,
+  makeSmartBarFakePointerState,
+  type SmartBarFakePointerState,
+} from "../../speed-demo/SmartBarFakePointer";
+import {
+  SmartBarFlashCardStack,
+  type SmartBarFlashCardStackItem,
+} from "../../speed-demo/SmartBarFlashCardStack";
+import {
+  SmartBarFlashCard,
+  SmartBarFlashCardLane,
+  SmartBarFlashCardRail,
+  SMARTBAR_FLASH_CARD_CROSSOVER_MS,
+  type SmartBarFlashCardLaneName,
+  type SmartBarFlashCardNotice,
+} from "../../speed-demo/SmartBarFlashCardRail";
 import SmartBarBookingAdapter from "../adapters/SmartBarBookingAdapter";
 import type { TourBarBookingPageId, TourBarBookingSiteAdapter } from "../../TourBarBooking";
 
@@ -22,6 +39,11 @@ type MobileFocusSnapshot = {
 };
 
 type DomiMobileTone = "sky" | "slate" | "emerald" | "violet" | "amber";
+
+type DomiNarratorCardItem = {
+  id: string;
+  text: string;
+};
 
 type DomiRoom = {
   id: string;
@@ -230,6 +252,142 @@ function smartBarDomiCompact(value: string) {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+
+function domiElementLooksVisible(element: HTMLElement | null) {
+  if (!element) return false;
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+
+  return (
+    rect.width > 1 &&
+    rect.height > 1 &&
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < window.innerHeight &&
+    rect.left < window.innerWidth &&
+    style.visibility !== "hidden" &&
+    style.display !== "none" &&
+    Number(style.opacity || "1") > 0.02
+  );
+}
+
+function domiFindPointerTarget(selector: string) {
+  if (typeof document === "undefined") return null;
+  return Array.from(document.querySelectorAll<HTMLElement>(selector)).find(domiElementLooksVisible) || null;
+}
+
+function domiWait(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+function domiScriptedTypingWaitMs(query: string) {
+  // Matches submitDemoQuery typeDelayMs=22, plus entry-open and safety buffer.
+  return Math.max(900, query.length * 22 + 520);
+}
+
+function domiClickElement(element: HTMLElement) {
+  const clickable = (element.closest("button") as HTMLElement | null) || element;
+  clickable.scrollIntoView({ block: "center", inline: "center", behavior: "auto" });
+
+  // One scripted click only. The previous browser-style event stack plus .click()
+  // made React handle some targets twice.
+  clickable.click();
+}
+
+function DomiNarratorCards({ cards }: { cards: DomiNarratorCardItem[] }) {
+  const sequenceRef = useRef(0);
+  const [stackCards, setStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
+  const [activeLane, setActiveLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
+  const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
+  const [exitHold, setExitHold] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const visibleCards = cards.map((card) => card.text.trim()).filter(Boolean);
+    const sequenceId = sequenceRef.current + 1;
+    sequenceRef.current = sequenceId;
+
+    const clearAll = async () => {
+      setExitHold(true);
+      setActiveLane(null);
+      setStackCards([]);
+
+      await domiWait(SMARTBAR_FLASH_CARD_CROSSOVER_MS + 260);
+      if (cancelled || sequenceRef.current !== sequenceId) return;
+
+      setNoticeA(null);
+      setNoticeB(null);
+      setExitHold(false);
+    };
+
+    const runCards = async () => {
+      if (!visibleCards.length) {
+        await clearAll();
+        return;
+      }
+
+      setExitHold(true);
+
+      if (visibleCards.length > 1) {
+        setActiveLane(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        setStackCards([]);
+
+        const nextStack: SmartBarFlashCardStackItem[] = [];
+        for (let index = 0; index < visibleCards.length; index += 1) {
+          if (cancelled || sequenceRef.current !== sequenceId) return;
+
+          nextStack.push({
+            id: `${sequenceId}-${index}-${visibleCards[index]}`,
+            variant: "prelude",
+            title: visibleCards[index],
+            density: visibleCards.length >= 4 ? "micro" : "compact",
+          });
+
+          setStackCards([...nextStack]);
+          await domiWait(760);
+        }
+
+        return;
+      }
+
+      setStackCards([]);
+      const notice: SmartBarFlashCardNotice = {
+        variant: "prelude",
+        title: visibleCards[0],
+      };
+
+      const nextLane: SmartBarFlashCardLaneName = activeLane === "a" ? "b" : "a";
+      if (nextLane === "a") setNoticeA(notice);
+      else setNoticeB(notice);
+
+      setActiveLane(nextLane);
+    };
+
+    void runCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cards, activeLane]);
+
+  if (!cards.length && !noticeA && !noticeB && !stackCards.length && !exitHold) return null;
+
+  return (
+    <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10130]">
+      <SmartBarFlashCardStack cards={stackCards} mode={stackCards.length >= 4 ? "flurry" : "standard"} />
+      <SmartBarFlashCardLane active={activeLane === "a"}>
+        <SmartBarFlashCard notice={noticeA} />
+      </SmartBarFlashCardLane>
+      <SmartBarFlashCardLane active={activeLane === "b"}>
+        <SmartBarFlashCard notice={noticeB} />
+      </SmartBarFlashCardLane>
+    </SmartBarFlashCardRail>
+  );
+}
+
 function DomiMiniCard({
   eyebrow,
   title,
@@ -361,13 +519,18 @@ function DomiBookingSummaryContent() {
 
 type DomiMobileExperienceProps = {
   demoFixtureMode?: boolean;
+  autoPlay?: boolean;
 };
 
-export default function DomiMobileExperience({ demoFixtureMode = false }: DomiMobileExperienceProps) {
+export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay = false }: DomiMobileExperienceProps) {
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
   const focusTimerRef = useRef<number | null>(null);
   const submissionIdRef = useRef(0);
+  const domiPointerIdRef = useRef(0);
+  const autoPlayStartedRef = useRef(false);
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
+  const [pointer, setPointer] = useState<SmartBarFakePointerState | null>(null);
+  const [narratorCards, setNarratorCards] = useState<DomiNarratorCardItem[]>([]);
   const [activeRoomIndex, setActiveRoomIndex] = useState(1);
   const [breakfastAdded, setBreakfastAdded] = useState(false);
   const [currentPage, setCurrentPage] = useState<TourBarBookingPageId>("home");
@@ -501,8 +664,321 @@ export default function DomiMobileExperience({ demoFixtureMode = false }: DomiMo
 
   const submitDemoQuery = useCallback((query: string) => {
     submissionIdRef.current += 1;
-    setDemoSubmission({ id: submissionIdRef.current, query });
+    setDemoSubmission({
+      id: submissionIdRef.current,
+      query,
+      typing: true,
+      typeDelayMs: 22,
+      submitDelayMs: 60000,
+      manualSubmit: true,
+    });
   }, []);
+
+
+  const pointToSelector = useCallback(async (selector: string, label: string, options: { click?: boolean; waitForMs?: number } = {}) => {
+    const startedAt = Date.now();
+    let target: HTMLElement | null = null;
+
+    while (Date.now() - startedAt < (options.waitForMs ?? 5000)) {
+      target = domiFindPointerTarget(selector);
+      if (target) break;
+      await domiWait(120);
+    }
+
+    if (!target) return null;
+
+    domiPointerIdRef.current += 1;
+    const id = domiPointerIdRef.current;
+
+    setPointer(makeSmartBarFakePointerState(target, {
+      id,
+      label,
+      anchorX: 0.5,
+      anchorY: 0.5,
+    }));
+    await domiWait(720);
+
+    setPointer(makeSmartBarFakePointerState(target, {
+      id,
+      label,
+      phase: "pulse",
+      anchorX: 0.5,
+      anchorY: 0.5,
+    }));
+    await domiWait(1040);
+
+    if (options.click) {
+      domiClickElement(target);
+      await domiWait(650);
+    }
+
+    setPointer(null);
+    return target;
+  }, []);
+
+  const runDomiAction = useCallback((actionId: string) => {
+    window.dispatchEvent(
+      new CustomEvent("smartbar-mobile-domi-demo-preaction", {
+        detail: { actionId },
+      }),
+    );
+
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("smartbar-mobile-domi-demo-action", {
+          detail: { actionId },
+        }),
+      );
+    }, 120);
+  }, []);
+
+  const openDomiEntry = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("smartbar-mobile-domi-open-entry"));
+  }, []);
+
+  const showDomiCards = useCallback(async (cards: string[], durationMs = 2400) => {
+    const visibleCards = cards.map((card) => card.trim()).filter(Boolean);
+
+    if (!visibleCards.length) {
+      setNarratorCards([]);
+      return;
+    }
+
+    setNarratorCards(
+      visibleCards.map((card, index) => ({
+        id: `${Date.now()}-${index}-${card}`,
+        text: card,
+      })),
+    );
+
+    await domiWait(durationMs);
+    setNarratorCards([]);
+    await domiWait(180);
+  }, []);
+
+
+  useEffect(() => {
+    if (!autoPlay || autoPlayStartedRef.current) return;
+    autoPlayStartedRef.current = true;
+
+    let cancelled = false;
+
+    const run = async () => {
+      await domiWait(900);
+      if (cancelled) return;
+
+      // start
+      await showDomiCards(["Example 3: Domi Hotel", "Booking flow", "SmartBar compares stay options"], 4200);
+      if (cancelled) return;
+
+      // → tap launcher
+      await pointToSelector('[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]', "Open", {
+        click: true,
+        waitForMs: 6000,
+      });
+      if (cancelled) return;
+
+      // ↓ type initial prompt - complete
+      await showDomiCards(["Complete request", "Room, dates, view, breakfast"], 3600);
+      if (cancelled) return;
+
+      await domiWait(500);
+      const initialPrompt = "Aug 4 to 9, nice room with view, just me";
+      submitDemoQuery(initialPrompt);
+      await domiWait(domiScriptedTypingWaitMs(initialPrompt));
+      if (cancelled) return;
+
+      // → tap submit
+      await pointToSelector('[data-smartbar-mobile-submit="true"]', "Ask", {
+        click: true,
+        waitForMs: 9000,
+      });
+      if (cancelled) return;
+
+      // ↓ navigates/spotlights item 1 of 3
+      await showDomiCards(["SmartBar carries context", "Compare options"], 3400);
+      if (cancelled) return;
+
+      await domiWait(3500);
+      if (cancelled) return;
+
+      // → tap next
+      await pointToSelector('[data-domi-demo-next-target="true"]', "Next", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-nav-next");
+      if (cancelled) return;
+
+      // ↓ navigates to item 2 of 3
+      await domiWait(5200);
+      if (cancelled) return;
+
+      // → tap next
+      await pointToSelector('[data-domi-demo-next-target="true"]', "Next", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-nav-next");
+      if (cancelled) return;
+
+      // ↓ navigates to item 3 of 3
+      await domiWait(5200);
+      if (cancelled) return;
+
+      // → tap down arrow
+      await pointToSelector('[data-domi-demo-down-target="true"]', "Down", {
+        click: true,
+        waitForMs: 5000,
+      });
+      if (cancelled) return;
+
+      // ↓ type 'add breakfast'
+      await showDomiCards(["Same stay", "New add-on", "Context stays attached"], 3600);
+      if (cancelled) return;
+
+      await domiWait(500);
+      const breakfastPrompt = "add breakfast";
+      submitDemoQuery(breakfastPrompt);
+      await domiWait(domiScriptedTypingWaitMs(breakfastPrompt));
+      if (cancelled) return;
+
+      // → tap submit
+      await pointToSelector('[data-smartbar-mobile-submit="true"]', "Ask", {
+        click: true,
+        waitForMs: 9000,
+      });
+      if (cancelled) return;
+
+      // ↓ navigate to breakfast plan
+      await domiWait(6200);
+      if (cancelled) return;
+
+      // → tap to book
+      await pointToSelector('[data-domi-demo-summary-target="true"], [data-smartbar-mobile-generic-action="booking-summary"], [data-smartbar-mobile-generic-action="booking-handoff"], [data-smartbar-mobile-generic-action="prepare-booking"]', "Book", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-summary");
+      if (cancelled) return;
+
+      // ↓ open booking summary
+      await domiWait(5200);
+      if (cancelled) return;
+
+      // ↓ close booking summary
+      openDomiEntry();
+      await domiWait(900);
+      if (cancelled) return;
+
+      // ↓ type 2nd prompt - incomplete
+      await showDomiCards(["Missing details", "SmartBar asks only what it needs"], 3800);
+      if (cancelled) return;
+
+      const familyPrompt = "need a family room";
+      submitDemoQuery(familyPrompt);
+      await domiWait(domiScriptedTypingWaitMs(familyPrompt));
+      if (cancelled) return;
+
+      // → tap submit
+      await pointToSelector('[data-smartbar-mobile-submit="true"]', "Ask", {
+        click: true,
+        waitForMs: 9000,
+      });
+      if (cancelled) return;
+
+      // ↓ open calendar
+      await domiWait(2800);
+      if (cancelled) return;
+
+      // → tap checkin date
+      await pointToSelector('[data-tourbar-calendar-date="2026-06-12"], button[aria-label="Select 2026-06-12"]', "Check-in", {
+        click: true,
+        waitForMs: 7000,
+      });
+      if (cancelled) return;
+
+      await domiWait(420);
+      if (cancelled) return;
+
+      // → tap checkout date
+      await pointToSelector('[data-tourbar-calendar-date="2026-06-15"], button[aria-label="Select 2026-06-15"]', "Check-out", {
+        click: true,
+        waitForMs: 7000,
+      });
+      if (cancelled) return;
+
+      // ↓ checkout date confirms dates and opens guest picker
+      await domiWait(1200);
+      if (cancelled) return;
+
+      // → tap adult
+      await pointToSelector('[data-tourbar-guest-control="adults-increment"], button[aria-label="Increase adults"]', "Adult", {
+        click: true,
+        waitForMs: 7000,
+      });
+      if (cancelled) return;
+
+      await domiWait(420);
+      if (cancelled) return;
+
+      // → tap child
+      await pointToSelector('[data-tourbar-guest-control="children-increment"], button[aria-label="Increase kids"], button[aria-label="Increase children"]', "Child", {
+        click: true,
+        waitForMs: 7000,
+      });
+      if (cancelled) return;
+
+      await domiWait(700);
+      if (cancelled) return;
+
+      // → tap continue to confirm guests
+      await pointToSelector('[data-smartbar-mobile-generic-action="booking-context-continue"], [data-smartbar-mobile-content-action="booking-context-continue"]', "Continue", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-context-continue");
+      if (cancelled) return;
+
+      // ↓ navigate to family double
+      await showDomiCards(["Ready to book", "Room, dates, guests, add-ons"], 3800);
+      if (cancelled) return;
+
+      await domiWait(3900);
+      if (cancelled) return;
+
+      // → tap CTA to book it
+      await pointToSelector('[data-domi-demo-summary-target="true"], [data-smartbar-mobile-generic-action="booking-summary"], [data-smartbar-mobile-generic-action="booking-handoff"], [data-smartbar-mobile-generic-action="prepare-booking"]', "Book", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-summary");
+      if (cancelled) return;
+
+      // ↓ open booking summary
+      await domiWait(5200);
+      if (cancelled) return;
+
+      // ↓ close booking summary
+      openDomiEntry();
+      setPointer(null);
+
+      // Route handoff to the standalone mobile finale.
+      await domiWait(1100);
+      if (cancelled) return;
+      window.location.assign("/local-smartbar-finale?from=domi&t=mobile-finale");
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+      autoPlayStartedRef.current = false;
+      setPointer(null);
+      setNarratorCards([]);
+    };
+  }, [autoPlay, openDomiEntry, pointToSelector, runDomiAction, showDomiCards, submitDemoQuery]);
+
 
   useEffect(() => () => clearFocus(), [clearFocus]);
 
@@ -603,6 +1079,8 @@ export default function DomiMobileExperience({ demoFixtureMode = false }: DomiMo
       className="relative min-h-[100dvh] overflow-x-hidden bg-[radial-gradient(circle_at_16%_10%,rgba(56,189,248,0.18),transparent_34%),linear-gradient(135deg,#f8fafc_0%,#eef6ff_54%,#f8fafc_100%)] text-slate-950"
     >
       <div className="pointer-events-none fixed inset-0 opacity-[0.14] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <DomiNarratorCards cards={narratorCards} />
+      <SmartBarFakePointerOverlay pointer={pointer} />
       <section
         data-smartbar-speed-stage="true"
         data-smartbar-speed-surface="booking"
@@ -611,7 +1089,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false }: DomiMo
         <SmartBarSpeedTargetWall surface="booking" />
       </section>
       {demoFixtureMode ? (
-        <SmartBarBookingAdapter site={tourBarBookingSite} demoFixtureMode />
+        <SmartBarBookingAdapter site={tourBarBookingSite} demoFixtureMode demoSubmission={demoSubmission} />
       ) : (
         <SmartBarMobileShell
           mode="overlay"

@@ -53,7 +53,7 @@ function Card({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-[18px] border border-white/80 bg-white/94 shadow-sm shadow-slate-900/10 ring-1 ring-slate-950/[0.04] backdrop-blur sm:rounded-[28px] ${className}`}
+      className={`overflow-hidden rounded-[18px] border border-white/14 bg-white/[0.88] shadow-xl shadow-slate-950/18 ring-1 ring-cyan-100/20 backdrop-blur sm:rounded-[28px] ${className}`}
     >
       {children}
     </div>
@@ -157,46 +157,46 @@ function StaticSearchPresence({ compact = false }: { compact?: boolean }) {
 export const PAGES: Record<PageId, Page> = {
   home: {
     id: "home",
-    title: "Modern intelligent services for regulated firms",
-    subtitle: "Guided Discovery demo for TourBot prototyping",
+    title: "Premium managed IT for regulated firms",
+    subtitle: "Cybersecurity, cloud operations, and Copilot-ready modernization",
     hero:
-      "This NexaPath Advisory demo is designed to demonstrate guided discovery across a dense B2B website. It emphasizes capability families, industry fit, and compliance-aware messaging.",
+      "NexaPath helps financial and regulated teams modernize IT, harden security, and roll out AI tools without losing control of data, access, or compliance.",
     sections: [
       {
         id: "hero-modern-provider",
-        title: "Who we are",
+        title: "Executive IT command center",
         body:
-          "We position ourselves as a modern intelligent services partner helping regulated and financial firms modernize infrastructure, strengthen resilience, and improve decision support.",
+          "A senior MSP and advisory partner for firms that need reliable systems, secure collaboration, evidence-ready controls, and practical AI adoption.",
       },
       {
         id: "solutions-grid",
-        title: "Core solution families",
+        title: "Operating lanes",
         body:
-          "Explore four major capability lanes: AI & Data Solutions, Cloud & Infrastructure, Cybersecurity & Compliance, and Managed Solutions.",
+          "Four connected lanes: AI enablement, cloud infrastructure, cybersecurity/compliance, and managed service delivery.",
       },
       {
         id: "proof-points",
-        title: "Why firms choose us",
+        title: "Proof signals",
         body:
-          "This prototype uses proof-point blocks to make the site more tour-friendly: operating rigor, regulated-industry familiarity, secure cloud foundations, and practical AI adoption.",
+          "The page should immediately signal maturity: executive reporting, regulated-firm experience, secure Microsoft foundations, and measurable service operations.",
       },
       {
         id: "industries-preview",
-        title: "Industries served",
+        title: "Regulated teams served",
         body:
-          "We organize value around industry reality, not just technology. Sample focus areas include hedge funds, private equity, insurance, and biotech.",
+          "The message is industry-aware: hedge funds, private equity, insurance, biotech, and other firms where downtime, access, and audit readiness matter.",
       },
       {
         id: "compliance-preview",
-        title: "Compliance lens",
+        title: "Compliance pressure map",
         body:
-          "Regulatory and policy pressure shapes nearly every technology decision in this mock site. The compliance center gives visitors a way to explore that lens directly.",
+          "Security and compliance are not side pages. They shape architecture, monitoring, vendor review, incident response, and AI rollout decisions.",
       },
       {
         id: "contact-cta",
-        title: "Talk to a specialist",
+        title: "Book a readiness review",
         body:
-          "When a visitor is ready, the site should make it easy to continue into a sales or solution-design conversation.",
+          "The final stop should feel like a useful advisory handoff, not a generic contact form.",
       },
     ],
   },
@@ -266,7 +266,7 @@ export const PAGES: Record<PageId, Page> = {
       },
       {
         id: "phishing-training",
-        title: "Phishing & Training",
+        title: "Phishing & Response",
         body:
           "Behavioral resilience matters. Security awareness and phishing readiness strengthen the human layer of defense.",
       },
@@ -280,7 +280,7 @@ export const PAGES: Record<PageId, Page> = {
         id: "governance-risk",
         title: "Governance & Risk",
         body:
-          "Translate cyber pressure into policy, controls, accountability, and confidence for leadership, auditors, and stakeholders.",
+          "Stabilize cyber pressure into policy, controls, accountability, and confidence for leadership, auditors, and stakeholders.",
       },
       {
         id: "policy-management",
@@ -436,7 +436,7 @@ export const TOUR_LIBRARY: Record<string, { title: string; intro: string; final:
       {
         pageId: "home",
         anchorId: "solutions-grid",
-        title: "Core solution families",
+        title: "Operating lanes",
         summary:
           "These four blocks are the main capability map: AI & Data, Cloud & Infrastructure, Cybersecurity & Compliance, and Managed Solutions.",
         bridge: "Now let’s shift from offerings to who those offerings are designed for.",
@@ -444,7 +444,7 @@ export const TOUR_LIBRARY: Record<string, { title: string; intro: string; final:
       {
         pageId: "home",
         anchorId: "industries-preview",
-        title: "Industries served",
+        title: "Regulated teams served",
         summary:
           "The site does not present technology in a vacuum. It ties its value to industry realities like hedge funds, private equity, insurance, and biotech.",
         bridge: "The final stop shows how regulation and compliance shape the rest of the narrative.",
@@ -452,7 +452,7 @@ export const TOUR_LIBRARY: Record<string, { title: string; intro: string; final:
       {
         pageId: "home",
         anchorId: "compliance-preview",
-        title: "Compliance lens",
+        title: "Compliance pressure map",
         summary:
           "Compliance is a visible front-door concern here. The site gives regulation its own narrative space instead of burying it as a technical detail.",
       },
@@ -576,22 +576,22 @@ const solutionHighlights = [
   {
     title: "AI & Data",
     icon: Sparkles,
-    text: "Governed AI, copilots, automation, application delivery, and data foundations.",
+    text: "Copilot readiness, governed AI workflows, automation, and data foundations.",
   },
   {
     title: "Cloud & Infrastructure",
     icon: Cloud,
-    text: "Secure cloud platforms, migrations, enterprise systems, and scalable operations.",
+    text: "Secure Microsoft cloud, identity, endpoint, networking, backup, and operational reliability.",
   },
   {
     title: "Cybersecurity & Compliance",
     icon: Shield,
-    text: "Managed protection, governance, vendor risk, and resilience planning.",
+    text: "Managed detection, policy structure, vendor risk, incident planning, and audit support.",
   },
   {
     title: "Managed Solutions",
     icon: Network,
-    text: "Sustained operational support and managed-service delivery patterns.",
+    text: "Ticket operations, executive reporting, service cadence, and continuous improvement.",
   },
 ];
 
@@ -615,16 +615,16 @@ function Header({
   tourBarNode?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-800/55 bg-slate-950/92 text-white shadow-lg shadow-slate-950/18 backdrop-blur-xl">
+    <header className="sticky top-0 z-20 border-b border-cyan-200/10 bg-slate-950/88 text-white shadow-2xl shadow-cyan-950/30 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between md:py-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-200/20 bg-cyan-400/12 text-cyan-100 shadow-lg shadow-cyan-950/30 sm:h-11 sm:w-11">
             <Network className="h-5 w-5" />
           </div>
           <div className="min-w-0">
             <div className="truncate text-base font-semibold tracking-tight sm:text-lg">NexaPath Advisory</div>
             <div className="truncate text-xs text-slate-300 sm:text-sm">
-              TourBot Demo · Guide-ready B2B site experience
+              Managed IT · Cybersecurity · Copilot-ready operations
             </div>
           </div>
         </div>
@@ -733,13 +733,13 @@ const pageVisuals: Record<PageId, {
   proof: string;
 }> = {
   home: {
-    eyebrow: "Executive service platform",
+    eyebrow: "Executive IT command center",
     accent: "from-slate-950 to-slate-700",
     soft: "bg-slate-100 text-slate-700",
     gradient: "from-slate-950 via-slate-900 to-slate-700",
-    metricA: "4 capability lanes",
-    metricB: "5 guided pages",
-    proof: "Designed for AI-led discovery",
+    metricA: "24/7 managed posture",
+    metricB: "Security-first AI rollout",
+    proof: "Built for regulated operators",
   },
   solutions: {
     eyebrow: "Capability routing layer",
@@ -782,12 +782,12 @@ const pageVisuals: Record<PageId, {
 const sectionVisuals: Record<string, { icon: React.ComponentType<any>; tone: string; chips: string[]; shape: string }> = {
   "hero-modern-provider": { icon: Building2, tone: "from-slate-950 to-slate-700", chips: ["Advisory", "Operations", "Modernization"], shape: "hero" },
   "solutions-grid": { icon: Briefcase, tone: "from-indigo-900 to-slate-700", chips: ["AI", "Cloud", "Cyber", "Managed"], shape: "grid" },
-  "proof-points": { icon: BarChart3, tone: "from-slate-800 to-slate-600", chips: ["Rigor", "Scale", "Resilience"], shape: "proof" },
+  "proof-points": { icon: BarChart3, tone: "from-slate-800 to-slate-600", chips: ["Rigor", "Permissions", "Resilience"], shape: "proof" },
   "industries-preview": { icon: Landmark, tone: "from-emerald-900 to-slate-700", chips: ["Hedge funds", "PE", "Insurance"], shape: "split" },
   "compliance-preview": { icon: Shield, tone: "from-amber-800 to-slate-700", chips: ["Policy", "Controls", "Risk"], shape: "split" },
   "contact-cta": { icon: ArrowRight, tone: "from-slate-950 to-indigo-800", chips: ["Sales", "Workshop", "Discovery"], shape: "cta" },
   "solution-ai-data": { icon: Sparkles, tone: "from-indigo-900 to-violet-700", chips: ["Copilots", "Automation", "Data"], shape: "feature" },
-  "solution-cloud": { icon: Cloud, tone: "from-sky-900 to-slate-700", chips: ["Platforms", "Migration", "Scale"], shape: "feature" },
+  "solution-cloud": { icon: Cloud, tone: "from-sky-900 to-slate-700", chips: ["Platforms", "Migration", "Permissions"], shape: "feature" },
   "solution-cyber": { icon: Shield, tone: "from-rose-900 to-slate-700", chips: ["Protection", "Governance", "Readiness"], shape: "feature" },
   "solution-managed": { icon: Network, tone: "from-slate-800 to-cyan-800", chips: ["Support", "Stability", "Operations"], shape: "feature" },
   "solution-comparison": { icon: Database, tone: "from-slate-950 to-slate-700", chips: ["Compare", "Prioritize", "Route"], shape: "comparison" },
@@ -827,8 +827,28 @@ function Hero({ page }: { page: Page }) {
   return (
     <section className="mx-auto max-w-7xl px-4 pb-3 pt-3 sm:px-6 sm:pb-10 sm:pt-10">
       <div className={`relative overflow-hidden rounded-[20px] bg-gradient-to-br ${visual.gradient} px-3 py-4 text-white shadow-2xl shadow-slate-950/24 sm:rounded-[36px] sm:px-6 sm:py-8 md:px-10 md:py-12`}>
-        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-white/10 bg-white/5 lg:block" />
+        <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-cyan-300/16 blur-3xl" />
+        <div className="absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
+        <div className="absolute bottom-0 right-10 hidden h-40 w-40 rotate-12 rounded-[42px] border border-cyan-200/15 bg-cyan-200/8 lg:block" />
+        <div className="absolute right-8 top-8 hidden w-64 rounded-[28px] border border-white/12 bg-slate-950/32 p-4 shadow-2xl shadow-cyan-950/30 backdrop-blur-xl xl:block">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100/70">Live posture</span>
+            <span className="rounded-full bg-emerald-300/14 px-2 py-1 text-[10px] font-semibold text-emerald-100">Stable</span>
+          </div>
+          <div className="space-y-2">
+            {["Identity controls", "Endpoint coverage", "Copilot readiness"].map((item, index) => (
+              <div key={item} className="rounded-2xl border border-white/10 bg-white/8 px-3 py-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-200">{item}</span>
+                  <span className="font-semibold text-white">{92 - index * 7}%</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-cyan-200/80" style={{ width: `${92 - index * 7}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
 
         <div className="relative grid gap-5 sm:gap-8 lg:grid-cols-[1.35fr_0.85fr] lg:items-end">
           <div>
@@ -850,17 +870,17 @@ function Hero({ page }: { page: Page }) {
 
           <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-1">
             <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Guide readiness</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">SmartBar-ready surface</div>
               <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">{page.sections.length} anchored stops</div>
               <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
-                Each section remains addressable for spotlighting, multi-step navigation, and AI-guided explanations.
+                Every section stays anchor-ready while the page itself looks credible enough to sell the first impression.
               </p>
             </div>
             <div className="rounded-[16px] border border-white/15 bg-white/10 p-3 backdrop-blur sm:rounded-[28px] sm:p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Current path</div>
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">Operating narrative</div>
               <div className="mt-1.5 text-base font-semibold sm:mt-3 sm:text-2xl">{page.subtitle}</div>
               <p className="mt-1.5 text-[11px] leading-4 text-slate-200 sm:text-sm sm:leading-6">
-                A more realistic page canvas gives the guide better visual moments to land on during demos.
+                Dark, high-contrast content zones give the glass overlay, spotlight, and SmartBar answer more theater.
               </p>
             </div>
           </div>
@@ -875,11 +895,11 @@ function HomeExtras() {
     <section className="mx-auto max-w-7xl px-4 pb-3 sm:px-6 sm:pb-10">
       <div className="mb-3 flex items-end justify-between gap-4 sm:mb-5">
         <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">Service lanes</div>
-          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A site-like overview with real visual destinations</h2>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:text-sm sm:tracking-[0.18em]">Managed service lanes</div>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 sm:mt-2 sm:text-2xl">A premium MSP canvas with real visual destinations</h2>
         </div>
         <div className="hidden rounded-full bg-slate-900/85 px-4 py-2 text-sm text-slate-100 shadow-sm ring-1 ring-white/10 md:block">
-          Built for guided discovery
+          Built for SmartBar spotlighting
         </div>
       </div>
 
@@ -917,23 +937,23 @@ function AdaptiveSpotlightShowcase() {
   const serviceCards = [
     {
       id: "adaptive-translation-card",
-      title: "Translation at enterprise scale",
-      body: "A card-shaped destination for precise spotlighting on a discrete service module.",
-      chips: ["Language ops", "Scale", "Governance"],
+      title: "Microsoft 365 knowledge readiness",
+      body: "Permissions, content ownership, source quality, and safe answer boundaries before Copilot rollout.",
+      chips: ["M365", "Permissions", "Governance"],
       icon: Database,
     },
     {
       id: "adaptive-multimedia-card",
-      title: "Multimedia localization",
-      body: "A visual service tile for video, audio, training, and campaign content adaptation.",
-      chips: ["Video", "Audio", "Training"],
+      title: "Security operations visibility",
+      body: "Managed alerts, endpoint posture, incident workflow, and leadership-ready security reporting.",
+      chips: ["XDR", "Endpoint", "Response"],
       icon: Sparkles,
     },
     {
       id: "adaptive-testing-card",
-      title: "Market readiness testing",
-      body: "A compact module for quality review, linguistic validation, and launch confidence.",
-      chips: ["QA", "Validation", "Launch"],
+      title: "Compliance evidence readiness",
+      body: "Policies, vendor reviews, tabletop materials, control evidence, and audit-facing documentation.",
+      chips: ["Policy", "Evidence", "Audit"],
       icon: Shield,
     },
   ];
@@ -948,15 +968,14 @@ function AdaptiveSpotlightShowcase() {
       <div className="mb-4 flex flex-col gap-2 sm:mb-7 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-sm">
-            Adaptive guidance canvas
+            SmartBar guidance canvas
           </div>
           <h2 className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Open enterprise sections built for multiple spotlight styles
+            Dense enterprise content that gives SmartBar something worth finding
           </h2>
         </div>
         <p className="max-w-md text-sm leading-6 text-slate-600">
-          These sections are presentation-only additions. They give TourBot a wider visual terrain:
-          bands, editorial regions, cards, navigation paths, and CTA controls.
+          The site now has contrast, credibility, and distinct enterprise sections, so the spotlight feels intentional instead of washed out.
         </p>
       </div>
 
@@ -965,27 +984,27 @@ function AdaptiveSpotlightShowcase() {
           id="adaptive-global-content-band"
           data-tour-id="adaptive-global-content-band"
           data-spotlight-mode="band"
-          className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-5 py-8 shadow-sm sm:rounded-[40px] sm:px-8 sm:py-12 lg:px-12"
+          className="relative overflow-hidden rounded-[28px] border border-cyan-200/12 bg-slate-950/72 px-5 py-8 text-white shadow-2xl shadow-slate-950/24 backdrop-blur sm:rounded-[40px] sm:px-8 sm:py-12 lg:px-12"
         >
-          <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-slate-100/80 to-transparent" />
+          <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-cyan-300/10 to-transparent" />
           <div className="relative grid gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
             <div>
               <div className="inline-flex rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-white">
                 Band mode
               </div>
               <h3 className="mt-5 text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Global content operations
+                Managed IT operating model
               </h3>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {["Translate", "Localize", "Optimize"].map((item, index) => (
-                <div key={item} className="rounded-3xl bg-slate-50 p-5 ring-1 ring-slate-200/80">
+              {["Stabilize", "Secure", "Modernize"].map((item, index) => (
+                <div key={item} className="rounded-3xl border border-white/10 bg-white/8 p-5 ring-1 ring-cyan-100/10">
                   <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                     0{index + 1}
                   </div>
-                  <div className="mt-3 text-lg font-semibold text-slate-950">{item}</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    A broad horizontal region should get a soft band focus rather than a tight bordered box.
+                  <div className="mt-3 text-lg font-semibold text-white">{item}</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-300">
+                    A broad horizontal region gives SmartBar a clean band focus and helps the user see why the matched section matters.
                   </p>
                 </div>
               ))}
@@ -1004,28 +1023,26 @@ function AdaptiveSpotlightShowcase() {
               Section mode
             </div>
             <h3 className="mt-5 max-w-xl text-2xl font-semibold tracking-tight sm:text-4xl">
-              AI-assisted work with expert human review
+              AI adoption with security boundaries
             </h3>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-200 sm:text-base">
-              This is intentionally editorial: a heading, supporting body copy, and proof details.
-              A section spotlight should emphasize the heading and surrounding content, not just
-              draw a rectangle around the nearest container.
+              Copilot and AI workflows only work when identity, source content, security policy, and human review are mapped first.
             </p>
           </div>
-          <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm sm:rounded-[40px] sm:p-8">
+          <div className="rounded-[28px] border border-cyan-200/12 bg-slate-900/74 p-6 text-white shadow-xl shadow-slate-950/20 backdrop-blur sm:rounded-[40px] sm:p-8">
             <div className="space-y-4">
               {[
-                ["Intake", "Understand audience, markets, and channel requirements."],
-                ["Adapt", "Use AI-enabled workflows with expert review where quality matters."],
-                ["Launch", "Prepare content for regional delivery, governance, and measurement."],
+                ["Intake", "Map workflows, systems, users, permissions, and knowledge sources."],
+                ["Adapt", "Build controlled answer paths with escalation where human review matters."],
+                ["Audit", "Roll out in phases with quality testing, training, measurement, and support."],
               ].map(([label, body]) => (
-                <div key={label} className="flex gap-4 rounded-3xl bg-slate-50 p-4">
+                <div key={label} className="flex gap-4 rounded-3xl border border-white/10 bg-white/8 p-4">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-sm font-semibold text-white">
                     {label.slice(0, 1)}
                   </div>
                   <div>
-                    <div className="font-semibold text-slate-950">{label}</div>
-                    <div className="mt-1 text-sm leading-6 text-slate-600">{body}</div>
+                    <div className="font-semibold text-white">{label}</div>
+                    <div className="mt-1 text-sm leading-6 text-slate-300">{body}</div>
                   </div>
                 </div>
               ))}
@@ -1037,19 +1054,19 @@ function AdaptiveSpotlightShowcase() {
           id="adaptive-menu-path"
           data-tour-id="adaptive-menu-path"
           data-spotlight-mode="navigation"
-          className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:rounded-[40px] sm:p-8"
+          className="rounded-[28px] border border-cyan-200/12 bg-slate-950/70 p-5 text-white shadow-xl shadow-slate-950/20 backdrop-blur sm:rounded-[40px] sm:p-8"
         >
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Navigation mode
               </div>
-              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                A buried path the guide can explain step by step
+              <h3 className="mt-2 text-2xl font-semibold tracking-tight text-white">
+                A complex buyer path the guide can explain step by step
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {["Services", "Industries", "Resources", "Contact"].map((item, index) => (
+              {["Services", "Industries", "Risk", "Contact"].map((item, index) => (
                 <span
                   key={item}
                   data-tour-id={`adaptive-nav-${item.toLowerCase()}`}
@@ -1063,8 +1080,8 @@ function AdaptiveSpotlightShowcase() {
             </div>
           </div>
           <div className="grid gap-3 md:grid-cols-4">
-            {["Choose an industry", "Open service lane", "Review proof", "Start a consult"].map((item) => (
-              <div key={item} className="rounded-3xl bg-slate-50 p-4 text-sm font-semibold text-slate-700">
+            {["Choose a firm type", "Open service lane", "Review controls", "Start a review"].map((item) => (
+              <div key={item} className="rounded-3xl border border-white/10 bg-white/8 p-4 text-sm font-semibold text-slate-200">
                 {item}
               </div>
             ))}
@@ -1085,16 +1102,16 @@ function AdaptiveSpotlightShowcase() {
                 id={card.id}
                 data-tour-id={card.id}
                 data-spotlight-mode="card"
-                className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:rounded-[34px] sm:p-7"
+                className="rounded-[28px] border border-cyan-200/12 bg-slate-900/78 p-5 text-white shadow-xl shadow-slate-950/16 transition hover:-translate-y-0.5 hover:shadow-2xl sm:rounded-[34px] sm:p-7"
               >
                 <div className="inline-flex rounded-2xl bg-slate-950 p-3 text-white">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-950">{card.title}</h3>
+                <h3 className="mt-5 text-xl font-semibold tracking-tight text-white">{card.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-slate-600">{card.body}</p>
                 <div className="mt-5 flex flex-wrap gap-2">
                   {card.chips.map((chip) => (
-                    <span key={chip} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                    <span key={chip} className="rounded-full border border-cyan-200/12 bg-cyan-200/10 px-3 py-1 text-xs font-semibold text-cyan-50">
                       {chip}
                     </span>
                   ))}
@@ -1116,10 +1133,10 @@ function AdaptiveSpotlightShowcase() {
                 Control mode
               </div>
               <h3 className="mt-2 max-w-2xl text-2xl font-semibold tracking-tight sm:text-3xl">
-                Ready to scope a global content workflow?
+                Ready to assess your IT and AI readiness?
               </h3>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-200">
-                A CTA should get a tighter control-style focus so the user knows exactly what to click next.
+                A final CTA gives SmartBar a clean handoff point after it has explained the matched business problem.
               </p>
             </div>
             <button
@@ -1128,7 +1145,7 @@ function AdaptiveSpotlightShowcase() {
               data-spotlight-mode="control"
               className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-slate-100"
             >
-              Talk to an expert
+              Book readiness review
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
           </div>
@@ -1329,10 +1346,10 @@ function DemoPreviewCard({
       <div className="space-y-3 px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
         <div className="grid gap-2 text-sm leading-6 text-slate-600 sm:gap-3">
           <div>
-            <span className="font-semibold text-slate-950">Website:</span> {siteType}
+            <span className="font-semibold text-white">Website:</span> {siteType}
           </div>
           <div>
-            <span className="font-semibold text-slate-950">Content:</span> {contentType}
+            <span className="font-semibold text-white">Content:</span> {contentType}
           </div>
         </div>
         <div className="space-y-2">
@@ -1524,7 +1541,7 @@ export default function App() {
   const anchorButtons = useMemo(() => page.sections.slice(0, 6), [page]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(15,23,42,0.24),transparent_34%),radial-gradient(circle_at_top_right,rgba(30,41,59,0.18),transparent_30%),linear-gradient(180deg,#dbe3ee_0%,#cbd5e1_46%,#d6dee9_100%)] text-slate-950">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_12%_0%,rgba(34,211,238,0.22),transparent_30%),radial-gradient(circle_at_90%_8%,rgba(251,191,36,0.16),transparent_26%),radial-gradient(circle_at_50%_42%,rgba(59,130,246,0.12),transparent_32%),linear-gradient(180deg,#020617_0%,#07111f_42%,#0f172a_100%)] text-slate-100">
       <Header
         currentPage={currentPage}
         onNavigate={onNavigate}
@@ -1601,7 +1618,7 @@ export default function App() {
                 Page map
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                These remain the same tour anchors used by the guide shell.
+                These anchors remain unchanged so SmartBar spotlighting keeps working.
               </p>
               <div className="mt-3 space-y-2 sm:mt-4">
                 {anchorButtons.map((section) => (
@@ -1633,7 +1650,7 @@ export default function App() {
                 Recommended path
               </div>
               <p className="mt-3 text-sm leading-5 text-slate-200 sm:mt-4 sm:leading-6">
-                This page now behaves more like a real B2B destination: visual hierarchy, varied cards, and clearer stops for guided tours.
+                The surface now behaves like a serious MSP site: dark first impression, clear proof zones, and stronger visual stops for SmartBar.
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {prevPage && (
@@ -1655,7 +1672,7 @@ export default function App() {
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 <Database className="h-4 w-4" />
-                Demo integrity
+                Anchor integrity
               </div>
               <div className="mt-3 space-y-2 text-sm leading-5 text-slate-600 sm:mt-4 sm:space-y-3 sm:leading-6">
                 <div>• Page IDs remain unchanged</div>

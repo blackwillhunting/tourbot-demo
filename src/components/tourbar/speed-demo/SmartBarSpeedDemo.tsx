@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { CalendarDays, ChevronLeft, ChevronRight, RefreshCcw, Users } from "lucide-react";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../smartbarFocusController";
 import TourBarShell, {
@@ -14,7 +14,6 @@ import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
 import BurgerRushMobileExperience from "../smartbar-mobile/burgerrush/BurgerRushMobileExperience";
-import DomiMobileExperience from "../smartbar-mobile/domi/DomiMobileExperience";
 import NexaPathMobileExperience from "../smartbar-mobile/nexapath/NexaPathMobileExperience";
 import SmartBarSpeedTargetWall from "./SmartBarSpeedTargetWall";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./SmartBarFlashCardStack";
@@ -1899,6 +1898,7 @@ export default function SmartBarSpeedDemo({
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
   const [mobileBurgerRushStage, setMobileBurgerRushStage] = useState<MobileBurgerRushStage>("intro");
+  const [mobileNexaIntroReady, setMobileNexaIntroReady] = useState(false);
   const commandIdRef = useRef(0);
   const fakePointerIdRef = useRef(0);
   const targetStageRef = useRef<HTMLDivElement | null>(null);
@@ -1906,11 +1906,27 @@ export default function SmartBarSpeedDemo({
   const autoPlayStartedRef = useRef(false);
   const replayStartPendingRef = useRef(false);
   const replayFallbackTimerRef = useRef<number | null>(null);
+  const mobileDomiRouteHandoffStartedRef = useRef(false);
   const primaryDraftRef = useRef("");
   const followUpDraftRef = useRef("");
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const mobileFullShell = variant === "full" && speedDemoIsPhoneViewport();
   const directMobileShell = mobileBurgerRushShell || mobileFullShell;
+  useEffect(() => {
+    if (!mobileFullShell) {
+      setMobileNexaIntroReady(true);
+      return;
+    }
+
+    setMobileNexaIntroReady(false);
+
+    const timer = window.setTimeout(() => {
+      setMobileNexaIntroReady(true);
+    }, 1050);
+
+    return () => window.clearTimeout(timer);
+  }, [mobileFullShell]);
+
   const demoSteps = useMemo(
     () => {
       if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
@@ -1919,7 +1935,7 @@ export default function SmartBarSpeedDemo({
     [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell;
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!mobileFullShell || mobileNexaIntroReady);
   useLayoutEffect(() => {
     if (!directMobileShell || typeof document === "undefined") return;
 
@@ -2811,6 +2827,29 @@ export default function SmartBarSpeedDemo({
   const defaultSurface = variant === "burgerRushOnly" ? "ordering" : "info";
   const toolbarSurface = currentStep?.surface || defaultSurface;
   const isFinaleSurface = toolbarSurface === "finale";
+
+  useEffect(() => {
+    if (!mobileFullShell || toolbarSurface !== "booking" || mobileDomiRouteHandoffStartedRef.current) return;
+
+    mobileDomiRouteHandoffStartedRef.current = true;
+
+    const timer = window.setTimeout(() => {
+      const hostname = window.location.hostname;
+      const isLocalHost =
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        /^192\.168\.\d+\.\d+$/.test(hostname);
+
+      const destination = isLocalHost
+        ? "/local-smartbar-domi?from=mobile-full-demo&t=domi-handoff"
+        : "/tourbar-transactional?from=mobile-full-demo&t=domi-handoff";
+
+      window.location.assign(destination);
+    }, 850);
+
+    return () => window.clearTimeout(timer);
+  }, [mobileFullShell, toolbarSurface]);
+
   useLayoutEffect(() => {
     clearSmartBarFocusOverlay();
     resetSpeedDemoStageToTop(targetStageRef.current);
@@ -2866,6 +2905,14 @@ export default function SmartBarSpeedDemo({
       return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
     }
 
+    if (!mobileNexaIntroReady) {
+      return (
+        <main className="relative min-h-[100svh] overflow-hidden bg-[#d9ecff] text-slate-950">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.82),transparent_38%),radial-gradient(circle_at_18%_86%,rgba(125,211,252,0.34),transparent_38%),linear-gradient(180deg,#e8f5ff_0%,#d9ecff_48%,#c8e4ff_100%)]" />
+        </main>
+      );
+    }
+
     const mobileCards = (
       <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
         <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
@@ -2878,18 +2925,53 @@ export default function SmartBarSpeedDemo({
       </SmartBarFlashCardRail>
     );
 
+    if (toolbarSurface === "booking") {
+      return (
+        <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-slate-950 px-6 text-center text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(56,189,248,0.20),transparent_34%),linear-gradient(145deg,#020617_0%,#0f172a_52%,#012169_100%)]" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
+            className="relative z-10 rounded-[30px] border border-white/18 bg-white/10 px-6 py-5 shadow-2xl shadow-slate-950/30 backdrop-blur-xl"
+          >
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-100/80">Example 3</div>
+            <div className="mt-2 text-2xl font-black tracking-tight">Domi Hotel</div>
+            <div className="mt-2 text-sm font-semibold text-white/70">Opening booking demo…</div>
+          </motion.div>
+        </main>
+      );
+    }
+
     const mobileSurfaceNode =
       toolbarSurface === "ordering" ? (
         <BurgerRushMobileExperience demoFixtureMode />
-      ) : toolbarSurface === "booking" ? (
-        <DomiMobileExperience demoFixtureMode />
       ) : (
         <NexaPathMobileExperience demoFixtureMode />
       );
 
     return (
-      <main className="relative min-h-[100svh] overflow-x-hidden bg-white text-slate-950">
-        {mobileSurfaceNode}
+      <main className="relative min-h-[100svh] overflow-x-hidden bg-[#d9ecff] text-slate-950">
+        {/* visible soft-blue Nexa intro veil */}
+        <motion.div
+          aria-hidden="true"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.95, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+          className="pointer-events-none fixed inset-0 z-[10110] bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.82),transparent_38%),radial-gradient(circle_at_18%_86%,rgba(125,211,252,0.34),transparent_38%),linear-gradient(180deg,#e8f5ff_0%,#d9ecff_48%,#c8e4ff_100%)]"
+        />
+        <AnimatePresence mode="wait" initial={true}>
+          <motion.div
+            key={toolbarSurface}
+            initial={{ opacity: 0, scale: 0.985, y: 14 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.965, y: -14 }}
+            transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
+            className="relative min-h-[100svh] origin-center"
+          >
+            {mobileSurfaceNode}
+          </motion.div>
+        </AnimatePresence>
         {mobileCards}
         <SmartBarFakePointerOverlay pointer={fakePointer} />
       </main>

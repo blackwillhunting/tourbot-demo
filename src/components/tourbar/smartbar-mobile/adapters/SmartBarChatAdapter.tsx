@@ -124,7 +124,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
     scriptedHandoffStartedRef.current = true;
     const timers: number[] = [];
     const intervals: number[] = [];
-    const visitorPricingText = "Hi, I'm curious about your pricing";
+    const visitorPricingText = "Hi, I'm curious about pricing";
     let cancelled = false;
 
     timers.push(window.setTimeout(() => {
@@ -175,7 +175,7 @@ function SmartBarMobileChatSurface({ initialContext }: { initialContext: string 
                 {
                   id: "consultant-call",
                   role: "consultant",
-                  body: "Sure, lets set up a call",
+                  body: "Sure, lets get started",
                 },
               ]);
             }, 2000));
