@@ -2917,18 +2917,8 @@ export default function SmartBarSpeedDemo({
 
     if (toolbarSurface === "booking") {
       return (
-        <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-slate-950 px-6 text-center text-white">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(56,189,248,0.20),transparent_34%),linear-gradient(145deg,#020617_0%,#0f172a_52%,#012169_100%)]" />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 18 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.58, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 rounded-[30px] border border-white/18 bg-white/10 px-6 py-5 shadow-2xl shadow-slate-950/30 backdrop-blur-xl"
-          >
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-100/80">Example 3</div>
-            <div className="mt-2 text-2xl font-black tracking-tight">Domi Hotel</div>
-            <div className="mt-2 text-sm font-semibold text-white/70">Opening booking demo…</div>
-          </motion.div>
+        <main className="relative min-h-[100svh] overflow-hidden bg-[#d9ecff] text-slate-950">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.82),transparent_38%),radial-gradient(circle_at_18%_86%,rgba(125,211,252,0.34),transparent_38%),linear-gradient(180deg,#e8f5ff_0%,#d9ecff_48%,#c8e4ff_100%)]" />
         </main>
       );
     }
