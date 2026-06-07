@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ListOrdered,
   Sparkles,
   Trash2,
   X,
@@ -33,6 +34,7 @@ import {
 type SmartBarMobilePhase = "rest" | "entry" | "building_cart" | "cart";
 type SmartBarMobileHandoffState = "idle" | "handing_off" | "complete";
 export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unknown";
+type SmartBarMobileCartStatusFilter = SmartBarMobileOrderStatus | null;
 
 export type SmartBarMobileOrderLine = {
   id: string;
@@ -509,6 +511,7 @@ export default function SmartBarMobileShell({
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
   const [closeArmed, setCloseArmed] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [cartStatusFilter, setCartStatusFilter] = useState<SmartBarMobileCartStatusFilter>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
   const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
@@ -579,6 +582,11 @@ export default function SmartBarMobileShell({
   const completeCount = lines.filter((line) => line.status === "ready").length;
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
+  const unknownCount = lines.filter((line) => line.status === "unknown").length;
+  const visibleCartLines = cartStatusFilter
+    ? lines.filter((line) => line.status === cartStatusFilter)
+    : lines;
+  const filteredCartCount = visibleCartLines.length;
   const checkoutReady = !genericResult && lines.length > 0 && blockingIssueCount === 0;
   const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
@@ -824,6 +832,7 @@ export default function SmartBarMobileShell({
     clearHandoffTimers();
     setHandoffState("idle");
     setSelectedLineId(null);
+    setCartStatusFilter(null);
     setLineOverrides({});
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
@@ -959,6 +968,7 @@ export default function SmartBarMobileShell({
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
     setSelectedLineId(line.id);
+    setCartStatusFilter(null);
     setCartExpanded(true);
 
     if (line.status !== "unknown") {
@@ -1189,6 +1199,7 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
+    setCartStatusFilter(null);
     setCartExpanded(true);
     setEntryDraft("");
     setHasEditedEntryDraft(false);
@@ -1233,6 +1244,7 @@ export default function SmartBarMobileShell({
     onResetCart?.();
     disarmClose();
     setSelectedLineId(null);
+    setCartStatusFilter(null);
     setCartExpanded(true);
   };
 
@@ -1263,6 +1275,30 @@ export default function SmartBarMobileShell({
       }, 2000);
     }, 3000);
   };
+
+  const toggleCartStatusFilter = (status: SmartBarMobileOrderStatus, count: number) => {
+    if (handoffLocked || count <= 0) return;
+
+    setSelectedLineId(null);
+    setCartStatusFilter((current) => current === status ? null : status);
+  };
+
+  const clearCartStatusFilter = () => {
+    if (handoffLocked) return;
+
+    setSelectedLineId(null);
+    setCartStatusFilter(null);
+  };
+
+  const cartFilterButtonClass = (active: boolean, disabled = false) => [
+    "flex min-h-[42px] items-center justify-center rounded-full px-2 text-center font-black tabular-nums transition",
+    active ? "scale-[1.03] ring-2 ring-white/80 shadow-[0_10px_24px_rgba(2,6,23,0.24)]" : "ring-1 ring-white/18",
+    disabled ? "opacity-35" : "active:scale-95",
+  ].join(" ");
+
+  const unknownFilterPillClass = isOverlay
+    ? "border border-slate-400/30 bg-slate-900/86 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.28)]"
+    : "border border-slate-400/35 bg-slate-800 text-slate-50 shadow-sm";
 
   const companionLabel = (() => {
     if (phase === "rest") return "SmartBar";
@@ -2201,19 +2237,56 @@ export default function SmartBarMobileShell({
                       </div>
                     </div>
 
-                    <div className="mt-3 grid shrink-0 grid-cols-3 gap-2">
-                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}>
-                        <span className="text-[10px] leading-none tracking-[0.14em]">Complete</span>
-                        <span className="mt-1 text-[14px] leading-none tracking-normal">{completeCount}</span>
-                      </div>
-                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}>
-                        <span className="text-[10px] leading-none tracking-[0.14em]">Pending</span>
-                        <span className="mt-1 text-[14px] leading-none tracking-normal">{blockingIssueCount}</span>
-                      </div>
-                      <div className={`flex min-h-[48px] flex-col items-center justify-center rounded-full px-2 py-1.5 text-center font-black uppercase ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}>
-                        <span className="text-[10px] leading-none tracking-[0.14em]">Extras</span>
-                        <span className="mt-1 text-[14px] leading-none tracking-normal">{optionCount}</span>
-                      </div>
+                    <div className="mt-3 grid shrink-0 grid-cols-5 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={clearCartStatusFilter}
+                        className={`${cartFilterButtonClass(!cartStatusFilter)} border border-white/18 bg-slate-950/88 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.26)]`}
+                        aria-label="Show original order"
+                        aria-pressed={!cartStatusFilter}
+                      >
+                        <ListOrdered className="h-4.5 w-4.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCartStatusFilter("ready", completeCount)}
+                        disabled={completeCount <= 0}
+                        className={`${cartFilterButtonClass(cartStatusFilter === "ready", completeCount <= 0)} ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}
+                        aria-label={`Show ready items, ${completeCount}`}
+                        aria-pressed={cartStatusFilter === "ready"}
+                      >
+                        {completeCount}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCartStatusFilter("pending", blockingIssueCount)}
+                        disabled={blockingIssueCount <= 0}
+                        className={`${cartFilterButtonClass(cartStatusFilter === "pending", blockingIssueCount <= 0)} ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}
+                        aria-label={`Show required items, ${blockingIssueCount}`}
+                        aria-pressed={cartStatusFilter === "pending"}
+                      >
+                        {blockingIssueCount}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCartStatusFilter("options", optionCount)}
+                        disabled={optionCount <= 0}
+                        className={`${cartFilterButtonClass(cartStatusFilter === "options", optionCount <= 0)} ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}
+                        aria-label={`Show optional items, ${optionCount}`}
+                        aria-pressed={cartStatusFilter === "options"}
+                      >
+                        {optionCount}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleCartStatusFilter("unknown", unknownCount)}
+                        disabled={unknownCount <= 0}
+                        className={`${cartFilterButtonClass(cartStatusFilter === "unknown", unknownCount <= 0)} ${unknownFilterPillClass}`}
+                        aria-label={`Show unknown items, ${unknownCount}`}
+                        aria-pressed={cartStatusFilter === "unknown"}
+                      >
+                        {unknownCount}
+                      </button>
                     </div>
 
                     <div
@@ -2222,7 +2295,7 @@ export default function SmartBarMobileShell({
                       className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
-                      {lines.map((line) => (
+                      {visibleCartLines.map((line) => (
                         <motion.div
                           key={smartBarMobileLineInstanceKey(line)}
                           role="button"
@@ -2277,6 +2350,11 @@ export default function SmartBarMobileShell({
                           </div>
                         </motion.div>
                       ))}
+                      {cartStatusFilter && filteredCartCount === 0 && (
+                        <div className="rounded-[1.25rem] border border-white/14 bg-slate-950/38 px-4 py-5 text-center text-sm font-black text-white/70">
+                          Nothing in this color.
+                        </div>
+                      )}
                     </div>
 
                     <div
