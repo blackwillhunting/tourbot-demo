@@ -2834,17 +2834,7 @@ export default function SmartBarSpeedDemo({
     mobileDomiRouteHandoffStartedRef.current = true;
 
     const timer = window.setTimeout(() => {
-      const hostname = window.location.hostname;
-      const isLocalHost =
-        hostname === "localhost" ||
-        hostname === "127.0.0.1" ||
-        /^192\.168\.\d+\.\d+$/.test(hostname);
-
-      const destination = isLocalHost
-        ? "/local-smartbar-domi?from=mobile-full-demo&t=domi-handoff"
-        : "/tourbar-transactional?from=mobile-full-demo&t=domi-handoff";
-
-      window.location.assign(destination);
+      window.location.assign("/local-smartbar-domi?from=mobile-full-demo&t=domi-handoff");
     }, 850);
 
     return () => window.clearTimeout(timer);
