@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
   type SmartBarMobileOrderLine,
@@ -17,6 +17,52 @@ import {
   foodTrioScenarioFromQuery,
   type FoodTrioScenarioId,
 } from "./foodTrioScript";
+
+type FoodTrioPointerState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  pulse: boolean;
+};
+
+const FOOD_TRIO_POINTER_HIDDEN: FoodTrioPointerState = {
+  visible: false,
+  x: 0,
+  y: 0,
+  pulse: false,
+};
+
+function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
+  if (!state.visible) return null;
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none fixed left-0 top-0 z-[10120] transition-[opacity,transform] duration-500 ease-out"
+      style={{
+        opacity: state.visible ? 1 : 0,
+        transform: `translate3d(${state.x - 10}px, ${state.y - 10}px, 0)`,
+      }}
+    >
+      <div
+        className={[
+          "h-6 w-6 rounded-full border border-slate-900/22 bg-white shadow-[0_8px_18px_rgba(2,6,23,0.34),inset_0_1px_0_rgba(255,255,255,0.85)]",
+          state.pulse ? "scale-75 ring-[10px] ring-white/32" : "scale-100 ring-0",
+          "transition-[transform,box-shadow] duration-200 ease-out",
+        ].join(" ")}
+      />
+    </div>
+  );
+}
+
+function foodTrioButtonPoint(button: HTMLElement, anchorY: number, offsetY = 0) {
+  const rect = button.getBoundingClientRect();
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height * anchorY + offsetY,
+  };
+}
 
 
 function scrollToFoodTrioScenario(scenarioId: FoodTrioScenarioId) {
@@ -72,10 +118,99 @@ export default function FoodTrioMobileExperience() {
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null);
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
   const [lastResult, setLastResult] = useState<SmartBarMobileOrderResult>(() => foodTrioResultForScenario("coffee"));
+  const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const submissionIdRef = useRef(1);
+  const pointerTimersRef = useRef<number[]>([]);
+  const pendingPointerScenarioRef = useRef<FoodTrioScenarioId | null>(null);
+
+  const clearFoodTrioPointerTimers = useCallback(() => {
+    pointerTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    pointerTimersRef.current = [];
+    setPointerState(FOOD_TRIO_POINTER_HIDDEN);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearFoodTrioPointerTimers();
+    };
+  }, [clearFoodTrioPointerTimers]);
+
+  const runFastFoodCartScrollPointer = useCallback(() => {
+    clearFoodTrioPointerTimers();
+
+    const queue = (delayMs: number, callback: () => void) => {
+      const timer = window.setTimeout(callback, delayMs);
+      pointerTimersRef.current.push(timer);
+    };
+
+    const moveToButton = (
+      selector: string,
+      anchorY: number,
+      offsetY: number,
+      pulse = false,
+    ) => {
+      const button = document.querySelector<HTMLElement>(selector);
+      if (!button) return null;
+
+      const point = foodTrioButtonPoint(button, anchorY, offsetY);
+      setPointerState({
+        visible: true,
+        x: point.x,
+        y: point.y,
+        pulse,
+      });
+
+      return button;
+    };
+
+    queue(360, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 1, 46);
+    });
+
+    queue(980, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0);
+    });
+
+    queue(1260, () => {
+      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0, true);
+      button?.click();
+    });
+
+    queue(1820, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 1, 46);
+    });
+
+    queue(2380, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0);
+    });
+
+    queue(2660, () => {
+      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0, true);
+      button?.click();
+    });
+
+    queue(3520, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0, -42);
+    });
+
+    queue(4080, () => {
+      moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0.45, 0);
+    });
+
+    queue(4360, () => {
+      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0.45, 0, true);
+      button?.click();
+    });
+
+    queue(5200, () => {
+      setPointerState(FOOD_TRIO_POINTER_HIDDEN);
+    });
+  }, [clearFoodTrioPointerTimers]);
 
   const startScenario = useCallback((scenarioId: FoodTrioScenarioId) => {
     const query = foodTrioPromptForScenario(scenarioId);
+    clearFoodTrioPointerTimers();
+    pendingPointerScenarioRef.current = scenarioId === "fast-food" ? scenarioId : null;
     setActiveScenario(scenarioId);
     setActiveTargetId(null);
     setDemoSubmission({
@@ -91,6 +226,7 @@ export default function FoodTrioMobileExperience() {
   const handleSubmitPrompt = useCallback((query: string, _meta?: SmartBarMobileSubmitMeta) => {
     const nextScenario = foodTrioScenarioFromQuery(query, activeScenario);
     const result = foodTrioResultForQuery(query, activeScenario);
+    pendingPointerScenarioRef.current = nextScenario === "fast-food" ? nextScenario : null;
     setActiveScenario(nextScenario);
     setLastResult(result);
 
@@ -102,9 +238,10 @@ export default function FoodTrioMobileExperience() {
   }, [activeScenario]);
 
   const handleNavigateToLine = useCallback((line: SmartBarMobileOrderLine) => {
+    clearFoodTrioPointerTimers();
     setActiveTargetId(line.targetId || null);
     scrollToFoodTrioTarget(line.targetId);
-  }, []);
+  }, [clearFoodTrioPointerTimers]);
 
   const handleApplyChoice = useCallback((line: SmartBarMobileOrderLine, value: string) => {
     const result = foodTrioApplyChoice(lastResult.lines, line, value);
@@ -129,6 +266,7 @@ export default function FoodTrioMobileExperience() {
         activeScenario={activeScenario}
         activeTargetId={activeTargetId}
         onScenarioSelect={(scenarioId) => {
+              clearFoodTrioPointerTimers();
               clearSmartBarFocusOverlay();
               setActiveScenario(scenarioId);
               setActiveTargetId(null);
@@ -141,6 +279,8 @@ export default function FoodTrioMobileExperience() {
         {scenario.brand} · fixture wall
       </div>
 
+      <FoodTrioFakePointer state={pointerState} />
+
       <SmartBarMobileShell
         mode="overlay"
         entryModeLabel="Type order"
@@ -150,7 +290,13 @@ export default function FoodTrioMobileExperience() {
         onNavigateToLine={handleNavigateToLine}
         onApplyLineChoice={handleApplyChoice}
         onRemoveLine={handleRemoveLine}
+        onCartReady={() => {
+          if (pendingPointerScenarioRef.current !== "fast-food") return;
+          pendingPointerScenarioRef.current = null;
+          runFastFoodCartScrollPointer();
+        }}
         onResetCart={() => {
+          clearFoodTrioPointerTimers();
           clearSmartBarFocusOverlay();
           const result = foodTrioResultForScenario(activeScenario);
           setLastResult(result);

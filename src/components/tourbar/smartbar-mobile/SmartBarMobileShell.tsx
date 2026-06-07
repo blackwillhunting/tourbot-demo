@@ -463,6 +463,7 @@ type SmartBarMobileShellProps = {
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
+  onCartReady?: (result: SmartBarMobileOrderResult) => void;
   onResetCart?: () => void;
 };
 
@@ -477,12 +478,14 @@ export default function SmartBarMobileShell({
   onRemoveLine,
   onNavigateToLine,
   onGenericAction,
+  onCartReady,
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const genericContentMeasureRef = useRef<HTMLDivElement | null>(null);
+  const cartScrollRef = useRef<HTMLDivElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
   const handoffCollapseTimerRef = useRef<number | null>(null);
@@ -716,6 +719,16 @@ export default function SmartBarMobileShell({
     }
   };
 
+  const scrollSmartBarMobileCartBy = (amount: number) => {
+    const node = cartScrollRef.current;
+    if (!node) return;
+
+    const maxTop = Math.max(0, node.scrollHeight - node.clientHeight);
+    const nextTop = Math.min(maxTop, Math.max(0, node.scrollTop + amount));
+
+    node.scrollTo({ top: nextTop, left: 0, behavior: "smooth" });
+  };
+
   const disarmClose = () => {
     clearCloseArmTimer();
     setCloseArmed(false);
@@ -828,6 +841,9 @@ export default function SmartBarMobileShell({
               if (result.lines.length > 0) {
                 setOrderLines(result.lines);
                 applyOrderResultEstimates(result, estimatedTotal);
+                window.setTimeout(() => {
+                  onCartReady?.(result);
+                }, 140);
               }
             }
             setHasCart(true);
@@ -2135,7 +2151,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="flex h-full min-h-0 flex-col p-4"
+                    className="relative flex h-full min-h-0 flex-col p-4"
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -2170,6 +2186,8 @@ export default function SmartBarMobileShell({
                     </div>
 
                     <div
+                      ref={cartScrollRef}
+                      data-smartbar-mobile-cart-scroll="true"
                       className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
@@ -2228,6 +2246,36 @@ export default function SmartBarMobileShell({
                           </div>
                         </motion.div>
                       ))}
+                    </div>
+
+                    <div
+                      className="pointer-events-none absolute bottom-[104px] right-1 z-30 flex w-[82px] flex-col items-stretch gap-3"
+                      aria-hidden="true"
+                    >
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        data-smartbar-mobile-cart-scroll-button="up"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          scrollSmartBarMobileCartBy(-280);
+                        }}
+                        className="pointer-events-auto h-12 w-full rounded-full bg-transparent opacity-0"
+                        aria-label="Scroll cart up"
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        data-smartbar-mobile-cart-scroll-button="down"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          scrollSmartBarMobileCartBy(320);
+                        }}
+                        className="pointer-events-auto h-14 w-full rounded-full bg-transparent opacity-0"
+                        aria-label="Scroll cart down"
+                      />
                     </div>
 
                     <div className={totalsBoxClass}>
