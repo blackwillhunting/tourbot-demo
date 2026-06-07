@@ -544,15 +544,25 @@ export default function SmartBarMobileShell({
   );
   const launcherPillLeft = Math.max(0, (entryPillWidth - launcherPillWidth) / 2);
   const realComposerHeight = 90;
-  const entryDraftHardLineCount = entryDraft.split("\n").length;
-  const entryDraftSoftLineCount = Math.ceil(Math.max(entryDraft.length, 1) / 31);
-  const entryDraftLineCount = Math.max(1, entryDraftHardLineCount, entryDraftSoftLineCount);
   const entryComposerMaxHeight = Math.max(realComposerHeight, stableViewportHeight - 154 - keyboardLift);
+  const smartBarMobileDraftLineCount = (value: string) => {
+    return value.split("\n").reduce((sum, line) => {
+      return sum + Math.max(1, Math.ceil(Math.max(line.length, 1) / 31));
+    }, 0);
+  };
+  const smartBarMobileComposerHeightForDraft = (value: string) => {
+    const lineCount = Math.max(1, smartBarMobileDraftLineCount(value));
+    return Math.min(entryComposerMaxHeight, Math.max(realComposerHeight, 54 + lineCount * 25));
+  };
   const entryComposerHeight = phase === "entry"
-    ? Math.min(entryComposerMaxHeight, Math.max(realComposerHeight, 54 + entryDraftLineCount * 25))
+    ? smartBarMobileComposerHeightForDraft(entryDraft)
     : realComposerHeight;
+  const submittedPromptPreviewHeight = submittedPromptPreview.trim()
+    ? smartBarMobileComposerHeightForDraft(submittedPromptPreview)
+    : realComposerHeight;
+  const buildPanelHeight = phase === "building_cart" ? submittedPromptPreviewHeight : realComposerHeight;
   const entryComposerRadius = entryComposerHeight > realComposerHeight + 18 ? 30 : 999;
-  const buildPanelHeight = realComposerHeight;
+  const buildPanelRadius = buildPanelHeight > realComposerHeight + 18 ? 30 : 999;
   const collapsedCartPanelHeight = 90;
   const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
 
@@ -685,7 +695,9 @@ export default function SmartBarMobileShell({
     : phase === "cart"
       ? cartExpanded ? selectedLine ? cartDetailHeight : cartSummaryHeight : collapsedCartPanelHeight
       : buildPanelHeight;
-  const fakeCartPanelRadius = handoffState === "complete" || (phase === "cart" && !cartExpanded) ? 999 : 30;
+  const fakeCartPanelRadius = phase === "building_cart"
+    ? buildPanelRadius
+    : handoffState === "complete" || (phase === "cart" && !cartExpanded) ? 999 : 30;
 
   const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
     setOrderEstimatedSubtotal(result.estimatedSubtotal);
@@ -1889,7 +1901,10 @@ export default function SmartBarMobileShell({
             <motion.div
               className={upperGlassClass}
               style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
-              initial={{ height: realComposerHeight, borderRadius: 999 }}
+              initial={{
+                height: phase === "building_cart" ? buildPanelHeight : realComposerHeight,
+                borderRadius: phase === "building_cart" ? buildPanelRadius : 999,
+              }}
               animate={{
                 height: fakeCartPanelHeight,
                 borderRadius: fakeCartPanelRadius,
@@ -1908,7 +1923,16 @@ export default function SmartBarMobileShell({
                     aria-live="polite"
                   >
                     <div className="flex h-full items-center justify-center px-3 py-2">
-                      <div className="max-w-[82%] rounded-full border border-white/28 bg-white/[0.095] px-4 py-2 text-center text-[15px] font-semibold leading-5 text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] ring-1 ring-white/16 backdrop-blur-[10px] [text-shadow:0_1px_2px_rgba(0,0,0,0.42)]">
+                      <div
+                        className={`${inputDraftCapsuleClass} max-w-full`}
+                        style={{
+                          maxHeight: Math.max(42, buildPanelHeight - 24),
+                          whiteSpace: "pre-wrap",
+                          overflow: "hidden",
+                          display: "block",
+                          textAlign: "left",
+                        }}
+                      >
                         {submittedPromptPreview}
                       </div>
                     </div>
