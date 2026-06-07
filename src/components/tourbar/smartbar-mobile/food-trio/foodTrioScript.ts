@@ -216,15 +216,37 @@ export function foodTrioApplyChoice(
   selectedLine: SmartBarMobileOrderLine,
   value: string,
 ): SmartBarMobileOrderResult {
+  const selectedOptionKey = value.trim().toLowerCase();
+
   const nextLines = lines.map((lineItem) => {
     if ((lineItem.cartLineKey || lineItem.id) !== (selectedLine.cartLineKey || selectedLine.id)) return lineItem;
+
+    const isMultiSelect = lineItem.optionSelectionMode === "multi" || lineItem.status === "options";
+    const valueAlreadySelected = (lineItem.details || []).some((detail) => {
+      return detail.trim().toLowerCase() === selectedOptionKey;
+    });
+    const nextDetails = isMultiSelect && valueAlreadySelected
+      ? (lineItem.details || []).filter((detail) => detail.trim().toLowerCase() !== selectedOptionKey)
+      : Array.from(new Set([...(lineItem.details || []), value]));
+
+    if (isMultiSelect) {
+      return {
+        ...lineItem,
+        status: "options" as const,
+        helper: valueAlreadySelected ? "Extra removed" : "Extras updated",
+        details: nextDetails,
+        options: lineItem.options || [],
+        optionSelectionMode: "multi" as const,
+      };
+    }
 
     return {
       ...lineItem,
       status: "ready" as const,
       helper: "Choice selected",
-      details: [...lineItem.details, value],
+      details: nextDetails,
       options: undefined,
+      optionSelectionMode: "single" as const,
     };
   });
 

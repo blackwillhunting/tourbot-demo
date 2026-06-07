@@ -963,11 +963,15 @@ export default function SmartBarMobileShell({
     const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
     if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === line.id)) return;
 
+    const selectedOptionKey = value.trim().toLowerCase();
+    const valueAlreadySelected = (line.details || []).some((detail) => {
+      return detail.trim().toLowerCase() === selectedOptionKey;
+    });
+
     if (!multiSelect) choiceLockedLineIdRef.current = line.id;
-    setSelectedChoice({ lineId: line.id, value });
+    setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: line.id, value });
     disarmClose();
 
-    const selectedOptionKey = value.trim().toLowerCase();
     const optionKeys = new Set((line.options || []).map((option) => option.trim().toLowerCase()));
     const cleanedDetails = (line.details || []).filter((detail) => {
       const detailKey = detail.trim().toLowerCase();
@@ -975,12 +979,15 @@ export default function SmartBarMobileShell({
       if (!multiSelect && optionKeys.has(detailKey) && detailKey !== selectedOptionKey) return false;
       return true;
     });
+    const nextDetails = multiSelect && valueAlreadySelected
+      ? cleanedDetails.filter((detail) => detail.trim().toLowerCase() !== selectedOptionKey)
+      : Array.from(new Set([...cleanedDetails, value]));
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
       status: multiSelect ? "options" : "ready",
-      helper: multiSelect ? "Extras updated" : `${value} selected`,
-      details: Array.from(new Set([...cleanedDetails, value])),
-      options: line.options || [],
+      helper: multiSelect ? valueAlreadySelected ? "Extra removed" : "Extras updated" : `${value} selected`,
+      details: nextDetails,
+      options: multiSelect ? line.options || [] : undefined,
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
@@ -1004,7 +1011,7 @@ export default function SmartBarMobileShell({
 
     window.setTimeout(() => {
       const optimisticResult: SmartBarMobileOrderResult = {
-        lines: orderLines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
+        lines: lines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
       };
 
       setOrderLines(optimisticResult.lines);
