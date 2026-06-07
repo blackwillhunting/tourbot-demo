@@ -41,16 +41,29 @@ function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
       className="pointer-events-none fixed left-0 top-0 z-[10120] transition-[opacity,transform] duration-500 ease-out"
       style={{
         opacity: state.visible ? 1 : 0,
-        transform: `translate3d(${state.x - 10}px, ${state.y - 10}px, 0)`,
+        transform: `translate3d(${state.x - 16}px, ${state.y - 16}px, 0)`,
       }}
     >
-      <div
-        className={[
-          "h-6 w-6 rounded-full border border-slate-900/22 bg-white shadow-[0_8px_18px_rgba(2,6,23,0.34),inset_0_1px_0_rgba(255,255,255,0.85)]",
-          state.pulse ? "scale-75 ring-[10px] ring-white/32" : "scale-100 ring-0",
-          "transition-[transform,box-shadow] duration-200 ease-out",
-        ].join(" ")}
-      />
+      <div className="relative h-8 w-8">
+        <div
+          className={[
+            "absolute inset-0 rounded-full border-2 border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.22),0_0_18px_rgba(56,189,248,0.24)] transition-[opacity,transform] ease-out",
+            state.pulse ? "scale-[2.05] border-cyan-200/80 opacity-0 shadow-[0_0_30px_rgba(56,189,248,0.55)] duration-360" : "scale-75 opacity-75 duration-150",
+          ].join(" ")}
+        />
+        <div
+          className={[
+            "absolute inset-[3px] rounded-full border-2 border-white/95 bg-cyan-50/10 shadow-[0_8px_18px_rgba(2,6,23,0.34),0_0_18px_rgba(255,255,255,0.24),0_0_24px_rgba(56,189,248,0.28),inset_0_1px_0_rgba(255,255,255,0.55)] transition-[transform,background-color,box-shadow] duration-180 ease-out",
+            state.pulse ? "scale-90 border-cyan-100/95 bg-cyan-100/28 shadow-[0_4px_12px_rgba(2,6,23,0.28),0_0_22px_rgba(255,255,255,0.40),0_0_42px_rgba(56,189,248,0.62)]" : "scale-100",
+          ].join(" ")}
+        />
+        <div
+          className={[
+            "absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full transition-[opacity,transform,background-color,box-shadow] duration-180 ease-out",
+            state.pulse ? "scale-125 bg-cyan-100 opacity-95 shadow-[0_0_16px_rgba(56,189,248,0.78)]" : "scale-100 bg-white opacity-70",
+          ].join(" ")}
+        />
+      </div>
     </div>
   );
 }
@@ -122,6 +135,7 @@ export default function FoodTrioMobileExperience() {
   const submissionIdRef = useRef(1);
   const pointerTimersRef = useRef<number[]>([]);
   const pendingPointerScenarioRef = useRef<FoodTrioScenarioId | null>(null);
+  const scriptedPointerClickRef = useRef(false);
 
   const clearFoodTrioPointerTimers = useCallback(() => {
     pointerTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -134,6 +148,135 @@ export default function FoodTrioMobileExperience() {
       clearFoodTrioPointerTimers();
     };
   }, [clearFoodTrioPointerTimers]);
+
+  const moveFoodTrioPointerToElement = useCallback((
+    selector: string,
+    anchorY = 0.5,
+    offsetY = 0,
+    pulse = false,
+  ) => {
+    const element = document.querySelector<HTMLElement>(selector);
+    if (!element) return null;
+
+    const point = foodTrioButtonPoint(element, anchorY, offsetY);
+    setPointerState({
+      visible: true,
+      x: point.x,
+      y: point.y,
+      pulse,
+    });
+
+    return element;
+  }, []);
+
+  const clickFoodTrioPointerElement = useCallback((
+    selector: string,
+    anchorY = 0.5,
+    offsetY = 0,
+  ) => {
+    const element = moveFoodTrioPointerToElement(selector, anchorY, offsetY, true);
+    if (!element) return null;
+
+    const clickTimer = window.setTimeout(() => {
+      scriptedPointerClickRef.current = true;
+      element.click();
+
+      const releaseTimer = window.setTimeout(() => {
+        scriptedPointerClickRef.current = false;
+        setPointerState((current) => (
+          current.visible
+            ? { ...current, pulse: false }
+            : current
+        ));
+      }, 140);
+
+      pointerTimersRef.current.push(releaseTimer);
+    }, 260);
+
+    pointerTimersRef.current.push(clickTimer);
+
+    return element;
+  }, [moveFoodTrioPointerToElement]);
+
+  const runCoffeeEntryPointer = useCallback((query: string) => {
+    clearFoodTrioPointerTimers();
+
+    const queue = (delayMs: number, callback: () => void) => {
+      const timer = window.setTimeout(callback, delayMs);
+      pointerTimersRef.current.push(timer);
+    };
+
+    const typeDelayMs = 28;
+    const typingStartsAt = 1180;
+    const submitAimAt = typingStartsAt + 220 + query.length * typeDelayMs + 420;
+
+    queue(260, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-launcher="true"]', 0.5);
+    });
+
+    queue(980, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-launcher="true"]', 0.5);
+    });
+
+    queue(typingStartsAt, () => {
+      setDemoSubmission({
+        id: submissionIdRef.current,
+        query,
+        typing: true,
+        typeDelayMs,
+        submitDelayMs: 0,
+        manualSubmit: true,
+      });
+      submissionIdRef.current += 1;
+    });
+
+    queue(submitAimAt, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-submit="true"]', 0.5);
+    });
+
+    queue(submitAimAt + 760, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-submit="true"]', 0.5);
+    });
+  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
+
+  const runCoffeeCartPointer = useCallback(() => {
+    clearFoodTrioPointerTimers();
+
+    const queue = (delayMs: number, callback: () => void) => {
+      const timer = window.setTimeout(callback, delayMs);
+      pointerTimersRef.current.push(timer);
+    };
+
+    // Coffee teaches the basic repair loop:
+    // required red item -> one tap choice -> cart returns -> green row spotlight.
+    queue(620, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="half-caf-cappuccino"]', 0.5);
+    });
+
+    queue(1500, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="half-caf-cappuccino"]', 0.5);
+    });
+
+    queue(2300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="grande"]', 0.5);
+    });
+
+    queue(3200, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="grande"]', 0.5);
+    });
+
+    queue(4120, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="grande-iced-vanilla-lattes"]', 0.5);
+    });
+
+    queue(5000, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="grande-iced-vanilla-lattes"]', 0.5);
+    });
+
+    queue(6050, () => {
+      setPointerState(FOOD_TRIO_POINTER_HIDDEN);
+    });
+  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
 
   const runFastFoodCartScrollPointer = useCallback(() => {
     clearFoodTrioPointerTimers();
@@ -210,9 +353,16 @@ export default function FoodTrioMobileExperience() {
   const startScenario = useCallback((scenarioId: FoodTrioScenarioId) => {
     const query = foodTrioPromptForScenario(scenarioId);
     clearFoodTrioPointerTimers();
-    pendingPointerScenarioRef.current = scenarioId === "fast-food" ? scenarioId : null;
+    pendingPointerScenarioRef.current = scenarioId === "coffee" || scenarioId === "fast-food" ? scenarioId : null;
     setActiveScenario(scenarioId);
     setActiveTargetId(null);
+
+    if (scenarioId === "coffee") {
+      setDemoSubmission(null);
+      runCoffeeEntryPointer(query);
+      return;
+    }
+
     setDemoSubmission({
       id: submissionIdRef.current,
       query,
@@ -221,12 +371,12 @@ export default function FoodTrioMobileExperience() {
       submitDelayMs: 680,
     });
     submissionIdRef.current += 1;
-  }, []);
+  }, [clearFoodTrioPointerTimers, runCoffeeEntryPointer]);
 
   const handleSubmitPrompt = useCallback((query: string, _meta?: SmartBarMobileSubmitMeta) => {
     const nextScenario = foodTrioScenarioFromQuery(query, activeScenario);
     const result = foodTrioResultForQuery(query, activeScenario);
-    pendingPointerScenarioRef.current = nextScenario === "fast-food" ? nextScenario : null;
+    pendingPointerScenarioRef.current = nextScenario === "coffee" || nextScenario === "fast-food" ? nextScenario : null;
     setActiveScenario(nextScenario);
     setLastResult(result);
 
@@ -238,7 +388,12 @@ export default function FoodTrioMobileExperience() {
   }, [activeScenario]);
 
   const handleNavigateToLine = useCallback((line: SmartBarMobileOrderLine) => {
-    clearFoodTrioPointerTimers();
+    if (scriptedPointerClickRef.current) {
+      scriptedPointerClickRef.current = false;
+    } else {
+      clearFoodTrioPointerTimers();
+    }
+
     setActiveTargetId(line.targetId || null);
     scrollToFoodTrioTarget(line.targetId);
   }, [clearFoodTrioPointerTimers]);
@@ -291,9 +446,17 @@ export default function FoodTrioMobileExperience() {
         onApplyLineChoice={handleApplyChoice}
         onRemoveLine={handleRemoveLine}
         onCartReady={() => {
-          if (pendingPointerScenarioRef.current !== "fast-food") return;
+          const pointerScenario = pendingPointerScenarioRef.current;
           pendingPointerScenarioRef.current = null;
-          runFastFoodCartScrollPointer();
+
+          if (pointerScenario === "coffee") {
+            runCoffeeCartPointer();
+            return;
+          }
+
+          if (pointerScenario === "fast-food") {
+            runFastFoodCartScrollPointer();
+          }
         }}
         onResetCart={() => {
           clearFoodTrioPointerTimers();
