@@ -91,14 +91,14 @@ function line(
 const COFFEE_LINES: SmartBarMobileOrderLine[] = [
   line(
     "coffee-iced-vanilla-lattes",
-    "foodtrio-coffee-milk",
+    "foodtrio-coffee-iced-vanilla-latte",
     "2 × Grande Iced Vanilla Lattes",
     "$13.50",
     ["Oat milk", "Vanilla syrup", "Light ice", "Grande"],
   ),
   line(
     "coffee-cappuccino",
-    "foodtrio-coffee-espresso",
+    "foodtrio-coffee-cappuccino",
     "Half-caf Cappuccino",
     "$5.95",
     ["Half-caf", "Extra hot", "Almond milk"],
@@ -108,14 +108,14 @@ const COFFEE_LINES: SmartBarMobileOrderLine[] = [
   ),
   line(
     "coffee-turkey-pesto",
-    "foodtrio-coffee-food",
+    "foodtrio-coffee-turkey-pesto",
     "Turkey Pesto Sandwich",
     "$8.75",
     ["No tomato", "Warm it"],
   ),
   line(
     "coffee-loyalty",
-    "foodtrio-coffee-checkout",
+    "foodtrio-coffee-pickup",
     "Pickup timing",
     "$0.00",
     ["ASAP pickup", "Rewards eligible"],
@@ -127,11 +127,11 @@ const COFFEE_LINES: SmartBarMobileOrderLine[] = [
 ];
 
 const FAST_FOOD_LINES: SmartBarMobileOrderLine[] = [
-  line("fast-regular-sandwiches", "foodtrio-fast-combos", "2 × Chicken Sandwich Meals", "$21.98", ["Original sandwich", "Large waffle fries", "Lemonade"]),
-  line("fast-spicy-sandwiches", "foodtrio-fast-spicy", "2 × Spicy Sandwich Meals", "$22.98", ["Spicy filet", "Large waffle fries", "Sweet tea"]),
-  line("fast-grilled", "foodtrio-fast-grilled", "Grilled Sandwich Meal", "$11.79", ["No pickles", "Fruit cup", "Unsweet tea"]),
+  line("fast-regular-sandwiches", "foodtrio-fast-original-sandwich-meal", "2 × Chicken Sandwich Meals", "$21.98", ["Original sandwich", "Large waffle fries", "Lemonade"]),
+  line("fast-spicy-sandwiches", "foodtrio-fast-spicy-sandwich-meal", "2 × Spicy Sandwich Meals", "$22.98", ["Spicy filet", "Large waffle fries", "Sweet tea"]),
+  line("fast-grilled", "foodtrio-fast-grilled-sandwich-meal", "Grilled Sandwich Meal", "$11.79", ["No pickles", "Fruit cup", "Unsweet tea"]),
   line("fast-nuggets", "foodtrio-fast-nuggets", "12-count Nugget Box", "$8.95", ["Shareable", "Add sauces"]),
-  line("fast-waffle-fries", "foodtrio-fast-sides", "3 × Large Waffle Fries", "$11.25", ["Crispy", "Separate bags"]),
+  line("fast-waffle-fries", "foodtrio-fast-waffle-fries", "3 × Large Waffle Fries", "$11.25", ["Crispy", "Separate bags"]),
   line(
     "fast-sauces",
     "foodtrio-fast-sauces",
@@ -144,19 +144,19 @@ const FAST_FOOD_LINES: SmartBarMobileOrderLine[] = [
     "multi",
   ),
   line("fast-drinks", "foodtrio-fast-drinks", "Drink set", "$8.70", ["2 lemonades", "1 sweet tea", "1 unsweet tea"]),
-  line("fast-dessert", "foodtrio-fast-treats", "Chocolate chunk cookie", "$1.85", ["Add one treat"]),
+  line("fast-dessert", "foodtrio-fast-cookie", "Chocolate chunk cookie", "$1.85", ["Add one treat"]),
 ];
 
 const CASUAL_DINING_LINES: SmartBarMobileOrderLine[] = [
-  line("casual-avocado-rolls", "foodtrio-casual-apps", "Avocado Rolls", "$14.95", ["Share plate", "Tamarind sauce"]),
-  line("casual-nachos", "foodtrio-casual-apps", "Loaded Nachos", "$16.50", ["Chicken added", "Jalapeños on side"]),
-  line("casual-salads", "foodtrio-casual-salads", "2 × Dinner Salads", "$17.90", ["One ranch", "One vinaigrette"]),
+  line("casual-avocado-rolls", "foodtrio-casual-avocado-rolls", "Avocado Rolls", "$14.95", ["Share plate", "Tamarind sauce"]),
+  line("casual-nachos", "foodtrio-casual-loaded-nachos", "Loaded Nachos", "$16.50", ["Chicken added", "Jalapeños on side"]),
+  line("casual-salads", "foodtrio-casual-dinner-salad", "2 × Dinner Salads", "$17.90", ["One ranch", "One vinaigrette"]),
   line("casual-soup", "foodtrio-casual-soup", "Soup of the Day", "$7.95", ["Cup", "Before entree"]),
-  line("casual-madeira", "foodtrio-casual-entrees", "Chicken Madeira", "$24.95", ["Mashed potatoes", "Extra mushroom sauce"]),
-  line("casual-salmon", "foodtrio-casual-entrees", "Herb Salmon", "$27.95", ["Asparagus", "Sauce on side"]),
+  line("casual-madeira", "foodtrio-casual-chicken-madeira", "Chicken Madeira", "$24.95", ["Mashed potatoes", "Extra mushroom sauce"]),
+  line("casual-salmon", "foodtrio-casual-herb-salmon", "Herb Salmon", "$27.95", ["Asparagus", "Sauce on side"]),
   line(
     "casual-kids-pasta",
-    "foodtrio-casual-kids",
+    "foodtrio-casual-kids-pasta",
     "Kids Pasta",
     "$8.95",
     ["Butter sauce"],
@@ -164,10 +164,10 @@ const CASUAL_DINING_LINES: SmartBarMobileOrderLine[] = [
     "pending",
     ["Penne", "Spaghetti", "Bowtie"],
   ),
-  line("casual-cheesecake", "foodtrio-casual-dessert", "Original Cheesecake", "$10.50", ["Strawberries on side"]),
+  line("casual-cheesecake", "foodtrio-casual-cheesecake", "Original Cheesecake", "$10.50", ["Strawberries on side"]),
   line(
     "casual-mocktails",
-    "foodtrio-casual-drinks",
+    "foodtrio-casual-mocktails",
     "2 × Sparkling Mocktails",
     "$15.00",
     ["One berry", "One citrus"],
