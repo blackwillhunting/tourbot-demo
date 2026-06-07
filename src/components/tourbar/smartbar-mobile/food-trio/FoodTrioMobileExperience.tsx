@@ -6,6 +6,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitMeta,
 } from "../SmartBarMobileShell";
 import FoodTrioTargetWall from "./FoodTrioTargetWall";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../../smartbarFocusController";
 import {
   FOOD_TRIO_SCENARIOS,
   foodTrioApplyChoice,
@@ -29,13 +30,41 @@ function scrollToFoodTrioScenario(scenarioId: FoodTrioScenarioId) {
 }
 
 function scrollToFoodTrioTarget(targetId?: string) {
-  if (!targetId || typeof document === "undefined") return;
+  if (!targetId || typeof document === "undefined" || typeof window === "undefined") return;
 
   const target = document.querySelector<HTMLElement>(
     `[data-foodtrio-target="${targetId}"], [data-tour-id="${targetId}"], #${targetId}`,
   );
 
-  target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!target) return;
+
+  // Keep the focused product close to the top of the phone viewport, but not
+  // hidden under the fixed FoodTrio status pill or clipped against the edge.
+  const topInset = 88;
+  const currentTop = window.scrollY || document.documentElement.scrollTop || 0;
+  const targetRect = target.getBoundingClientRect();
+  const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+  const nextTop = Math.min(Math.max(currentTop + targetRect.top - topInset, 0), maxTop);
+
+  clearSmartBarFocusOverlay();
+  window.scrollTo({ top: nextTop, left: 0, behavior: "smooth" });
+
+  // Use the same frost/blur spotlight as the other demos. The manual scroll
+  // above owns placement; skipPlacementScroll prevents a second correction jump.
+  window.setTimeout(() => {
+    void smartbarFocusTarget(
+      {
+        pageId: "foodtrio-mobile",
+        targetId,
+      },
+      {
+        initialDelayMs: 0,
+        skipPlacementScroll: true,
+        overlayDurationMs: 3200,
+        dispatchLegacyEvent: false,
+      },
+    );
+  }, 540);
 }
 
 export default function FoodTrioMobileExperience() {
@@ -53,8 +82,8 @@ export default function FoodTrioMobileExperience() {
       id: submissionIdRef.current,
       query,
       typing: true,
-      typeDelayMs: 18,
-      submitDelayMs: 420,
+      typeDelayMs: 28,
+      submitDelayMs: 680,
     });
     submissionIdRef.current += 1;
   }, []);
@@ -65,12 +94,9 @@ export default function FoodTrioMobileExperience() {
     setActiveScenario(nextScenario);
     setLastResult(result);
 
-    const firstTargetId = result.lines.find((line) => line.targetId)?.targetId || null;
-    setActiveTargetId(firstTargetId);
-
-    window.setTimeout(() => {
-      if (firstTargetId) scrollToFoodTrioTarget(firstTargetId);
-    }, 120);
+    // Opening a cart should not move the menu. Menu navigation is reserved
+    // for the explicit cart-line focus moment.
+    setActiveTargetId(null);
 
     return result;
   }, [activeScenario]);
@@ -83,8 +109,8 @@ export default function FoodTrioMobileExperience() {
   const handleApplyChoice = useCallback((line: SmartBarMobileOrderLine, value: string) => {
     const result = foodTrioApplyChoice(lastResult.lines, line, value);
     setLastResult(result);
-    setActiveTargetId(line.targetId || null);
-    scrollToFoodTrioTarget(line.targetId);
+    // Applying a choice updates the cart, but it should not create a fresh
+    // page/menu navigation moment. Cart-line selection owns spotlight movement.
     return result;
   }, [lastResult]);
 
@@ -103,6 +129,7 @@ export default function FoodTrioMobileExperience() {
         activeScenario={activeScenario}
         activeTargetId={activeTargetId}
         onScenarioSelect={(scenarioId) => {
+              clearSmartBarFocusOverlay();
               setActiveScenario(scenarioId);
               setActiveTargetId(null);
               window.setTimeout(() => scrollToFoodTrioScenario(scenarioId), 60);
@@ -124,6 +151,7 @@ export default function FoodTrioMobileExperience() {
         onApplyLineChoice={handleApplyChoice}
         onRemoveLine={handleRemoveLine}
         onResetCart={() => {
+          clearSmartBarFocusOverlay();
           const result = foodTrioResultForScenario(activeScenario);
           setLastResult(result);
           setActiveTargetId(null);

@@ -541,6 +541,14 @@ export default function SmartBarMobileShell({
   );
   const launcherPillLeft = Math.max(0, (entryPillWidth - launcherPillWidth) / 2);
   const realComposerHeight = 90;
+  const entryDraftHardLineCount = entryDraft.split("\n").length;
+  const entryDraftSoftLineCount = Math.ceil(Math.max(entryDraft.length, 1) / 31);
+  const entryDraftLineCount = Math.max(1, entryDraftHardLineCount, entryDraftSoftLineCount);
+  const entryComposerMaxHeight = Math.max(realComposerHeight, stableViewportHeight - 154 - keyboardLift);
+  const entryComposerHeight = phase === "entry"
+    ? Math.min(entryComposerMaxHeight, Math.max(realComposerHeight, 54 + entryDraftLineCount * 25))
+    : realComposerHeight;
+  const entryComposerRadius = entryComposerHeight > realComposerHeight + 18 ? 30 : 999;
   const buildPanelHeight = realComposerHeight;
   const collapsedCartPanelHeight = 90;
   const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
@@ -1798,7 +1806,7 @@ export default function SmartBarMobileShell({
           >
             <div
               className={upperGlassClass}
-              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, height: realComposerHeight, borderRadius: 999 }}
+              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
             >
               <div className="relative h-full px-3 py-2">
                 <textarea
@@ -1820,10 +1828,19 @@ export default function SmartBarMobileShell({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 2, scale: 0.99 }}
                       transition={{ duration: 0.14, ease: "easeOut" }}
-                      className="pointer-events-none absolute inset-x-5 top-1/2 z-[1] flex -translate-y-1/2 justify-center"
+                      className="pointer-events-none absolute inset-x-4 inset-y-2 z-[1] flex items-center justify-center"
                       aria-hidden="true"
                     >
-                      <div className={inputDraftCapsuleClass}>
+                      <div
+                        className={`${inputDraftCapsuleClass} max-w-full`}
+                        style={{
+                          maxHeight: Math.max(42, entryComposerHeight - 24),
+                          whiteSpace: "pre-wrap",
+                          overflow: "hidden",
+                          display: "block",
+                          textAlign: "left",
+                        }}
+                      >
                         {entryDraft}
                       </div>
                     </motion.div>

@@ -367,24 +367,38 @@ function targetToneClass(target: FoodTarget) {
   return `${TONES[target.tone]} ${GLOWS[target.tone]}`;
 }
 
-function FoodMenuTarget({ target, active }: { target: FoodTarget; active: boolean }) {
+function FoodMenuTarget({
+  target,
+  active,
+  dimmed = false,
+}: {
+  target: FoodTarget;
+  active: boolean;
+  dimmed?: boolean;
+}) {
   const Icon = target.Icon;
   const lineStyle = target.shape === "line";
 
   return (
     <motion.article
       data-tour-id={target.id}
+      data-foodtrio-target={target.id}
+      data-smartbar-focus-surface="foodtrio-mobile"
+      data-spotlight-mode={target.shape === "line" ? "region" : "card"}
       layout
       initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={{
+        opacity: dimmed ? 0.64 : 1,
+        y: 0,
+        scale: active ? 1.006 : 1,
+      }}
       transition={{ duration: 0.28, ease: "easeOut" }}
       className={[
-        "relative overflow-hidden",
+        "relative overflow-hidden transition-[filter,opacity,transform] duration-300",
         SHAPES[target.shape],
         targetToneClass(target),
-        active
-          ? "z-10 border-cyan-200/80 shadow-[0_0_0_2px_rgba(125,211,252,0.40),0_18px_50px_rgba(8,145,178,0.28)]"
-          : "",
+        active ? "z-10 brightness-110" : "",
+        dimmed ? "brightness-90 saturate-75" : "",
       ].join(" ")}
     >
       <div className="relative z-10 flex h-full min-h-0 flex-col gap-2">
@@ -484,7 +498,12 @@ export default function FoodTrioTargetWall({
 
             <div className="grid grid-cols-2 gap-2.5">
               {targets.map((target) => (
-                <FoodMenuTarget key={target.id} target={target} active={activeTargetId === target.id} />
+                <FoodMenuTarget
+                  key={target.id}
+                  target={target}
+                  active={activeTargetId === target.id}
+                  dimmed={Boolean(activeTargetId && isActiveScenario && activeTargetId !== target.id)}
+                />
               ))}
             </div>
           </section>
