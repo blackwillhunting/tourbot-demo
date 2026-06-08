@@ -177,14 +177,14 @@ const SMARTBAR_MOBILE_FOG_GLASS_STYLE: CSSProperties = {
   WebkitBackdropFilter: "blur(38px) saturate(155%) brightness(1.08)",
 };
 
-const SMARTBAR_MOBILE_FOG_CHROME_STYLE: CSSProperties = {
+const SMARTBAR_MOBILE_BLUE_CONTROL_STYLE: CSSProperties = {
   background:
-    "radial-gradient(circle at 82% 16%, rgba(103,232,249,0.18) 0%, rgba(103,232,249,0.08) 24%, transparent 50%), linear-gradient(180deg, rgba(226,232,240,0.38) 0%, rgba(148,163,184,0.48) 42%, rgba(51,65,85,0.58) 100%)",
-  borderColor: "rgba(255,255,255,0.32)",
+    "linear-gradient(180deg, rgba(20,34,92,0.96) 0%, rgba(17,29,82,0.98) 52%, rgba(13,23,68,0.99) 100%)",
+  borderColor: "rgba(255,255,255,0.30)",
   boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.40), inset 0 0 26px rgba(255,255,255,0.10), inset 0 -1px 0 rgba(15,23,42,0.48), 0 16px 40px rgba(2,6,23,0.38)",
-  backdropFilter: "blur(34px) saturate(150%) brightness(1.07)",
-  WebkitBackdropFilter: "blur(34px) saturate(150%) brightness(1.07)",
+    "inset 0 1px 0 rgba(255,255,255,0.26), inset 0 -1px 0 rgba(2,6,23,0.48), 0 16px 38px rgba(2,6,23,0.30), 0 5px 14px rgba(2,6,23,0.18)",
+  backdropFilter: "blur(18px) saturate(120%)",
+  WebkitBackdropFilter: "blur(18px) saturate(120%)",
 };
 
 
@@ -685,7 +685,6 @@ export default function SmartBarMobileShell({
         maxCartPanelHeight,
         Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
       );
-  const selectedDetailChipRows = Math.max(1, Math.ceil((selectedLine?.details.length || 0) / 2));
   const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 2);
   const cartDetailHeight = selectedLine?.status === "unknown"
     ? 260
@@ -693,9 +692,9 @@ export default function SmartBarMobileShell({
         maxCartPanelHeight,
         Math.max(
           220,
-          150 +
-            selectedDetailChipRows * 34 +
-            (selectedOptionRows > 0 ? 38 + selectedOptionRows * 54 : 0),
+          selectedOptionRows > 0
+            ? 154 + selectedOptionRows * 62
+            : 220,
         ),
       );
   const fakeCartPanelHeight = handoffState === "complete"
@@ -1709,9 +1708,6 @@ export default function SmartBarMobileShell({
     rootTextClass,
     upperGlassClass,
     chromePillClass,
-    chromeBlueBadgeClass,
-    chromeBlueIconClass,
-    chromeBlueLabelClass,
     inputDraftCapsuleClass,
     mainMutedTextClass,
     softTextClass,
@@ -1914,7 +1910,7 @@ export default function SmartBarMobileShell({
           >
             <div
               className={upperGlassClass}
-              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
+              style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
             >
               <div className="relative h-full px-3 py-2">
                 <textarea
@@ -1925,8 +1921,11 @@ export default function SmartBarMobileShell({
                     setEntryDraft(event.target.value);
                     setHasEditedEntryDraft(true);
                   }}
-                  className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent selection:bg-white/20 ${demoSubmission?.typing ? "caret-transparent" : "caret-white"}`}
+                  className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent caret-transparent selection:bg-slate-900/15"
                   placeholder=""
+                  spellCheck={false}
+                  autoCorrect="off"
+                  autoCapitalize="none"
                 />
                 <AnimatePresence initial={false}>
                   {entryDraft.trim() && (
@@ -1940,7 +1939,7 @@ export default function SmartBarMobileShell({
                       aria-hidden="true"
                     >
                       <div
-                        className={`${inputDraftCapsuleClass} max-w-full`}
+                        className={`${inputDraftCapsuleClass} max-w-full !rounded-[28px] !border-transparent !bg-transparent !text-[16px] !font-semibold !tracking-[-0.01em] !text-white !shadow-none ![text-shadow:none]`}
                         style={{
                           maxHeight: Math.max(42, entryComposerHeight - 24),
                           whiteSpace: "pre-wrap",
@@ -1997,7 +1996,7 @@ export default function SmartBarMobileShell({
                   >
                     <div className="flex h-full items-center justify-center px-3 py-2">
                       <div
-                        className={`${inputDraftCapsuleClass} max-w-full`}
+                        className={`${inputDraftCapsuleClass} max-w-full !rounded-[28px] !border !border-slate-500/18 !bg-white/46 !text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_8px_18px_rgba(15,23,42,0.12)] [text-shadow:0_1px_0_rgba(255,255,255,0.64)]`}
                         style={{
                           maxHeight: Math.max(42, buildPanelHeight - 24),
                           whiteSpace: "pre-wrap",
@@ -2057,22 +2056,6 @@ export default function SmartBarMobileShell({
                         className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
-                        <div className={`text-[12px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
-                          Item page opened
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {selectedLine.details.map((detail) => (
-                            <button
-                              key={detail}
-                              type="button"
-                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black text-slate-950 shadow-sm ${SMARTBAR_MOBILE_STRONG_ACTION_PILLS ? "bg-emerald-300/98 ring-1 ring-emerald-50/46" : "bg-emerald-300/90"}`}
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              {smartBarMobileShortLabel(detail)}
-                            </button>
-                          ))}
-                        </div>
-
                         {!!selectedLine.options?.length && (
                           <div className="mt-4">
                             <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
@@ -2465,14 +2448,14 @@ export default function SmartBarMobileShell({
                 type="button"
                 onClick={handleClosePillClick}
                 className={`${chromePillClass} left-0`}
-                style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={closeArmed ? "Tap again to close SmartBar" : "Close SmartBar"}
               >
-                <span className={chromeBlueIconClass}>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
                   <X className="h-5 w-5" />
                 </span>
               </motion.button>
@@ -2489,22 +2472,20 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
             className={`${chromePillClass} h-[46px] min-w-0 justify-center px-4`}
-            style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: launcherPillWidth, left: launcherPillLeft }}
+            style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: launcherPillWidth, left: launcherPillLeft }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
-                <span className={chromeBlueLabelClass}>{companionLabel}</span>
+              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] text-white">
+                {companionLabel}
               </span>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
-              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
-                <span className={chromeBlueLabelClass}>
-                  <ThinkingText text={companionLabel} />
-                </span>
+              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] text-white">
+                <ThinkingText text={companionLabel} />
               </span>
             ) : (
-              <span className={`${chromeBlueBadgeClass} h-8 max-w-full px-4 text-[16px]`}>
-                <span className={chromeBlueLabelClass}>{companionLabel}</span>
+              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] text-white">
+                {companionLabel}
               </span>
             )}
           </button>
@@ -2517,14 +2498,14 @@ export default function SmartBarMobileShell({
                 data-domi-demo-down-target={phase === "cart" ? "true" : undefined}
                 onClick={handleCartToggleClick}
                 className={`${chromePillClass} right-0`}
-                style={{ ...SMARTBAR_MOBILE_FOG_CHROME_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={phase === "cart" ? "Return to entry" : "Reopen cart"}
               >
-                <span className={chromeBlueIconClass}>
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
                   {cartToggleShowsUp ? (
                     <ChevronUp className="h-5 w-5" />
                   ) : (
