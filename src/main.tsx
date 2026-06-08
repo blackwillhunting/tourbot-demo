@@ -259,6 +259,14 @@ function Router() {
   if (path === "/carryout") {
     return (
       <ProtectedDemoRoute>
+        <BurgerRushMobileExperience />
+      </ProtectedDemoRoute>
+    );
+  }
+
+  if (path === "/carryout-legacy") {
+    return (
+      <ProtectedDemoRoute>
         <AppCarryout />
       </ProtectedDemoRoute>
     );

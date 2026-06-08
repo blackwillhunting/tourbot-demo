@@ -513,6 +513,7 @@ export default function SmartBarMobileShell({
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const [cartStatusFilter, setCartStatusFilter] = useState<SmartBarMobileCartStatusFilter>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
+  const [reviewedOptionLineKeys, setReviewedOptionLineKeys] = useState<Record<string, true>>({});
   const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
@@ -570,11 +571,26 @@ export default function SmartBarMobileShell({
   const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
 
   const lines = useMemo(() => {
-    return orderLines.map((line) => ({
-      ...line,
-      ...(lineOverrides[line.id] || {}),
-    }));
-  }, [lineOverrides, orderLines]);
+    return orderLines.map((line) => {
+      const mergedLine: SmartBarMobileOrderLine = {
+        ...line,
+        ...(lineOverrides[line.id] || {}),
+      };
+      const lineKey = smartBarMobileLineInstanceKey(mergedLine);
+
+      if (lineKey && reviewedOptionLineKeys[lineKey] && mergedLine.status === "options") {
+        return {
+          ...mergedLine,
+          status: "ready" as const,
+          helper: "Reviewed and ready",
+          options: mergedLine.options || line.options || [],
+          optionSelectionMode: mergedLine.optionSelectionMode || "multi",
+        };
+      }
+
+      return mergedLine;
+    });
+  }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
 
   const selectedLine = selectedLineId
     ? lines.find((line) => line.id === selectedLineId) || null
@@ -833,6 +849,7 @@ export default function SmartBarMobileShell({
     setSelectedLineId(null);
     setCartStatusFilter(null);
     setLineOverrides({});
+    setReviewedOptionLineKeys({});
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
     setCartExpanded(true);
@@ -925,6 +942,7 @@ export default function SmartBarMobileShell({
       setHandoffState("idle");
       setSelectedLineId(null);
       setLineOverrides({});
+      setReviewedOptionLineKeys({});
       setGenericResult(null);
       setCartExpanded(false);
       setSubmittedPromptPreview("");
@@ -1017,6 +1035,16 @@ export default function SmartBarMobileShell({
     // Required choices are single-select and close the detail view after a short
     // confirmation beat. Optional extras stay multi-select for stacking, but
     // after any review/edit the row becomes green because it is now prepared.
+    if (multiSelect) {
+      const reviewedOptionKey = smartBarMobileLineInstanceKey(line);
+      if (reviewedOptionKey) {
+        setReviewedOptionLineKeys((current) => ({
+          ...current,
+          [reviewedOptionKey]: true,
+        }));
+      }
+    }
+
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
@@ -1255,6 +1283,7 @@ export default function SmartBarMobileShell({
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
     setLineOverrides({});
+    setReviewedOptionLineKeys({});
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
@@ -1279,6 +1308,7 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
+    setCartStatusFilter(null);
     setCartExpanded(true);
     setHandoffState("handing_off");
 
@@ -1290,7 +1320,7 @@ export default function SmartBarMobileShell({
       handoffResetTimerRef.current = window.setTimeout(() => {
         handoffResetTimerRef.current = null;
         resetToRest();
-      }, 2000);
+      }, 320);
     }, 3000);
   };
 
@@ -1380,6 +1410,14 @@ export default function SmartBarMobileShell({
         const reviewedResult: SmartBarMobileOrderResult = {
           lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, selectedLine) ? reviewedLine : candidate),
         };
+
+        const reviewedOptionKey = smartBarMobileLineInstanceKey(selectedLine);
+        if (reviewedOptionKey) {
+          setReviewedOptionLineKeys((current) => ({
+            ...current,
+            [reviewedOptionKey]: true,
+          }));
+        }
 
         setOrderLines(reviewedResult.lines);
         applyOrderResultEstimates(reviewedResult, "");
@@ -2443,7 +2481,7 @@ export default function SmartBarMobileShell({
           style={{ width: entryPillWidth }}
         >
           <AnimatePresence initial={false}>
-            {phase !== "rest" && (
+            {phase !== "rest" && handoffState !== "complete" && (
               <motion.button
                 type="button"
                 onClick={handleClosePillClick}
