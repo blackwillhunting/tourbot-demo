@@ -34,6 +34,10 @@ const FOOD_TRIO_POINTER_HIDDEN: FoodTrioPointerState = {
 
 const FOOD_TRIO_POINTER_CADENCE = 1.12;
 const FOOD_TRIO_POINTER_PRESS_HOLD_MS = 420;
+const FOOD_TRIO_POINTER_REAIM_DISTANCE_PX = 34;
+const FOOD_TRIO_POINTER_REAIM_OFFSET_X = -22;
+const FOOD_TRIO_POINTER_REAIM_OFFSET_Y = -16;
+const FOOD_TRIO_POINTER_REAIM_MS = 170;
 
 function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
   if (!state.visible) return null;
@@ -136,12 +140,16 @@ export default function FoodTrioMobileExperience() {
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const submissionIdRef = useRef(1);
   const pointerTimersRef = useRef<number[]>([]);
+  const lastPointerPointRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerMovedSinceLastTapRef = useRef(false);
   const pendingPointerScenarioRef = useRef<FoodTrioScenarioId | null>(null);
   const scriptedPointerClickRef = useRef(false);
 
   const clearFoodTrioPointerTimers = useCallback(() => {
     pointerTimersRef.current.forEach((timer) => window.clearTimeout(timer));
     pointerTimersRef.current = [];
+    lastPointerPointRef.current = null;
+    pointerMovedSinceLastTapRef.current = false;
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
   }, []);
 
@@ -162,6 +170,13 @@ export default function FoodTrioMobileExperience() {
     if (!element) return null;
 
     const point = foodTrioButtonPoint(element, anchorY, offsetY, anchorX);
+    const previousPoint = lastPointerPointRef.current;
+    const movementDistance = previousPoint
+      ? Math.hypot(point.x - previousPoint.x, point.y - previousPoint.y)
+      : Number.POSITIVE_INFINITY;
+
+    lastPointerPointRef.current = point;
+    pointerMovedSinceLastTapRef.current = movementDistance > 8;
     setPointerState({
       visible: true,
       x: point.x,
@@ -178,29 +193,70 @@ export default function FoodTrioMobileExperience() {
     offsetY = 0,
     anchorX = 0.5,
   ) => {
-    const element = moveFoodTrioPointerToElement(selector, anchorY, offsetY, true, anchorX);
+    const element = document.querySelector<HTMLElement>(selector);
     if (!element) return null;
 
-    const clickTimer = window.setTimeout(() => {
-      scriptedPointerClickRef.current = true;
-      element.click();
+    const point = foodTrioButtonPoint(element, anchorY, offsetY, anchorX);
+    const previousPoint = lastPointerPointRef.current;
+    const distanceFromPrevious = previousPoint
+      ? Math.hypot(point.x - previousPoint.x, point.y - previousPoint.y)
+      : Number.POSITIVE_INFINITY;
+    const shouldReaim =
+      distanceFromPrevious < FOOD_TRIO_POINTER_REAIM_DISTANCE_PX &&
+      !pointerMovedSinceLastTapRef.current;
 
-      const releaseTimer = window.setTimeout(() => {
-        scriptedPointerClickRef.current = false;
-        setPointerState((current) => (
-          current.visible
-            ? { ...current, pulse: false }
-            : current
-        ));
-      }, 140);
+    const pressTarget = () => {
+      lastPointerPointRef.current = point;
+      pointerMovedSinceLastTapRef.current = false;
+      setPointerState({
+        visible: true,
+        x: point.x,
+        y: point.y,
+        pulse: true,
+      });
 
-      pointerTimersRef.current.push(releaseTimer);
-    }, FOOD_TRIO_POINTER_PRESS_HOLD_MS);
+      const clickTimer = window.setTimeout(() => {
+        scriptedPointerClickRef.current = true;
+        element.click();
 
-    pointerTimersRef.current.push(clickTimer);
+        const releaseTimer = window.setTimeout(() => {
+          scriptedPointerClickRef.current = false;
+          setPointerState((current) => (
+            current.visible
+              ? { ...current, pulse: false }
+              : current
+          ));
+        }, 140);
+
+        pointerTimersRef.current.push(releaseTimer);
+      }, FOOD_TRIO_POINTER_PRESS_HOLD_MS);
+
+      pointerTimersRef.current.push(clickTimer);
+    };
+
+    if (shouldReaim) {
+      const reaimPoint = {
+        x: point.x + FOOD_TRIO_POINTER_REAIM_OFFSET_X,
+        y: point.y + FOOD_TRIO_POINTER_REAIM_OFFSET_Y,
+      };
+
+      lastPointerPointRef.current = reaimPoint;
+      pointerMovedSinceLastTapRef.current = true;
+      setPointerState({
+        visible: true,
+        x: reaimPoint.x,
+        y: reaimPoint.y,
+        pulse: false,
+      });
+
+      const reaimTimer = window.setTimeout(pressTarget, FOOD_TRIO_POINTER_REAIM_MS);
+      pointerTimersRef.current.push(reaimTimer);
+    } else {
+      pressTarget();
+    }
 
     return element;
-  }, [moveFoodTrioPointerToElement]);
+  }, []);
 
   const fillFoodTrioRetryInput = useCallback((value: string) => {
     const input = document.querySelector<HTMLTextAreaElement>('[data-smartbar-mobile-retry-input="true"]');
@@ -713,12 +769,13 @@ export default function FoodTrioMobileExperience() {
   }, [activeScenario, lastResult]);
 
   const handleNavigateToLine = useCallback((line: SmartBarMobileOrderLine) => {
-    if (scriptedPointerClickRef.current) {
-      scriptedPointerClickRef.current = false;
-      return;
+    const isScriptedPointerClick = scriptedPointerClickRef.current;
+    scriptedPointerClickRef.current = false;
+
+    if (!isScriptedPointerClick) {
+      clearFoodTrioPointerTimers();
     }
 
-    clearFoodTrioPointerTimers();
     setActiveTargetId(line.targetId || null);
     scrollToFoodTrioTarget(line.targetId);
   }, [clearFoodTrioPointerTimers]);
