@@ -132,6 +132,22 @@ function scrollToFoodTrioTarget(targetId?: string) {
   }, 540);
 }
 
+function scrollFoodTrioCart(direction: "down" | "up") {
+  if (typeof document === "undefined") return;
+
+  const container = document.querySelector<HTMLElement>('[data-smartbar-mobile-cart-scroll="true"]');
+  if (!container) return;
+
+  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
+  const nextTop = direction === "down" ? maxTop : 0;
+
+  container.scrollTo({
+    top: nextTop,
+    left: 0,
+    behavior: "smooth",
+  });
+}
+
 export default function FoodTrioMobileExperience() {
   const [activeScenario, setActiveScenario] = useState<FoodTrioScenarioId>("coffee");
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null);
@@ -568,15 +584,32 @@ export default function FoodTrioMobileExperience() {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
+    // Scroll proof: use invisible side buttons after returning to the full cart.
     queue(37300, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
     queue(38280, () => {
+      clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
+    });
+
+    queue(39940, () => {
+      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
+    });
+
+    queue(40920, () => {
+      clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
+    });
+
+    queue(42600, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(43580, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(39400, () => {
+    queue(47000, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, fillFoodTrioRetryInput, moveFoodTrioPointerToElement]);
@@ -703,15 +736,32 @@ export default function FoodTrioMobileExperience() {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
+    // Scroll proof: use invisible side buttons after returning to the full cart.
     queue(31740, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
     queue(32720, () => {
+      clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
+    });
+
+    queue(34380, () => {
+      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
+    });
+
+    queue(35360, () => {
+      clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
+    });
+
+    queue(37040, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(38020, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(33900, () => {
+    queue(41500, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
@@ -815,6 +865,23 @@ export default function FoodTrioMobileExperience() {
       <div className="pointer-events-none fixed left-3 right-3 top-3 z-30 rounded-full border border-white/12 bg-slate-950/72 px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.10em] text-white/72 shadow-xl shadow-black/20 backdrop-blur-xl">
         {scenario.brand} · fixture wall
       </div>
+
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        data-food-trio-scroll-button="down"
+        onClick={() => scrollFoodTrioCart("down")}
+        className="fixed right-0 top-[42svh] z-[10110] h-24 w-10 opacity-0"
+      />
+      <button
+        type="button"
+        aria-hidden="true"
+        tabIndex={-1}
+        data-food-trio-scroll-button="up"
+        onClick={() => scrollFoodTrioCart("up")}
+        className="fixed right-0 top-[26svh] z-[10110] h-24 w-10 opacity-0"
+      />
 
       <FoodTrioFakePointer state={pointerState} />
 
