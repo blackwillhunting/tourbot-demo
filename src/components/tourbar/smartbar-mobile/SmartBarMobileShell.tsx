@@ -968,7 +968,6 @@ export default function SmartBarMobileShell({
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
     setSelectedLineId(line.id);
-    setCartStatusFilter(null);
     setCartExpanded(true);
 
     if (line.status !== "unknown") {
@@ -1006,8 +1005,8 @@ export default function SmartBarMobileShell({
       : Array.from(new Set([...cleanedDetails, value]));
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
-      status: multiSelect ? "options" : "ready",
-      helper: multiSelect ? valueAlreadySelected ? "Extra removed" : "Extras updated" : `${value} selected`,
+      status: "ready",
+      helper: multiSelect ? "Reviewed and ready" : `${value} selected`,
       details: nextDetails,
       options: multiSelect ? line.options || [] : undefined,
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
@@ -1017,8 +1016,8 @@ export default function SmartBarMobileShell({
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
     // Required choices are single-select and close the detail view after a short
-    // confirmation beat. Optional extras are multi-select, so keep the detail
-    // view open and let the visitor stack more extras.
+    // confirmation beat. Optional extras stay multi-select for stacking, but
+    // after any review/edit the row becomes green because it is now prepared.
     setLineOverrides((current) => ({
       ...current,
       [line.id]: {
@@ -1041,15 +1040,35 @@ export default function SmartBarMobileShell({
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
-      setSelectedLineId(multiSelect ? line.id : null);
+      setSelectedLineId((current) => (multiSelect && current === line.id ? line.id : null));
       setCartExpanded(true);
 
       parentResultPromise
         .then((parentResult) => {
           if (!parentResult || parentResult.lines.length === 0) return;
-          setOrderLines(parentResult.lines);
-          applyOrderResultEstimates(parentResult);
-          if (multiSelect) setSelectedLineId(line.id);
+
+          const reviewedParentResult: SmartBarMobileOrderResult = multiSelect
+            ? {
+                ...parentResult,
+                lines: parentResult.lines.map((candidate) => (
+                  smartBarMobileLinesAreSameInstance(candidate, line)
+                    ? {
+                        ...candidate,
+                        status: "ready" as const,
+                        helper: "Reviewed and ready",
+                        options: candidate.options || line.options || [],
+                        optionSelectionMode: candidate.optionSelectionMode || "multi",
+                      }
+                    : candidate
+                )),
+              }
+            : parentResult;
+
+          setOrderLines(reviewedParentResult.lines);
+          applyOrderResultEstimates(reviewedParentResult);
+          if (multiSelect) {
+            setSelectedLineId((current) => (current === line.id ? line.id : current));
+          }
         })
         .catch(() => {
           // Keep the optimistic cart if the pricing refresh fails.
@@ -1351,6 +1370,24 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine) {
+      if (selectedLine.status === "options") {
+        const reviewedLine: SmartBarMobileOrderLine = {
+          ...selectedLine,
+          status: "ready",
+          helper: "Reviewed and ready",
+          options: selectedLine.options || [],
+          optionSelectionMode: selectedLine.optionSelectionMode || "multi",
+        };
+        const reviewedResult: SmartBarMobileOrderResult = {
+          lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, selectedLine) ? reviewedLine : candidate),
+        };
+
+        setOrderLines(reviewedResult.lines);
+        applyOrderResultEstimates(reviewedResult, "");
+        setLineOverrides({});
+        setSelectedChoice(null);
+      }
+
       setSelectedLineId(null);
       setCartExpanded(true);
       return;
@@ -1888,7 +1925,7 @@ export default function SmartBarMobileShell({
                     setEntryDraft(event.target.value);
                     setHasEditedEntryDraft(true);
                   }}
-                  className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent caret-white selection:bg-white/20"
+                  className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent selection:bg-white/20 ${demoSubmission?.typing ? "caret-transparent" : "caret-white"}`}
                   placeholder=""
                 />
                 <AnimatePresence initial={false}>
@@ -2240,6 +2277,7 @@ export default function SmartBarMobileShell({
                     <div className="mt-3 grid shrink-0 grid-cols-5 gap-1.5">
                       <button
                         type="button"
+                        data-smartbar-mobile-cart-view="default"
                         onClick={clearCartStatusFilter}
                         className={`${cartFilterButtonClass(!cartStatusFilter)} border border-white/18 bg-slate-950/88 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.26)]`}
                         aria-label="Show original order"
@@ -2249,6 +2287,7 @@ export default function SmartBarMobileShell({
                       </button>
                       <button
                         type="button"
+                        data-smartbar-mobile-status-filter="ready"
                         onClick={() => toggleCartStatusFilter("ready", completeCount)}
                         disabled={completeCount <= 0}
                         className={`${cartFilterButtonClass(cartStatusFilter === "ready", completeCount <= 0)} ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}
@@ -2259,6 +2298,7 @@ export default function SmartBarMobileShell({
                       </button>
                       <button
                         type="button"
+                        data-smartbar-mobile-status-filter="pending"
                         onClick={() => toggleCartStatusFilter("pending", blockingIssueCount)}
                         disabled={blockingIssueCount <= 0}
                         className={`${cartFilterButtonClass(cartStatusFilter === "pending", blockingIssueCount <= 0)} ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}
@@ -2269,6 +2309,7 @@ export default function SmartBarMobileShell({
                       </button>
                       <button
                         type="button"
+                        data-smartbar-mobile-status-filter="options"
                         onClick={() => toggleCartStatusFilter("options", optionCount)}
                         disabled={optionCount <= 0}
                         className={`${cartFilterButtonClass(cartStatusFilter === "options", optionCount <= 0)} ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}
@@ -2279,6 +2320,7 @@ export default function SmartBarMobileShell({
                       </button>
                       <button
                         type="button"
+                        data-smartbar-mobile-status-filter="unknown"
                         onClick={() => toggleCartStatusFilter("unknown", unknownCount)}
                         disabled={unknownCount <= 0}
                         className={`${cartFilterButtonClass(cartStatusFilter === "unknown", unknownCount <= 0)} ${unknownFilterPillClass}`}

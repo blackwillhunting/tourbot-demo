@@ -32,6 +32,9 @@ const FOOD_TRIO_POINTER_HIDDEN: FoodTrioPointerState = {
   pulse: false,
 };
 
+const FOOD_TRIO_POINTER_CADENCE = 1.12;
+const FOOD_TRIO_POINTER_PRESS_HOLD_MS = 420;
+
 function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
   if (!state.visible) return null;
 
@@ -68,15 +71,14 @@ function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
   );
 }
 
-function foodTrioButtonPoint(button: HTMLElement, anchorY: number, offsetY = 0) {
+function foodTrioButtonPoint(button: HTMLElement, anchorY: number, offsetY = 0, anchorX = 0.5) {
   const rect = button.getBoundingClientRect();
 
   return {
-    x: rect.left + rect.width / 2,
+    x: rect.left + rect.width * anchorX,
     y: rect.top + rect.height * anchorY + offsetY,
   };
 }
-
 
 function scrollToFoodTrioScenario(scenarioId: FoodTrioScenarioId) {
   if (!scenarioId || typeof document === "undefined") return;
@@ -154,11 +156,12 @@ export default function FoodTrioMobileExperience() {
     anchorY = 0.5,
     offsetY = 0,
     pulse = false,
+    anchorX = 0.5,
   ) => {
     const element = document.querySelector<HTMLElement>(selector);
     if (!element) return null;
 
-    const point = foodTrioButtonPoint(element, anchorY, offsetY);
+    const point = foodTrioButtonPoint(element, anchorY, offsetY, anchorX);
     setPointerState({
       visible: true,
       x: point.x,
@@ -173,8 +176,9 @@ export default function FoodTrioMobileExperience() {
     selector: string,
     anchorY = 0.5,
     offsetY = 0,
+    anchorX = 0.5,
   ) => {
-    const element = moveFoodTrioPointerToElement(selector, anchorY, offsetY, true);
+    const element = moveFoodTrioPointerToElement(selector, anchorY, offsetY, true, anchorX);
     if (!element) return null;
 
     const clickTimer = window.setTimeout(() => {
@@ -191,31 +195,43 @@ export default function FoodTrioMobileExperience() {
       }, 140);
 
       pointerTimersRef.current.push(releaseTimer);
-    }, 260);
+    }, FOOD_TRIO_POINTER_PRESS_HOLD_MS);
 
     pointerTimersRef.current.push(clickTimer);
 
     return element;
   }, [moveFoodTrioPointerToElement]);
 
-  const runCoffeeEntryPointer = useCallback((query: string) => {
+  const fillFoodTrioRetryInput = useCallback((value: string) => {
+    const input = document.querySelector<HTMLTextAreaElement>('[data-smartbar-mobile-retry-input="true"]');
+    if (!input) return null;
+
+    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    nativeSetter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus({ preventScroll: true });
+
+    return input;
+  }, []);
+
+  const runScenarioEntryPointer = useCallback((query: string) => {
     clearFoodTrioPointerTimers();
 
     const queue = (delayMs: number, callback: () => void) => {
-      const timer = window.setTimeout(callback, delayMs);
+      const timer = window.setTimeout(callback, Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE));
       pointerTimersRef.current.push(timer);
     };
 
-    const typeDelayMs = 28;
+    const typeDelayMs = 34;
     const typingStartsAt = 1180;
     const submitAimAt = typingStartsAt + 220 + query.length * typeDelayMs + 420;
 
     queue(260, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-launcher="true"]', 0.5);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-launcher="true"]', 0.5, 0, false, 0.10);
     });
 
     queue(980, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-launcher="true"]', 0.5);
+      clickFoodTrioPointerElement('[data-smartbar-mobile-launcher="true"]', 0.5, 0, 0.10);
     });
 
     queue(typingStartsAt, () => {
@@ -231,11 +247,11 @@ export default function FoodTrioMobileExperience() {
     });
 
     queue(submitAimAt, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-submit="true"]', 0.5);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-submit="true"]', 0.5, 0, false, 0.10);
     });
 
     queue(submitAimAt + 760, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-submit="true"]', 0.5);
+      clickFoodTrioPointerElement('[data-smartbar-mobile-submit="true"]', 0.5, 0, 0.10);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
 
@@ -243,140 +259,449 @@ export default function FoodTrioMobileExperience() {
     clearFoodTrioPointerTimers();
 
     const queue = (delayMs: number, callback: () => void) => {
-      const timer = window.setTimeout(callback, delayMs);
+      const timer = window.setTimeout(callback, Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE));
       pointerTimersRef.current.push(timer);
     };
 
-    // Coffee teaches the basic repair loop:
-    // required red item -> one tap choice -> cart returns -> green row spotlight.
+    // Coffee lesson: meticulous drink detail. All rows are yellow; no green time-wasters.
+    // Drink 1: add several modifiers.
     queue(620, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="half-caf-cappuccino"]', 0.5);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="iced-vanilla-latte"]', 0.5);
     });
 
-    queue(1500, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="half-caf-cappuccino"]', 0.5);
+    queue(1540, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="iced-vanilla-latte"]', 0.5);
     });
 
-    queue(2300, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="grande"]', 0.5);
+    queue(2760, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="vanilla-cold-foam"]', 0.5);
     });
 
-    queue(3200, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="grande"]', 0.5);
+    queue(3740, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="vanilla-cold-foam"]', 0.5);
     });
 
-    queue(4120, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="grande-iced-vanilla-lattes"]', 0.5);
+    queue(4880, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="caramel-drizzle"]', 0.5);
     });
 
-    queue(5000, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="grande-iced-vanilla-lattes"]', 0.5);
+    queue(5860, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="caramel-drizzle"]', 0.5);
     });
 
-    queue(6050, () => {
+    queue(7000, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="extra-vanilla"]', 0.5);
+    });
+
+    queue(7980, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="extra-vanilla"]', 0.5);
+    });
+
+    queue(9200, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(10180, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    // Drink 2: add one modifier and remove one existing modifier.
+    queue(11400, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="matcha-latte"]', 0.5);
+    });
+
+    queue(12380, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="matcha-latte"]', 0.5);
+    });
+
+    queue(13600, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="extra-matcha"]', 0.5);
+    });
+
+    queue(14580, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="extra-matcha"]', 0.5);
+    });
+
+    queue(15720, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="light-ice"]', 0.5);
+    });
+
+    queue(16700, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="light-ice"]', 0.5);
+    });
+
+    queue(17920, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(18900, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    // Drink 3: review and leave alone.
+    queue(20120, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="cold-brew"]', 0.5);
+    });
+
+    queue(21100, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="cold-brew"]', 0.5);
+    });
+
+    queue(22500, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(23480, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(24700, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(25680, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(26800, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
 
-  const runFastFoodCartScrollPointer = useCallback(() => {
+  const runFastFoodCartPointer = useCallback(() => {
     clearFoodTrioPointerTimers();
 
     const queue = (delayMs: number, callback: () => void) => {
-      const timer = window.setTimeout(callback, delayMs);
+      const timer = window.setTimeout(callback, Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE));
       pointerTimersRef.current.push(timer);
     };
 
-    const moveToButton = (
-      selector: string,
-      anchorY: number,
-      offsetY: number,
-      pulse = false,
-    ) => {
-      const button = document.querySelector<HTMLElement>(selector);
-      if (!button) return null;
-
-      const point = foodTrioButtonPoint(button, anchorY, offsetY);
-      setPointerState({
-        visible: true,
-        x: point.x,
-        y: point.y,
-        pulse,
-      });
-
-      return button;
-    };
-
-    queue(360, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 1, 46);
+    // Fast Food lesson: reckless group order triage by color.
+    // Red first: required missing choices.
+    queue(620, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
     });
 
-    queue(980, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0);
+    queue(1580, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
     });
 
-    queue(1260, () => {
-      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0, true);
-      button?.click();
+    queue(2720, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="regular-chicken-sandwich-meal"]', 0.5);
     });
 
-    queue(1820, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 1, 46);
+    queue(3700, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="regular-chicken-sandwich-meal"]', 0.5);
     });
 
-    queue(2380, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0);
+    queue(4920, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="large-fries-dr-pepper"]', 0.5);
     });
 
-    queue(2660, () => {
-      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="down"]', 0.55, 0, true);
-      button?.click();
+    queue(5900, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="large-fries-dr-pepper"]', 0.5);
     });
 
-    queue(3520, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0, -42);
+    queue(7120, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="kids-nuggets"]', 0.5);
     });
 
-    queue(4080, () => {
-      moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0.45, 0);
+    queue(8100, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="kids-nuggets"]', 0.5);
     });
 
-    queue(4360, () => {
-      const button = moveToButton('[data-smartbar-mobile-cart-scroll-button="up"]', 0.45, 0, true);
-      button?.click();
+    queue(9320, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="8-count"]', 0.5);
     });
 
-    queue(5200, () => {
+    queue(10300, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="8-count"]', 0.5);
+    });
+
+    queue(11520, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="dr-pepper"]', 0.5);
+    });
+
+    queue(12500, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="dr-pepper"]', 0.5);
+    });
+
+    queue(13720, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="large"]', 0.5);
+    });
+
+    queue(14700, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="large"]', 0.5);
+    });
+
+    // Yellow next: optional group extras.
+    queue(16040, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(17020, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(18240, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+    });
+
+    queue(19220, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+    });
+
+    queue(20440, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+    });
+
+    queue(21420, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+    });
+
+    queue(22640, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
+    });
+
+    queue(23620, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
+    });
+
+    queue(24840, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(25820, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    // Gray last: resolve the mystery item.
+    queue(27060, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
+    });
+
+    queue(28040, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
+    });
+
+    queue(29260, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
+    });
+
+    queue(30240, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
+    });
+
+    queue(31600, () => {
+      fillFoodTrioRetryInput("Crispy Chicken Wrap");
+    });
+
+    queue(32680, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(33660, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(35020, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    });
+
+    queue(36000, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    });
+
+    queue(37300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(38280, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(39400, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
-  }, [clearFoodTrioPointerTimers]);
+  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, fillFoodTrioRetryInput, moveFoodTrioPointerToElement]);
+
+  const runCasualDiningCartPointer = useCallback(() => {
+    clearFoodTrioPointerTimers();
+
+    const queue = (delayMs: number, callback: () => void) => {
+      const timer = window.setTimeout(callback, Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE));
+      pointerTimersRef.current.push(timer);
+    };
+
+    // Dining lesson: weird menu choices, plus a green item can still be changed.
+    queue(620, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
+    });
+
+    queue(1580, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
+    });
+
+    queue(2800, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5);
+    });
+
+    queue(3780, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5);
+    });
+
+    queue(5000, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="asparagus"]', 0.5);
+    });
+
+    queue(5980, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="asparagus"]', 0.5);
+    });
+
+    queue(7320, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(8300, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(9520, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
+    });
+
+    queue(10500, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
+    });
+
+    queue(11720, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="extra-whipped-cream"]', 0.5);
+    });
+
+    queue(12700, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="extra-whipped-cream"]', 0.5);
+    });
+
+    queue(13920, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(14900, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(16120, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="kids-butter-pasta"]', 0.5);
+    });
+
+    queue(17100, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="kids-butter-pasta"]', 0.5);
+    });
+
+    queue(18320, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="sauce-on-side"]', 0.5);
+    });
+
+    queue(19300, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="sauce-on-side"]', 0.5);
+    });
+
+    queue(20520, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(21500, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    // The only green tap: ready means done, not immutable.
+    queue(22740, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
+    });
+
+    queue(23720, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
+    });
+
+    queue(24940, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
+    });
+
+    queue(25920, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
+    });
+
+    queue(27140, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
+    });
+
+    queue(28120, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
+    });
+
+    queue(29460, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    });
+
+    queue(30440, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    });
+
+    queue(31740, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(32720, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(33900, () => {
+      setPointerState(FOOD_TRIO_POINTER_HIDDEN);
+    });
+  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
+
 
   const startScenario = useCallback((scenarioId: FoodTrioScenarioId) => {
     const query = foodTrioPromptForScenario(scenarioId);
     clearFoodTrioPointerTimers();
-    pendingPointerScenarioRef.current = scenarioId === "coffee" || scenarioId === "fast-food" ? scenarioId : null;
+    pendingPointerScenarioRef.current = scenarioId;
     setActiveScenario(scenarioId);
     setActiveTargetId(null);
+    setDemoSubmission(null);
+    runScenarioEntryPointer(query);
+  }, [clearFoodTrioPointerTimers, runScenarioEntryPointer]);
 
-    if (scenarioId === "coffee") {
-      setDemoSubmission(null);
-      runCoffeeEntryPointer(query);
-      return;
+  const handleSubmitPrompt = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
+    if (meta?.intent === "replace_unknown" && meta.replaceLineId) {
+      const replacementTitle = query.trim() || "Crispy Chicken Wrap";
+      const result: SmartBarMobileOrderResult = {
+        lines: lastResult.lines.map((line) => (
+          line.id === meta.replaceLineId
+            ? {
+                ...line,
+                id: `${line.id}-matched`,
+                cartLineKey: `${line.cartLineKey || line.id}-matched`,
+                title: replacementTitle,
+                status: "ready",
+                helper: "Re-entered and matched",
+                price: "$8.99",
+                details: ["Matched from retry", "Crispy wrap"],
+                options: undefined,
+                optionSelectionMode: "single",
+                retryPrompt: undefined,
+              }
+            : line
+        )),
+      };
+
+      setLastResult(result);
+      setActiveTargetId(null);
+      return result;
     }
 
-    setDemoSubmission({
-      id: submissionIdRef.current,
-      query,
-      typing: true,
-      typeDelayMs: 28,
-      submitDelayMs: 680,
-    });
-    submissionIdRef.current += 1;
-  }, [clearFoodTrioPointerTimers, runCoffeeEntryPointer]);
-
-  const handleSubmitPrompt = useCallback((query: string, _meta?: SmartBarMobileSubmitMeta) => {
     const nextScenario = foodTrioScenarioFromQuery(query, activeScenario);
     const result = foodTrioResultForQuery(query, activeScenario);
-    pendingPointerScenarioRef.current = nextScenario === "coffee" || nextScenario === "fast-food" ? nextScenario : null;
+    pendingPointerScenarioRef.current = nextScenario;
     setActiveScenario(nextScenario);
     setLastResult(result);
 
@@ -385,15 +710,15 @@ export default function FoodTrioMobileExperience() {
     setActiveTargetId(null);
 
     return result;
-  }, [activeScenario]);
+  }, [activeScenario, lastResult]);
 
   const handleNavigateToLine = useCallback((line: SmartBarMobileOrderLine) => {
     if (scriptedPointerClickRef.current) {
       scriptedPointerClickRef.current = false;
-    } else {
-      clearFoodTrioPointerTimers();
+      return;
     }
 
+    clearFoodTrioPointerTimers();
     setActiveTargetId(line.targetId || null);
     scrollToFoodTrioTarget(line.targetId);
   }, [clearFoodTrioPointerTimers]);
@@ -416,7 +741,7 @@ export default function FoodTrioMobileExperience() {
 
   return (
     <div className="relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.24),transparent_32%),linear-gradient(180deg,#07111f_0%,#08111c_42%,#05070c_100%)] text-white">
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.18),transparent_58%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.10),transparent_58%)]" />
       <FoodTrioTargetWall
         activeScenario={activeScenario}
         activeTargetId={activeTargetId}
@@ -430,7 +755,7 @@ export default function FoodTrioMobileExperience() {
         onSamplePrompt={startScenario}
       />
 
-      <div className="pointer-events-none fixed left-3 right-3 top-3 z-30 rounded-full border border-white/12 bg-slate-950/72 px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.18em] text-white/72 shadow-xl shadow-black/20 backdrop-blur-xl">
+      <div className="pointer-events-none fixed left-3 right-3 top-3 z-30 rounded-full border border-white/12 bg-slate-950/72 px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.10em] text-white/72 shadow-xl shadow-black/20 backdrop-blur-xl">
         {scenario.brand} · fixture wall
       </div>
 
@@ -455,7 +780,12 @@ export default function FoodTrioMobileExperience() {
           }
 
           if (pointerScenario === "fast-food") {
-            runFastFoodCartScrollPointer();
+            runFastFoodCartPointer();
+            return;
+          }
+
+          if (pointerScenario === "casual-dining") {
+            runCasualDiningCartPointer();
           }
         }}
         onResetCart={() => {
