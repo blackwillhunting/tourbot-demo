@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Compass,
   ListOrdered,
   Sparkles,
   Trash2,
@@ -2514,8 +2515,9 @@ export default function SmartBarMobileShell({
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] text-white">
-                {companionLabel}
+              <span className="inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] text-white">
+                <Compass className="h-[18px] w-[18px] shrink-0 text-white" strokeWidth={2.25} />
+                <span>{companionLabel}</span>
               </span>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
               <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] text-white">

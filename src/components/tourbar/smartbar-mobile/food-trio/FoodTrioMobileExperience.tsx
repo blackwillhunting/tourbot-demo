@@ -8,6 +8,18 @@ import SmartBarMobileShell, {
 import FoodTrioTargetWall from "./FoodTrioTargetWall";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../../smartbarFocusController";
 import {
+  SmartBarFlashCard,
+  SmartBarFlashCardLane,
+  SmartBarFlashCardRail,
+  SMARTBAR_FLASH_CARD_CROSSOVER_MS,
+  type SmartBarFlashCardLaneName,
+  type SmartBarFlashCardNotice,
+} from "../../speed-demo/SmartBarFlashCardRail";
+import {
+  SmartBarFlashCardStack,
+  type SmartBarFlashCardStackItem,
+} from "../../speed-demo/SmartBarFlashCardStack";
+import {
   FOOD_TRIO_SCENARIOS,
   foodTrioApplyChoice,
   foodTrioPromptForScenario,
@@ -38,6 +50,12 @@ const FOOD_TRIO_POINTER_REAIM_DISTANCE_PX = 34;
 const FOOD_TRIO_POINTER_REAIM_OFFSET_X = -22;
 const FOOD_TRIO_POINTER_REAIM_OFFSET_Y = -16;
 const FOOD_TRIO_POINTER_REAIM_MS = 170;
+
+function wait(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
 
 function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
   if (!state.visible) return null;
@@ -72,6 +90,97 @@ function FoodTrioFakePointer({ state }: { state: FoodTrioPointerState }) {
         />
       </div>
     </div>
+  );
+}
+
+function FoodTrioNarratorCards({ cards }: { cards: string[] }) {
+  const sequenceRef = useRef(0);
+  const laneRef = useRef<SmartBarFlashCardLaneName>("a");
+  const [stackCards, setStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
+  const [activeLane, setActiveLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
+  const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const visibleCards = cards.map((card) => card.trim()).filter(Boolean);
+    const sequenceId = sequenceRef.current + 1;
+    sequenceRef.current = sequenceId;
+
+    const clearAll = async () => {
+      setActiveLane(null);
+      setStackCards([]);
+      await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+      if (cancelled) return;
+      setNoticeA(null);
+      setNoticeB(null);
+    };
+
+    const runCards = async () => {
+      if (!visibleCards.length) {
+        await clearAll();
+        return;
+      }
+
+      const forceStack = visibleCards.some((card) => card.includes("\n"));
+
+      if (visibleCards.length > 1 || forceStack) {
+        setActiveLane(null);
+        setNoticeA(null);
+        setNoticeB(null);
+        setStackCards([]);
+
+        const nextStack: SmartBarFlashCardStackItem[] = [];
+        for (let index = 0; index < visibleCards.length; index += 1) {
+          if (cancelled) return;
+
+          nextStack.push({
+            id: `${sequenceId}-${index}-${visibleCards[index]}`,
+            variant: "prelude",
+            title: visibleCards[index],
+            density: "normal",
+          });
+
+          setStackCards([...nextStack]);
+          await wait(260);
+        }
+
+        return;
+      }
+
+      setStackCards([]);
+      const notice: SmartBarFlashCardNotice = {
+        variant: "prelude",
+        title: visibleCards[0],
+      };
+
+      const nextLane: SmartBarFlashCardLaneName = laneRef.current === "a" ? "b" : "a";
+      laneRef.current = nextLane;
+      if (nextLane === "a") setNoticeA(notice);
+      else setNoticeB(notice);
+
+      setActiveLane(nextLane);
+    };
+
+    void runCards();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cards]);
+
+  if (!cards.length && !noticeA && !noticeB && !stackCards.length) return null;
+
+  return (
+    <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[32%] z-[10120]">
+      <SmartBarFlashCardStack cards={stackCards} mode="standard" />
+      <SmartBarFlashCardLane active={activeLane === "a"}>
+        <SmartBarFlashCard notice={noticeA} />
+      </SmartBarFlashCardLane>
+      <SmartBarFlashCardLane active={activeLane === "b"}>
+        <SmartBarFlashCard notice={noticeB} />
+      </SmartBarFlashCardLane>
+    </SmartBarFlashCardRail>
   );
 }
 
@@ -154,8 +263,12 @@ export default function FoodTrioMobileExperience() {
   const [demoSubmission, setDemoSubmission] = useState<SmartBarMobileDemoSubmission | null>(null);
   const [lastResult, setLastResult] = useState<SmartBarMobileOrderResult>(() => foodTrioResultForScenario("coffee"));
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
+  const [narratorCards, setNarratorCards] = useState<string[]>([]);
+  const [introStageVisible, setIntroStageVisible] = useState(true);
   const submissionIdRef = useRef(1);
   const pointerTimersRef = useRef<number[]>([]);
+  const narratorCardTimersRef = useRef<number[]>([]);
+  const introStartedRef = useRef(false);
   const lastPointerPointRef = useRef<{ x: number; y: number } | null>(null);
   const pointerMovedSinceLastTapRef = useRef(false);
   const pendingPointerScenarioRef = useRef<FoodTrioScenarioId | null>(null);
@@ -169,11 +282,18 @@ export default function FoodTrioMobileExperience() {
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
   }, []);
 
+  const clearFoodTrioNarratorCards = useCallback(() => {
+    narratorCardTimersRef.current.forEach((timer) => window.clearTimeout(timer));
+    narratorCardTimersRef.current = [];
+    setNarratorCards([]);
+  }, []);
+
   useEffect(() => {
     return () => {
       clearFoodTrioPointerTimers();
+      clearFoodTrioNarratorCards();
     };
-  }, [clearFoodTrioPointerTimers]);
+  }, [clearFoodTrioPointerTimers, clearFoodTrioNarratorCards]);
 
   const moveFoodTrioPointerToElement = useCallback((
     selector: string,
@@ -506,7 +626,7 @@ export default function FoodTrioMobileExperience() {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="large"]', 0.5);
     });
 
-    // Yellow next: optional group extras.
+    // Yellow next: optional group extras. Resolve both yellow rows so the final proof is all-green.
     queue(16040, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
     });
@@ -516,100 +636,124 @@ export default function FoodTrioMobileExperience() {
     });
 
     queue(18240, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="large-fries"]', 0.5);
     });
 
     queue(19220, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="large-fries"]', 0.5);
     });
 
     queue(20440, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="extra-crispy"]', 0.5);
     });
 
     queue(21420, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="extra-crispy"]', 0.5);
     });
 
     queue(22640, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
-    });
-
-    queue(23620, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
-    });
-
-    queue(24840, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(25820, () => {
+    queue(23620, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(24940, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+    });
+
+    queue(25920, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
+    });
+
+    queue(27140, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+    });
+
+    queue(28120, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
+    });
+
+    queue(29340, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
+    });
+
+    queue(30320, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
+    });
+
+    queue(31540, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(32520, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
     // Gray last: resolve the mystery item.
-    queue(27060, () => {
+    queue(33760, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
     });
 
-    queue(28040, () => {
+    queue(34740, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
     });
 
-    queue(29260, () => {
+    queue(35960, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
     });
 
-    queue(30240, () => {
+    queue(36940, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
     });
 
-    queue(31600, () => {
+    queue(38300, () => {
       fillFoodTrioRetryInput("Crispy Chicken Wrap");
     });
 
-    queue(32680, () => {
+    queue(39380, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(33660, () => {
+    queue(40360, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, 0.10);
     });
 
-    queue(35020, () => {
+    queue(41720, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
-    queue(36000, () => {
+    queue(42700, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
-    // Scroll proof: use invisible side buttons after returning to the full cart.
-    queue(37300, () => {
+    // Scroll proof: use invisible side buttons after returning to the full all-green cart.
+    queue(44000, () => {
       moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
-    queue(38280, () => {
+    queue(44980, () => {
       clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
-    queue(39940, () => {
+    queue(46640, () => {
       moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
     });
 
-    queue(40920, () => {
+    queue(47620, () => {
       clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
     });
 
-    queue(42600, () => {
+    queue(49300, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(43580, () => {
+    queue(50280, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(47000, () => {
+    queue(53800, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, fillFoodTrioRetryInput, moveFoodTrioPointerToElement]);
@@ -622,7 +766,8 @@ export default function FoodTrioMobileExperience() {
       pointerTimersRef.current.push(timer);
     };
 
-    // Dining lesson: weird menu choices, plus a green item can still be changed.
+    // Dining lesson: mostly ready restaurant items, one required side, one weird dessert option,
+    // plus a green item can still be changed.
     queue(620, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
     });
@@ -679,103 +824,156 @@ export default function FoodTrioMobileExperience() {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
-    queue(16120, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="kids-butter-pasta"]', 0.5);
-    });
-
-    queue(17100, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="kids-butter-pasta"]', 0.5);
-    });
-
-    queue(18320, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="sauce-on-side"]', 0.5);
-    });
-
-    queue(19300, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="sauce-on-side"]', 0.5);
-    });
-
-    queue(20520, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
-    });
-
-    queue(21500, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
-    });
-
     // The only green tap: ready means done, not immutable.
-    queue(22740, () => {
+    queue(16120, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
     });
 
-    queue(23720, () => {
+    queue(17100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
     });
 
-    queue(24940, () => {
+    queue(18320, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
     });
 
-    queue(25920, () => {
+    queue(19300, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
     });
 
-    queue(27140, () => {
+    queue(20520, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
     });
 
-    queue(28120, () => {
+    queue(21500, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
     });
 
-    queue(29460, () => {
+    queue(22840, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
-    queue(30440, () => {
+    queue(23820, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
     // Scroll proof: use invisible side buttons after returning to the full cart.
-    queue(31740, () => {
+    queue(25120, () => {
       moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
-    queue(32720, () => {
+    queue(26100, () => {
       clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
     });
 
-    queue(34380, () => {
+    queue(27760, () => {
       moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
     });
 
-    queue(35360, () => {
+    queue(28740, () => {
       clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
     });
 
-    queue(37040, () => {
+    queue(30420, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(38020, () => {
+    queue(31400, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(41500, () => {
+    queue(34900, () => {
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
   }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
 
 
+  const runFoodTrioNarratorSequence = useCallback((
+    beats: Array<{ cards: string[]; holdMs: number }>,
+    onComplete: () => void,
+  ) => {
+    clearFoodTrioNarratorCards();
+
+    let elapsedMs = 0;
+    beats.forEach((beat) => {
+      const timer = window.setTimeout(() => {
+        setNarratorCards(beat.cards);
+      }, elapsedMs);
+      narratorCardTimersRef.current.push(timer);
+      elapsedMs += beat.holdMs;
+    });
+
+    const doneTimer = window.setTimeout(() => {
+      setNarratorCards([]);
+      onComplete();
+    }, elapsedMs + 180);
+    narratorCardTimersRef.current.push(doneTimer);
+  }, [clearFoodTrioNarratorCards]);
+
+  const runFoodTrioIntroCards = useCallback((onComplete: () => void) => {
+    runFoodTrioNarratorSequence([
+      { cards: ["Type order.\nGet cart.\nTap colors."], holdMs: 2450 },
+      { cards: ["Green = ready.", "Red = required.", "Yellow = options.", "Gray = unmatched."], holdMs: 3200 },
+      { cards: ["Real orders.", "Long requests.", "Missing details."], holdMs: 2850 },
+      { cards: ["Focus item.\nSmartBar jumps.\nShows options."], holdMs: 2650 },
+    ], onComplete);
+  }, [runFoodTrioNarratorSequence]);
+
+  const runFoodTrioSegmentCard = useCallback((scenarioId: FoodTrioScenarioId, onComplete: () => void) => {
+    const segmentProof: Record<FoodTrioScenarioId, string[]> = {
+      coffee: ["Coffee shop.\nDetail test."],
+      "fast-food": ["Fast food.\nSpeed test."],
+      "casual-dining": ["Casual dining.\nRange test."],
+    };
+
+    runFoodTrioNarratorSequence([
+      { cards: segmentProof[scenarioId], holdMs: 1350 },
+    ], onComplete);
+  }, [runFoodTrioNarratorSequence]);
+
   const startScenario = useCallback((scenarioId: FoodTrioScenarioId) => {
     const query = foodTrioPromptForScenario(scenarioId);
     clearFoodTrioPointerTimers();
+    clearFoodTrioNarratorCards();
     pendingPointerScenarioRef.current = scenarioId;
     setActiveScenario(scenarioId);
     setActiveTargetId(null);
     setDemoSubmission(null);
-    runScenarioEntryPointer(query);
-  }, [clearFoodTrioPointerTimers, runScenarioEntryPointer]);
+    runFoodTrioSegmentCard(scenarioId, () => runScenarioEntryPointer(query));
+  }, [clearFoodTrioPointerTimers, clearFoodTrioNarratorCards, runFoodTrioSegmentCard, runScenarioEntryPointer]);
+
+  useEffect(() => {
+    if (introStartedRef.current) return;
+    introStartedRef.current = true;
+    let introCompleted = false;
+
+    setActiveScenario("coffee");
+    setActiveTargetId(null);
+    setDemoSubmission(null);
+    setIntroStageVisible(true);
+
+    const timer = window.setTimeout(() => {
+      runFoodTrioIntroCards(() => {
+        introCompleted = true;
+        setIntroStageVisible(false);
+        window.setTimeout(() => {
+          clearSmartBarFocusOverlay();
+          scrollToFoodTrioScenario("coffee");
+          startScenario("coffee");
+        }, 420);
+      });
+    }, 420);
+
+    return () => {
+      window.clearTimeout(timer);
+
+      // React dev Strict Mode runs effect cleanup before replaying the effect.
+      // If the intro has not actually completed yet, allow the replay to schedule it again.
+      if (!introCompleted) {
+        introStartedRef.current = false;
+      }
+    };
+  }, [runFoodTrioIntroCards, startScenario]);
 
   const handleSubmitPrompt = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
     if (meta?.intent === "replace_unknown" && meta.replaceLineId) {
@@ -849,11 +1047,19 @@ export default function FoodTrioMobileExperience() {
   return (
     <div className="relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.24),transparent_32%),linear-gradient(180deg,#07111f_0%,#08111c_42%,#05070c_100%)] text-white">
       <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.10),transparent_58%)]" />
+      {introStageVisible ? (
+        <div className="fixed inset-0 z-[10070] overflow-hidden bg-[radial-gradient(circle_at_50%_18%,rgba(255,255,255,0.62),transparent_24%),radial-gradient(circle_at_18%_0%,rgba(125,211,252,0.46),transparent_34%),linear-gradient(180deg,#dbeafe_0%,#bfdbfe_46%,#93c5fd_100%)]">
+          <div className="pointer-events-none absolute inset-x-8 top-10 h-28 rounded-full bg-white/28 blur-3xl" />
+          <div className="pointer-events-none absolute bottom-[-8rem] left-[-5rem] h-72 w-72 rounded-full bg-cyan-200/35 blur-3xl" />
+          <div className="pointer-events-none absolute right-[-6rem] top-1/3 h-72 w-72 rounded-full bg-blue-300/24 blur-3xl" />
+        </div>
+      ) : null}
       <FoodTrioTargetWall
         activeScenario={activeScenario}
         activeTargetId={activeTargetId}
         onScenarioSelect={(scenarioId) => {
               clearFoodTrioPointerTimers();
+              clearFoodTrioNarratorCards();
               clearSmartBarFocusOverlay();
               setActiveScenario(scenarioId);
               setActiveTargetId(null);
@@ -865,6 +1071,8 @@ export default function FoodTrioMobileExperience() {
       <div className="pointer-events-none fixed left-3 right-3 top-3 z-30 rounded-full border border-white/12 bg-slate-950/72 px-4 py-2 text-center text-[11px] font-black uppercase tracking-[0.10em] text-white/72 shadow-xl shadow-black/20 backdrop-blur-xl">
         {scenario.brand} · fixture wall
       </div>
+
+      <FoodTrioNarratorCards cards={narratorCards} />
 
       <button
         type="button"

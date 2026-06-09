@@ -40,7 +40,7 @@ export const FOOD_TRIO_SCENARIOS: FoodTrioScenario[] = [
     proof: "Full-service menus have weird choices, and ready items stay editable.",
     shortPrompt: "Full table order with weird choices",
     samplePrompt:
-      "Start with avocado eggrolls and dinner salads, chicken madeira with mashed potatoes, salmon with asparagus, kids butter pasta, and two cheesecakes — one with extra whipped cream.",
+      "Start with avocado eggrolls, two dinner salads, Chicken Madeira with mashed potatoes, Herb-Crusted Salmon, and one Original Cheesecake with whipped cream — add extra whipped cream if available.",
   },
 ];
 
@@ -228,30 +228,19 @@ const CASUAL_DINING_LINES: SmartBarMobileOrderLine[] = [
     "Herb-Crusted Salmon",
     "$27.95",
     ["Side needed"],
-    "Choose unexpected side",
+    "Choose entree side",
     "pending",
     ["Asparagus", "Rice pilaf", "Mashed potatoes", "Side salad"],
   ),
   line(
-    "casual-kids-pasta",
-    "foodtrio-casual-kids-pasta",
-    "Kids Butter Pasta",
-    "$8.95",
-    ["Butter sauce"],
-    "Tiny kid-order choices",
-    "options",
-    ["Bowtie", "Spaghetti", "Sauce on side", "Extra parmesan"],
-    "multi",
-  ),
-  line(
-    "casual-cheesecakes",
+    "casual-cheesecake",
     "foodtrio-casual-cheesecake",
-    "2 × Original Cheesecake",
-    "$21.00",
-    ["One whipped cream"],
-    "Dessert options are weirdly specific",
+    "Original Cheesecake",
+    "$10.50",
+    ["Whipped cream"],
+    "Dessert option available",
     "options",
-    ["Whipped cream", "Extra whipped cream", "No whipped cream", "Strawberry sauce"],
+    ["Extra whipped cream", "No whipped cream", "Strawberry sauce"],
     "multi",
   ),
 ];
@@ -264,8 +253,8 @@ export function foodTrioScenarioFromQuery(query: string, fallback: FoodTrioScena
   const text = query.toLowerCase();
 
   if (/\b(coffee|latte|matcha|cold brew|cappuccino|espresso|oat|almond|foam|drinks?)\b/.test(text)) return "coffee";
-  if (/\b(chicken|chx|sandwch|nugget|nugs|fries|fryz|waffle|sauce|sauces|pepper|wrap|spicy|grilled)\b/.test(text)) return "fast-food";
   if (/\b(eggrolls?|salad|salmon|madeira|pasta|cheesecake|mocktail|appetizer|entree|dessert|whipped)\b/.test(text)) return "casual-dining";
+  if (/\b(chx|sandwch|nugget|nugs|fries|fryz|waffle|sauce|sauces|dr pepper|pepper|wrap|spicy|grilled sandwich)\b/.test(text)) return "fast-food";
 
   return fallback;
 }

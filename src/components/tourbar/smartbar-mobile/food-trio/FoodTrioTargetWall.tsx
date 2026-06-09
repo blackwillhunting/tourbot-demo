@@ -83,7 +83,7 @@ const SHAPES: Record<Shape, string> = {
 };
 
 const FOOD_TARGETS: FoodTarget[] = [
-  {
+{
     id: "foodtrio-coffee-iced-vanilla-latte",
     scenarioId: "coffee",
     group: "Espresso Bar",
@@ -95,7 +95,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "espresso",
     shape: "feature",
   },
-  {
+
+{
     id: "foodtrio-coffee-cappuccino",
     scenarioId: "coffee",
     group: "Espresso Bar",
@@ -107,7 +108,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "cream",
     shape: "square",
   },
-  {
+
+{
     id: "foodtrio-coffee-turkey-pesto",
     scenarioId: "coffee",
     group: "Food Case",
@@ -119,7 +121,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "olive",
     shape: "square",
   },
-  {
+
+{
     id: "foodtrio-coffee-oat-milk",
     scenarioId: "coffee",
     group: "Modifiers",
@@ -131,7 +134,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "blue",
     shape: "line",
   },
-  {
+
+{
     id: "foodtrio-coffee-vanilla-syrup",
     scenarioId: "coffee",
     group: "Modifiers",
@@ -143,7 +147,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "slate",
     shape: "line",
   },
-  {
+
+{
     id: "foodtrio-coffee-pickup",
     scenarioId: "coffee",
     group: "Pickup",
@@ -156,19 +161,7 @@ const FOOD_TARGETS: FoodTarget[] = [
     shape: "line",
   },
 
-  {
-    id: "foodtrio-fast-original-sandwich-meal",
-    scenarioId: "fast-food",
-    group: "Chicken Meals",
-    title: "Original Chicken Sandwich Meal",
-    description: "Original filet, bun, pickles, large waffle fries, lemonade.",
-    price: "$10.99",
-    badge: "Meal",
-    Icon: Utensils,
-    tone: "ember",
-    shape: "feature",
-  },
-  {
+{
     id: "foodtrio-fast-spicy-sandwich-meal",
     scenarioId: "fast-food",
     group: "Chicken Meals",
@@ -180,31 +173,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "burgundy",
     shape: "square",
   },
-  {
-    id: "foodtrio-fast-grilled-sandwich-meal",
-    scenarioId: "fast-food",
-    group: "Chicken Meals",
-    title: "Grilled Chicken Sandwich Meal",
-    description: "No pickles, fruit cup, unsweet tea.",
-    price: "$11.79",
-    badge: "Grilled",
-    Icon: ChefHat,
-    tone: "olive",
-    shape: "square",
-  },
-  {
-    id: "foodtrio-fast-nuggets",
-    scenarioId: "fast-food",
-    group: "Shareables",
-    title: "12-count Nugget Box",
-    description: "Counted box item with sauces attached.",
-    price: "$8.95",
-    badge: "12 ct",
-    Icon: Beef,
-    tone: "slate",
-    shape: "square",
-  },
-  {
+
+{
     id: "foodtrio-fast-waffle-fries",
     scenarioId: "fast-food",
     group: "Sides",
@@ -216,7 +186,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "blue",
     shape: "square",
   },
-  {
+
+{
     id: "foodtrio-fast-sauces",
     scenarioId: "fast-food",
     group: "Sauces",
@@ -228,19 +199,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "espresso",
     shape: "line",
   },
-  {
-    id: "foodtrio-fast-drinks",
-    scenarioId: "fast-food",
-    group: "Drinks",
-    title: "Lemonade / Sweet Tea / Unsweet Tea",
-    description: "Generic drink lane, because sodas and fountain drinks are group targets.",
-    price: "$2.90",
-    badge: "Drinks",
-    Icon: GlassWater,
-    tone: "blue",
-    shape: "line",
-  },
-  {
+
+{
     id: "foodtrio-fast-cookie",
     scenarioId: "fast-food",
     group: "Treats",
@@ -253,7 +213,59 @@ const FOOD_TARGETS: FoodTarget[] = [
     shape: "line",
   },
 
-  {
+{
+    id: "foodtrio-fast-original-sandwich-meal",
+    scenarioId: "fast-food",
+    group: "Chicken Meals",
+    title: "Original Chicken Sandwich Meal",
+    description: "Original filet, bun, pickles, large waffle fries, lemonade.",
+    price: "$10.99",
+    badge: "Meal",
+    Icon: Utensils,
+    tone: "ember",
+    shape: "feature",
+  },
+
+{
+    id: "foodtrio-fast-grilled-sandwich-meal",
+    scenarioId: "fast-food",
+    group: "Chicken Meals",
+    title: "Grilled Chicken Sandwich Meal",
+    description: "No pickles, fruit cup, unsweet tea.",
+    price: "$11.79",
+    badge: "Grilled",
+    Icon: ChefHat,
+    tone: "olive",
+    shape: "square",
+  },
+
+{
+    id: "foodtrio-fast-drinks",
+    scenarioId: "fast-food",
+    group: "Drinks",
+    title: "Lemonade / Sweet Tea / Unsweet Tea",
+    description: "Generic drink lane, because sodas and fountain drinks are group targets.",
+    price: "$2.90",
+    badge: "Drinks",
+    Icon: GlassWater,
+    tone: "blue",
+    shape: "line",
+  },
+
+{
+    id: "foodtrio-fast-nuggets",
+    scenarioId: "fast-food",
+    group: "Shareables",
+    title: "12-count Nugget Box",
+    description: "Counted box item with sauces attached.",
+    price: "$8.95",
+    badge: "12 ct",
+    Icon: Beef,
+    tone: "slate",
+    shape: "square",
+  },
+
+{
     id: "foodtrio-casual-avocado-rolls",
     scenarioId: "casual-dining",
     group: "Appetizers",
@@ -265,55 +277,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "olive",
     shape: "feature",
   },
-  {
-    id: "foodtrio-casual-loaded-nachos",
-    scenarioId: "casual-dining",
-    group: "Appetizers",
-    title: "Loaded Chicken Nachos",
-    description: "Jalapeños on side, chicken added.",
-    price: "$16.50",
-    badge: "App",
-    Icon: Flame,
-    tone: "ember",
-    shape: "square",
-  },
-  {
-    id: "foodtrio-casual-dinner-salad",
-    scenarioId: "casual-dining",
-    group: "Salads + Soup",
-    title: "Dinner Salad",
-    description: "One ranch, one vinaigrette. Same product, different dressings.",
-    price: "$8.95",
-    badge: "Salad",
-    Icon: Sparkles,
-    tone: "blue",
-    shape: "square",
-  },
-  {
-    id: "foodtrio-casual-soup",
-    scenarioId: "casual-dining",
-    group: "Salads + Soup",
-    title: "Soup of the Day · Cup",
-    description: "Course timing matters: before entree.",
-    price: "$7.95",
-    badge: "Soup",
-    Icon: Soup,
-    tone: "slate",
-    shape: "line",
-  },
-  {
-    id: "foodtrio-casual-chicken-madeira",
-    scenarioId: "casual-dining",
-    group: "Entrees",
-    title: "Chicken Madeira",
-    description: "Mashed potatoes, extra mushroom sauce. Rich entree modifier example.",
-    price: "$24.95",
-    badge: "Entree",
-    Icon: ChefHat,
-    tone: "burgundy",
-    shape: "feature",
-  },
-  {
+
+{
     id: "foodtrio-casual-herb-salmon",
     scenarioId: "casual-dining",
     group: "Entrees",
@@ -325,7 +290,60 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "olive",
     shape: "square",
   },
-  {
+
+{
+    id: "foodtrio-casual-soup",
+    scenarioId: "casual-dining",
+    group: "Salads + Soup",
+    title: "Soup of the Day · Cup",
+    description: "Course timing matters: before entree.",
+    price: "$7.95",
+    badge: "Soup",
+    Icon: Soup,
+    tone: "slate",
+    shape: "line",
+  },
+
+{
+    id: "foodtrio-casual-dinner-salad",
+    scenarioId: "casual-dining",
+    group: "Salads + Soup",
+    title: "Dinner Salad",
+    description: "One ranch, one vinaigrette. Same product, different dressings.",
+    price: "$8.95",
+    badge: "Salad",
+    Icon: Sparkles,
+    tone: "blue",
+    shape: "square",
+  },
+
+{
+    id: "foodtrio-casual-chicken-madeira",
+    scenarioId: "casual-dining",
+    group: "Entrees",
+    title: "Chicken Madeira",
+    description: "Mashed potatoes, extra mushroom sauce. Rich entree modifier example.",
+    price: "$24.95",
+    badge: "Entree",
+    Icon: ChefHat,
+    tone: "burgundy",
+    shape: "feature",
+  },
+
+{
+    id: "foodtrio-casual-mocktails",
+    scenarioId: "casual-dining",
+    group: "Drinks",
+    title: "Sparkling Berry / Citrus Mocktails",
+    description: "Two drinks, different flavors, optional light ice/no garnish.",
+    price: "$7.50 ea",
+    badge: "Drinks",
+    Icon: GlassWater,
+    tone: "blue",
+    shape: "line",
+  },
+
+{
     id: "foodtrio-casual-kids-pasta",
     scenarioId: "casual-dining",
     group: "Kids",
@@ -337,7 +355,8 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "cream",
     shape: "square",
   },
-  {
+
+{
     id: "foodtrio-casual-cheesecake",
     scenarioId: "casual-dining",
     group: "Dessert",
@@ -349,16 +368,66 @@ const FOOD_TARGETS: FoodTarget[] = [
     tone: "burgundy",
     shape: "line",
   },
-  {
-    id: "foodtrio-casual-mocktails",
+
+{
+    id: "foodtrio-casual-loaded-nachos",
     scenarioId: "casual-dining",
-    group: "Drinks",
-    title: "Sparkling Berry / Citrus Mocktails",
-    description: "Two drinks, different flavors, optional light ice/no garnish.",
-    price: "$7.50 ea",
-    badge: "Drinks",
-    Icon: GlassWater,
-    tone: "blue",
+    group: "Appetizers",
+    title: "Loaded Chicken Nachos",
+    description: "Jalapeños on side, chicken added.",
+    price: "$16.50",
+    badge: "App",
+    Icon: Flame,
+    tone: "ember",
+    shape: "square",
+  },
+
+  {
+    id: "foodtrio-casual-bottom-buffer-bread",
+    scenarioId: "casual-dining",
+    group: "Table Extras",
+    title: "Warm Bread Basket",
+    description: "Harmless bottom menu filler so dessert targets can land higher in the viewport.",
+    price: "$5.95",
+    badge: "Extra",
+    Icon: Utensils,
+    tone: "cream",
+    shape: "line",
+  },
+  {
+    id: "foodtrio-casual-bottom-buffer-asparagus",
+    scenarioId: "casual-dining",
+    group: "Sides",
+    title: "Roasted Asparagus",
+    description: "A believable side card that is not part of the scripted cart.",
+    price: "$7.50",
+    badge: "Side",
+    Icon: Sparkles,
+    tone: "olive",
+    shape: "square",
+  },
+  {
+    id: "foodtrio-casual-bottom-buffer-coffee",
+    scenarioId: "casual-dining",
+    group: "After Dinner",
+    title: "Coffee / Decaf / Espresso",
+    description: "End-of-meal options create natural scroll room below dessert.",
+    price: "$4.50",
+    badge: "Drink",
+    Icon: Coffee,
+    tone: "espresso",
+    shape: "square",
+  },
+  {
+    id: "foodtrio-casual-bottom-buffer-sundae",
+    scenarioId: "casual-dining",
+    group: "Dessert",
+    title: "Kids Sundae",
+    description: "Extra dessert padding only; not referenced by the SmartBar cart.",
+    price: "$6.95",
+    badge: "Dessert",
+    Icon: CakeSlice,
+    tone: "burgundy",
     shape: "line",
   },
 ];
