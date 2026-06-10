@@ -84,7 +84,7 @@ function line(
     status,
     options,
     optionSelectionMode,
-    retryPrompt: status === "unknown" ? "Re-enter the item so SmartBar can match it to the menu." : undefined,
+    retryPrompt: status === "unknown" ? "Re-enter this item." : undefined,
   };
 }
 
@@ -113,7 +113,7 @@ const COFFEE_LINES: SmartBarMobileOrderLine[] = [
   ),
   line(
     "coffee-cold-brew",
-    "foodtrio-coffee-pickup",
+    "foodtrio-coffee-cold-brew",
     "Cold Brew",
     "$6.25",
     ["Black", "Vanilla cold foam"],

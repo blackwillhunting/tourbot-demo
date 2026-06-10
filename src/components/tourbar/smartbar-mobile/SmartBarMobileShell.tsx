@@ -50,6 +50,10 @@ export type SmartBarMobileOrderLine = {
   /** Index of the backend source line before visual sorting/grouping. */
   sourceLineIndex?: number;
   title: string;
+  /** Optional demo-only title override for visual teaching rows. */
+  demoDisplayTitle?: string;
+  /** Optional demo-only flag that hides helper/price/remove chrome on teaching rows while preserving row size. */
+  demoHideMeta?: boolean;
   status: SmartBarMobileOrderStatus;
   helper: string;
   price: string;
@@ -61,6 +65,8 @@ export type SmartBarMobileOrderLine = {
 
 export type SmartBarMobileOrderResult = {
   lines: SmartBarMobileOrderLine[];
+  /** Demo/controlled-flow flag: keep result.lines exactly after retry instead of subtracting the selected unknown row. */
+  preserveResultLinesOnRetry?: boolean;
   estimatedSubtotal?: string;
   estimatedTax?: string;
   estimatedTotal?: string;
@@ -205,6 +211,20 @@ function statusLabel(status: SmartBarMobileOrderStatus) {
   if (status === "pending") return "Pending";
   if (status === "options") return "Options?";
   return "Unknown";
+}
+
+function smartBarMobileCartRowPrimaryTextClass(status: SmartBarMobileOrderStatus, handoffLocked = false) {
+  if (handoffLocked) return "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.42)]";
+  if (status === "pending") return "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.42)]";
+
+  return "text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.34)]";
+}
+
+function smartBarMobileCartRowSecondaryTextClass(status: SmartBarMobileOrderStatus, handoffLocked = false) {
+  if (handoffLocked) return "text-white/78";
+  if (status === "pending") return "text-white/84";
+
+  return "text-slate-800/84";
 }
 
 const SMARTBAR_MOBILE_TAX_RATE = 0.0825;
@@ -702,17 +722,27 @@ export default function SmartBarMobileShell({
         maxCartPanelHeight,
         Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
       );
-  const selectedOptionRows = Math.ceil((selectedLine?.options?.length || 0) / 2);
+  const selectedOptionCount = selectedLine?.options?.length || 0;
+  const selectedOptionRows = Math.ceil(selectedOptionCount / 2);
+  const selectedDetailTitle = smartBarMobileShortTitle(selectedLine?.demoDisplayTitle || selectedLine?.title || "");
+  const selectedDetailTitleLines = selectedDetailTitle.length > 15 ? 2 : 1;
+  const cartDetailHeightFromShape = (optionRows: number, titleLines: number) => {
+    const twoLineTitle = titleLines > 1;
+
+    if (optionRows <= 0) return twoLineTitle ? 286 : 260;
+    if (optionRows === 1) return twoLineTitle ? 300 : 280;
+    if (optionRows === 2) return twoLineTitle ? 316 : 292;
+    if (optionRows === 3) return twoLineTitle ? 366 : 346;
+    if (optionRows === 4) return twoLineTitle ? 418 : 376;
+    if (optionRows === 5) return twoLineTitle ? 456 : 416;
+
+    return twoLineTitle ? 496 : 456;
+  };
   const cartDetailHeight = selectedLine?.status === "unknown"
     ? 260
     : Math.min(
         maxCartPanelHeight,
-        Math.max(
-          220,
-          selectedOptionRows > 0
-            ? 154 + selectedOptionRows * 62
-            : 220,
-        ),
+        cartDetailHeightFromShape(selectedOptionRows, selectedDetailTitleLines),
       );
   const fakeCartPanelHeight = handoffState === "complete"
     ? 0
@@ -1203,7 +1233,9 @@ export default function SmartBarMobileShell({
           return;
         }
 
-        const replacementLines = smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
+        const replacementLines = result.preserveResultLinesOnRetry
+          ? result.lines
+          : smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
 
         if (replacementLines.length > 0) {
           setGenericResult(null);
@@ -1748,14 +1780,10 @@ export default function SmartBarMobileShell({
     upperGlassClass,
     chromePillClass,
     inputDraftCapsuleClass,
-    mainMutedTextClass,
-    softTextClass,
-    quietTextClass,
     skyEyebrowClass,
     retryInputClass,
     issuePillClass,
     lineButtonClass,
-    unknownTitleClass,
     handoffTitleClass,
     totalsBoxClass,
   } = getSmartBarMobileShellStyles(isOverlay, checkoutReady);
@@ -2061,11 +2089,11 @@ export default function SmartBarMobileShell({
                   >
                     <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
                       <div className="min-w-0">
-                        <div className={`text-[11px] font-black uppercase tracking-[0.16em] ${skyEyebrowClass}`}>
+                        <div className="inline-flex max-w-full items-center rounded-full border border-white/18 bg-white/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(2,6,23,0.18)]">
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
                         </div>
                         <div className={`mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
-                          {smartBarMobileShortTitle(selectedLine.title)}
+                          {selectedLine.demoDisplayTitle !== undefined ? selectedLine.demoDisplayTitle : smartBarMobileShortTitle(selectedLine.title)}
                         </div>
                       </div>
                       <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
@@ -2075,7 +2103,7 @@ export default function SmartBarMobileShell({
 
                     {selectedLine.status === "unknown" ? (
                       <div className="mt-4 flex min-h-0 flex-1 flex-col">
-                        <div className={`text-sm font-semibold leading-5 ${softTextClass}`}>
+                        <div className="mb-3 inline-flex max-w-full items-center self-start rounded-full border border-white/20 bg-slate-950/78 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.24)]">
                           {selectedLine.retryPrompt || "Re-enter this item."}
                         </div>
                         <textarea
@@ -2097,7 +2125,7 @@ export default function SmartBarMobileShell({
                       >
                         {!!selectedLine.options?.length && (
                           <div className="mt-4">
-                            <div className={`mb-2 text-[11px] font-black uppercase tracking-[0.14em] ${quietTextClass}`}>
+                            <div className="mb-2 inline-flex max-w-full items-center rounded-full border border-white/20 bg-slate-950/78 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.24)]">
                               {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
                             </div>
                             <div className="grid grid-cols-2 gap-2">
@@ -2379,21 +2407,30 @@ export default function SmartBarMobileShell({
                               if (!handoffLocked) selectLine(line);
                             }
                           }}
-                          className={`${lineButtonClass} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
+                          className={`${lineButtonClass} ${line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
                           style={{ touchAction: "pan-y" }}
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className={`truncate text-base font-black ${handoffLocked ? handoffTitleClass : line.status === "unknown" ? unknownTitleClass : ""}`}>
-                                {smartBarMobileShortTitle(line.title)}
+                          <div className={`flex justify-between gap-3 ${line.demoHideMeta ? "min-h-[1.35rem] items-center" : "items-start"}`}>
+                            <div className={`min-w-0 ${line.demoHideMeta ? "flex min-h-[1.35rem] flex-1 items-center" : ""}`}>
+                              <div
+                                className={[
+                                  "truncate font-black",
+                                  line.demoHideMeta
+                                    ? `text-[15px] leading-tight tracking-[-0.025em] ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`
+                                    : `text-base ${handoffLocked ? handoffTitleClass : smartBarMobileCartRowPrimaryTextClass(line.status, false)}`,
+                                ].join(" ")}
+                              >
+                                {line.demoDisplayTitle !== undefined ? line.demoDisplayTitle : smartBarMobileShortTitle(line.title)}
                               </div>
-                              <div className={`mt-1 text-sm font-semibold ${mainMutedTextClass} ${line.status === "unknown" ? "italic" : ""}`}>
-                                {line.helper}
-                              </div>
+                              {!line.demoHideMeta ? (
+                                <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
+                                  {line.helper}
+                                </div>
+                              ) : null}
                             </div>
                             <div className="flex shrink-0 flex-col items-end gap-2 text-right">
-                              <div className="text-sm font-black">{line.price}</div>
-                              {!handoffLocked && (
+                              {!line.demoHideMeta ? <div className={`text-sm font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
+                              {!handoffLocked && !line.demoHideMeta && (
                                 <button
                                   type="button"
                                   data-smartbar-mobile-remove-line="true"
@@ -2485,6 +2522,8 @@ export default function SmartBarMobileShell({
             {phase !== "rest" && handoffState !== "complete" && (
               <motion.button
                 type="button"
+                data-smartbar-mobile-close="true"
+                data-smartbar-mobile-close-armed={closeArmed ? "true" : undefined}
                 onClick={handleClosePillClick}
                 className={`${chromePillClass} left-0`}
                 style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}

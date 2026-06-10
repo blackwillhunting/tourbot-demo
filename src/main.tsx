@@ -264,6 +264,14 @@ function Router() {
     );
   }
 
+  if (path === "/food-trio") {
+    return (
+      <ProtectedDemoRoute>
+        <FoodTrioMobileExperience />
+      </ProtectedDemoRoute>
+    );
+  }
+
   if (path === "/carryout-legacy") {
     return (
       <ProtectedDemoRoute>

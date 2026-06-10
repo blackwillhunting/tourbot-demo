@@ -33,6 +33,12 @@ type FoodTarget = {
   shape: Shape;
 };
 
+type FoodTargetRouteBreak = {
+  label: string;
+  note: string;
+  depth: "short" | "medium" | "long";
+};
+
 type FoodTrioTargetWallProps = {
   activeScenario: FoodTrioScenarioId;
   activeTargetId?: string | null;
@@ -77,9 +83,58 @@ const GLOWS: Record<Tone, string> = {
 };
 
 const SHAPES: Record<Shape, string> = {
-  feature: "col-span-2 min-h-[122px] rounded-[1.35rem] border px-3.5 py-3.5 shadow-xl ring-1",
-  square: "col-span-1 min-h-[112px] rounded-[1.15rem] border px-3 py-3 shadow-lg ring-1",
-  line: "col-span-2 min-h-[62px] rounded-none border-x-0 border-t border-b px-3 py-2.5 ring-0 shadow-none",
+  feature: "col-span-2 min-h-[134px] rounded-[1.35rem] border px-3.5 py-3.5 shadow-xl ring-1",
+  square: "col-span-1 min-h-[122px] rounded-[1.15rem] border px-3 py-3 shadow-lg ring-1",
+  line: "col-span-2 min-h-[74px] rounded-none border-x-0 border-t border-b px-3 py-2.5 ring-0 shadow-none",
+};
+
+const ROUTE_BREAK_DEPTHS: Record<FoodTargetRouteBreak["depth"], string> = {
+  short: "min-h-[5.5rem]",
+  medium: "min-h-[8.5rem]",
+  long: "min-h-[12rem]",
+};
+
+const FOOD_TARGET_ROUTE_BREAKS: Partial<Record<string, FoodTargetRouteBreak>> = {
+  "foodtrio-coffee-iced-vanilla-latte": {
+    label: "Espresso bar match",
+    note: "The cart item lands on the matching menu card.",
+    depth: "medium",
+  },
+  "foodtrio-coffee-cappuccino": {
+    label: "Across to the matcha bar",
+    note: "The second drink should visibly land on the matching menu item.",
+    depth: "long",
+  },
+  "foodtrio-fast-spicy-sandwich-meal": {
+    label: "Jump to the group-order clutter",
+    note: "Meals, sides, drinks, sauces, and mistakes are spread out like a real menu.",
+    depth: "medium",
+  },
+  "foodtrio-fast-original-sandwich-meal": {
+    label: "Down to drinks and kids items",
+    note: "Required choices should feel like page navigation, not adjacent checklist taps.",
+    depth: "long",
+  },
+  "foodtrio-fast-drinks": {
+    label: "Back through the sides lane",
+    note: "The wall now gives the pointer room to visibly travel.",
+    depth: "medium",
+  },
+  "foodtrio-casual-herb-salmon": {
+    label: "Across the dining menu",
+    note: "Entrees, sides, desserts, and drinks are deliberately separated.",
+    depth: "long",
+  },
+  "foodtrio-casual-chicken-madeira": {
+    label: "Dessert is not adjacent",
+    note: "The demo should show a real restaurant-page jump.",
+    depth: "medium",
+  },
+  "foodtrio-casual-cheesecake": {
+    label: "Below the dessert rail",
+    note: "Extra page depth prevents the whole flow from feeling staged.",
+    depth: "medium",
+  },
 };
 
 const FOOD_TARGETS: FoodTarget[] = [
@@ -87,10 +142,10 @@ const FOOD_TARGETS: FoodTarget[] = [
     id: "foodtrio-coffee-iced-vanilla-latte",
     scenarioId: "coffee",
     group: "Espresso Bar",
-    title: "Grande Iced Vanilla Latte",
-    description: "Oat milk, vanilla syrup, light ice. Quantity can repeat without losing modifiers.",
-    price: "$6.75",
-    badge: "Grande",
+    title: "Iced Vanilla Latte",
+    description: "Oat milk, half sweet, light ice, extra shot. Modifiers stay visible and editable.",
+    price: "$7.25",
+    badge: "Latte",
     Icon: Coffee,
     tone: "espresso",
     shape: "feature",
@@ -99,11 +154,11 @@ const FOOD_TARGETS: FoodTarget[] = [
 {
     id: "foodtrio-coffee-cappuccino",
     scenarioId: "coffee",
-    group: "Espresso Bar",
-    title: "Half-Caf Cappuccino",
-    description: "Almond milk, extra hot, size still needed.",
-    price: "$5.95",
-    badge: "Choice",
+    group: "Tea Bar",
+    title: "Matcha Latte",
+    description: "Matcha base with optional extra matcha and ice level choices.",
+    price: "$6.25",
+    badge: "Matcha",
     Icon: Milk,
     tone: "cream",
     shape: "square",
@@ -146,6 +201,19 @@ const FOOD_TARGETS: FoodTarget[] = [
     Icon: Sparkles,
     tone: "slate",
     shape: "line",
+  },
+
+{
+    id: "foodtrio-coffee-cold-brew",
+    scenarioId: "coffee",
+    group: "Cold Bar",
+    title: "Cold Brew",
+    description: "Black with vanilla cold foam. Optional foam, oat splash, light ice, and sweetness choices.",
+    price: "$6.25",
+    badge: "Cold",
+    Icon: Coffee,
+    tone: "blue",
+    shape: "square",
   },
 
 {
@@ -256,10 +324,10 @@ const FOOD_TARGETS: FoodTarget[] = [
     id: "foodtrio-fast-nuggets",
     scenarioId: "fast-food",
     group: "Shareables",
-    title: "12-count Nugget Box",
-    description: "Counted box item with sauces attached.",
-    price: "$8.95",
-    badge: "12 ct",
+    title: "Chicken Nuggets",
+    description: "Choose the count first, then attach sauces.",
+    price: "From $5.95",
+    badge: "Count",
     Icon: Beef,
     tone: "slate",
     shape: "square",
@@ -498,6 +566,24 @@ function FoodMenuTarget({
   );
 }
 
+function FoodMenuRouteBreak({ routeBreak }: { routeBreak: FoodTargetRouteBreak }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={[
+        "col-span-2 flex items-center justify-center rounded-[1.35rem] border border-dashed border-white/12 bg-white/[0.035] px-4 text-center",
+        ROUTE_BREAK_DEPTHS[routeBreak.depth],
+      ].join(" ")}
+    >
+      <div>
+        <div className="text-[10px] font-black uppercase tracking-[0.20em] text-cyan-100/56">{routeBreak.label}</div>
+        <div className="mx-auto mt-2 h-px w-24 bg-gradient-to-r from-transparent via-white/22 to-transparent" />
+        <p className="mx-auto mt-2 max-w-[18rem] text-[11px] font-semibold leading-relaxed text-white/42">{routeBreak.note}</p>
+      </div>
+    </div>
+  );
+}
+
 function scenarioAnchorId(scenarioId: FoodTrioScenarioId) {
   return `foodtrio-scenario-${scenarioId}`;
 }
@@ -509,7 +595,7 @@ export default function FoodTrioTargetWall({
   onSamplePrompt,
 }: FoodTrioTargetWallProps) {
   return (
-    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-4 px-3 pb-32 pt-4 text-white">
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-14 px-3 pb-40 pt-4 text-white">
       <header className="rounded-[1.7rem] border border-white/12 bg-slate-950/88 p-4 shadow-2xl shadow-black/30">
         <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">FoodTrio mobile demo</div>
         <h1 className="mt-1 text-[22px] font-semibold leading-tight">Three food orders. One SmartBar.</h1>
@@ -545,7 +631,7 @@ export default function FoodTrioTargetWall({
             id={scenarioAnchorId(scenario.id)}
             data-foodtrio-scenario={scenario.id}
             className={[
-              "rounded-[2rem] border p-3 shadow-2xl shadow-black/30",
+              "scroll-mt-24 rounded-[2rem] border p-4 shadow-2xl shadow-black/30",
               SECTION_TONES[scenario.id],
               isActiveScenario ? "ring-2 ring-cyan-200/28" : "ring-1 ring-white/5",
             ].join(" ")}
@@ -565,15 +651,25 @@ export default function FoodTrioTargetWall({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              {targets.map((target) => (
-                <FoodMenuTarget
-                  key={target.id}
-                  target={target}
-                  active={activeTargetId === target.id}
-                  dimmed={Boolean(activeTargetId && isActiveScenario && activeTargetId !== target.id)}
-                />
-              ))}
+            <div className="grid grid-cols-2 gap-3.5">
+              {targets.flatMap((target) => {
+                const routeBreak = FOOD_TARGET_ROUTE_BREAKS[target.id];
+
+                return [
+                  <FoodMenuTarget
+                    key={target.id}
+                    target={target}
+                    active={activeTargetId === target.id}
+                    dimmed={Boolean(activeTargetId && isActiveScenario && activeTargetId !== target.id)}
+                  />,
+                  routeBreak ? (
+                    <FoodMenuRouteBreak
+                      key={`${target.id}-route-break`}
+                      routeBreak={routeBreak}
+                    />
+                  ) : null,
+                ];
+              })}
             </div>
           </section>
         );

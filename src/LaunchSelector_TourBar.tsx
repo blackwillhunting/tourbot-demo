@@ -112,7 +112,8 @@ function tourBotDemoPathIsFoodRoute(cleanPath: string) {
     cleanPath === "/burger-rush" ||
     cleanPath === "/burger-rush-play" ||
     cleanPath === "/smartbar-burgerrush" ||
-    cleanPath === "/direct-ordering"
+    cleanPath === "/direct-ordering" ||
+    cleanPath === "/food-trio"
   );
 }
 
