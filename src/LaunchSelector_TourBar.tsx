@@ -693,47 +693,22 @@ const FOOD_TRIO_DESKTOP_PRELUDE_SLIPS: PreludeSlip[] = [
     clearCascade: true,
   },
   {
-    title: "Type order.",
-    cascadeGroup: "foodtrio-stage-2",
+    title: "It fits anywhere.",
+    cascadeGroup: "foodtrio-stage-11",
     cascadeMode: "standard",
     density: "normal",
-    holdMs: 900,
-  },
-  {
-    title: "Get cart.",
-    cascadeGroup: "foodtrio-stage-2",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 900,
-  },
-  {
-    title: "Tap colors,",
-    cascadeGroup: "foodtrio-stage-2",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 900,
-  },
-  {
-    title: "Checkout.",
-    cascadeGroup: "foodtrio-stage-2",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1700,
+    holdMs: 2800,
     clearCascade: true,
   },
+];
+
+const FOOD_TRIO_DESKTOP_POST_FITS_SLIPS: PreludeSlip[] = [
   {
-    title: "Same idea.",
-    cascadeGroup: "foodtrio-stage-3",
+    title: "Works the same everywhere.",
+    cascadeGroup: "foodtrio-stage-12",
     cascadeMode: "standard",
     density: "normal",
-    holdMs: 1400,
-  },
-  {
-    title: "Now on real menus.",
-    cascadeGroup: "foodtrio-stage-3",
-    cascadeMode: "standard",
-    density: "normal",
-    holdMs: 1900,
+    holdMs: 2800,
     clearCascade: true,
   },
 ];
@@ -1003,11 +978,33 @@ export default function LaunchSelectorTourBar({
       await wait(FITS_ANYWHERE_ANIMATION_MS);
       if (runIdRef.current !== runId) return;
 
+      setFitsAnimationVisible(false);
+
+      if (currentTourBotDemoPath() === "/food-trio-desktop") {
+        const postFitsNotice = FOOD_TRIO_DESKTOP_POST_FITS_SLIPS[0];
+
+        setPreludeStackCards([
+          {
+            id: "foodtrio-post-fits-0",
+            variant: "prelude",
+            title: postFitsNotice.title,
+            detail: postFitsNotice.detail,
+            density: postFitsNotice.density || "normal",
+          },
+        ]);
+
+        await wait(postFitsNotice.holdMs ?? DEFAULT_PRELUDE_HOLD_MS);
+        if (runIdRef.current !== runId) return;
+
+        setPreludeStackCards([]);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
+      }
+
       setDemoVisible(true);
       await wait(DEMO_HANDOFF_SETTLE_MS);
       if (runIdRef.current !== runId) return;
 
-      setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
     [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState, variant],
