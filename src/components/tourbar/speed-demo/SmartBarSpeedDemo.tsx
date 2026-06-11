@@ -1152,8 +1152,355 @@ function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
   };
 }
 
+
+// FoodTrio desktop fixtures: desktop-adapted from the mobile FoodTrio source of truth.
+function foodTrioSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "choice";
+}
+
+function foodTrioOptionLabels(labels: string[]) {
+  return labels.map((label) => ({ label, value: foodTrioSlug(label) }));
+}
+
+function foodTrioReadyLine(
+  id: string,
+  targetId: string,
+  title: string,
+  priceLabel: string,
+  knownSelections: string[] = [],
+  options: string[] = [],
+  selectionMode: "single" | "multi" = "multi",
+) {
+  return {
+    lineItemId: id,
+    id,
+    targetId,
+    title,
+    quantity: 1,
+    priceLabel,
+    status: "ready",
+    knownSelections,
+    qualifierGroups: options.length
+      ? [
+          {
+            kind: "modifier",
+            qualifierId: `${id}-options`,
+            label: "Optional edits",
+            targetId,
+            required: false,
+            missing: false,
+            selectionMode,
+            options: foodTrioOptionLabels(options),
+          },
+        ]
+      : [],
+  };
+}
+
+function foodTrioRequiredLine(
+  id: string,
+  targetId: string,
+  title: string,
+  priceLabel: string | undefined,
+  knownSelections: string[],
+  qualifierLabel: string,
+  options: string[],
+) {
+  return {
+    lineItemId: id,
+    id,
+    targetId,
+    title,
+    quantity: 1,
+    priceLabel,
+    status: "needs_qualifier",
+    knownSelections,
+    missingQualifiers: [{ qualifierId: `${id}-required`, label: qualifierLabel, targetId }],
+    qualifierGroups: [
+      {
+        qualifierId: `${id}-required`,
+        label: qualifierLabel,
+        targetId,
+        required: true,
+        missing: true,
+        options: foodTrioOptionLabels(options),
+      },
+    ],
+  };
+}
+
+function foodTrioCoffeeOrder(): CarryoutOrder {
+  const items = [
+    foodTrioReadyLine(
+      "coffee-cold-brew",
+      "foodtrio-coffee-cold-brew",
+      "Cold Brew",
+      "$6.25",
+      ["Black", "Vanilla cold foam"],
+      ["Extra cold foam", "Splash oat milk", "Light ice", "No sweetener"],
+    ),
+    foodTrioReadyLine(
+      "coffee-matcha-latte",
+      "foodtrio-coffee-cappuccino",
+      "Matcha Latte",
+      "$6.95",
+      ["Almond milk", "No foam", "Light ice"],
+      ["Extra matcha", "Less sweet", "Oat milk"],
+    ),
+    foodTrioReadyLine(
+      "coffee-iced-vanilla-latte",
+      "foodtrio-coffee-iced-vanilla-latte",
+      "Iced Vanilla Latte",
+      "$7.25",
+      ["Oat milk", "Half sweet", "Light ice", "Extra shot"],
+      ["Vanilla cold foam", "Caramel drizzle", "Extra vanilla"],
+    ),
+  ];
+
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    totals: {
+      status: "ready",
+      subtotal: 20.45,
+      estimatedTax: 1.64,
+      estimatedTotal: 22.09,
+      currency: "USD",
+    },
+  };
+}
+
+function foodTrioFastFoodOrder(): CarryoutOrder {
+  const spicyMeals = foodTrioReadyLine(
+    "fast-spicy-meals",
+    "foodtrio-fast-spicy-sandwich-meal",
+    "2 × Spicy Chicken Sandwich Meals",
+    "$22.98",
+    ["Large fries", "Dr Pepper"],
+  );
+  const regularMeal = foodTrioRequiredLine(
+    "fast-regular-meal",
+    "foodtrio-fast-original-sandwich-meal",
+    "Regular Chicken Sandwich Meal",
+    undefined,
+    ["No pickles"],
+    "Choose side and drink",
+    ["Large fries + Dr Pepper", "Waffle fries + lemonade", "Fruit cup + water"],
+  );
+  const kidsNuggets = foodTrioRequiredLine(
+    "fast-kids-nuggets",
+    "foodtrio-fast-nuggets",
+    "Kids Nuggets",
+    undefined,
+    ["BBQ sauce"],
+    "Choose nugget count",
+    ["6-count", "8-count", "12-count"],
+  );
+  const fries = foodTrioReadyLine(
+    "fast-large-fries",
+    "foodtrio-fast-waffle-fries",
+    "Large Fries",
+    "$7.50",
+    ["Large", "Group order"],
+    ["No salt", "Extra crispy", "Add cheese", "Side ketchup"],
+  );
+  const sauces = foodTrioReadyLine(
+    "fast-sauces",
+    "foodtrio-fast-sauces",
+    "Sauce bundle",
+    "$0.00",
+    ["BBQ"],
+    ["Ranch", "Buffalo", "Honey mustard", "Extra BBQ"],
+  );
+  const drinks = foodTrioRequiredLine(
+    "fast-dr-peppers",
+    "foodtrio-fast-drinks",
+    "3 × Dr Pepper",
+    undefined,
+    [],
+    "Choose drink size",
+    ["Medium", "Large", "No ice"],
+  );
+  const items = [drinks, sauces, fries, kidsNuggets, regularMeal, spicyMeals];
+
+  return {
+    type: "carryout_order",
+    status: "partial_match",
+    nextAction: "choose_qualifier",
+    items,
+    completeItems: items.filter((item) => item.status === "ready"),
+    pendingItems: items.filter((item) => item.status !== "ready"),
+    cannotMatchItems: [
+      {
+        text: "crunchy wrap thing",
+        reason: "not_on_menu",
+      },
+    ],
+    currentStep: {
+      type: "qualifier",
+      itemId: "fast-regular-meal",
+      targetId: "foodtrio-fast-original-sandwich-meal",
+      qualifierId: "fast-regular-meal-required",
+      question: "Choose side and drink",
+    },
+    totals: {
+      status: "partial",
+      subtotal: 46.43,
+      estimatedTax: null,
+      estimatedTotal: null,
+      currency: "USD",
+    },
+  };
+}
+
+function foodTrioCasualDiningOrder(finalReady = false): CarryoutOrder {
+  const avocadoRolls = foodTrioReadyLine(
+    "casual-avocado-rolls",
+    "foodtrio-casual-avocado-rolls",
+    "Avocado Eggrolls",
+    "$14.95",
+    ["Share plate", "Tamarind sauce"],
+  );
+  const salads = foodTrioReadyLine(
+    "casual-salads",
+    "foodtrio-casual-dinner-salad",
+    "2 × Dinner Salads",
+    "$17.90",
+    ["One ranch", "One vinaigrette"],
+  );
+  const madeira = foodTrioReadyLine(
+    "casual-madeira",
+    "foodtrio-casual-chicken-madeira",
+    "Chicken Madeira",
+    "$24.95",
+    ["Mashed potatoes", "Extra mushroom sauce"],
+    ["Asparagus", "Rice pilaf", "Side salad"],
+  );
+  const salmon = finalReady
+    ? foodTrioReadyLine(
+        "casual-salmon",
+        "foodtrio-casual-herb-salmon",
+        "Herb-Crusted Salmon",
+        "$27.95",
+        ["Asparagus"],
+        ["Rice pilaf", "Mashed potatoes", "Side salad"],
+      )
+    : foodTrioRequiredLine(
+        "casual-salmon",
+        "foodtrio-casual-herb-salmon",
+        "Herb-Crusted Salmon",
+        undefined,
+        [],
+        "Choose entree side",
+        ["Asparagus", "Rice pilaf", "Mashed potatoes", "Side salad"],
+      );
+  const cheesecake = foodTrioReadyLine(
+    "casual-cheesecake",
+    "foodtrio-casual-cheesecake",
+    "Original Cheesecake",
+    "$10.50",
+    finalReady ? ["Whipped cream", "Extra whipped cream"] : ["Whipped cream"],
+    ["Extra whipped cream", "No whipped cream", "Strawberry sauce"],
+  );
+  const items = [cheesecake, salmon, madeira, salads, avocadoRolls];
+
+  return {
+    type: "carryout_order",
+    status: finalReady ? "ready_cart" : "needs_qualifier",
+    nextAction: finalReady ? "show_cart" : "choose_qualifier",
+    items,
+    completeItems: items.filter((item) => item.status === "ready"),
+    pendingItems: items.filter((item) => item.status !== "ready"),
+    ...(finalReady
+      ? {}
+      : {
+          currentStep: {
+            type: "qualifier",
+            itemId: "casual-salmon",
+            targetId: "foodtrio-casual-herb-salmon",
+            qualifierId: "casual-salmon-required",
+            question: "Choose entree side",
+          },
+        }),
+    totals: {
+      status: finalReady ? "ready" : "partial",
+      subtotal: finalReady ? 96.25 : 68.30,
+      estimatedTax: finalReady ? 7.70 : null,
+      estimatedTotal: finalReady ? 103.95 : null,
+      currency: "USD",
+    },
+  };
+}
+
+function lockedFoodTrioCasualDiningOrder(): CarryoutOrder {
+  return {
+    ...foodTrioCasualDiningOrder(true),
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+  };
+}
+
+function foodTrioQueryIsCoffee(text: string) {
+  return /\b(coffee|latte|matcha|cold brew|espresso|oat milk|almond milk|vanilla cold foam|three drinks)\b/.test(text);
+}
+
+function foodTrioQueryIsFastFood(text: string) {
+  return /\b(chx|sandwch|nug|nugs|fryz|fries|waffle|sauce|sauces|dr pepper|pepper|wrap|spicy|pickels)\b/.test(text);
+}
+
+function foodTrioQueryIsCasualDining(text: string) {
+  return /\b(eggrolls?|salads?|salmon|madeira|cheesecake|whipped cream|appetizer|entree|dinner salads?)\b/.test(text);
+}
+
 function fixtureResult(query: string): TourBarShellResult {
   const text = query.trim().toLowerCase();
+
+  if (text === "__checkout_foodtrio") {
+    return orderResult(lockedFoodTrioCasualDiningOrder(), {
+      title: "FoodTrio order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-checkout",
+      commerceAction: "carryout_checkout_handoff",
+      focusTargetId: "foodtrio-casual-cheesecake",
+    });
+  }
+
+  if (foodTrioQueryIsCoffee(text)) {
+    return orderResult(foodTrioCoffeeOrder(), {
+      title: "Beanstack Coffee cart",
+      body: "Three customized drinks captured with modifiers preserved.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-coffee",
+      focusTargetId: "foodtrio-coffee-iced-vanilla-latte",
+    });
+  }
+
+  if (foodTrioQueryIsFastFood(text)) {
+    return orderResult(foodTrioFastFoodOrder(), {
+      title: "Cluck & Fry group order",
+      body: "Messy group order parsed into ready items, missing choices, optional extras, and one unmatched phrase.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-fast-food",
+      focusTargetId: "foodtrio-fast-original-sandwich-meal",
+    });
+  }
+
+  if (foodTrioQueryIsCasualDining(text)) {
+    return orderResult(foodTrioCasualDiningOrder(true), {
+      title: "Tablehouse Grill order",
+      body: "Courses, sides, and dessert are organized into a checkout-ready cart.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-casual-dining",
+      focusTargetId: "foodtrio-casual-herb-salmon",
+      nextQuery: "__checkout_foodtrio",
+      separateSheetNextMove: true,
+    });
+  }
 
   if (
     text.includes("hedge fund") ||
@@ -2112,6 +2459,15 @@ export default function SmartBarSpeedDemo({
   }, [autoPlay, mobileBurgerRushShell, mobileBurgerRushStage]);
 
   useEffect(() => {
+    if (variant === "foodTrioDesktop") {
+      setTutorBlocking(false);
+      setTutorStackCards([]);
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      return;
+    }
+
     if (mobileBurgerRushShell && mobileBurgerRushStage !== "intro") {
       setTutorBlocking(false);
       setTutorStackCards([]);
@@ -2218,7 +2574,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, mobileBurgerRushStage, openingTutorCards]);
+  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, mobileBurgerRushStage, openingTutorCards, variant]);
 
   const completeMobilePlacementIntro = useCallback(() => {
     if (!mobileBurgerRushShell) return;

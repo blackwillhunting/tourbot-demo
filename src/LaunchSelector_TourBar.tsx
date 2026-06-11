@@ -654,6 +654,92 @@ const BURGERRUSH_ONLY_PRELUDE_SLIPS: PreludeSlip[] = [
   // },
 ];
 
+const FOOD_TRIO_DESKTOP_PRELUDE_SLIPS: PreludeSlip[] = [
+  {
+    title: "SmartBar",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1300,
+  },
+  {
+    title: "A search bar",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "That builds carts.",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Like having Alexa.",
+    cascadeGroup: "foodtrio-stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "On any site.",
+    cascadeGroup: "foodtrio-stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1800,
+    clearCascade: true,
+  },
+  {
+    title: "Type order.",
+    cascadeGroup: "foodtrio-stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Get cart.",
+    cascadeGroup: "foodtrio-stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Tap colors,",
+    cascadeGroup: "foodtrio-stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Checkout.",
+    cascadeGroup: "foodtrio-stage-2",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Same idea.",
+    cascadeGroup: "foodtrio-stage-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "Now on real menus.",
+    cascadeGroup: "foodtrio-stage-3",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1900,
+    clearCascade: true,
+  },
+];
+
+
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -830,7 +916,12 @@ export default function LaunchSelectorTourBar({
 
       cleanupResetAccessUrl();
       let activeCascadeGroup: string | null = null;
-      const activePreludeSlips = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_PRELUDE_SLIPS : PRELUDE_SLIPS;
+      const activePreludeSlips =
+        variant === "burgerRushOnly"
+          ? BURGERRUSH_ONLY_PRELUDE_SLIPS
+          : variant === "foodTrioDesktop"
+            ? FOOD_TRIO_DESKTOP_PRELUDE_SLIPS
+            : PRELUDE_SLIPS;
 
       for (let index = 0; index < activePreludeSlips.length; index += 1) {
         const slip = activePreludeSlips[index];
