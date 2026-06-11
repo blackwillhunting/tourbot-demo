@@ -1817,8 +1817,44 @@ function DomiBookingPanelReplica() {
   );
 }
 
+function DomiPacingCard({
+  eyebrow,
+  title,
+  body,
+  Icon,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  Icon: LucideIcon;
+}) {
+  return (
+    <DomiCard className="border-slate-200/75 bg-white/88 text-slate-950">
+      <div className="grid md:grid-cols-[170px_1fr]">
+        <div className="border-b border-slate-100 bg-slate-50 p-4 md:border-b-0 md:border-r md:p-6">
+          <div className="inline-flex rounded-2xl bg-sky-100 p-3 text-sky-700 ring-1 ring-sky-200">
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+            {eyebrow}
+          </div>
+        </div>
+        <div className="p-4 sm:p-5 md:p-7">
+          <h3 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
+            {title}
+          </h3>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+            {body}
+          </p>
+        </div>
+      </div>
+    </DomiCard>
+  );
+}
+
 function DomiSurfaceLayer({ active }: { active: boolean }) {
   const copy = SURFACE_COPY.booking;
+  const domiSection = (index: number) => DOMI_SECTIONS[index];
 
   return (
     <motion.section
@@ -1826,7 +1862,7 @@ function DomiSurfaceLayer({ active }: { active: boolean }) {
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[3000px] sm:min-h-[4300px]`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[5200px] sm:min-h-[6400px]`}
     >
       <div className="mb-5 grid gap-3 sm:mb-8 sm:gap-5 md:grid-cols-6 xl:grid-cols-12">
         <div className="rounded-[22px] border border-sky-200/70 bg-white/90 p-4 text-slate-950 shadow-xl shadow-sky-950/10 ring-1 ring-white/80 backdrop-blur-xl sm:rounded-[34px] sm:p-6 md:col-span-6 xl:col-span-7">
@@ -1842,24 +1878,77 @@ function DomiSurfaceLayer({ active }: { active: boolean }) {
         </div>
       </div>
 
-      <div className="space-y-5 sm:space-y-8">
+      <div className="max-w-[820px] space-y-5 sm:space-y-8">
         {DOMI_SECTIONS.slice(0, 2).map((section, index) => (
           <DomiSectionCard key={section.id} section={section} index={index} />
         ))}
 
-        <div className="grid gap-5 sm:gap-8 xl:grid-cols-2">
-          {DOMI_SECTIONS.slice(2, 7).map((section, index) => (
-            <DomiSectionCard key={section.id} section={section} index={index + 2} />
-          ))}
-        </div>
+        <div className="space-y-16 sm:space-y-20 xl:space-y-24">
+          <DomiSectionCard section={domiSection(2)} index={2} />
 
-        <div className="grid gap-5 sm:gap-8 xl:grid-cols-2">
+          <DomiPacingCard
+            eyebrow="Availability scan"
+            title="Tower and floor options"
+            body="The room path now has to travel past real-looking hotel context before the next recommendation appears."
+            Icon={Building2}
+          />
+
+          <DomiSectionCard section={domiSection(5)} index={5} />
+
+          <DomiPacingCard
+            eyebrow="Stay context"
+            title="Arrival, parking, and guest needs"
+            body="These intermediate stops keep the page feeling like a site, not three cards staged in demo order."
+            Icon={CalendarDays}
+          />
+
+          <DomiPacingCard
+            eyebrow="Amenity comparison"
+            title="Breakfast, pool, and quiet-zone tradeoffs"
+            body="The spotlight has a longer vertical trip, so the recommendation change feels earned."
+            Icon={Coffee}
+          />
+
+          <DomiSectionCard section={domiSection(3)} index={3} />
+
+          <DomiPacingCard
+            eyebrow="Rate comparison"
+            title="Nightly rate versus total stay cost"
+            body="SmartBar can compare room value without every recommendation sitting directly next to the last one."
+            Icon={CreditCard}
+          />
+
+          <DomiSectionCard section={domiSection(6)} index={6} />
+
+          <DomiPacingCard
+            eyebrow="Package fit"
+            title="Breakfast and leisure package checks"
+            body="The second recommendation now pans through more hotel material before reaching the premium option."
+            Icon={ClipboardList}
+          />
+
+          <DomiPacingCard
+            eyebrow="Guest intent"
+            title="View preference and occasion"
+            body="This final bridge keeps the Coastal Villa from feeling like the next pre-staged card."
+            Icon={Sparkles}
+          />
+
+          <DomiSectionCard section={domiSection(4)} index={4} />
+
+          <DomiPacingCard
+            eyebrow="Booking context"
+            title="Dates and guests needed before handoff"
+            body="After the recommendations, the page still has useful context before the final booking summary."
+            Icon={MessageSquare}
+          />
+
           {DOMI_SECTIONS.slice(7).map((section, index) => (
             <DomiSectionCard key={section.id} section={section} index={index + 7} />
           ))}
-        </div>
 
-        <DomiBookingPanelReplica />
+          <DomiBookingPanelReplica />
+        </div>
       </div>
     </motion.section>
   );

@@ -18,6 +18,7 @@ type AnimationStage = {
 };
 
 const STAGE_MS = 760;
+const OPEN_STAGE_HOLD_MS = 1260;
 const FITS_POINTER_DELAY_MS = 120;
 const FITS_POINTER_AIM_MS = 220;
 const FITS_POINTER_PULSE_MS = 390;
@@ -35,7 +36,12 @@ const STAGES: AnimationStage[] = [
   { surface: "info", placement: "right", open: false },
 ];
 
-export const FITS_ANYWHERE_ANIMATION_MS = STAGE_MS * (STAGES.length + 1);
+function fitsAnywhereStageDuration(stage: AnimationStage) {
+  return stage.open ? OPEN_STAGE_HOLD_MS : STAGE_MS;
+}
+
+export const FITS_ANYWHERE_ANIMATION_MS =
+  STAGES.reduce((total, stage) => total + fitsAnywhereStageDuration(stage), 0) + STAGE_MS;
 
 function SmartBarLauncherButton() {
   return (
@@ -119,9 +125,12 @@ export default function SmartBarFitsAnywhereAnimation() {
   const stage = STAGES[stageIndex] || STAGES[STAGES.length - 1];
 
   useEffect(() => {
-    const timers = STAGES.slice(1).map((_, index) =>
-      window.setTimeout(() => setStageIndex(index + 1), STAGE_MS * (index + 1)),
-    );
+    let elapsedMs = fitsAnywhereStageDuration(STAGES[0]);
+    const timers = STAGES.slice(1).map((_, index) => {
+      const timer = window.setTimeout(() => setStageIndex(index + 1), elapsedMs);
+      elapsedMs += fitsAnywhereStageDuration(STAGES[index + 1]);
+      return timer;
+    });
 
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
