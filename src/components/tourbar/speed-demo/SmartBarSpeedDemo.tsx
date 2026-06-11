@@ -36,7 +36,13 @@ import {
   type SmartBarFlashCardNotice,
   type SmartBarTutorCard,
 } from "./SmartBarFlashCardRail";
-import { SMARTBAR_BURGERRUSH_MOBILE_STEPS, SMARTBAR_BURGERRUSH_ONLY_STEPS, SMARTBAR_SPEED_STEPS, type SmartBarSpeedCommand } from "./smartBarSpeedScript";
+import {
+  SMARTBAR_BURGERRUSH_MOBILE_STEPS,
+  SMARTBAR_BURGERRUSH_ONLY_STEPS,
+  SMARTBAR_FOOD_TRIO_DESKTOP_STEPS,
+  SMARTBAR_SPEED_STEPS,
+  type SmartBarSpeedCommand,
+} from "./smartBarSpeedScript";
 
 const TYPE_DELAY_MS = 18;
 const MOBILE_TYPE_DELAY_MS = 42;
@@ -1876,7 +1882,7 @@ function SmartBarMobileDemoBackdrop({ children }: { children?: any }) {
 
 
 
-export type SmartBarSpeedDemoVariant = "full" | "burgerRushOnly";
+export type SmartBarSpeedDemoVariant = "full" | "burgerRushOnly" | "foodTrioDesktop";
 
 export default function SmartBarSpeedDemo({
   autoPlay = false,
@@ -1929,12 +1935,13 @@ export default function SmartBarSpeedDemo({
 
   const demoSteps = useMemo(
     () => {
+      if (variant === "foodTrioDesktop") return SMARTBAR_FOOD_TRIO_DESKTOP_STEPS;
       if (variant !== "burgerRushOnly") return SMARTBAR_SPEED_STEPS;
       return mobileBurgerRushShell ? SMARTBAR_BURGERRUSH_MOBILE_STEPS : SMARTBAR_BURGERRUSH_ONLY_STEPS;
     },
     [mobileBurgerRushShell, variant],
   );
-  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
+  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? [] : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!mobileFullShell || mobileNexaIntroReady);
   useLayoutEffect(() => {
     if (!directMobileShell || typeof document === "undefined") return;
@@ -2824,7 +2831,7 @@ export default function SmartBarSpeedDemo({
   };
 
   const currentStep = stepIndex >= 0 ? demoSteps[stepIndex] : null;
-  const defaultSurface = variant === "burgerRushOnly" ? "ordering" : "info";
+  const defaultSurface = variant === "burgerRushOnly" || variant === "foodTrioDesktop" ? "ordering" : "info";
   const toolbarSurface = currentStep?.surface || defaultSurface;
   const isFinaleSurface = toolbarSurface === "finale";
 
@@ -3040,7 +3047,7 @@ export default function SmartBarSpeedDemo({
             : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
         }
       >
-        <SmartBarSpeedTargetWall surface={toolbarSurface} />
+        <SmartBarSpeedTargetWall surface={toolbarSurface} variant={variant === "foodTrioDesktop" ? "foodTrioDesktop" : "standard"} />
       </div>
 
 

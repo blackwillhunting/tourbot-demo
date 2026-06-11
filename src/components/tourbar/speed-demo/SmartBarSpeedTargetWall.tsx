@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { SmartBarSpeedSurface } from "./smartBarSpeedScript";
+import FoodTrioDesktopTargetWall from "./FoodTrioDesktopTargetWall";
 
 type LegacySmartBarSpeedSurface = Exclude<SmartBarSpeedSurface, "info" | "finale">;
 
@@ -2071,7 +2072,24 @@ function FinaleNeutralSurfaceLayer() {
   return <div className="min-h-[calc(100svh-150px)]" />;
 }
 
-export default function SmartBarSpeedTargetWall({ surface }: { surface: SmartBarSpeedSurface }) {
+export default function SmartBarSpeedTargetWall({
+  surface,
+  variant = "standard",
+}: {
+  surface: SmartBarSpeedSurface;
+  variant?: "standard" | "foodTrioDesktop";
+}) {
+  if (variant === "foodTrioDesktop") {
+    return (
+      <div
+        data-smartbar-speed-target-wall="true"
+        className="relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
+      >
+        <FoodTrioDesktopTargetWall />
+      </div>
+    );
+  }
+
   return (
     <div
       data-smartbar-speed-target-wall="true"

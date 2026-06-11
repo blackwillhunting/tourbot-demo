@@ -1926,3 +1926,81 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
   //   ],
  // },
 ];
+
+
+export const SMARTBAR_FOOD_TRIO_DESKTOP_STEPS: SmartBarSpeedStep[] = [
+  {
+    id: "food-trio-desktop-open",
+    chapter: "FoodTrio",
+    label: "Open FoodTrio",
+    helper: "Desktop restaurant trio foundation.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        cards: [
+          "FoodTrio Desktop",
+          "Fast food proves speed",
+          "Coffee proves detail",
+          "Casual dining proves range",
+        ],
+      },
+      { kind: "pause", delayMs: 900 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-fast-food",
+    chapter: "Fast food",
+    label: "Speed",
+    helper: "Big messy order becomes a clean cart.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        cards: [
+          "Fast food",
+          "Big messy order in",
+          "Clean cart out",
+        ],
+      },
+      { kind: "pause", delayMs: 900 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-coffee",
+    chapter: "Coffee",
+    label: "Detail",
+    helper: "Many small modifiers are preserved.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        cards: [
+          "Coffee",
+          "Small order",
+          "Many modifiers",
+          "Nothing gets lost",
+        ],
+      },
+      { kind: "pause", delayMs: 900 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-casual-dining",
+    chapter: "Casual dining",
+    label: "Range",
+    helper: "Courses, sides, drinks, and dessert organized cleanly.",
+    surface: "ordering",
+    commands: [
+      {
+        kind: "cards",
+        cards: [
+          "Casual dining",
+          "Apps, entrees, sides, dessert, drinks",
+          "Organized checkout",
+        ],
+      },
+      { kind: "pause", delayMs: 900 },
+    ],
+  },
+];
