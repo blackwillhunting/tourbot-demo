@@ -1,5 +1,4 @@
 import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
-import FoodTrioDesktopExperience from "./components/tourbar/food-trio-desktop/FoodTrioDesktopExperience";
 import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -281,13 +280,6 @@ function Router() {
     );
   }
 
-  if (path === "/food-trio-desktop") {
-    return (
-      <ProtectedDemoRoute>
-        <FoodTrioDesktopExperience />
-      </ProtectedDemoRoute>
-    );
-  }
 
   if (path === "/carryout-legacy") {
     return (
@@ -362,9 +354,6 @@ function Router() {
     return <SmartBarSpeedDemo autoPlay variant="foodTrioDesktop" />;
   }
 
-  if (path === "/local-food-trio-desktop-demo" || path === "/food-trio-desktop-demo") {
-    return <FoodTrioDesktopExperience />;
-  }
 
   if (isSmartBarHostname()) {
     const smartBarVariant = smartBarSpeedVariantFromPath(path);
