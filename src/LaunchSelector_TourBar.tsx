@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
@@ -713,6 +714,53 @@ const FOOD_TRIO_DESKTOP_POST_FITS_SLIPS: PreludeSlip[] = [
   },
 ];
 
+const FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS: PreludeSlip[] = [
+  {
+    title: "Type order.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Get cart.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Tap colors,",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Checkout.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Same idea.",
+    cascadeGroup: "foodtrio-stage-14",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "Now on real menus.",
+    cascadeGroup: "foodtrio-stage-14",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2200,
+    clearCascade: true,
+  },
+];
+
 
 
 function wait(ms: number) {
@@ -820,10 +868,12 @@ export default function LaunchSelectorTourBar({
   const [activePreludeStackMode, setActivePreludeStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
   const [preludeStackCards, setPreludeStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
   const [fitsAnimationVisible, setFitsAnimationVisible] = useState(false);
+  const [foodTrioIntroAnimationVisible, setFoodTrioIntroAnimationVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
   const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
+  const foodTrioIntroCompleteResolverRef = useRef<(() => void) | null>(null);
   const isNexaPathMobilePlayground = currentTourBotDemoPath() === "/nexapath-play";
   const isDomiMobilePlayground = currentTourBotDemoPath() === "/domi-play";
 
@@ -851,6 +901,7 @@ export default function LaunchSelectorTourBar({
       setDemoAutoPlay(false);
       setLaunchVisible(false);
       setIsChecking(false);
+      setFoodTrioIntroAnimationVisible(false);
 
       const hasMobileGeneralTestShortcut =
         variant === "full" && (persistSmartBarMobileGeneralShortcut() || hasSmartBarMobileGeneralShortcut());
@@ -999,6 +1050,65 @@ export default function LaunchSelectorTourBar({
         setPreludeStackCards([]);
         await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
         if (runIdRef.current !== runId) return;
+
+        setFoodTrioIntroAnimationVisible(true);
+        await new Promise<void>((resolve) => {
+          let resolved = false;
+          const finishIntro = () => {
+            if (resolved) return;
+            resolved = true;
+            window.clearTimeout(timeoutId);
+            foodTrioIntroCompleteResolverRef.current = null;
+            resolve();
+          };
+          const timeoutId = window.setTimeout(finishIntro, FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS);
+          foodTrioIntroCompleteResolverRef.current = finishIntro;
+        });
+        if (runIdRef.current !== runId) return;
+
+        setFoodTrioIntroAnimationVisible(false);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
+
+        let foodTrioPostIntroCascadeGroup: string | null = null;
+        for (let index = 0; index < FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS.length; index += 1) {
+          const slip = FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS[index];
+          const mode = slip.cascadeMode || "standard";
+
+          if (foodTrioPostIntroCascadeGroup && foodTrioPostIntroCascadeGroup !== slip.cascadeGroup) {
+            setPreludeStackCards([]);
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+
+          if (foodTrioPostIntroCascadeGroup !== slip.cascadeGroup) {
+            setActiveNoticeLaneState(null);
+            setPreludeStackCards([]);
+            setActivePreludeStackMode(mode);
+            foodTrioPostIntroCascadeGroup = slip.cascadeGroup || null;
+          }
+
+          setPreludeStackCards((items) => [
+            ...items,
+            {
+              id: `${slip.cascadeGroup || "foodtrio-post-intro"}-${index}`,
+              variant: "prelude",
+              title: slip.title,
+              detail: slip.detail,
+              density: slip.density || "normal",
+            },
+          ]);
+
+          await wait(slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS);
+          if (runIdRef.current !== runId) return;
+
+          if (slip.clearCascade) {
+            setPreludeStackCards([]);
+            foodTrioPostIntroCascadeGroup = null;
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+        }
       }
 
       setDemoVisible(true);
@@ -1150,6 +1260,15 @@ export default function LaunchSelectorTourBar({
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
       <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
+      <AnimatePresence>
+        {foodTrioIntroAnimationVisible ? (
+          <FoodTrioDesktopIntroAnimation
+            onComplete={() => {
+              foodTrioIntroCompleteResolverRef.current?.();
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import {
   Building2,
   CalendarDays,
   Coffee,
+  Compass,
   CreditCard,
   Search,
   ShoppingCart,
@@ -14,15 +15,26 @@ import type { ReactNode } from "react";
 
 export type SmartBarDemoToolbarSurface = "info" | "ordering" | "booking" | "finale";
 export type SmartBarDemoToolbarPlacement = "left" | "middleRight" | "right";
+export type SmartBarDemoToolbarChromeVariant = "default" | "blueCoreGlass";
 
 type SmartBarDemoToolbarFrameProps = {
   surface: SmartBarDemoToolbarSurface;
   smartBarNode: ReactNode;
   placement?: SmartBarDemoToolbarPlacement;
   animateOptions?: boolean;
+  chromeVariant?: SmartBarDemoToolbarChromeVariant;
 };
 
-function toolbarTone(surface: SmartBarDemoToolbarSurface) {
+function toolbarTone(surface: SmartBarDemoToolbarSurface, chromeVariant: SmartBarDemoToolbarChromeVariant = "default") {
+  if (chromeVariant === "blueCoreGlass") {
+    return {
+      shell: "border-white/35 bg-[linear-gradient(180deg,rgba(255,255,255,0.70),rgba(224,237,247,0.48))] text-slate-950 shadow-[0_24px_68px_rgba(23,34,124,0.14),inset_0_1px_1px_rgba(255,255,255,0.55)]",
+      brandBadge: "bg-[#17227c] text-white shadow-[0_14px_34px_rgba(23,34,124,0.24)] ring-1 ring-white/25",
+      muted: "text-[#17227c]/64",
+      pill: "border-white/65 bg-white/50 text-[#17227c]/78 shadow-[inset_0_1px_1px_rgba(255,255,255,0.55)]",
+      activePill: "bg-[#17227c] text-white ring-white/55 shadow-[0_10px_24px_rgba(23,34,124,0.22)]",
+    };
+  }
 
   if (surface === "finale") {
     return {
@@ -68,13 +80,15 @@ function ToolbarPill({
   active = false,
   className = "",
   surface,
+  chromeVariant = "default",
 }: {
   children: ReactNode;
   active?: boolean;
   className?: string;
   surface: SmartBarDemoToolbarSurface;
+  chromeVariant?: SmartBarDemoToolbarChromeVariant;
 }) {
-  const tone = toolbarTone(surface);
+  const tone = toolbarTone(surface, chromeVariant);
   return (
     <span
       className={`inline-flex h-7 shrink-0 items-center rounded-full border px-2.5 text-[11px] font-bold ring-1 ring-transparent sm:h-8 sm:px-3 sm:text-xs ${
@@ -86,8 +100,22 @@ function ToolbarPill({
   );
 }
 
-function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
-  const tone = toolbarTone(surface);
+function ToolbarBrand({ surface, chromeVariant = "default" }: { surface: SmartBarDemoToolbarSurface; chromeVariant?: SmartBarDemoToolbarChromeVariant }) {
+  const tone = toolbarTone(surface, chromeVariant);
+
+  if (chromeVariant === "blueCoreGlass") {
+    return (
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl ${tone.brandBadge}`}>
+          <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-black tracking-tight sm:text-base">SmartBar</div>
+          <div className={`truncate text-[11px] font-semibold ${tone.muted}`}>Blue core · glass surfaces</div>
+        </div>
+      </div>
+    );
+  }
 
   if (surface === "finale") {
     return (
@@ -144,14 +172,14 @@ function ToolbarBrand({ surface }: { surface: SmartBarDemoToolbarSurface }) {
   );
 }
 
-function ToolbarOptions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
+function ToolbarOptions({ surface, chromeVariant = "default" }: { surface: SmartBarDemoToolbarSurface; chromeVariant?: SmartBarDemoToolbarChromeVariant }) {
   if (surface === "finale") return null;
 
   if (surface === "ordering") {
     return (
       <>
         {["Combos", "Burgers", "Sides", "Drinks"].map((label, index) => (
-          <ToolbarPill key={label} surface={surface} active={index === 0}>
+          <ToolbarPill key={label} surface={surface} chromeVariant={chromeVariant} active={index === 0}>
             {label}
           </ToolbarPill>
         ))}
@@ -162,15 +190,15 @@ function ToolbarOptions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
   if (surface === "booking") {
     return (
       <>
-        <ToolbarPill surface={surface} active>
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant} active>
           <CalendarDays className="mr-1.5 h-3.5 w-3.5" />
           Jun 12–15
         </ToolbarPill>
-        <ToolbarPill surface={surface}>
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant}>
           <Users className="mr-1.5 h-3.5 w-3.5" />
           4 guests
         </ToolbarPill>
-        <ToolbarPill surface={surface}>
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant}>
           <Coffee className="mr-1.5 h-3.5 w-3.5" />
           Packages
         </ToolbarPill>
@@ -180,26 +208,26 @@ function ToolbarOptions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
 
   return (
     <>
-      <ToolbarPill surface={surface} active>
+      <ToolbarPill surface={surface} chromeVariant={chromeVariant} active>
         Services
       </ToolbarPill>
-      <ToolbarPill surface={surface}>Compliance</ToolbarPill>
-      <ToolbarPill surface={surface}>Industries</ToolbarPill>
+      <ToolbarPill surface={surface} chromeVariant={chromeVariant}>Compliance</ToolbarPill>
+      <ToolbarPill surface={surface} chromeVariant={chromeVariant}>Industries</ToolbarPill>
     </>
   );
 }
 
-function ToolbarActions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
+function ToolbarActions({ surface, chromeVariant = "default" }: { surface: SmartBarDemoToolbarSurface; chromeVariant?: SmartBarDemoToolbarChromeVariant }) {
   if (surface === "finale") return null;
 
   if (surface === "ordering") {
     return (
       <>
-        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant} className="hidden sm:inline-flex">
           <Search className="mr-1.5 h-3.5 w-3.5" />
           Search menu
         </ToolbarPill>
-        <ToolbarPill surface={surface} active>
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant} active>
           <ShoppingCart className="mr-1.5 h-3.5 w-3.5" />
           Cart
         </ToolbarPill>
@@ -210,22 +238,22 @@ function ToolbarActions({ surface }: { surface: SmartBarDemoToolbarSurface }) {
   if (surface === "booking") {
     return (
       <>
-        <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant} className="hidden sm:inline-flex">
           <CreditCard className="mr-1.5 h-3.5 w-3.5" />
           Book
         </ToolbarPill>
-        <ToolbarPill surface={surface}>Help</ToolbarPill>
+        <ToolbarPill surface={surface} chromeVariant={chromeVariant}>Help</ToolbarPill>
       </>
     );
   }
 
   return (
     <>
-      <ToolbarPill surface={surface} className="hidden sm:inline-flex">
+      <ToolbarPill surface={surface} chromeVariant={chromeVariant} className="hidden sm:inline-flex">
         <Search className="mr-1.5 h-3.5 w-3.5" />
         Search
       </ToolbarPill>
-      <ToolbarPill surface={surface}>Contact</ToolbarPill>
+      <ToolbarPill surface={surface} chromeVariant={chromeVariant}>Contact</ToolbarPill>
     </>
   );
 }
@@ -243,16 +271,17 @@ export default function SmartBarDemoToolbarFrame({
   smartBarNode,
   placement = "right",
   animateOptions = true,
+  chromeVariant = "default",
 }: SmartBarDemoToolbarFrameProps) {
-  const tone = toolbarTone(surface);
-  const options = <ToolbarOptions surface={surface} />;
+  const tone = toolbarTone(surface, chromeVariant);
+  const options = <ToolbarOptions surface={surface} chromeVariant={chromeVariant} />;
 
   return (
     <div className={`mx-auto mt-2 max-w-7xl rounded-[20px] border px-2 py-2 shadow-2xl ring-1 ring-white/60 backdrop-blur-xl sm:mt-4 sm:rounded-[28px] sm:px-4 sm:py-3 ${tone.shell}`}>
       <div className="flex items-center gap-2 sm:gap-3">
         {placement === "left" ? <SmartBarMount>{smartBarNode}</SmartBarMount> : null}
 
-        <ToolbarBrand surface={surface} />
+        <ToolbarBrand surface={surface} chromeVariant={chromeVariant} />
 
         <div className="hidden min-w-0 flex-1 items-center justify-center gap-2 md:flex">
           {animateOptions ? (
@@ -277,7 +306,7 @@ export default function SmartBarDemoToolbarFrame({
 
         <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div className="hidden items-center gap-2 lg:flex">
-            <ToolbarActions surface={surface} />
+            <ToolbarActions surface={surface} chromeVariant={chromeVariant} />
           </div>
           {placement === "right" ? <SmartBarMount>{smartBarNode}</SmartBarMount> : null}
         </div>
