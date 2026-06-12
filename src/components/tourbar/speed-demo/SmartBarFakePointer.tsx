@@ -136,7 +136,11 @@ export function SmartBarFakePointerOverlay({ pointer }: { pointer: SmartBarFakeP
 
               <SmartBarFakePointerIcon />
 
-              {null}
+              {pointer.label ? (
+                <div className="pointer-events-none absolute left-7 top-7 whitespace-nowrap rounded-full border border-slate-200 bg-white/96 px-3 py-1.5 text-[12px] font-black text-slate-900 shadow-xl shadow-slate-950/18 ring-1 ring-white/80">
+                  {pointer.label}
+                </div>
+              ) : null}
             </div>
           </motion.div>
         ) : null}

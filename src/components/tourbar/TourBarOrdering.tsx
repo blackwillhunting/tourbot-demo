@@ -1418,6 +1418,7 @@ export function OrderReview({
   onRetryItemReplace,
   onNavigateToFocus,
   notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
+  autoOpenFirstPending = true,
 }: {
   appearance?: TourBarOrderingAppearance;
   result: TourBarShellResult;
@@ -1433,6 +1434,7 @@ export function OrderReview({
   onRetryItemReplace: (retryIndex: number, retryValue: string, actions: TourBarShellActions) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
   notOnMenuLabel?: string;
+  autoOpenFirstPending?: boolean;
 }) {
   void reviewMode;
   void activeIndex;
@@ -1487,14 +1489,14 @@ export function OrderReview({
   }, [cannotSignature, isLocked, itemSignature]);
 
   useEffect(() => {
-    if (isLocked || cartActionPanel || !pendingItems.length) return;
+    if (!autoOpenFirstPending || isLocked || cartActionPanel || !pendingItems.length) return;
 
     const pending = pendingItems[0];
     setCartActionPanel({ kind: "required", itemKey: pending.key });
     onReviewModeChange("cart");
     onActiveIndexChange(pending.index);
     navigateToItem(pending, onNavigateToFocus);
-  }, [cartActionPanel, isLocked, onActiveIndexChange, onNavigateToFocus, onReviewModeChange, pendingItems[0]?.key]);
+  }, [autoOpenFirstPending, cartActionPanel, isLocked, onActiveIndexChange, onNavigateToFocus, onReviewModeChange, pendingItems[0]?.key]);
 
   if (!order) return null;
 
@@ -2016,6 +2018,7 @@ export function OrderReview({
               data-tourbar-order-cta={hasPendingItems ? "review-choices" : "checkout"}
               data-tourbar-order-checkout={!hasPendingItems ? "true" : undefined}
               data-tourbar-order-review-choices={hasPendingItems ? "true" : undefined}
+              data-tourbar-checkout-button="true"
               onClick={() => {
                 if (hasPendingItems) {
                   const pending = pendingItems[0];
