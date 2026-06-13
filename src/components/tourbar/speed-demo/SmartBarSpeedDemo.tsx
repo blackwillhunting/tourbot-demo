@@ -8,9 +8,10 @@ import TourBarShell, {
   type TourBarShellResult,
   type TourBarShellTurnContext,
 } from "../TourBarShell";
-import { OrderReview, type CarryoutLine, type CarryoutOrder, type CarryoutQualifierGroup, type CarryoutQualifierOption, type GuideAiCarryoutResponse, type ReviewItem, type ReviewMode } from "../TourBarOrdering";
+import { OrderReview, type CarryoutLine, type CarryoutOrder, type CarryoutQualifierGroup, type CarryoutQualifierOption, type GuideAiCarryoutResponse, type ReviewItem, type ReviewMode, type TourBarOrderingFocusTarget } from "../TourBarOrdering";
 import { TourBarBookingHandoffSheet, TourBarNavigationControls, type TourBarBookingHandoff, type TourBarBookingNavigationState } from "../TourBarBooking";
 import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
+import ThinkingText from "../ThinkingText";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
 import BurgerRushMobileExperience from "../smartbar-mobile/burgerrush/BurgerRushMobileExperience";
@@ -101,6 +102,7 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
 ];
 
 const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [];
+const FOOD_TRIO_DESKTOP_OPENING_TUTOR_CARDS: SmartBarTutorCard[] = [];
 
 type MobileBurgerRushStage = "intro" | "placement" | "demo" | "outro";
 
@@ -1313,38 +1315,29 @@ function foodTrioCoffeeOrder(): CarryoutOrder {
 }
 
 function foodTrioFastFoodOrder(): CarryoutOrder {
-  const spicyMeals = foodTrioReadyLine(
-    "fast-spicy-meals",
+  // FOODTRIO_FAST_FOOD_GREEN_FOCUS_STORY:
+  // Fast food proves messy shorthand becomes a mostly-ready green cart.
+  // Prompt: "2 chick mals, 1 spicy, both diet coke, 6 kids nug bbq sauce, extra sauces, crunch wrap"
+  const spicyMeal = foodTrioReadyLine(
+    "fast-spicy-meal",
     "foodtrio-fast-spicy-sandwich-meal",
-    "2 × Spicy Chicken Sandwich Meals",
-    "$22.98",
-    ["Large fries", "Dr Pepper"],
+    "1 × Spicy Chicken Sandwich Meal",
+    "$10.99",
+    ["Medium fries", "Diet Coke"],
   );
-  const regularMeal = foodTrioRequiredLine(
-    "fast-regular-meal",
+  const mildMeal = foodTrioReadyLine(
+    "fast-mild-meal",
     "foodtrio-fast-original-sandwich-meal",
-    "Regular Chicken Sandwich Meal",
-    undefined,
-    ["No pickles"],
-    "Choose side and drink",
-    ["Large fries + Dr Pepper", "Waffle fries + lemonade", "Fruit cup + water"],
+    "1 × Mild Chicken Sandwich Meal",
+    "$10.49",
+    ["Medium fries", "Diet Coke"],
   );
-  const kidsNuggets = foodTrioRequiredLine(
+  const kidsNuggets = foodTrioReadyLine(
     "fast-kids-nuggets",
     "foodtrio-fast-nuggets",
     "Kids Nuggets",
-    undefined,
-    ["BBQ sauce"],
-    "Choose nugget count",
-    ["6-count", "8-count", "12-count"],
-  );
-  const fries = foodTrioReadyLine(
-    "fast-large-fries",
-    "foodtrio-fast-waffle-fries",
-    "Large Fries",
-    "$7.50",
-    ["Large", "Group order"],
-    ["No salt", "Extra crispy", "Add cheese", "Side ketchup"],
+    "$5.99",
+    ["6-count", "BBQ sauce"],
   );
   const sauces = foodTrioReadyLine(
     "fast-sauces",
@@ -1354,40 +1347,26 @@ function foodTrioFastFoodOrder(): CarryoutOrder {
     ["BBQ"],
     ["Ranch", "Buffalo", "Honey mustard", "Extra BBQ"],
   );
-  const drinks = foodTrioRequiredLine(
-    "fast-dr-peppers",
-    "foodtrio-fast-drinks",
-    "3 × Dr Pepper",
-    undefined,
-    [],
-    "Choose drink size",
-    ["Medium", "Large", "No ice"],
-  );
-  const items = [drinks, sauces, fries, kidsNuggets, regularMeal, spicyMeals];
+  // Order is intentionally bottom-to-top for the desktop cart renderer:
+  // visual top after gray retry row should read spicy, mild, kids, sauces.
+  const items = [sauces, kidsNuggets, mildMeal, spicyMeal];
 
   return {
     type: "carryout_order",
     status: "partial_match",
-    nextAction: "choose_qualifier",
+    nextAction: "show_cart",
     items,
-    completeItems: items.filter((item) => item.status === "ready"),
-    pendingItems: items.filter((item) => item.status !== "ready"),
+    completeItems: items,
+    pendingItems: [],
     cannotMatchItems: [
       {
-        text: "crunchy wrap thing",
+        text: "crunch wrap",
         reason: "not_on_menu",
       },
     ],
-    currentStep: {
-      type: "qualifier",
-      itemId: "fast-regular-meal",
-      targetId: "foodtrio-fast-original-sandwich-meal",
-      qualifierId: "fast-regular-meal-required",
-      question: "Choose side and drink",
-    },
     totals: {
       status: "partial",
-      subtotal: 46.43,
+      subtotal: 27.47,
       estimatedTax: null,
       estimatedTotal: null,
       currency: "USD",
@@ -1410,13 +1389,23 @@ function foodTrioCasualDiningOrder(finalReady = false): CarryoutOrder {
     "$17.90",
     ["One ranch", "One vinaigrette"],
   );
+  // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+  // Madeira is green because "with mashed potatoes" was captured on first pass.
+  // The side choices remain available so the demo can reopen a green tile and change it.
   const madeira = foodTrioReadyLine(
     "casual-madeira",
     "foodtrio-casual-chicken-madeira",
     "Chicken Madeira",
     "$24.95",
-    ["Mashed potatoes", "Extra mushroom sauce"],
-    ["Asparagus", "Rice pilaf", "Side salad"],
+    ["Mashed potatoes"],
+    [
+      "Asparagus",
+      "Rice pilaf",
+      "Side salad",
+      // FOODTRIO_MADEIRA_KEEP_MASHED_OPTION:
+      // Mashed potatoes must remain in the option list after it is deselected.
+      "Mashed potatoes",
+    ],
   );
   const salmon = finalReady
     ? foodTrioReadyLine(
@@ -1436,15 +1425,19 @@ function foodTrioCasualDiningOrder(finalReady = false): CarryoutOrder {
         "Choose entree side",
         ["Asparagus", "Rice pilaf", "Mashed potatoes", "Side salad"],
       );
+  // FOODTRIO_CASUAL_CLEAN_BEAT_STORY:
+  // Extra whipped cream is already captured from the prompt, so the demo reviews it instead of clicking it.
   const cheesecake = foodTrioReadyLine(
     "casual-cheesecake",
     "foodtrio-casual-cheesecake",
     "Original Cheesecake",
     "$10.50",
-    finalReady ? ["Whipped cream", "Extra whipped cream"] : ["Whipped cream"],
+    ["Whipped cream", "Extra whipped cream"],
     ["Extra whipped cream", "No whipped cream", "Strawberry sauce"],
   );
-  const items = [cheesecake, salmon, madeira, salads, avocadoRolls];
+  // Backend-style order is reversed by TourBarOrdering into the visible cart:
+  // Avocado Eggrolls → Dinner Salads → Salmon → Madeira → Cheesecake.
+  const items = [cheesecake, madeira, salmon, salads, avocadoRolls];
 
   return {
     type: "carryout_order",
@@ -1516,7 +1509,7 @@ function lockedFoodTrioCoffeeOrder(): CarryoutOrder {
 function lockedFoodTrioFastFoodOrder(): CarryoutOrder {
   const resolvedOrder = speedDemoBuildFoodTrioSnapshotOrder(
     foodTrioFastFoodOrder(),
-    "fast-regular-meal|fast-kids-nuggets|fast-dr-peppers|fast-large-fries|fast-sauces",
+    "fast-sauces",
   ) || foodTrioFastFoodOrder();
   const withRetry = speedDemoReplaceCannotMatchItem(resolvedOrder, 0, "Crispy chicken wrap") || resolvedOrder;
   return lockedFoodTrioOrder(withRetry);
@@ -1527,7 +1520,7 @@ function foodTrioQueryIsCoffee(text: string) {
 }
 
 function foodTrioQueryIsFastFood(text: string) {
-  return /\b(chx|sandwch|nug|nugs|fryz|fries|waffle|sauce|sauces|dr pepper|pepper|wrap|spicy|pickels)\b/.test(text);
+  return /\b(chx|chick|mals?|sandwch|nug|nugs|sauce|sauces|diet coke|coke|wrap|spicy|mild)\b/.test(text);
 }
 
 function foodTrioQueryIsCasualDining(text: string) {
@@ -1600,6 +1593,9 @@ function fixtureResult(query: string): TourBarShellResult {
       reviewMode: "cart",
       stableSheetKey: "foodtrio-casual-dining",
       focusTargetId: "foodtrio-casual-herb-salmon",
+      // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+      // Promote Madeira to green from the start while keeping its side choices editable.
+      promoteReadyLineItemId: "casual-madeira",
       nextQuery: "__checkout_foodtrio_casual",
       separateSheetNextMove: true,
     });
@@ -2187,9 +2183,9 @@ function speedDemoSelectedLabel(option: CarryoutQualifierOption) {
 }
 
 const SPEED_DEMO_FOODTRIO_PRICE_BY_LINE_ID: Record<string, string> = {
-  "fast-regular-meal": "$11.49",
-  "fast-kids-nuggets": "$6.99",
-  "fast-dr-peppers": "$8.37",
+  "fast-spicy-meal": "$10.99",
+  "fast-mild-meal": "$10.49",
+  "fast-kids-nuggets": "$5.99",
   "foodtrio-retry-crispy-chicken-wrap": "$8.99",
 };
 
@@ -2325,7 +2321,26 @@ function speedDemoApplyLocalOptionSelection(
   }
 
   const knownSelections = new Set((targetLine.knownSelections || []).filter(Boolean));
-  if (allowsMulti && !isRequired && selectedLabel) {
+  const targetLineIdForSelection = String(targetLine.lineItemId || targetLine.id || "");
+  const casualMadeiraSideLabels = ["Asparagus", "Rice pilaf", "Side salad", "Mashed potatoes"];
+  const selectedLooksLikeCasualMadeiraSide = casualMadeiraSideLabels.some(
+    (label) => String(label).trim().toLowerCase() === String(selectedLabel || "").trim().toLowerCase(),
+  );
+
+  if (targetLineIdForSelection === "casual-madeira" && !isRequired && selectedLabel && selectedLooksLikeCasualMadeiraSide) {
+    // FOODTRIO_CASUAL_CLEAN_BEAT_STORY:
+    // Madeira is a green ready tile being changed. Side salad replaces mashed
+    // potatoes instead of being treated like an added extra.
+    const nextKnownSelections = Array.from(knownSelections).filter(
+      (selection) =>
+        !casualMadeiraSideLabels.some(
+          (label) => String(label).trim().toLowerCase() === String(selection || "").trim().toLowerCase(),
+        ),
+    );
+    knownSelections.clear();
+    nextKnownSelections.forEach((selection) => knownSelections.add(selection));
+    knownSelections.add(selectedLabel);
+  } else if (allowsMulti && !isRequired && selectedLabel) {
     if (selectedWasAlreadyOnForTargetGroup) {
       knownSelections.delete(selectedLabel);
       if (selectedValue) knownSelections.delete(selectedValue);
@@ -2378,6 +2393,7 @@ type SmartBarSpeedOrderReviewProps = {
   actions: TourBarShellActions;
   orderReviewAppearance?: "light";
   blueGlassOrderReview?: boolean;
+  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
 };
 
 function SmartBarSpeedOrderReview({
@@ -2385,6 +2401,7 @@ function SmartBarSpeedOrderReview({
   actions,
   orderReviewAppearance = "light",
   blueGlassOrderReview = false,
+  onNavigateToFocus,
 }: SmartBarSpeedOrderReviewProps) {
   const raw = (result.raw || {}) as GuideAiCarryoutResponse & { __speedDemo?: { activeIndex?: number; reviewMode?: ReviewMode; stableSheetKey?: string } };
   const fixtureOrder = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
@@ -2450,6 +2467,11 @@ function SmartBarSpeedOrderReview({
           );
         }
       }}
+      // FOODTRIO_DESKTOP_ITEM_TAP_SPOTLIGHT_FIX:
+      // The desktop speed-demo wrapper renders OrderReview directly, so it must
+      // forward item tile focus requests. Without this, red/yellow/gray tile taps
+      // open panels but never scroll/spotlight the matching menu card.
+      onNavigateToFocus={onNavigateToFocus}
       notOnMenuLabel="Not on the demo menu"
     />
   );
@@ -2460,6 +2482,7 @@ function renderSpeedExtras(
   actions: TourBarShellActions,
   orderReviewAppearance: "light" = "light",
   blueGlassOrderReview = false,
+  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
 ) {
   const mode = result.mode || "";
 
@@ -2470,6 +2493,7 @@ function renderSpeedExtras(
         actions={actions}
         orderReviewAppearance={orderReviewAppearance}
         blueGlassOrderReview={blueGlassOrderReview}
+        onNavigateToFocus={onNavigateToFocus}
       />
     );
   }
@@ -2706,6 +2730,45 @@ function SmartBarMobileDemoBackdrop({ children }: { children?: any }) {
 
 export type SmartBarSpeedDemoVariant = "full" | "burgerRushOnly" | "foodTrioDesktop";
 
+type CheckoutThinkingOverlayState = {
+  id: number;
+  message: string;
+  rect: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
+};
+
+function SmartBarCheckoutThinkingOverlay({ overlay }: { overlay: CheckoutThinkingOverlayState | null }) {
+  return (
+    <AnimatePresence>
+      {overlay ? (
+        <motion.div
+          key={overlay.id}
+          initial={{ opacity: 0, scale: 0.998 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.998 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
+          style={{
+            top: overlay.rect.top,
+            left: overlay.rect.left,
+            width: overlay.rect.width,
+            height: overlay.rect.height,
+          }}
+          className="pointer-events-none fixed z-[10145] inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-black text-[#17227c] shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_10px_24px_rgba(15,23,42,0.18)] ring-1 ring-white/70"
+        >
+          {/* FOODTRIO_CHECKOUT_REAL_THINKING_LABEL_V1:
+              Use the same training-animation label treatment. No dots,
+              no new wording — the Checkout label itself thinks. */}
+          <ThinkingText body={overlay.message || "Checkout"} />
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 export default function SmartBarSpeedDemo({
   autoPlay = false,
   variant = "full",
@@ -2724,6 +2787,7 @@ export default function SmartBarSpeedDemo({
   const [tutorBlocking, setTutorBlocking] = useState(true);
   const [introRunId, setIntroRunId] = useState(0);
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
+  const [checkoutThinkingOverlay, setCheckoutThinkingOverlay] = useState<CheckoutThinkingOverlayState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
   const [mobileBurgerRushStage, setMobileBurgerRushStage] = useState<MobileBurgerRushStage>("intro");
   const [mobileNexaIntroReady, setMobileNexaIntroReady] = useState(false);
@@ -2763,7 +2827,7 @@ export default function SmartBarSpeedDemo({
     },
     [mobileBurgerRushShell, variant],
   );
-  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? [] : OPENING_DEMO_TUTOR_CARDS;
+  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? FOOD_TRIO_DESKTOP_OPENING_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!mobileFullShell || mobileNexaIntroReady);
   useLayoutEffect(() => {
     if (!directMobileShell || typeof document === "undefined") return;
@@ -3176,6 +3240,60 @@ export default function SmartBarSpeedDemo({
     [],
   );
 
+  const showCheckoutThinkingOverlay = useCallback(
+    async (
+      command: Extract<SmartBarSpeedCommand, { kind: "checkoutThinkingOverlay" }>,
+      cancelled: () => boolean,
+    ) => {
+      const stage = targetStageRef.current;
+      const durationMs = Math.min(2500, Math.max(2000, command.durationMs ?? 2250));
+      let target: HTMLElement | null = null;
+
+      for (let attempt = 0; attempt < 14; attempt += 1) {
+        target = findSpeedDemoPointerTarget(stage, undefined, command.targetSelector);
+        if (target && speedDemoElementLooksVisible(target)) break;
+        target = null;
+        await wait(80);
+        if (cancelled()) return;
+      }
+
+      if (!target) return;
+
+      await scrollSpeedDemoOverflowAncestorToTarget(target);
+      await waitForSpeedDemoStableRect(target);
+      if (cancelled() || !speedDemoElementLooksVisible(target)) return;
+
+      const rect = target.getBoundingClientRect();
+      const overlayId = Date.now();
+
+      setCheckoutThinkingOverlay({
+        id: overlayId,
+        message: command.message || "Checkout",
+        rect: {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+
+      await wait(durationMs);
+
+      setCheckoutThinkingOverlay((current) => (current?.id === overlayId ? null : current));
+
+      if (cancelled()) return;
+
+      if (command.clickAfter !== false) {
+        await wait(70);
+        if (cancelled()) return;
+        target.click();
+      }
+
+      await wait(90);
+    },
+    [],
+  );
+
   const showPointerClick = useCallback(
     async (
       command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
@@ -3530,6 +3648,10 @@ export default function SmartBarSpeedDemo({
         await showScriptCards(command, cancelled);
         return;
       }
+      if (command.kind === "checkoutThinkingOverlay") {
+        await showCheckoutThinkingOverlay(command, cancelled);
+        return;
+      }
       if (command.kind === "pointerClick") {
         await showPointerClick(command, cancelled);
         return;
@@ -3568,7 +3690,7 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [mobileFullShell, runMobileFullCommand, sendCommand, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
+    [mobileFullShell, runMobileFullCommand, sendCommand, showCheckoutThinkingOverlay, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
   );
 
   useEffect(() => {
@@ -3649,6 +3771,38 @@ export default function SmartBarSpeedDemo({
     await wait(180);
   };
 
+  const focusFoodTrioOrderingTarget = useCallback(
+    (target: TourBarOrderingFocusTarget) => {
+      const targetId = String(target.targetId || "").trim();
+      const targetSelector = target.targetSelector;
+      if (!targetId && !targetSelector) return;
+
+      void (async () => {
+        const stage = targetStageRef.current;
+        const stageTarget = stage && targetId
+          ? await scrollSpeedDemoStageToTarget(stage, targetId)
+          : null;
+
+        await smartbarFocusTarget(
+          {
+            pageId: "smartbar-speed-demo",
+            targetId: targetId || undefined,
+            targetSelector,
+            label: target.label,
+          },
+          {
+            initialDelayMs: 40,
+            attempts: 12,
+            overlayDurationMs: speedDemoIsPhoneViewport() ? 3600 : 2800,
+            scrollBehavior: speedDemoIsPhoneViewport() ? "smooth" : "auto",
+            skipPlacementScroll: Boolean(stageTarget),
+          },
+        );
+      })();
+    },
+    [],
+  );
+
   const onPrimarySubmit = async (query: string, _context: TourBarShellTurnContext) => {
     const result = fixtureResult(query);
     await wait(speedDemoFixtureThinkingMs(result, query));
@@ -3725,7 +3879,7 @@ export default function SmartBarSpeedDemo({
               onPrimarySubmit={onPrimarySubmit}
               onFollowUpSubmit={onFollowUpSubmit}
               beforeResultReveal={beforeResultReveal}
-              renderResultExtras={(result, actions) => renderSpeedExtras(result, actions, activeOrderReviewAppearance, variant === "foodTrioDesktop")}
+              renderResultExtras={(result, actions) => renderSpeedExtras(result, actions, activeOrderReviewAppearance, variant === "foodTrioDesktop", variant === "foodTrioDesktop" ? focusFoodTrioOrderingTarget : undefined)}
               renderMobileControls={renderMobileSpeedControls}
               buildThreadMessage={(result) => [result.title, result.body].filter(Boolean).join("\n")}
             />
@@ -3856,6 +4010,10 @@ export default function SmartBarSpeedDemo({
       </SmartBarFlashCardRail>
 
       <SmartBarFakePointerOverlay pointer={fakePointer} />
+      {/* FOODTRIO_CHECKOUT_REAL_THINKING_LABEL_V1:
+          Demo-level label layer over Checkout. The visible word "Checkout" uses
+          the real ThinkingText animation for 2000-2500ms, then the real click fires. */}
+      <SmartBarCheckoutThinkingOverlay overlay={checkoutThinkingOverlay} />
 
       <div className="relative z-[10070] px-4 pt-4 sm:px-6">
         {isFinaleSurface ? (
@@ -3886,7 +4044,14 @@ export default function SmartBarSpeedDemo({
             : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
         }
       >
-        <SmartBarSpeedTargetWall surface={toolbarSurface} variant={variant === "foodTrioDesktop" ? "foodTrioDesktop" : "standard"} />
+        {/* FOODTRIO_FINALE_USES_NEUTRAL_TARGET_WALL:
+            FoodTrio uses its restaurant target wall until the finale. On the
+            finale surface, render the neutral finale wall so the FoodTrio page
+            visibly tears down before finale cards run. */}
+        <SmartBarSpeedTargetWall
+          surface={toolbarSurface}
+          variant={variant === "foodTrioDesktop" && !isFinaleSurface ? "foodTrioDesktop" : "standard"}
+        />
       </div>
 
 
@@ -3913,6 +4078,7 @@ export default function SmartBarSpeedDemo({
     </main>
   );
 }
+
 
 
 

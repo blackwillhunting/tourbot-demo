@@ -1945,7 +1945,10 @@ export function OrderReview({
         openLineActionPanel("required", entry);
         return;
       }
-      if (state === "optional") {
+      // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+      // Green means ready, not frozen. A ready tile with editable choices can
+      // still reopen its change/review overlay.
+      if (state === "optional" || (state === "ready" && lineHasOptionalChoices(entry))) {
         openLineActionPanel("optional", entry);
       }
     };
@@ -2012,7 +2015,7 @@ export function OrderReview({
                   openLineActionPanel("required", entry);
                   return;
                 }
-                if (state === "optional") {
+                if (state === "optional" || (state === "ready" && lineHasOptionalChoices(entry))) {
                   openLineActionPanel("optional", entry);
                 }
               }}
@@ -2242,7 +2245,11 @@ export function OrderReview({
     const panelKind = cartActionPanel.kind;
     const panelGroups = groupsForCartPanel(panelItem, panelKind);
     const panelMissing = panelKind === "required" ? missingLabels(panelItem.line, panelGroups) : [];
-    const state: CartLineState = panelKind === "required" ? "pending" : "optional";
+    const panelIsReadyReview =
+      blueGlassSurface &&
+      panelKind === "optional" &&
+      cartEntryMatchesKey(panelItem, blueGlassResolvedKeyList);
+    const state: CartLineState = panelKind === "required" ? "pending" : panelIsReadyReview ? "ready" : "optional";
 
     return (
       <AnimatePresence>
@@ -2263,9 +2270,9 @@ export function OrderReview({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className={`text-[11px] font-black uppercase tracking-[0.14em] md:text-[10px] md:tracking-[0.16em] ${actionPanelEyebrowClass(panelKind, appearance)}`}>
-                  {panelKind === "required" ? "Required choice" : "Optional extras"}
+                  {panelKind === "required" ? "Required choice" : panelIsReadyReview ? "Review / change" : "Optional extras"}
                 </div>
-                <div className="mt-1 truncate text-base font-bold leading-5 md:text-sm md:leading-tight">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : `Customize ${panelItem.line.title || panelItem.label}`}</div>
+                <div className="mt-1 truncate text-base font-bold leading-5 md:text-sm md:leading-tight">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : panelIsReadyReview ? `Change ${panelItem.line.title || panelItem.label}` : `Customize ${panelItem.line.title || panelItem.label}`}</div>
                 {!blueGlassSurface && (
                   <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, false, appearance)}`}>
                     {panelKind === "required" ? "Choose one to finish the cart." : "Checkout is already available; add extras only if wanted."}
@@ -2274,7 +2281,16 @@ export function OrderReview({
               </div>
               <button
                 type="button"
-                onClick={() => setCartActionPanel(null)}
+                onClick={() => {
+                  if (blueGlassSurface && panelKind === "optional") {
+                    // FOODTRIO_YELLOW_X_MARKS_REVIEWED:
+                    // Closing a yellow overlay means the item was reviewed, even
+                    // when no new option was selected. Promote the tile to green.
+                    setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, panelItem.key));
+                    setConfirmingOptionKey("");
+                  }
+                  setCartActionPanel(null);
+                }}
                 data-tourbar-cart-action-close={panelKind}
                 aria-label="Close cart action panel"
                 className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
