@@ -172,7 +172,6 @@ const SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY = "(min-width: 768px)";
 const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-surface='true']";
 const SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX = 36;
 const SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX = 28;
-const SMARTBAR_ADAPTIVE_RAIL_RETURN_DELAY_MS = 260;
 
 type SmartBarAdaptiveSpotlightRect = {
   left: number;
@@ -732,14 +731,10 @@ export default function SmartBarMobileShell({
       clearRailReturnTimer();
       const nextOffset = smartBarAdaptiveRailOffsetForTarget(targetRect, shellRect, window.innerWidth);
       setAdaptiveRailOffset(nextOffset);
+      // Hold rail position after spotlight fades; the next target recenters or moves it.
+};
 
-      const durationMs = Math.max(0, Number(detail.durationMs || 0));
-      if (durationMs > 0) {
-        returnRailToCenter(durationMs + SMARTBAR_ADAPTIVE_RAIL_RETURN_DELAY_MS);
-      }
-    };
-
-    const handleSpotlightClear = () => returnRailToCenter();
+    const handleSpotlightClear = () => { /* hold rail position until next spotlight target */ };
     const handleResize = () => returnRailToCenter();
 
     window.addEventListener("smartbar:spotlight-target", handleSpotlightTarget);
@@ -2801,6 +2796,7 @@ export default function SmartBarMobileShell({
     </div>
   );
 }
+
 
 
 
