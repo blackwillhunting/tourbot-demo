@@ -5,6 +5,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileOrderResult,
   type SmartBarMobileSubmitMeta,
 } from "../SmartBarMobileShell";
+import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../../smartbarFocusController";
 import {
   smartBarMobileApplyChoiceToCarryoutOrder,
   smartBarMobileApplyChoiceToVisibleLines,
@@ -34,92 +35,6 @@ function BurgerRushMobileProductSurface({ hideMobileBrowseControls = false }: { 
 }
 
 // Mobile navigation speed controls. Tune these first for demo pacing.
-const SMARTBAR_MOBILE_NAV_SCROLL_MS = 1850;
-const SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS = 160;
-const SMARTBAR_MOBILE_NAV_FOCUS_HOLD_MS = 2100;
-
-function smartBarMobileNavEase(progress: number) {
-  return progress < 0.5
-    ? 4 * progress * progress * progress
-    : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-}
-
-function smartBarMobileAnimateWindowScrollTo(top: number, durationMs: number) {
-  if (typeof window === "undefined") return;
-
-  const startTop = window.scrollY;
-  const distance = top - startTop;
-
-  if (Math.abs(distance) < 2 || durationMs <= 0) {
-    window.scrollTo({ top, left: 0, behavior: "auto" });
-    return;
-  }
-
-  const startedAt = performance.now();
-
-  const step = (now: number) => {
-    const progress = Math.min(1, Math.max(0, (now - startedAt) / durationMs));
-    const eased = smartBarMobileNavEase(progress);
-    window.scrollTo({ top: startTop + distance * eased, left: 0, behavior: "auto" });
-
-    if (progress < 1) {
-      window.requestAnimationFrame(step);
-      return;
-    }
-
-    window.scrollTo({ top, left: 0, behavior: "auto" });
-  };
-
-  window.requestAnimationFrame(step);
-}
-
-type SmartBarMobileFocusSnapshot = {
-  element: HTMLElement;
-  outline: string;
-  outlineOffset: string;
-  boxShadow: string;
-  position: string;
-  zIndex: string;
-  transition: string;
-  scrollMarginTop: string;
-};
-
-function smartBarMobileCssEscape(value: string) {
-  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(value);
-  return value.replace(/["\\]/g, "\\$&");
-}
-
-function smartBarMobileTargetIdForLine(line: SmartBarMobileOrderLine) {
-  return String(line.targetId || line.sourceItemId || "").trim();
-}
-
-function smartBarMobileFindPageTarget(line: SmartBarMobileOrderLine) {
-  if (typeof document === "undefined") return null;
-
-  const targetId = smartBarMobileTargetIdForLine(line);
-  if (!targetId) return null;
-
-  const escaped = smartBarMobileCssEscape(targetId);
-  return document.querySelector<HTMLElement>(`[data-tour-id="${escaped}"], #${escaped}`);
-}
-
-function smartBarMobileTopAnchorY() {
-  // The scripted mobile demo should make the clicked product feel like a true
-  // page navigation: target near the top of the viewport, then highlight.
-  // Keep only a small breathing gap instead of parking below the sticky header.
-  return 18;
-}
-
-function smartBarMobileScrollTargetNearTop(target: HTMLElement) {
-  if (typeof window === "undefined") return 24;
-
-  const anchorY = smartBarMobileTopAnchorY();
-  const targetTop = window.scrollY + target.getBoundingClientRect().top;
-  const nextTop = Math.max(0, targetTop - anchorY);
-
-  smartBarMobileAnimateWindowScrollTo(nextTop, SMARTBAR_MOBILE_NAV_SCROLL_MS);
-  return anchorY;
-}
 
 
 
@@ -370,7 +285,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const mobileEstimatedTotalRef = useRef("—");
-  const mobileFocusSnapshotRef = useRef<SmartBarMobileFocusSnapshot | null>(null);
+  const mobileFocusSnapshotRef = useRef<any | null>(null);
   const mobileFocusTimerRef = useRef<number | null>(null);
 
   const clearMobileFocusTarget = useCallback(() => {
@@ -399,47 +314,24 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   }, [clearMobileFocusTarget]);
 
   const handleNavigateToLine = useCallback((line: SmartBarMobileOrderLine) => {
-    if (line.status === "unknown") return;
-
-    const target = smartBarMobileFindPageTarget(line);
-    if (!target) return;
-
     clearMobileFocusTarget();
-    const anchorY = smartBarMobileScrollTargetNearTop(target);
+    clearSmartBarFocusOverlay();
 
-    mobileFocusTimerRef.current = window.setTimeout(() => {
-      mobileFocusTimerRef.current = null;
+    const targetId = String(line.targetId || "").trim();
+    if (!targetId) return;
 
-      const finalTop = Math.max(0, window.scrollY + target.getBoundingClientRect().top - anchorY);
-      window.scrollTo({ top: finalTop, left: 0, behavior: "auto" });
-
-      mobileFocusSnapshotRef.current = {
-        element: target,
-        outline: target.style.outline,
-        outlineOffset: target.style.outlineOffset,
-        boxShadow: target.style.boxShadow,
-        position: target.style.position,
-        zIndex: target.style.zIndex,
-        transition: target.style.transition,
-        scrollMarginTop: target.style.scrollMarginTop,
-      };
-
-      if (!target.style.position) target.style.position = "relative";
-      target.style.zIndex = "60";
-      target.style.scrollMarginTop = `${anchorY + 12}px`;
-      target.style.transition = target.style.transition
-        ? `${target.style.transition}, outline 180ms ease, box-shadow 180ms ease`
-        : "outline 180ms ease, box-shadow 180ms ease";
-      target.style.outline = "3px solid rgba(14,165,233,0.92)";
-      target.style.outlineOffset = "4px";
-      target.style.boxShadow = "0 0 0 7px rgba(14,165,233,0.18), 0 22px 50px rgba(2,6,23,0.28)";
-
-      window.setTimeout(() => {
-        if (mobileFocusSnapshotRef.current?.element === target) {
-          clearMobileFocusTarget();
-        }
-      }, SMARTBAR_MOBILE_NAV_FOCUS_HOLD_MS);
-    }, SMARTBAR_MOBILE_NAV_SCROLL_MS + SMARTBAR_MOBILE_NAV_FOCUS_SETTLE_MS);
+    void smartbarFocusTarget(
+      {
+        targetId,
+        label: line.demoDisplayTitle || line.title,
+      },
+      {
+        initialDelayMs: 80,
+        attempts: 26,
+        overlayDurationMs: 3600,
+        dispatchLegacyEvent: false,
+      },
+    );
   }, [clearMobileFocusTarget]);
 
   const handleSubmitPrompt = useCallback(async (query: string, meta?: SmartBarMobileSubmitMeta) => {
@@ -608,6 +500,8 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
 
 
   const handleResetCart = useCallback(() => {
+    clearMobileFocusTarget();
+    clearSmartBarFocusOverlay();
     mobileCarryoutOrderRef.current = null;
     mobileOrderLinesRef.current = [];
     mobileEstimatedTotalRef.current = "—";
@@ -632,4 +526,5 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     </main>
   );
 }
+
 
