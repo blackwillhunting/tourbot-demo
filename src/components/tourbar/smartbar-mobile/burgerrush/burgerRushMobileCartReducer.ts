@@ -372,10 +372,24 @@ function smartBarMobileHydrateLineFromPrevious(
   const previous = previousLines.find((candidate) => smartBarMobileLinesMatch(candidate, line));
   if (!previous) return line;
 
+  const previousWasReviewedOption = Boolean(
+    previous.status === "ready" &&
+      line.status === "options" &&
+      (
+        previous.optionSelectionMode === "multi" ||
+        line.optionSelectionMode === "multi" ||
+        (previous.options || []).length ||
+        (line.options || []).length
+      )
+  );
+
   return {
     ...line,
     targetId: line.targetId || previous.targetId,
+    status: previousWasReviewedOption ? "ready" : line.status,
+    helper: previousWasReviewedOption ? previous.helper || "Reviewed and ready" : line.helper,
     optionSelectionMode: line.optionSelectionMode || previous.optionSelectionMode,
+    options: line.options?.length ? line.options : previous.options,
     price: line.price && line.price !== "—" ? line.price : previous.price,
     details: line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
       ? line.details
@@ -748,8 +762,8 @@ export function smartBarMobileApplyChoiceToVisibleLines(
   const selectionMode = selectedLine.optionSelectionMode || (selectedLine.status === "options" ? "multi" : "single");
   const resolvedLine: SmartBarMobileOrderLine = {
     ...selectedLine,
-    status: selectionMode === "multi" ? "options" : "ready",
-    helper: selectionMode === "multi" ? "Extras updated" : `${value} selected`,
+    status: "ready",
+    helper: selectionMode === "multi" ? "Reviewed and ready" : `${value} selected`,
     price: selectedLine.price && selectedLine.price !== "—" ? selectedLine.price : "—",
     details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || [], selectionMode),
     options: selectedLine.options || [],

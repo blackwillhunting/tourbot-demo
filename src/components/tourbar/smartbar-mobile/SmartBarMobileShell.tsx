@@ -446,6 +446,32 @@ function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
   return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
 
+function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
+  return [
+    line.cartLineKey,
+    line.id,
+    line.sourceLineItemId,
+    line.sourceItemId,
+    smartBarMobileDemoKey(line.title),
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+function smartBarMobileReviewedOptionLineKeyPatch(line: SmartBarMobileOrderLine): Record<string, true> {
+  return smartBarMobileReviewedOptionLineKeys(line).reduce<Record<string, true>>((nextKeys, key) => {
+    nextKeys[key] = true;
+    return nextKeys;
+  }, {});
+}
+
+function smartBarMobileHasReviewedOptionLineKey(
+  line: SmartBarMobileOrderLine,
+  reviewedKeys: Record<string, true>,
+) {
+  return smartBarMobileReviewedOptionLineKeys(line).some((key) => reviewedKeys[key]);
+}
+
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
   const leftKey = smartBarMobileLineInstanceKey(left);
   const rightKey = smartBarMobileLineInstanceKey(right);
@@ -597,9 +623,7 @@ export default function SmartBarMobileShell({
         ...line,
         ...(lineOverrides[line.id] || {}),
       };
-      const lineKey = smartBarMobileLineInstanceKey(mergedLine);
-
-      if (lineKey && reviewedOptionLineKeys[lineKey] && mergedLine.status === "options") {
+      if (smartBarMobileHasReviewedOptionLineKey(mergedLine, reviewedOptionLineKeys) && mergedLine.status === "options") {
         return {
           ...mergedLine,
           status: "ready" as const,
@@ -880,7 +904,7 @@ export default function SmartBarMobileShell({
     setSelectedLineId(null);
     setCartStatusFilter(null);
     setLineOverrides({});
-    setReviewedOptionLineKeys({});
+    // Keep reviewed option keys across follow-up submits so yellow rows do not revert after add-item.
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
     setCartExpanded(true);
@@ -1067,13 +1091,10 @@ export default function SmartBarMobileShell({
     // confirmation beat. Optional extras stay multi-select for stacking, but
     // after any review/edit the row becomes green because it is now prepared.
     if (multiSelect) {
-      const reviewedOptionKey = smartBarMobileLineInstanceKey(line);
-      if (reviewedOptionKey) {
-        setReviewedOptionLineKeys((current) => ({
-          ...current,
-          [reviewedOptionKey]: true,
-        }));
-      }
+      setReviewedOptionLineKeys((current) => ({
+        ...current,
+        ...smartBarMobileReviewedOptionLineKeyPatch(line),
+      }));
     }
 
     setLineOverrides((current) => ({
@@ -1444,13 +1465,10 @@ export default function SmartBarMobileShell({
           lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, selectedLine) ? reviewedLine : candidate),
         };
 
-        const reviewedOptionKey = smartBarMobileLineInstanceKey(selectedLine);
-        if (reviewedOptionKey) {
-          setReviewedOptionLineKeys((current) => ({
-            ...current,
-            [reviewedOptionKey]: true,
-          }));
-        }
+        setReviewedOptionLineKeys((current) => ({
+          ...current,
+          ...smartBarMobileReviewedOptionLineKeyPatch(selectedLine),
+        }));
 
         setOrderLines(reviewedResult.lines);
         applyOrderResultEstimates(reviewedResult, "");
