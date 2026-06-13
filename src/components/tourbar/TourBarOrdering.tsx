@@ -1582,9 +1582,32 @@ function mergeCartEntryKeyList(current: string, nextKey?: string) {
       .map((value) => value.trim())
       .filter(Boolean),
   );
-  keys.add(cleanNextKey);
+
+  cleanNextKey
+    .split("|")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .forEach((key) => keys.add(key));
 
   return Array.from(keys).join("|");
+}
+
+function mergeCartEntryKeys(current: string, nextKeys: Array<string | undefined>): string {
+  return nextKeys.reduce<string>(
+    (merged, nextKey) => mergeCartEntryKeyList(merged, nextKey),
+    current || "",
+  );
+}
+
+function resolvedKeysForCartEntry(entry?: ReviewItem) {
+  if (!entry) return [];
+
+  return [
+    entry.key,
+    ...lineIdentityKeys(entry.line),
+    entry.line.targetId,
+    entry.targetId,
+  ].filter((value): value is string => Boolean(value));
 }
 
 function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
@@ -1858,7 +1881,9 @@ export function OrderReview({
       if (blueGlassSurface) {
         // Keep the overlay open after selection so the selected option visibly turns green.
         // When the demo closes the overlay, the tile is promoted to the green/ready lane.
-        setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, nextPanelItem?.key || panelItem.key));
+        setRecentlyCompletedItemKey((current) =>
+          mergeCartEntryKeys(current, resolvedKeysForCartEntry(nextPanelItem || panelItem)),
+        );
         if (nextPanelItem && lineHasOptionalChoices(nextPanelItem)) {
           setCartActionPanel({ kind: "optional", itemKey: nextPanelItem.key });
         }
@@ -1880,11 +1905,11 @@ export function OrderReview({
       return;
     }
 
-    const completedItemKey = nextPanelItem?.key || panelItem.key;
-
     if (blueGlassSurface) {
       // Let the selected required option flash green before the overlay closes.
-      setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
+      setRecentlyCompletedItemKey((current) =>
+        mergeCartEntryKeys(current, resolvedKeysForCartEntry(nextPanelItem || panelItem)),
+      );
       onReviewModeChange("cart");
       window.setTimeout(() => {
         setCartActionPanel((current) =>
@@ -1897,14 +1922,18 @@ export function OrderReview({
 
     const nextPending = nextItems.find((entry) => entry.pending);
     if (nextPending) {
-      setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
+      setRecentlyCompletedItemKey((current) =>
+        mergeCartEntryKeys(current, resolvedKeysForCartEntry(nextPanelItem || panelItem)),
+      );
       onActiveIndexChange(nextPending.index);
       setCartActionPanel({ kind: "required", itemKey: nextPending.key });
       navigateToItem(nextPending, onNavigateToFocus);
       return;
     }
 
-    setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
+    setRecentlyCompletedItemKey((current) =>
+        mergeCartEntryKeys(current, resolvedKeysForCartEntry(nextPanelItem || panelItem)),
+      );
     setCartActionPanel(null);
     onReviewModeChange("cart");
   };
@@ -2286,7 +2315,9 @@ export function OrderReview({
                     // FOODTRIO_YELLOW_X_MARKS_REVIEWED:
                     // Closing a yellow overlay means the item was reviewed, even
                     // when no new option was selected. Promote the tile to green.
-                    setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, panelItem.key));
+                    setRecentlyCompletedItemKey((current) =>
+                      mergeCartEntryKeys(current, resolvedKeysForCartEntry(panelItem)),
+                    );
                     setConfirmingOptionKey("");
                   }
                   setCartActionPanel(null);
@@ -2780,3 +2811,4 @@ export default function TourBarOrdering({
     />
   );
 }
+
