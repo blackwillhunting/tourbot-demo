@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LockKeyhole, Trash2 } from "lucide-react";
+import { ListOrdered, LockKeyhole, Trash2 } from "lucide-react";
 import TourBarShell, {
   type TourBarShellActions,
   type TourBarShellResult,
@@ -364,6 +364,14 @@ function optionKey(option: CarryoutQualifierOption) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function foodTrioSafeOptionValue(value: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "selected-choice";
 }
 
 function optionHasRawSelection(option: CarryoutQualifierOption) {
@@ -769,7 +777,10 @@ function updateLineWithLocalSelection(
 
   if (groupKind === "modifier" && optionId) {
     const currentModifiers = nextLine.modifiers || [];
-    const alreadySelected = currentModifiers.some((modifier) => valuesEqual(modifier.label, option.label) || valuesEqual((modifier as { modifierId?: string }).modifierId, optionId));
+    const knownSelectionsBefore = new Set((nextLine.knownSelections || []).filter(Boolean));
+    const alreadySelected =
+      currentModifiers.some((modifier) => valuesEqual(modifier.label, option.label) || valuesEqual((modifier as { modifierId?: string }).modifierId, optionId)) ||
+      Array.from(knownSelectionsBefore).some((selection) => valuesEqual(selection, selectedLabel) || valuesEqual(selection, selectedValue));
     nextLine.modifiers = alreadySelected
       ? currentModifiers.filter((modifier) => !(valuesEqual(modifier.label, option.label) || valuesEqual((modifier as { modifierId?: string }).modifierId, optionId)))
       : [
@@ -793,8 +804,10 @@ function updateLineWithLocalSelection(
     });
 
     const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
-    if (alreadySelected) knownSelections.delete(selectedLabel || selectedValue);
-    else if (selectedLabel || selectedValue) knownSelections.add(selectedLabel || selectedValue);
+    if (alreadySelected) {
+      knownSelections.delete(selectedLabel || selectedValue);
+      knownSelections.delete(selectedValue || selectedLabel);
+    } else if (selectedLabel || selectedValue) knownSelections.add(selectedLabel || selectedValue);
     nextLine.knownSelections = Array.from(knownSelections);
     nextLine.status = lineIsPending(nextLine) ? "needs_qualifier" : "ready";
     return nextLine;
@@ -802,7 +815,10 @@ function updateLineWithLocalSelection(
 
   if (groupKind === "upgrade" && optionId) {
     const currentUpgrades = nextLine.upgrades || [];
-    const alreadySelected = currentUpgrades.some((upgrade) => valuesEqual(upgrade.label, option.label) || valuesEqual((upgrade as { id?: string }).id, optionId));
+    const knownSelectionsBefore = new Set((nextLine.knownSelections || []).filter(Boolean));
+    const alreadySelected =
+      currentUpgrades.some((upgrade) => valuesEqual(upgrade.label, option.label) || valuesEqual((upgrade as { id?: string }).id, optionId)) ||
+      Array.from(knownSelectionsBefore).some((selection) => valuesEqual(selection, selectedLabel) || valuesEqual(selection, selectedValue));
     nextLine.upgrades = alreadySelected
       ? currentUpgrades.filter((upgrade) => !(valuesEqual(upgrade.label, option.label) || valuesEqual((upgrade as { id?: string }).id, optionId)))
       : [
@@ -826,8 +842,10 @@ function updateLineWithLocalSelection(
     });
 
     const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
-    if (alreadySelected) knownSelections.delete(selectedLabel || selectedValue);
-    else if (selectedLabel || selectedValue) knownSelections.add(selectedLabel || selectedValue);
+    if (alreadySelected) {
+      knownSelections.delete(selectedLabel || selectedValue);
+      knownSelections.delete(selectedValue || selectedLabel);
+    } else if (selectedLabel || selectedValue) knownSelections.add(selectedLabel || selectedValue);
     nextLine.knownSelections = Array.from(knownSelections);
     nextLine.status = lineIsPending(nextLine) ? "needs_qualifier" : "ready";
     return nextLine;
@@ -956,6 +974,7 @@ function orderNeedsBackendReprice(order: CarryoutOrder | null) {
 export type ReviewMode = "review" | "cart";
 
 type CartLineState = "ready" | "optional" | "pending" | "unrecognized";
+type CartStatusFilter = "all" | CartLineState;
 type TourBarOrderingAppearance = "dark" | "light";
 
 type CartActionPanel =
@@ -1111,11 +1130,48 @@ function groupWithLineSelections(group: CarryoutQualifierGroup, line: CarryoutLi
   // Optional extras are cart-state driven. The backend/group payload can keep a
   // stale single selectedValue, while the cart line has the real modifier and
   // upgrade arrays. Make the overlay reflect the cart line exactly.
+  // Blue/glass product rule: optional overlays should show every available
+  // extra plus the already-selected choices in green, so users can confirm or
+  // remove what they chose instead of seeing only the remaining extras.
+  const optionsByKey = new Map<string, CarryoutQualifierOption>();
+  const addOption = (option: CarryoutQualifierOption) => {
+    const key = optionKey(option);
+    if (!key) return;
+    optionsByKey.set(key, option);
+  };
+
+  (group.options || []).forEach(addOption);
+
+  const selectedCartOptions: CarryoutQualifierOption[] = [
+    ...(line.modifiers || []).map((modifier) => ({
+      label: modifier.label,
+      value: (modifier as { modifierId?: string }).modifierId || modifier.label,
+      selected: true,
+      state: "selected",
+      priceDelta: modifier.priceDelta,
+    })),
+    ...(line.upgrades || []).map((upgrade) => ({
+      label: upgrade.label,
+      value: (upgrade as { id?: string }).id || upgrade.label,
+      selected: true,
+      state: "selected",
+      priceDelta: upgrade.priceDelta,
+    })),
+    ...(line.knownSelections || []).map((selection) => ({
+      label: selection,
+      value: foodTrioSafeOptionValue(selection),
+      selected: true,
+      state: "selected",
+    })),
+  ].filter((option) => option.label || option.value);
+
+  selectedCartOptions.forEach(addOption);
+
   return {
     ...group,
     selectedValue: "",
     selectedLabel: "",
-    options: (group.options || []).map((option) => {
+    options: Array.from(optionsByKey.values()).map((option) => {
       const selected = optionMatchesCartLineSelection(line, option);
       return {
         ...option,
@@ -1128,6 +1184,10 @@ function groupWithLineSelections(group: CarryoutQualifierGroup, line: CarryoutLi
 
 function syncCartPanelGroupsToLine(item: ReviewItem, groups: CarryoutQualifierGroup[], panelKind: "required" | "optional") {
   return groups.map((group) => groupWithLineSelections(group, item.line, panelKind));
+}
+
+function cartPanelOptionConfirmKey(item: ReviewItem, group: CarryoutQualifierGroup, option: CarryoutQualifierOption) {
+  return `${item.key}:${qualifierKey(group)}:${optionKey(option)}`;
 }
 
 function groupsForCartPanel(item: ReviewItem, kind: "required" | "optional") {
@@ -1255,6 +1315,94 @@ function cartLinePriceClass(state: CartLineState, isLocked: boolean, appearance:
   return "bg-transparent text-white/82 ring-1 ring-white/15 md:bg-slate-950 md:text-white md:ring-0";
 }
 
+
+function blueGlassCartLineCardClass(state: CartLineState, isLocked: boolean) {
+  const base = "shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_14px_34px_rgba(15,23,42,0.16)]";
+
+  if (isLocked) {
+    return `${base} border-white/52 bg-white/62 text-slate-800 ring-1 ring-white/55 opacity-90`;
+  }
+
+  if (state === "pending") {
+    return `${base} border-rose-50/58 bg-rose-500/92 text-white ring-1 ring-rose-50/32 shadow-rose-950/18`;
+  }
+
+  if (state === "optional") {
+    return `${base} border-amber-50/60 bg-amber-300/92 text-slate-950 ring-1 ring-amber-50/34 shadow-amber-950/14`;
+  }
+
+  if (state === "unrecognized") {
+    return `${base} border-slate-50/54 bg-slate-400/88 text-white ring-1 ring-slate-50/30 shadow-slate-950/16`;
+  }
+
+  return `${base} border-emerald-50/66 bg-emerald-300/92 text-slate-950 ring-1 ring-emerald-50/38 shadow-emerald-950/12`;
+}
+
+function blueGlassCartLineTitleClass(state: CartLineState, isLocked: boolean) {
+  if (isLocked) return "text-slate-700 italic";
+  if (state === "pending") return "text-white";
+  if (state === "optional") return "text-slate-950";
+  if (state === "unrecognized") return "text-white";
+  return "text-slate-950";
+}
+
+function blueGlassCartLineHelperClass(state: CartLineState, isLocked: boolean) {
+  if (isLocked) return "text-slate-600 italic";
+  if (state === "pending") return "text-white/86";
+  if (state === "optional") return "text-amber-950/76";
+  if (state === "unrecognized") return "text-white/78";
+  return "text-emerald-950/76";
+}
+
+function blueGlassCartLineDetailClass(state: CartLineState, isLocked: boolean) {
+  if (isLocked) return "bg-white/72 text-slate-600 ring-1 ring-white/62";
+  if (state === "pending") return "bg-white/20 text-white ring-1 ring-white/28";
+  if (state === "optional") return "bg-white/46 text-amber-950 ring-1 ring-white/38";
+  if (state === "unrecognized") return "bg-white/20 text-white ring-1 ring-white/25";
+  return "bg-white/42 text-emerald-950 ring-1 ring-white/38";
+}
+
+function blueGlassCartLinePriceClass(_state: CartLineState, isLocked: boolean) {
+  if (isLocked) {
+    return "bg-slate-900/82 text-white ring-1 ring-white/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_8px_18px_rgba(15,23,42,0.22)]";
+  }
+
+  return "bg-slate-950 text-white ring-1 ring-white/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(15,23,42,0.24)]";
+}
+
+
+function blueGlassCartRemoveButtonClass() {
+  return "border-white/18 bg-slate-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_10px_22px_rgba(15,23,42,0.24)] hover:border-white/38 hover:bg-slate-900 hover:text-white";
+}
+
+function blueGlassActionPanelCardClass(panelKind: "required" | "optional" | "retry") {
+  if (panelKind === "required") {
+    return "border-white/58 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(255,228,238,0.64))] text-slate-950 ring-1 ring-white/68 shadow-[0_24px_52px_rgba(15,23,42,0.24),inset_0_1px_1px_rgba(255,255,255,0.82)]";
+  }
+
+  if (panelKind === "optional") {
+    return "border-white/58 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(254,249,195,0.70))] text-slate-950 ring-1 ring-white/68 shadow-[0_24px_52px_rgba(15,23,42,0.24),inset_0_1px_1px_rgba(255,255,255,0.82)]";
+  }
+
+  return "border-white/58 bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(226,232,240,0.72))] text-slate-950 ring-1 ring-white/68 shadow-[0_24px_52px_rgba(15,23,42,0.24),inset_0_1px_1px_rgba(255,255,255,0.82)]";
+}
+
+function blueGlassOptionButtonClass(selected: boolean) {
+  if (selected) {
+    return "border-emerald-300/70 bg-emerald-300 text-slate-950 ring-1 ring-emerald-50/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.48),0_10px_20px_rgba(16,185,129,0.22)]";
+  }
+
+  return "border-white/70 bg-white/82 text-slate-700 ring-1 ring-white/66 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_18px_rgba(15,23,42,0.08)] hover:bg-white";
+}
+
+function blueGlassCheckoutButtonClass(kind: "blocked" | "matched" | "checkout") {
+  if (kind === "blocked") {
+    return "bg-white/18 text-white/62 ring-1 ring-white/18";
+  }
+
+  return "bg-white text-[#17227c] ring-1 ring-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_10px_24px_rgba(15,23,42,0.18)] hover:bg-white/92 active:scale-[0.99]";
+}
+
 function cartLineRemoveButtonClass(appearance: TourBarOrderingAppearance) {
   if (appearance === "light") {
     return "border-slate-200 bg-white text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600";
@@ -1365,6 +1513,34 @@ function readyPillClass(appearance: TourBarOrderingAppearance) {
   return "bg-transparent text-green-300 ring-1 ring-green-400/20 md:bg-emerald-50 md:text-emerald-800 md:ring-emerald-200";
 }
 
+function cartFilterPillClass(filter: CartStatusFilter, active: boolean, empty = false) {
+  const base =
+    "inline-flex h-8 min-w-0 items-center justify-center overflow-hidden rounded-full border px-0 text-[12px] font-black shadow-[inset_0_1px_0_rgba(255,255,255,0.36)] transition";
+  const inactive = empty ? "opacity-45" : "opacity-95";
+
+  if (filter === "all") {
+    return `${base} ${
+      active
+        ? "border-white/60 bg-[#17227c] text-white ring-2 ring-white/85 ring-offset-1 ring-offset-white/25"
+        : "border-white/36 bg-white/54 text-slate-800 ring-1 ring-white/42"
+    } ${inactive}`;
+  }
+
+  if (filter === "ready") {
+    return `${base} border-emerald-50/66 bg-emerald-300/92 text-slate-950 ring-1 ring-emerald-50/38 ${inactive}`;
+  }
+
+  if (filter === "pending") {
+    return `${base} border-rose-50/58 bg-rose-500/92 text-white ring-1 ring-rose-50/32 ${inactive}`;
+  }
+
+  if (filter === "optional") {
+    return `${base} border-amber-50/60 bg-amber-300/92 text-slate-950 ring-1 ring-amber-50/34 ${inactive}`;
+  }
+
+  return `${base} border-slate-50/54 bg-slate-400/88 text-white ring-1 ring-slate-50/30 ${inactive}`;
+}
+
 function navigateToItem(
   item: ReviewItem | undefined,
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
@@ -1382,11 +1558,33 @@ function cartEntryMatchesKey(entry: ReviewItem, key?: string) {
   const cleanKey = String(key || "").trim();
   if (!cleanKey) return false;
 
-  return Boolean(
-    valuesEqual(entry.key, cleanKey) ||
-      lineIdentityKeys(entry.line).some((lineKey) => valuesEqual(lineKey, cleanKey)) ||
-      valuesEqual(entry.line.targetId, cleanKey),
+  const candidateKeys = cleanKey
+    .split("|")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return candidateKeys.some((candidateKey) =>
+    Boolean(
+      valuesEqual(entry.key, candidateKey) ||
+        lineIdentityKeys(entry.line).some((lineKey) => valuesEqual(lineKey, candidateKey)) ||
+        valuesEqual(entry.line.targetId, candidateKey),
+    ),
   );
+}
+
+function mergeCartEntryKeyList(current: string, nextKey?: string) {
+  const cleanNextKey = String(nextKey || "").trim();
+  if (!cleanNextKey) return current;
+
+  const keys = new Set(
+    String(current || "")
+      .split("|")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  keys.add(cleanNextKey);
+
+  return Array.from(keys).join("|");
 }
 
 function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
@@ -1403,8 +1601,57 @@ function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
   });
 }
 
+
+function buildBlueGlassCheckoutResult(
+  result: TourBarShellResult,
+  response: GuideAiCarryoutResponse,
+  order: CarryoutOrder | null,
+): TourBarShellResult {
+  const lockedOrder = order
+    ? (JSON.parse(JSON.stringify(order)) as CarryoutOrder)
+    : null;
+
+  if (lockedOrder) {
+    lockedOrder.status = "ready_cart";
+    lockedOrder.nextAction = "checkout_handoff";
+    lockedOrder.lockedForHandoff = true;
+    lockedOrder.handoffStatus = "ready";
+    lockedOrder.pendingItems = [];
+    lockedOrder.completeItems = Array.isArray(lockedOrder.items)
+      ? lockedOrder.items
+      : [...(lockedOrder.completeItems || []), ...(lockedOrder.pendingItems || [])];
+    lockedOrder.totals = {
+      ...(lockedOrder.totals || {}),
+      status: "ready",
+      currency: lockedOrder.totals?.currency || "USD",
+    };
+  }
+
+  return {
+    title: "Order locked for handoff",
+    body: "",
+    canFollowUp: false,
+    mode: result.mode || response.displayMode || "speed_order",
+    action: "carryout_checkout_handoff",
+    raw: {
+      ...response,
+      title: "Order locked for handoff",
+      body: "",
+      commerceAction: "carryout_checkout_handoff",
+      displayMode: response.displayMode || "carryout_cart_panel",
+      carryoutOrder: lockedOrder,
+      visibleContext: {
+        ...(response.visibleContext || {}),
+        carryoutOrder: lockedOrder,
+      },
+    },
+  };
+}
+
 export function OrderReview({
   appearance = "dark",
+  blueGlassSurface = false,
+  speedDemoResolvedLineItemIds = "",
   result,
   actions,
   carryoutOrder,
@@ -1418,8 +1665,11 @@ export function OrderReview({
   onRetryItemReplace,
   onNavigateToFocus,
   notOnMenuLabel = DEFAULT_NOT_ON_MENU_LABEL,
+  autoOpenFirstPending = true,
 }: {
   appearance?: TourBarOrderingAppearance;
+  blueGlassSurface?: boolean;
+  speedDemoResolvedLineItemIds?: string;
   result: TourBarShellResult;
   actions: TourBarShellActions;
   carryoutOrder: CarryoutOrder | null;
@@ -1433,32 +1683,64 @@ export function OrderReview({
   onRetryItemReplace: (retryIndex: number, retryValue: string, actions: TourBarShellActions) => void;
   onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
   notOnMenuLabel?: string;
+  autoOpenFirstPending?: boolean;
 }) {
   void reviewMode;
   void activeIndex;
 
   const [cartActionPanel, setCartActionPanel] = useState<CartActionPanel>(null);
   const [recentlyCompletedItemKey, setRecentlyCompletedItemKey] = useState("");
+  const [confirmingOptionKey, setConfirmingOptionKey] = useState("");
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
   const order = carryoutOrder || extractCarryoutOrder(response);
-  const speedDemoPromotedReadyLineItemId = String(
-    ((response as GuideAiCarryoutResponse & { __speedDemo?: { promoteReadyLineItemId?: string } }).__speedDemo?.promoteReadyLineItemId || ""),
-  ).trim();
+  const speedDemoOrderingMeta = (response as GuideAiCarryoutResponse & { __speedDemo?: { promoteReadyLineItemId?: string; stableSheetKey?: string } }).__speedDemo || {};
+  const speedDemoPromotedReadyLineItemId = String(speedDemoOrderingMeta.promoteReadyLineItemId || "").trim();
+  const speedDemoOrderIdentity = `${speedDemoOrderingMeta.stableSheetKey || result.title || "order"}|${(order?.items || []).map((line) => line.lineItemId || line.id || line.title).join("|")}|${(order?.cannotMatchItems || []).map((item) => cannotMatchLabel(item)).join("|")}`;
   const items = order ? reviewItemsFrom(response, order) : [];
   const pendingItems = items.filter((entry) => entry.pending);
-  const optionalItems = items.filter(lineHasOptionalChoices);
+  const blueGlassResolvedKeyList = [speedDemoPromotedReadyLineItemId, speedDemoResolvedLineItemIds, recentlyCompletedItemKey]
+    .filter(Boolean)
+    .join("|");
+  // FoodTrio desktop checkout/start mechanics:
+  // In blue/glass demo mode, checkout should visually enable once red tiles have
+  // been resolved/promoted. Required rows can remain in the source fixture while
+  // the demo-local state catches up, so use the resolved key list for checkout gating.
+  const checkoutPendingItems = blueGlassSurface
+    ? pendingItems.filter((entry) => !cartEntryMatchesKey(entry, blueGlassResolvedKeyList))
+    : pendingItems;
+  // FoodTrio desktop checkout fix:
+  // Blue/glass rows that have been resolved/promoted should stop appearing as red rows.
+  // This keeps the checkout button's visual state and the visible cart in sync.
+  const displayPendingItems = blueGlassSurface ? checkoutPendingItems : pendingItems;
+  // FoodTrio blue/glass selection-state fix:
+  // once an optional item is explicitly handled, treat that tile as ready/green
+  // even though its optional group technically remains available for future edits.
+  const optionalItems = items.filter((entry) =>
+    lineHasOptionalChoices(entry) && !(blueGlassSurface && cartEntryMatchesKey(entry, blueGlassResolvedKeyList)),
+  );
   const readyItems = promoteCartEntries(
-    items.filter((entry) => !entry.pending && !lineHasOptionalChoices(entry)),
-    speedDemoPromotedReadyLineItemId || recentlyCompletedItemKey,
+    items.filter((entry) =>
+      (!entry.pending || (blueGlassSurface && cartEntryMatchesKey(entry, blueGlassResolvedKeyList))) &&
+        (!lineHasOptionalChoices(entry) || (blueGlassSurface && cartEntryMatchesKey(entry, blueGlassResolvedKeyList))),
+    ),
+    blueGlassResolvedKeyList,
   );
   const cannotMatchItems = (order?.cannotMatchItems || []).filter((entry) => cannotMatchLabel(entry));
-  const hasPendingItems = pendingItems.length > 0;
+  // FoodTrio desktop hard-snapshot reset:
+  // checkout state follows the visible snapshot. If a required row has been
+  // promoted out of the red lane, the checkout button must stop looking blocked.
+  const hasPendingItems = displayPendingItems.length > 0;
   const hasOptionalItems = optionalItems.length > 0;
   const hasCannotMatchItems = cannotMatchItems.length > 0;
   const estimatedTotal = money(order?.totals?.estimatedTotal);
   const subtotal = money(order?.totals?.subtotal);
+  const estimatedTax = money(order?.totals?.estimatedTax);
   const isLocked = checkoutIsLocked(response, order);
   const canCheckoutMatchedItems = items.length > 0 && !hasPendingItems;
+  const blueGlassVisibleLineCount = readyItems.length + displayPendingItems.length + optionalItems.length + cannotMatchItems.length;
+  // Blue/glass cart uses full mobile-style tiles while four or fewer rows fit.
+  // Once the list needs a vertical scrollbar, hide selection pills and compress rows to one line.
+  const blueGlassCompactScrollMode = blueGlassSurface && blueGlassVisibleLineCount > 4;
   const speedDemoReadyPillLabel =
     !isLocked && !hasPendingItems && !hasOptionalItems && !hasCannotMatchItems
       ? String((response as { __speedDemo?: { readyPillLabel?: string } }).__speedDemo?.readyPillLabel || "")
@@ -1467,6 +1749,20 @@ export function OrderReview({
     .map((entry) => `${entry.key}:${entry.pending ? "pending" : lineHasOptionalChoices(entry) ? "optional" : "ready"}`)
     .join("|");
   const cannotSignature = cannotMatchItems.map((entry, index) => `${index}:${cannotMatchLabel(entry)}`).join("|");
+
+  useEffect(() => {
+    setConfirmingOptionKey("");
+  }, [cartActionPanel?.kind, cartActionPanel && "itemKey" in cartActionPanel ? cartActionPanel.itemKey : cartActionPanel?.kind === "retry" ? String(cartActionPanel.index) : ""]);
+
+  useEffect(() => {
+    // FoodTrio desktop per-order checkout fix:
+    // reset blue/glass local overlay/completion state when a new demo order loads.
+    // Otherwise the three FoodTrio demos can behave like one long cart lifecycle.
+    if (!blueGlassSurface) return;
+    setCartActionPanel(null);
+    setRecentlyCompletedItemKey("");
+    setConfirmingOptionKey("");
+  }, [blueGlassSurface, speedDemoOrderIdentity]);
 
   useEffect(() => {
     if (isLocked) {
@@ -1487,14 +1783,17 @@ export function OrderReview({
   }, [cannotSignature, isLocked, itemSignature]);
 
   useEffect(() => {
-    if (isLocked || cartActionPanel || !pendingItems.length) return;
+    // Blue/glass uses the mobile cart mental model: the sheet drops first, then
+    // overlays open only from explicit red/yellow item tile selection.
+    if (blueGlassSurface) return;
+    if (!autoOpenFirstPending || isLocked || cartActionPanel || !pendingItems.length) return;
 
     const pending = pendingItems[0];
     setCartActionPanel({ kind: "required", itemKey: pending.key });
     onReviewModeChange("cart");
     onActiveIndexChange(pending.index);
     navigateToItem(pending, onNavigateToFocus);
-  }, [cartActionPanel, isLocked, onActiveIndexChange, onNavigateToFocus, onReviewModeChange, pendingItems[0]?.key]);
+  }, [blueGlassSurface, autoOpenFirstPending, cartActionPanel, isLocked, onActiveIndexChange, onNavigateToFocus, onReviewModeChange, pendingItems[0]?.key]);
 
   if (!order) return null;
 
@@ -1503,6 +1802,10 @@ export function OrderReview({
     onReviewModeChange("cart");
     onActiveIndexChange(entry.index);
     setCartActionPanel({ kind, itemKey: entry.key });
+
+    // FoodTrio blue/glass choreography is sheet-first: the prompt opens the cart
+    // with no page spotlight. Page navigation/spotlight starts only when the
+    // user selects a specific red/yellow item tile.
     navigateToItem(entry, onNavigateToFocus);
   };
 
@@ -1512,7 +1815,37 @@ export function OrderReview({
     setCartActionPanel({ kind: "retry", index });
   };
 
+
+  const runCheckoutAction = () => {
+    // FoodTrio desktop rebuild: blue/glass checkout should follow the same
+    // recognized fixture nextMove path as the working desktop demos. The
+    // standalone local checkout sheet is only a fallback for non-scripted cases.
+    if (blueGlassSurface && result.nextMove?.query) {
+      actions.submitFollowUp(result.nextMove.query);
+      return;
+    }
+
+    if (blueGlassSurface) {
+      actions.openStandaloneSheet(buildBlueGlassCheckoutResult(result, response, order));
+      return;
+    }
+
+    actions.submitFollowUp(result.nextMove?.query || "checkout");
+  };
+
   const handlePanelOptionSelect = (panelItem: ReviewItem, panelKind: "required" | "optional", group: CarryoutQualifierGroup, option: CarryoutQualifierOption) => {
+    const optionWasSelected = panelKind === "optional"
+      ? optionMatchesCartLineSelection(panelItem.line, option)
+      : optionIsSelected(group, option);
+    const confirmKey = cartPanelOptionConfirmKey(panelItem, group, option);
+
+    // Instant visual confirmation: the chosen required option turns green before
+    // the overlay closes. Optional options still toggle normally; selecting a
+    // white option turns it green, selecting a green option removes it.
+    if (blueGlassSurface) {
+      setConfirmingOptionKey(panelKind === "optional" && optionWasSelected ? "" : confirmKey);
+    }
+
     const nextOrder = onLocalOptionSelect(panelItem, group, option);
     const nextItems = reviewItemsFrom(response, nextOrder);
     const nextPanelItem = nextItems.find((entry) => entry.key === panelItem.key);
@@ -1522,6 +1855,19 @@ export function OrderReview({
     }
 
     if (panelKind === "optional") {
+      if (blueGlassSurface) {
+        // Keep the overlay open after selection so the selected option visibly turns green.
+        // When the demo closes the overlay, the tile is promoted to the green/ready lane.
+        setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, nextPanelItem?.key || panelItem.key));
+        if (nextPanelItem && lineHasOptionalChoices(nextPanelItem)) {
+          setCartActionPanel({ kind: "optional", itemKey: nextPanelItem.key });
+        }
+        window.setTimeout(() => {
+          setConfirmingOptionKey((current) => (current === confirmKey ? "" : current));
+        }, 850);
+        return;
+      }
+
       setRecentlyCompletedItemKey("");
       if (nextPanelItem && lineHasOptionalChoices(nextPanelItem)) {
         setCartActionPanel({ kind: "optional", itemKey: nextPanelItem.key });
@@ -1535,16 +1881,30 @@ export function OrderReview({
     }
 
     const completedItemKey = nextPanelItem?.key || panelItem.key;
+
+    if (blueGlassSurface) {
+      // Let the selected required option flash green before the overlay closes.
+      setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
+      onReviewModeChange("cart");
+      window.setTimeout(() => {
+        setCartActionPanel((current) =>
+          current?.kind === "required" && current.itemKey === panelItem.key ? null : current,
+        );
+        setConfirmingOptionKey((current) => (current === confirmKey ? "" : current));
+      }, 1100);
+      return;
+    }
+
     const nextPending = nextItems.find((entry) => entry.pending);
     if (nextPending) {
-      setRecentlyCompletedItemKey(completedItemKey);
+      setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
       onActiveIndexChange(nextPending.index);
       setCartActionPanel({ kind: "required", itemKey: nextPending.key });
       navigateToItem(nextPending, onNavigateToFocus);
       return;
     }
 
-    setRecentlyCompletedItemKey(completedItemKey);
+    setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, completedItemKey));
     setCartActionPanel(null);
     onReviewModeChange("cart");
   };
@@ -1553,7 +1913,7 @@ export function OrderReview({
     const qty = typeof entry.line.quantity === "number" && entry.line.quantity > 1 ? `${entry.line.quantity} × ` : "";
     const details = lineDetails(entry.line, entry.groups);
     const missingSummary = lineMissingSummary(entry.line, entry.groups);
-    const helperText =
+    const rawHelperText =
       state === "pending"
         ? missingSummary
         : state === "optional"
@@ -1561,10 +1921,17 @@ export function OrderReview({
           : details.length
             ? ""
             : "No extra choices.";
-    const stateCardClass = cartLineCardClass(state, isLocked, appearance);
+    // Blue/glass mode follows the mobile FoodTrio card language:
+    // item name on top, modifier/choice pills below, no extra helper captions.
+    const helperText = blueGlassSurface ? "" : rawHelperText;
+    const stateCardClass = blueGlassSurface
+      ? blueGlassCartLineCardClass(state, isLocked)
+      : cartLineCardClass(state, isLocked, appearance);
     const interactiveClass = isLocked
       ? ""
-      : "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80";
+      : blueGlassSurface
+        ? "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-white/60 hover:shadow-lg hover:shadow-slate-950/16"
+        : "transform-gpu transition duration-150 ease-out hover:-translate-y-0.5 hover:ring-1 hover:ring-slate-200 hover:shadow-md hover:shadow-slate-200/80";
     const statusLabel = isLocked
       ? "Locked"
       : state === "pending"
@@ -1572,40 +1939,55 @@ export function OrderReview({
         : state === "optional"
           ? "Options"
           : "Ready";
+    const handleBlueGlassTileClick = () => {
+      if (!blueGlassSurface || isLocked) return;
+      if (state === "pending") {
+        openLineActionPanel("required", entry);
+        return;
+      }
+      // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+      // Green means ready, not frozen. A ready tile with editable choices can
+      // still reopen its change/review overlay.
+      if (state === "optional" || (state === "ready" && lineHasOptionalChoices(entry))) {
+        openLineActionPanel("optional", entry);
+      }
+    };
 
     const lineBody = (
       <div className="min-w-0 flex-1 text-left">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`truncate text-base font-semibold leading-5 md:text-sm md:leading-tight ${cartLineTitleClass(state, isLocked, appearance)}`}>
+          <span className={`truncate text-base font-semibold leading-5 md:text-sm md:leading-tight ${blueGlassSurface ? blueGlassCartLineTitleClass(state, isLocked) : cartLineTitleClass(state, isLocked, appearance)}`}>
             {qty}{entry.line.title || entry.line.id || entry.label}
           </span>
-          <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${isLocked ? (appearance === "light" ? "bg-slate-200 text-slate-700 ring-1 ring-slate-300" : "bg-transparent text-green-300 ring-0 md:bg-slate-200 md:text-slate-600") : itemStatusClass(state, appearance)}`}>
-            {statusLabel}
-          </span>
+          {!blueGlassSurface && (
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${isLocked ? (appearance === "light" ? "bg-slate-200 text-slate-700 ring-1 ring-slate-300" : "bg-transparent text-green-300 ring-0 md:bg-slate-200 md:text-slate-600") : itemStatusClass(state, appearance)}`}>
+              {statusLabel}
+            </span>
+          )}
         </div>
         {helperText && (
-          <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, isLocked, appearance)}`}>
+          <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${blueGlassSurface ? blueGlassCartLineHelperClass(state, isLocked) : cartLineHelperClass(state, isLocked, appearance)}`}>
             {helperText}
           </div>
         )}
-        {details.length > 0 && (
+        {details.length > 0 && !(blueGlassSurface && blueGlassCompactScrollMode) && (
           <div className="mt-1 flex flex-wrap gap-1">
             {details.slice(0, 4).map((selection) => (
               <span
                 key={`${entry.key}-detail-${selection}`}
-                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold md:text-[10px] ${cartLineDetailClass(state, isLocked, appearance)}`}
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold md:text-[10px] ${blueGlassSurface ? blueGlassCartLineDetailClass(state, isLocked) : cartLineDetailClass(state, isLocked, appearance)}`}
               >
                 {selection}
               </span>
             ))}
           </div>
         )}
-        {!isLocked && state === "pending" && (
+        {!isLocked && state === "pending" && !blueGlassSurface && (
           <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-rose-800" : "text-rose-300 md:text-rose-700"}`}>
             Tap to choose now
           </div>
         )}
-        {!isLocked && state === "optional" && (
+        {!isLocked && state === "optional" && !blueGlassSurface && (
           <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-amber-800" : "text-yellow-300 md:text-amber-700"}`}>
             Tap to customize
           </div>
@@ -1618,40 +2000,48 @@ export function OrderReview({
         key={`${entry.key}-cart-${state}-${index}`}
         data-tourbar-cart-line-state={state}
         data-tourbar-cart-line-key={entry.key}
-        className={`rounded-xl border p-3 shadow-sm md:p-2.5 ${interactiveClass} ${stateCardClass}`}
+        onClick={handleBlueGlassTileClick}
+        className={`${blueGlassSurface ? `${blueGlassCompactScrollMode ? "rounded-[16px] border px-2.5 py-2" : "rounded-[18px] border p-2.5"} shadow-sm` : "rounded-xl border p-3 shadow-sm md:p-2.5"} ${interactiveClass} ${stateCardClass}`}
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className={`${blueGlassSurface && blueGlassCompactScrollMode ? "flex items-center justify-between gap-2" : "flex items-start justify-between gap-2"}`}>
           {isLocked ? (
             lineBody
           ) : (
             <button
               type="button"
-              onClick={() => {
+              onClick={(event) => {
+                event.stopPropagation();
                 if (state === "pending") {
                   openLineActionPanel("required", entry);
                   return;
                 }
-                if (state === "optional") {
+                if (state === "optional" || (state === "ready" && lineHasOptionalChoices(entry))) {
                   openLineActionPanel("optional", entry);
                 }
               }}
+              data-tourbar-cart-line-action-key={entry.key}
+              data-tourbar-cart-line-action-state={state}
               className="min-w-0 flex-1 cursor-pointer text-left"
             >
               {lineBody}
             </button>
           )}
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className={`rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px] ${cartLinePriceClass(state, isLocked, appearance)}`}>
+            <span className={`${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass(state, isLocked) : cartLinePriceClass(state, isLocked, appearance)}`}>
               {formatLinePrice(entry.line)}
             </span>
             {!isLocked && (
               <button
                 type="button"
-                onClick={() => onRemoveItem(entry, actions)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveItem(entry, actions);
+                }}
+                data-tourbar-cart-remove-button="true"
                 aria-label={`Remove ${entry.label}`}
-                className={`inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition ${cartLineRemoveButtonClass(appearance)}`}
+                className={`inline-flex ${blueGlassSurface ? "h-9 w-9" : "h-7 w-7"} items-center justify-center rounded-full border shadow-sm transition ${blueGlassSurface ? blueGlassCartRemoveButtonClass() : cartLineRemoveButtonClass(appearance)}`}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className={blueGlassSurface ? "h-4 w-4" : "h-3.5 w-3.5"} />
               </button>
             )}
           </div>
@@ -1662,6 +2052,15 @@ export function OrderReview({
 
   const renderCartSection = (label: string, entries: ReviewItem[], state: Exclude<CartLineState, "unrecognized">) => {
     if (!entries.length) return null;
+
+    if (blueGlassSurface) {
+      return (
+        <div className={blueGlassCompactScrollMode ? "space-y-1.5" : "space-y-2"}>
+          {entries.map((entry, index) => renderCartLine(entry, state, index))}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
@@ -1687,16 +2086,18 @@ export function OrderReview({
   const renderCannotMatchSection = () => {
     if (!cannotMatchItems.length) return null;
     return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <div className={`text-[11px] font-semibold uppercase tracking-[0.12em] md:text-[10px] md:tracking-[0.14em] ${cartSectionLabelClass("unrecognized", appearance)}`}>
-            Retry needed
+      <div className={blueGlassSurface ? (blueGlassCompactScrollMode ? "space-y-1.5" : "space-y-2") : "space-y-1.5"}>
+        {!blueGlassSurface && (
+          <div className="flex items-center justify-between gap-2">
+            <div className={`text-[11px] font-semibold uppercase tracking-[0.12em] md:text-[10px] md:tracking-[0.14em] ${cartSectionLabelClass("unrecognized", appearance)}`}>
+              Retry needed
+            </div>
+            <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] md:text-[9px] ${cartSectionBadgeClass("unrecognized", appearance)}`}>
+              Not charged
+            </div>
           </div>
-          <div className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] md:text-[9px] ${cartSectionBadgeClass("unrecognized", appearance)}`}>
-            Not charged
-          </div>
-        </div>
-        <div className="space-y-1.5">
+        )}
+        <div className={blueGlassSurface ? (blueGlassCompactScrollMode ? "space-y-1.5" : "space-y-2") : "space-y-1.5"}>
           {cannotMatchItems.map((entry, index) => {
             const label = cannotMatchLabel(entry);
             return (
@@ -1706,31 +2107,35 @@ export function OrderReview({
                 data-tourbar-cart-line-state="unrecognized"
                 data-tourbar-cart-retry-index={index}
                 onClick={() => openRetryPanel(index)}
-                className={`w-full rounded-xl border p-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md md:hover:shadow-slate-200/80 ${cartLineCardClass("unrecognized", isLocked, appearance)}`}
+                className={`w-full ${blueGlassSurface ? `${blueGlassCompactScrollMode ? "rounded-[16px] border px-2.5 py-2" : "rounded-[18px] border p-2.5"}` : "rounded-xl border p-2.5"} text-left shadow-sm transition hover:-translate-y-0.5 ${blueGlassSurface ? "hover:shadow-lg hover:shadow-slate-950/16" : "hover:shadow-md md:hover:shadow-slate-200/80"} ${blueGlassSurface ? blueGlassCartLineCardClass("unrecognized", isLocked) : cartLineCardClass("unrecognized", isLocked, appearance)}`}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className={`${blueGlassSurface && blueGlassCompactScrollMode ? "flex items-center justify-between gap-2" : "flex items-start justify-between gap-2"}`}>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <div className={`text-base font-semibold leading-5 md:text-sm md:leading-tight ${cartLineTitleClass("unrecognized", isLocked, appearance)}`}>
+                      <div className={`text-base font-semibold leading-5 md:text-sm md:leading-tight ${blueGlassSurface ? blueGlassCartLineTitleClass("unrecognized", isLocked) : cartLineTitleClass("unrecognized", isLocked, appearance)}`}>
                         {label}
                       </div>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${itemStatusClass("unrecognized", appearance)}`}>
-                        Retry
-                      </span>
+                      {!blueGlassSurface && (
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.10em] md:text-[10px] ${itemStatusClass("unrecognized", appearance)}`}>
+                          Retry
+                        </span>
+                      )}
                     </div>
-                    <div
-                      title={cannotMatchReason(entry, notOnMenuLabel)}
-                      className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass("unrecognized", isLocked, appearance)}`}
-                    >
-                      Not priced.
-                    </div>
-                    {entry.suggestion && (
+                    {!blueGlassSurface && (
+                      <div
+                        title={cannotMatchReason(entry, notOnMenuLabel)}
+                        className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass("unrecognized", isLocked, appearance)}`}
+                      >
+                        Not priced.
+                      </div>
+                    )}
+                    {entry.suggestion && !blueGlassSurface && (
                       <div className={`mt-1 text-[13px] font-semibold md:text-[11px] ${appearance === "light" ? "text-slate-700" : "text-slate-200 md:text-slate-700"}`}>
                         Try: {entry.suggestion}
                       </div>
                     )}
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px] ${cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
+                  <span className={`shrink-0 ${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass("unrecognized", isLocked) : cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
                     —
                   </span>
                 </div>
@@ -1755,23 +2160,25 @@ export function OrderReview({
             key={`retry-panel-${cartActionPanel.index}`}
             variants={{
               hidden: { y: "125%" },
-              visible: { y: 0, transition: { duration: 1.35, ease: "easeOut" } },
-              exit: { y: "125%", transition: { duration: 0.24, ease: "easeIn" } },
+              visible: { y: 0, transition: { duration: blueGlassSurface ? 0.06 : 1.35, ease: "easeOut" } },
+              exit: { y: "125%", transition: { duration: blueGlassSurface ? 0.05 : 0.24, ease: "easeIn" } },
             }}
             initial="hidden"
             animate="visible"
             exit="exit"
             data-tourbar-cart-action-panel="retry"
-            className="pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"
+            className={blueGlassSurface ? "pointer-events-none absolute inset-x-4 bottom-[86px] z-[80]" : "pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"}
           >
-            <div className={`pointer-events-auto max-h-[min(420px,calc(100svh-138px))] overflow-y-auto overscroll-contain rounded-2xl border p-3 shadow-2xl backdrop-blur ${actionPanelCardClass("retry", appearance)}`}>
+            <div className={`pointer-events-auto overflow-y-auto overscroll-contain ${blueGlassSurface ? "max-h-[min(300px,calc(85dvh-130px))] rounded-[24px] border p-2.5 shadow-2xl backdrop-blur-2xl" : "max-h-[min(420px,calc(100svh-138px))] rounded-2xl border p-3 shadow-2xl backdrop-blur-xl"} ${blueGlassSurface ? blueGlassActionPanelCardClass("retry") : actionPanelCardClass("retry", appearance)}`}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className={`text-[11px] font-black uppercase tracking-[0.14em] md:text-[10px] md:tracking-[0.16em] ${actionPanelEyebrowClass("retry", appearance)}`}>Retry item</div>
                   <div className="mt-1 text-base font-bold leading-5 md:text-sm md:leading-tight">{label}</div>
-                  <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${appearance === "light" ? "text-slate-600" : "text-slate-300 md:text-slate-500"}`}>
-                    No menu match.
-                  </div>
+                  {!blueGlassSurface && (
+                    <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${appearance === "light" ? "text-slate-600" : "text-slate-300 md:text-slate-500"}`}>
+                      No menu match.
+                    </div>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -1783,9 +2190,11 @@ export function OrderReview({
                   ×
                 </button>
               </div>
-              <label className={`mt-3 block text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-slate-400 md:text-slate-500"}`}>
-                Try again
-              </label>
+              {!blueGlassSurface && (
+                <label className={`mt-3 block text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-slate-400 md:text-slate-500"}`}>
+                  Try again
+                </label>
+              )}
               <input
                 defaultValue=""
                 placeholder="Type item"
@@ -1797,7 +2206,7 @@ export function OrderReview({
                   onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                 }}
                 data-tourbar-cart-retry-input="true"
-                className={`mt-1 w-full rounded-xl border px-3 py-2.5 text-base font-semibold outline-none ring-0 md:py-2 md:text-sm ${appearance === "light" ? "border-slate-300 bg-slate-50 text-slate-950 placeholder:text-slate-400 focus:border-slate-500" : "border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-white/25 md:border-slate-200 md:bg-slate-50 md:text-slate-950 md:focus:border-slate-400"}`}
+                className={`w-full rounded-xl border px-3 py-2.5 text-base font-semibold outline-none ring-0 md:py-2 md:text-sm ${blueGlassSurface ? "mt-2 border-white/70 bg-white/82 text-slate-950 placeholder:text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] focus:border-white" : appearance === "light" ? "mt-1 border-slate-300 bg-slate-50 text-slate-950 placeholder:text-slate-400 focus:border-slate-500" : "mt-1 border-white/10 bg-white/5 text-white placeholder:text-white/30 focus:border-white/25 md:border-slate-200 md:bg-slate-50 md:text-slate-950 md:focus:border-slate-400"}`}
               />
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -1811,10 +2220,11 @@ export function OrderReview({
                     onRetryItemReplace(cartActionPanel.index, retryValue, actions);
                   }}
                   data-tourbar-cart-retry-submit="true"
-                  className={`rounded-full px-3 py-2 text-sm font-bold transition md:py-1.5 md:text-xs ${appearance === "light" ? "bg-slate-950 text-white hover:bg-slate-800" : "bg-slate-100 text-slate-700 hover:bg-white md:bg-slate-950 md:text-white md:hover:bg-slate-800"}`}
+                  className={`rounded-full px-3 py-2 text-sm font-bold transition md:py-1.5 md:text-xs ${blueGlassSurface ? "bg-slate-950 text-white shadow-lg shadow-slate-950/14 hover:bg-slate-900" : appearance === "light" ? "bg-slate-950 text-white hover:bg-slate-800" : "bg-slate-100 text-slate-700 hover:bg-white md:bg-slate-950 md:text-white md:hover:bg-slate-800"}`}
                 >
-                  Retry
+                  {blueGlassSurface ? "Done" : "Retry"}
                 </button>
+                {!blueGlassSurface && (
                 <button
                   type="button"
                   onClick={() => setCartActionPanel(null)}
@@ -1822,6 +2232,7 @@ export function OrderReview({
                 >
                   Leave out
                 </button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1834,7 +2245,11 @@ export function OrderReview({
     const panelKind = cartActionPanel.kind;
     const panelGroups = groupsForCartPanel(panelItem, panelKind);
     const panelMissing = panelKind === "required" ? missingLabels(panelItem.line, panelGroups) : [];
-    const state: CartLineState = panelKind === "required" ? "pending" : "optional";
+    const panelIsReadyReview =
+      blueGlassSurface &&
+      panelKind === "optional" &&
+      cartEntryMatchesKey(panelItem, blueGlassResolvedKeyList);
+    const state: CartLineState = panelKind === "required" ? "pending" : panelIsReadyReview ? "ready" : "optional";
 
     return (
       <AnimatePresence>
@@ -1842,29 +2257,40 @@ export function OrderReview({
           key={`${panelKind}-panel-${panelItem.key}`}
           variants={{
             hidden: { y: "125%" },
-            visible: { y: 0, transition: { duration: 1.35, ease: "easeOut" } },
-            exit: { y: "125%", transition: { duration: 0.24, ease: "easeIn" } },
+            visible: { y: 0, transition: { duration: blueGlassSurface ? 0.06 : 1.35, ease: "easeOut" } },
+            exit: { y: "125%", transition: { duration: blueGlassSurface ? 0.05 : 0.24, ease: "easeIn" } },
           }}
           initial="hidden"
           animate="visible"
           exit="exit"
           data-tourbar-cart-action-panel={panelKind}
-          className="pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"
+          className={blueGlassSurface ? "pointer-events-none absolute inset-x-4 bottom-[86px] z-[80]" : "pointer-events-none absolute inset-x-0 bottom-[78px] z-[80] px-2 md:left-auto md:max-w-sm"}
         >
-          <div className={`pointer-events-auto max-h-[min(420px,calc(100svh-138px))] overflow-y-auto overscroll-contain rounded-2xl border p-3 shadow-2xl backdrop-blur ${actionPanelCardClass(panelKind, appearance)}`}>
+          <div className={`pointer-events-auto overflow-y-auto overscroll-contain ${blueGlassSurface ? "max-h-[min(300px,calc(85dvh-130px))] rounded-[24px] border p-2.5 shadow-2xl backdrop-blur-2xl" : "max-h-[min(420px,calc(100svh-138px))] rounded-2xl border p-3 shadow-2xl backdrop-blur-xl"} ${blueGlassSurface ? blueGlassActionPanelCardClass(panelKind) : actionPanelCardClass(panelKind, appearance)}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className={`text-[11px] font-black uppercase tracking-[0.14em] md:text-[10px] md:tracking-[0.16em] ${actionPanelEyebrowClass(panelKind, appearance)}`}>
-                  {panelKind === "required" ? "Required choice" : "Optional extras"}
+                  {panelKind === "required" ? "Required choice" : panelIsReadyReview ? "Review / change" : "Optional extras"}
                 </div>
-                <div className="mt-1 truncate text-base font-bold leading-5 md:text-sm md:leading-tight">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : `Customize ${panelItem.line.title || panelItem.label}`}</div>
-                <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, false, appearance)}`}>
-                  {panelKind === "required" ? "Choose one to finish the cart." : "Checkout is already available; add extras only if wanted."}
-                </div>
+                <div className="mt-1 truncate text-base font-bold leading-5 md:text-sm md:leading-tight">{panelKind === "required" ? panelGroups[0]?.label || panelItem.label : panelIsReadyReview ? `Change ${panelItem.line.title || panelItem.label}` : `Customize ${panelItem.line.title || panelItem.label}`}</div>
+                {!blueGlassSurface && (
+                  <div className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass(state, false, appearance)}`}>
+                    {panelKind === "required" ? "Choose one to finish the cart." : "Checkout is already available; add extras only if wanted."}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => setCartActionPanel(null)}
+                onClick={() => {
+                  if (blueGlassSurface && panelKind === "optional") {
+                    // FOODTRIO_YELLOW_X_MARKS_REVIEWED:
+                    // Closing a yellow overlay means the item was reviewed, even
+                    // when no new option was selected. Promote the tile to green.
+                    setRecentlyCompletedItemKey((current) => mergeCartEntryKeyList(current, panelItem.key));
+                    setConfirmingOptionKey("");
+                  }
+                  setCartActionPanel(null);
+                }}
                 data-tourbar-cart-action-close={panelKind}
                 aria-label="Close cart action panel"
                 className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-base font-black leading-none transition ${actionPanelCloseButtonClass(appearance)}`}
@@ -1880,16 +2306,17 @@ export function OrderReview({
                   const isMissing = Boolean(group.missing && !selectedValue);
                   return (
                     <div key={`${panelItem.key}-${group.qualifierId || group.label || group.targetId}`} className="space-y-2">
-                      {panelGroups.length > 1 && (
+                      {panelGroups.length > 1 && !blueGlassSurface && (
                         <div className={`text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-white/45 md:text-slate-500"}`}>
                           {group.label || "Choices"}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
                         {(group.options || []).map((option, optionIndex) => {
-                          const selected = panelKind === "optional"
+                          const confirmedNow = blueGlassSurface && confirmingOptionKey === cartPanelOptionConfirmKey(panelItem, group, option);
+                          const selected = confirmedNow || (panelKind === "optional"
                             ? optionMatchesCartLineSelection(panelItem.line, option)
-                            : optionIsSelected(group, option);
+                            : optionIsSelected(group, option));
                           const displayLabel = compactQualifierOptionLabel(option, group, panelItem);
                           return (
                             <button
@@ -1902,7 +2329,7 @@ export function OrderReview({
                               data-tourbar-qualifier-label={option.label || option.value || ""}
                               onClick={() => handlePanelOptionSelect(panelItem, panelKind, group, option)}
                               aria-pressed={selected}
-                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
+                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${blueGlassSurface ? blueGlassOptionButtonClass(selected) : optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
                             >
                               {selected ? "✓ " : ""}
                               {displayLabel}
@@ -1917,7 +2344,7 @@ export function OrderReview({
               </div>
             )}
 
-            {panelMissing.length > 0 && (
+            {panelMissing.length > 0 && !blueGlassSurface && (
               <div className="mt-3 space-y-1.5">
                 {panelMissing.map((missingItem) => (
                   <div key={`${panelItem.key}-${missingItem.qualifierId || missingItem.label}`} className={`rounded-xl px-3 py-2 text-sm font-semibold md:text-xs ${appearance === "light" ? "bg-rose-50 text-rose-900 ring-1 ring-rose-200" : "bg-transparent text-rose-300 ring-1 ring-rose-400/15 md:bg-rose-50 md:text-rose-800 md:ring-rose-100"}`}>
@@ -1933,10 +2360,24 @@ export function OrderReview({
   };
 
   const summaryState: CartLineState = hasPendingItems ? "pending" : hasOptionalItems ? "optional" : hasCannotMatchItems ? "unrecognized" : "ready";
+  const blueGlassFilterItems: Array<{ filter: CartStatusFilter; label: string; count: number }> = [
+    { filter: "all", label: "All", count: readyItems.length + displayPendingItems.length + optionalItems.length + cannotMatchItems.length },
+    { filter: "ready", label: "Ready", count: readyItems.length },
+    { filter: "pending", label: "Required", count: displayPendingItems.length },
+    { filter: "optional", label: "Options", count: optionalItems.length },
+    { filter: "unrecognized", label: "Retry", count: cannotMatchItems.length },
+  ];
+  const reviewShellClass = blueGlassSurface
+    ? "relative flex h-full max-h-full min-h-0 flex-col gap-1.5 overflow-hidden rounded-[24px] border border-white/28 bg-[linear-gradient(180deg,rgba(255,255,255,0.72),rgba(226,238,246,0.46))] p-3 shadow-[0_24px_62px_rgba(15,23,42,0.22),inset_0_1px_1px_rgba(255,255,255,0.72)] ring-1 ring-white/55 backdrop-blur-xl"
+    : "relative flex min-h-0 flex-col gap-2 overflow-visible";
 
   return (
-    <div data-demo-surface="carryout-review-panel" className="relative flex min-h-0 flex-col gap-2 overflow-visible">
-      {speedDemoReadyPillLabel ? (
+    <div
+      data-demo-surface="carryout-review-panel"
+      data-tourbar-order-review-blueglass={blueGlassSurface ? "true" : undefined}
+      className={reviewShellClass}
+    >
+      {!blueGlassSurface && (speedDemoReadyPillLabel ? (
         <div className="shrink-0">
           <span className={`inline-flex w-fit rounded-full px-3 py-1.5 text-sm font-bold md:text-xs ${readyPillClass(appearance)}`}>
             {speedDemoReadyPillLabel}
@@ -1960,14 +2401,47 @@ export function OrderReview({
                   ? `${optionalItems.length} ready item${optionalItems.length === 1 ? "" : "s"} have optional extras available.`
                   : "All items are ready for checkout."}
         </div>
+      ))}
+
+      {blueGlassSurface && (
+        <div
+          data-tourbar-order-status-filters="true"
+          className="grid grid-cols-5 gap-1.5 rounded-[18px] border border-white/24 bg-white/24 p-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.58)] ring-1 ring-white/34 backdrop-blur-md"
+          aria-label="Cart status filters"
+        >
+          {blueGlassFilterItems.map((item) => (
+            <button
+              key={item.filter}
+              type="button"
+              data-tourbar-order-status-filter={item.filter}
+              aria-pressed={item.filter === "all"}
+              aria-disabled="true"
+              tabIndex={-1}
+              className={cartFilterPillClass(item.filter, item.filter === "all", item.count === 0)}
+              title={`${item.label}: ${item.count}`}
+            >
+              {item.filter === "all" ? (
+                <ListOrdered className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <span className="inline-flex min-w-[1.25rem] justify-center text-[12px] leading-4">
+                  {item.count}
+                </span>
+              )}
+              <span className="sr-only">{item.label}</span>
+            </button>
+          ))}
+        </div>
       )}
 
-      <div className="max-h-[clamp(190px,38dvh,360px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]">
+      <div
+        data-tourbar-order-scroll-mode={blueGlassCompactScrollMode ? "compact" : "full"}
+        className={blueGlassSurface ? `min-h-0 flex-1 space-y-1.5 overflow-x-hidden overflow-y-auto pb-1.5 pr-1 [overscroll-behavior:contain]` : "max-h-[clamp(190px,38dvh,360px)] min-h-0 space-y-2 overflow-x-hidden overflow-y-auto pb-2 pr-1 [overscroll-behavior:contain]"}
+      >
         {items.length || cannotMatchItems.length ? (
           <>
             {renderCannotMatchSection()}
             {renderCartSection(isLocked ? "Locked matched items" : "Ready items", readyItems, "ready")}
-            {renderCartSection("Required choices", pendingItems, "pending")}
+            {renderCartSection("Required choices", displayPendingItems, "pending")}
             {renderCartSection("Options available", optionalItems, "optional")}
           </>
         ) : (
@@ -1979,34 +2453,24 @@ export function OrderReview({
 
       {renderActionPanel()}
 
-      <div className={`shrink-0 rounded-xl border p-2.5 ${checkoutPanelClass(appearance)}`}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <div className={`text-sm font-semibold md:text-xs ${checkoutTitleClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
-              {isLocked ? "Checkout handoff ready" : hasPendingItems ? "Complete required choices" : hasCannotMatchItems ? "Checkout matched items" : "Review and checkout"}
+      {blueGlassSurface ? (
+        <div className="shrink-0 rounded-[22px] border border-white/20 bg-[#17227c] p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_38px_rgba(23,34,124,0.24)] ring-1 ring-white/18">
+          <div className="space-y-1.5 text-[12px] font-black uppercase tracking-[0.14em]">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Subtotal</span>
+              <span className="tabular-nums">{subtotal || "—"}</span>
             </div>
-            <div className={`mt-0.5 text-[13px] leading-5 md:text-[11px] md:leading-4 ${checkoutHelperClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
-              {isLocked
-                ? hasCannotMatchItems
-                  ? "Only matched items are included in this handoff."
-                  : "Items are read-only for the checkout handoff."
-                : estimatedTotal
-                  ? hasCannotMatchItems
-                    ? `Estimated total for matched items: ${estimatedTotal}`
-                    : `Estimated total: ${estimatedTotal}`
-                  : subtotal
-                    ? hasCannotMatchItems
-                      ? `Current subtotal for matched items: ${subtotal}`
-                      : `Current subtotal: ${subtotal}`
-                    : hasPendingItems
-                      ? "Choose the required options to finish the draft cart."
-                      : hasCannotMatchItems
-                        ? "Gray rows are not included in checkout."
-                        : "Checkout handoff is ready once items are complete."}
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Est. tax</span>
+              <span className="tabular-nums">{estimatedTax || "—"}</span>
             </div>
           </div>
+          <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/20 pt-2 text-[17px] font-black tracking-[-0.02em]">
+            <span>Total</span>
+            <span className="tabular-nums">{estimatedTotal || subtotal || "—"}</span>
+          </div>
           {isLocked ? (
-            <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm md:text-xs ${appearance === "light" ? "bg-slate-950 text-white ring-0" : "bg-transparent text-green-300 ring-1 ring-green-400/20 md:bg-slate-950 md:text-white md:ring-0"}`}>
+            <div className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-white/18 px-4 py-2.5 text-sm font-black text-white ring-1 ring-white/22">
               <LockKeyhole className="h-3.5 w-3.5" />
               Handoff ready
             </div>
@@ -2014,29 +2478,85 @@ export function OrderReview({
             <button
               type="button"
               data-tourbar-order-cta={hasPendingItems ? "review-choices" : "checkout"}
-              data-tourbar-order-checkout={!hasPendingItems ? "true" : undefined}
+              data-tourbar-order-checkout={!hasPendingItems && items.length ? "true" : undefined}
               data-tourbar-order-review-choices={hasPendingItems ? "true" : undefined}
+              data-tourbar-checkout-button="true"
               onClick={() => {
                 if (hasPendingItems) {
-                  const pending = pendingItems[0];
+                  const pending = checkoutPendingItems[0] || pendingItems[0];
                   if (pending) openLineActionPanel("required", pending);
                   return;
                 }
-                actions.submitFollowUp("checkout");
+                runCheckoutAction();
               }}
               disabled={!items.length}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 md:text-xs ${
-                checkoutButtonClass(
-                  hasPendingItems ? "blocked" : hasCannotMatchItems ? "matched" : "checkout",
-                  appearance,
-                )
-              }`}
+              className={`mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${blueGlassCheckoutButtonClass(hasPendingItems ? "blocked" : hasCannotMatchItems ? "matched" : "checkout")}`}
             >
               {hasPendingItems ? "Choose required" : hasCannotMatchItems ? "Checkout matched" : "Checkout"}
             </button>
           )}
         </div>
-      </div>
+      ) : (
+        <div className={`shrink-0 rounded-xl border p-2.5 ${checkoutPanelClass(appearance)}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className={`text-sm font-semibold md:text-xs ${checkoutTitleClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
+                {isLocked ? "Checkout handoff ready" : hasPendingItems ? "Complete required choices" : hasCannotMatchItems ? "Checkout matched items" : "Review and checkout"}
+              </div>
+              <div className={`mt-0.5 text-[13px] leading-5 md:text-[11px] md:leading-4 ${checkoutHelperClass(isLocked || canCheckoutMatchedItems ? "good" : "blocked", appearance)}`}>
+                {isLocked
+                  ? hasCannotMatchItems
+                    ? "Only matched items are included in this handoff."
+                    : "Items are read-only for the checkout handoff."
+                  : estimatedTotal
+                    ? hasCannotMatchItems
+                      ? `Estimated total for matched items: ${estimatedTotal}`
+                      : `Estimated total: ${estimatedTotal}`
+                    : subtotal
+                      ? hasCannotMatchItems
+                        ? `Current subtotal for matched items: ${subtotal}`
+                        : `Current subtotal: ${subtotal}`
+                      : hasPendingItems
+                        ? "Choose the required options to finish the draft cart."
+                        : hasCannotMatchItems
+                          ? "Gray rows are not included in checkout."
+                          : "Checkout handoff is ready once items are complete."}
+              </div>
+            </div>
+            {isLocked ? (
+              <div className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm md:text-xs ${appearance === "light" ? "bg-slate-950 text-white ring-0" : "bg-transparent text-green-300 ring-1 ring-green-400/20 md:bg-slate-950 md:text-white md:ring-0"}`}>
+                <LockKeyhole className="h-3.5 w-3.5" />
+                Handoff ready
+              </div>
+            ) : (
+              <button
+                type="button"
+                data-tourbar-order-cta={hasPendingItems ? "review-choices" : "checkout"}
+                data-tourbar-order-checkout={!hasPendingItems && items.length ? "true" : undefined}
+                data-tourbar-order-review-choices={hasPendingItems ? "true" : undefined}
+                data-tourbar-checkout-button="true"
+                onClick={() => {
+                  if (hasPendingItems) {
+                    const pending = pendingItems[0];
+                    if (pending) openLineActionPanel("required", pending);
+                    return;
+                  }
+                  runCheckoutAction();
+                }}
+                disabled={!items.length}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45 md:text-xs ${
+                  checkoutButtonClass(
+                    hasPendingItems ? "blocked" : hasCannotMatchItems ? "matched" : "checkout",
+                    appearance,
+                  )
+                }`}
+              >
+                {hasPendingItems ? "Choose required" : hasCannotMatchItems ? "Checkout matched" : "Checkout"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

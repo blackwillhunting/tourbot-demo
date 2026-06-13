@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, SendHorizonal, Sparkles, X } from "lucide-react";
+import { Compass, SendHorizonal, X } from "lucide-react";
 import SmartBarDemoToolbarFrame, {
   type SmartBarDemoToolbarPlacement,
   type SmartBarDemoToolbarSurface,
@@ -11,6 +11,7 @@ import {
   type SmartBarFakePointerState,
 } from "./SmartBarFakePointer";
 
+// SmartBar Fits Anywhere preview uses the compass icon and dark blue SmartBar chrome.
 type AnimationStage = {
   surface: SmartBarDemoToolbarSurface;
   placement: SmartBarDemoToolbarPlacement;
@@ -52,13 +53,13 @@ function SmartBarLauncherButton() {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.16, ease: "easeOut" }}
-      className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-sm ring-1 ring-slate-950/10"
+      className="group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-[#17227c] text-white shadow-[0_18px_40px_rgba(23,34,124,0.24),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-white/15"
       aria-label="SmartBar launcher preview"
       title="SmartBar launcher preview"
       data-smartbar-fits-launcher="true"
     >
       <span className="pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse">
-        <Sparkles className="h-4 w-4" />
+        <Compass className="h-4 w-4" />
       </span>
     </motion.button>
   );
@@ -78,25 +79,25 @@ function SmartBarOpenBar({ placement }: { placement: SmartBarDemoToolbarPlacemen
       className={`absolute ${opensRight ? "left-0" : "right-0"} top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]`}
     >
       <div className="relative">
-        <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl">
+        <div className="overflow-hidden rounded-[22px] border border-white/25 bg-[linear-gradient(180deg,rgba(29,43,145,0.98),rgba(23,34,124,0.96))] text-white shadow-[0_24px_62px_rgba(23,34,124,0.28),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-white/15 backdrop-blur-xl">
           <div className="flex items-end gap-2 px-2.5 py-2">
-            <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white">
-              <Search className="h-4 w-4" />
+            <span className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.22)]">
+              <Compass className="h-4 w-4" />
             </span>
-            <div className="max-h-32 min-h-8 flex-1 overflow-hidden bg-transparent py-1 text-sm font-medium leading-6 text-slate-400">
+            <div className="max-h-32 min-h-8 flex-1 overflow-hidden bg-transparent py-1 text-sm font-extrabold leading-6 text-white/72">
               Ask SmartBar in plain English...
             </div>
             <button
               type="button"
               disabled
-              className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white opacity-45"
+              className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16 text-white opacity-55 shadow-[inset_0_1px_1px_rgba(255,255,255,0.22)]"
               aria-label="Submit SmartBar preview query"
             >
               <SendHorizonal className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500"
+              className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/70"
               aria-label="Close SmartBar preview"
             >
               <X className="h-4 w-4" />

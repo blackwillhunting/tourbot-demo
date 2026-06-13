@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
@@ -654,6 +655,114 @@ const BURGERRUSH_ONLY_PRELUDE_SLIPS: PreludeSlip[] = [
   // },
 ];
 
+const FOOD_TRIO_DESKTOP_PRELUDE_SLIPS: PreludeSlip[] = [
+  {
+    title: "SmartBar",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1300,
+  },
+  {
+    title: "A search bar",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "That builds carts.",
+    cascadeGroup: "foodtrio-stage-0",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Like having Alexa.",
+    cascadeGroup: "foodtrio-stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1400,
+  },
+  {
+    title: "On any site.",
+    cascadeGroup: "foodtrio-stage-1",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1800,
+    clearCascade: true,
+  },
+  {
+    title: "It fits anywhere.",
+    cascadeGroup: "foodtrio-stage-11",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2800,
+    clearCascade: true,
+  },
+];
+
+const FOOD_TRIO_DESKTOP_POST_FITS_SLIPS: PreludeSlip[] = [
+  {
+    title: "Works the same everywhere.",
+    cascadeGroup: "foodtrio-stage-12",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2800,
+    clearCascade: true,
+  },
+];
+
+const FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS: PreludeSlip[] = [
+  {
+    title: "Type order.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Get cart.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Tap colors,",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 900,
+  },
+  {
+    title: "Checkout.",
+    cascadeGroup: "foodtrio-stage-13",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1700,
+    clearCascade: true,
+  },
+  {
+    title: "Same idea.",
+    cascadeGroup: "foodtrio-stage-14",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 1100,
+  },
+  {
+    title: "Now on real menus.",
+    cascadeGroup: "foodtrio-stage-14",
+    cascadeMode: "standard",
+    density: "normal",
+    holdMs: 2200,
+    clearCascade: true,
+  },
+];
+
+
+
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
@@ -759,10 +868,12 @@ export default function LaunchSelectorTourBar({
   const [activePreludeStackMode, setActivePreludeStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
   const [preludeStackCards, setPreludeStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
   const [fitsAnimationVisible, setFitsAnimationVisible] = useState(false);
+  const [foodTrioIntroAnimationVisible, setFoodTrioIntroAnimationVisible] = useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
   const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
+  const foodTrioIntroCompleteResolverRef = useRef<(() => void) | null>(null);
   const isNexaPathMobilePlayground = currentTourBotDemoPath() === "/nexapath-play";
   const isDomiMobilePlayground = currentTourBotDemoPath() === "/domi-play";
 
@@ -790,6 +901,7 @@ export default function LaunchSelectorTourBar({
       setDemoAutoPlay(false);
       setLaunchVisible(false);
       setIsChecking(false);
+      setFoodTrioIntroAnimationVisible(false);
 
       const hasMobileGeneralTestShortcut =
         variant === "full" && (persistSmartBarMobileGeneralShortcut() || hasSmartBarMobileGeneralShortcut());
@@ -830,7 +942,12 @@ export default function LaunchSelectorTourBar({
 
       cleanupResetAccessUrl();
       let activeCascadeGroup: string | null = null;
-      const activePreludeSlips = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_PRELUDE_SLIPS : PRELUDE_SLIPS;
+      const activePreludeSlips =
+        variant === "burgerRushOnly"
+          ? BURGERRUSH_ONLY_PRELUDE_SLIPS
+          : variant === "foodTrioDesktop"
+            ? FOOD_TRIO_DESKTOP_PRELUDE_SLIPS
+            : PRELUDE_SLIPS;
 
       for (let index = 0; index < activePreludeSlips.length; index += 1) {
         const slip = activePreludeSlips[index];
@@ -912,11 +1029,92 @@ export default function LaunchSelectorTourBar({
       await wait(FITS_ANYWHERE_ANIMATION_MS);
       if (runIdRef.current !== runId) return;
 
+      setFitsAnimationVisible(false);
+
+      if (currentTourBotDemoPath() === "/food-trio-desktop") {
+        const postFitsNotice = FOOD_TRIO_DESKTOP_POST_FITS_SLIPS[0];
+
+        setPreludeStackCards([
+          {
+            id: "foodtrio-post-fits-0",
+            variant: "prelude",
+            title: postFitsNotice.title,
+            detail: postFitsNotice.detail,
+            density: postFitsNotice.density || "normal",
+          },
+        ]);
+
+        await wait(postFitsNotice.holdMs ?? DEFAULT_PRELUDE_HOLD_MS);
+        if (runIdRef.current !== runId) return;
+
+        setPreludeStackCards([]);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
+
+        setFoodTrioIntroAnimationVisible(true);
+        await new Promise<void>((resolve) => {
+          let resolved = false;
+          const finishIntro = () => {
+            if (resolved) return;
+            resolved = true;
+            window.clearTimeout(timeoutId);
+            foodTrioIntroCompleteResolverRef.current = null;
+            resolve();
+          };
+          const timeoutId = window.setTimeout(finishIntro, FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS);
+          foodTrioIntroCompleteResolverRef.current = finishIntro;
+        });
+        if (runIdRef.current !== runId) return;
+
+        setFoodTrioIntroAnimationVisible(false);
+        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+        if (runIdRef.current !== runId) return;
+
+        let foodTrioPostIntroCascadeGroup: string | null = null;
+        for (let index = 0; index < FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS.length; index += 1) {
+          const slip = FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS[index];
+          const mode = slip.cascadeMode || "standard";
+
+          if (foodTrioPostIntroCascadeGroup && foodTrioPostIntroCascadeGroup !== slip.cascadeGroup) {
+            setPreludeStackCards([]);
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+
+          if (foodTrioPostIntroCascadeGroup !== slip.cascadeGroup) {
+            setActiveNoticeLaneState(null);
+            setPreludeStackCards([]);
+            setActivePreludeStackMode(mode);
+            foodTrioPostIntroCascadeGroup = slip.cascadeGroup || null;
+          }
+
+          setPreludeStackCards((items) => [
+            ...items,
+            {
+              id: `${slip.cascadeGroup || "foodtrio-post-intro"}-${index}`,
+              variant: "prelude",
+              title: slip.title,
+              detail: slip.detail,
+              density: slip.density || "normal",
+            },
+          ]);
+
+          await wait(slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS);
+          if (runIdRef.current !== runId) return;
+
+          if (slip.clearCascade) {
+            setPreludeStackCards([]);
+            foodTrioPostIntroCascadeGroup = null;
+            await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+            if (runIdRef.current !== runId) return;
+          }
+        }
+      }
+
       setDemoVisible(true);
       await wait(DEMO_HANDOFF_SETTLE_MS);
       if (runIdRef.current !== runId) return;
 
-      setFitsAnimationVisible(false);
       setDemoAutoPlay(true);
     },
     [clearNoticeLanes, getNextNoticeLane, setActiveNoticeLaneState, variant],
@@ -1062,6 +1260,15 @@ export default function LaunchSelectorTourBar({
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
       <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
+      <AnimatePresence>
+        {foodTrioIntroAnimationVisible ? (
+          <FoodTrioDesktopIntroAnimation
+            onComplete={() => {
+              foodTrioIntroCompleteResolverRef.current?.();
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

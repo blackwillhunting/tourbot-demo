@@ -51,6 +51,14 @@ export type SmartBarSpeedCommand =
       offsetY?: number;
     }
   | {
+      kind: "checkoutThinkingOverlay";
+      targetSelector: string;
+      message?: string;
+      durationMs?: number;
+      clickAfter?: boolean;
+      delayMs?: number;
+    }
+  | {
       kind: "focusTarget";
       targetId: string;
       label?: string;
@@ -307,7 +315,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -407,7 +415,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 900,
         aimMs: 900,
@@ -535,7 +543,7 @@ export const SMARTBAR_SPEED_STEPS: SmartBarSpeedStep[] = [
         pulseMs: 820,
       },
       { kind: "shell", type: "runNextMove", delayMs: 350, settleMs: 2600 },
-      { kind: "pause", delayMs: 1700 },
+      { kind: "pause", delayMs: 3600 },
     ],
   },
 {
@@ -1136,7 +1144,7 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -1236,7 +1244,7 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 2200 },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 900,
         aimMs: 900,
@@ -1321,7 +1329,7 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 1150 },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 300,
         pulseMs: 820,
@@ -1401,7 +1409,7 @@ export const SMARTBAR_BURGERRUSH_ONLY_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 4300 },
       {
         kind: "pointerClick",
-        targetSelector: '[data-tourbar-order-cta="checkout"]',
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"]',
         label: "",
         delayMs: 250,
         pulseMs: 820,
@@ -1928,79 +1936,512 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
 ];
 
 
+// FoodTrio desktop choreography is sheet-first: prompt -> submit -> ThinkingText -> sheet drops.
+// Page navigation/spotlight happens only after a red/yellow/gray item tile is selected.
+//
+// FOODTRIO_DESKTOP_CARD_EDITOR_COPY_BLOCK
+// -----------------------------------------------------------------------------
+// EDIT FOODTRIO DESKTOP SLIDE-CARD COPY HERE.
+// Keep each card group short and punchy. The timeline below only references these
+// names, so copy changes do not require digging through pointer/tap choreography.
+// -----------------------------------------------------------------------------
+const FOOD_TRIO_DESKTOP_CARD_COPY = {
+  // FOODTRIO_COFFEE_FIRST_PASS_DETAIL_STORY:
+  // Coffee now proves first-pass detail capture, not omission correction.
+  coffeeIntro: ["Coffee", "Small order", "Lots of detail"],
+  coffeeCart: ["Details captured", "Ready to review"],
+  coffeeLatteReview: ["Details picked up", "Looks good", "No change"],
+  coffeeMatchaReview: ["Also spot on"],
+  coffeeColdBrewExtra: ["Let's add something"],
+
+  // FOODTRIO_FAST_FOOD_GREEN_FOCUS_STORY:
+  // Fast food now proves messy shorthand becomes a mostly-ready green cart.
+  fastFoodIntro: ["Fast food", "Messy shorthand", "Mostly ready"],
+
+  casualDiningIntro: ["Casual dining.", "Full meal.", "Full range."],
+  // FOODTRIO_CASUAL_CLEAN_BEAT_STORY:
+  // Casual Dining proves red required choices, green editability, and yellow captured extras.
+  casualMadeiraReview: ["Green is ready", "But can be changed"],
+  casualCheesecakeReview: ["Got my extra cream?", "Good!"],
+
+  finaleProof: ["One bar.", "Any menu.", "Any order."],
+  finaleClose: ["Words in.", "Cart out.", "Checkout."],
+} satisfies Record<string, SmartBarSpeedCardItem[]>;
+
+const FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE = {
+  // FOODTRIO_DESKTOP_CARD_CINEMATIC_CADENCE:
+  // Keep desktop lesson cards slow enough to read. Newer coffee cards were
+  // entering too quickly; these minimums make each card land with a digestion pause.
+  cascadeGapMs: 1000,
+  finalHoldMs: 1800,
+} as const;
+
+const foodTrioDesktopCardBeat = (
+  cards: SmartBarSpeedCardItem[],
+  holdMs: number = FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE.cascadeGapMs,
+  finalHoldMs: number = FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE.finalHoldMs,
+): Extract<SmartBarSpeedCommand, { kind: "cards" }> => ({
+  kind: "cards",
+  mode: "standard",
+  density: "normal",
+  holdMs: Math.max(holdMs, FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE.cascadeGapMs),
+  finalHoldMs: Math.max(finalHoldMs, FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE.finalHoldMs),
+  cards,
+});
+
 export const SMARTBAR_FOOD_TRIO_DESKTOP_STEPS: SmartBarSpeedStep[] = [
   {
     id: "food-trio-desktop-open",
     chapter: "FoodTrio",
-    label: "Open FoodTrio",
-    helper: "Desktop restaurant trio foundation.",
+    label: "Open FoodTrio SmartBar",
+    helper: "Open immediately so the coffee prompt starts without a dead hold.",
     surface: "ordering",
     commands: [
+      // FoodTrio desktop choreo step 2: no opening card stack here.
+      // The launch/prelude already introduced the demo; when the food page loads,
+      // the real SmartBar should open and the coffee prompt should begin quickly.
+      { kind: "shell", type: "closeAll", delayMs: 40 },
+      // FoodTrio desktop checkout/start mechanics: show the pointer opening SmartBar.
       {
-        kind: "cards",
-        cards: [
-          "FoodTrio Desktop",
-          "Fast food proves speed",
-          "Coffee proves detail",
-          "Casual dining proves range",
-        ],
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-launcher-hotspot="true"]',
+        label: "",
+        click: true,
+        delayMs: 80,
+        aimMs: 650,
+        pulseMs: 820,
       },
-      { kind: "pause", delayMs: 900 },
-    ],
-  },
-  {
-    id: "food-trio-desktop-fast-food",
-    chapter: "Fast food",
-    label: "Speed",
-    helper: "Big messy order becomes a clean cart.",
-    surface: "ordering",
-    commands: [
-      {
-        kind: "cards",
-        cards: [
-          "Fast food",
-          "Big messy order in",
-          "Clean cart out",
-        ],
-      },
-      { kind: "pause", delayMs: 900 },
+      { kind: "pause", delayMs: 260 },
+      { kind: "shell", type: "open", delayMs: 40, settleMs: 220 },
     ],
   },
   {
     id: "food-trio-desktop-coffee",
     chapter: "Coffee",
     label: "Detail",
-    helper: "Many small modifiers are preserved.",
+    helper: "A few items, lots of modifiers.",
     surface: "ordering",
     commands: [
+      // FoodTrio desktop per-order checkout fix: start with a visible SmartBar launcher click.
       {
-        kind: "cards",
-        cards: [
-          "Coffee",
-          "Small order",
-          "Many modifiers",
-          "Nothing gets lost",
-        ],
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-launcher-hotspot="true"]',
+        label: "",
+        click: true,
+        delayMs: 80,
+        aimMs: 520,
+        pulseMs: 720,
       },
-      { kind: "pause", delayMs: 900 },
+      { kind: "shell", type: "open", delayMs: 160 },
+      { kind: "pause", delayMs: 180 },
+      // Coffee slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.coffeeIntro.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.coffeeIntro, 700, 950),
+      {
+        kind: "typePrimary",
+        value: "Three drinks: iced vanilla latte with oat milk, half sweet, light ice, and extra shot; matcha latte with almond milk, no foam, and light ice; cold brew black with vanilla cold foam.",
+        delayMs: 80,
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-primary-submit="true"]',
+        label: "",
+        delayMs: 240,
+        pulseMs: 820,
+      },
+      { kind: "submitPrimary", delayMs: 650 },
+      { kind: "pause", delayMs: 1350 },
+      // Coffee slide card C08: first-pass details are already captured.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.coffeeCart, 750, 1050),
+
+      // FoodTrio desktop selection-state fix: coffee has yellow optional-tile choreography too.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="coffee-iced-vanilla-latte"]',
+        label: "",
+        click: true,
+        delayMs: 140,
+        aimMs: 640,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 300 },
+      // Coffee slide card C12A: all requested latte details were captured on first pass.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.coffeeLatteReview, 700, 950),
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 100,
+        aimMs: 460,
+        pulseMs: 560,
+      },
+      { kind: "pause", delayMs: 520 },
+      // FoodTrio desktop last-yellow fix: coffee has three yellow optional tiles.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="coffee-matcha-latte"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 620,
+        pulseMs: 720,
+      },
+      { kind: "pause", delayMs: 280 },
+      // Coffee slide card C18A: matcha details are also already right.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.coffeeMatchaReview, 650, 850),
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 90,
+        aimMs: 460,
+        pulseMs: 540,
+      },
+      { kind: "pause", delayMs: 520 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="coffee-cold-brew"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 620,
+        pulseMs: 720,
+      },
+      { kind: "pause", delayMs: 280 },
+      // Coffee slide card C24A: optional extras remain available after first-pass capture.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.coffeeColdBrewExtra, 650, 850),
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-panel="optional"] [data-tourbar-qualifier-option="extra-cold-foam"]',
+        label: "",
+        click: true,
+        delayMs: 100,
+        aimMs: 500,
+        pulseMs: 620,
+      },
+      { kind: "pause", delayMs: 360 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 90,
+        aimMs: 460,
+        pulseMs: 540,
+      },
+      { kind: "pause", delayMs: 420 },
+      // FoodTrio desktop rebuild: checkout is a recognized scripted fixture step,
+      // matching the working desktop demos instead of relying on live cart inference.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        label: "",
+        click: false,
+        delayMs: 160,
+        aimMs: 520,
+        pulseMs: 560,
+        anchorY: 0.68,
+      },
+      // FOODTRIO_ALL_CHECKOUTS_REAL_THINKING_LABEL_V1:
+      // The Checkout label thinks for 2250ms, then this command fires the real click.
+      {
+        kind: "checkoutThinkingOverlay",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        message: "Checkout",
+        durationMs: 2250,
+        clickAfter: true,
+      },
+      // FOODTRIO_CHECKOUT_HANDOFF_HOLD_FIX:
+      // Let the checkout handoff card fully drop/open before the next demo closes the sheet.
+      // Earlier timing closed the sheet while the handoff was still animating.
+      { kind: "pause", delayMs: 3300 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 650 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-fast-food",
+    chapter: "Fast food",
+    label: "Speed",
+    helper: "Messy group order with typos.",
+    surface: "ordering",
+    commands: [
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 650 },
+      // Fast-food slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.fastFoodIntro.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.fastFoodIntro, 950, 1400),
+      {
+        kind: "typePrimary",
+        value: "2 chick mals, 1 spicy, both diet coke, 6 kids nug bbq sauce, extra sauces, crunch wrap",
+        delayMs: 240,
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-primary-submit="true"]',
+        label: "",
+        delayMs: 240,
+        pulseMs: 820,
+      },
+      { kind: "submitPrimary", delayMs: 650 },
+      { kind: "pause", delayMs: 1400 },
+
+      // FOODTRIO_FAST_FOOD_GREEN_FOCUS_STORY:
+      // Old red meal/kids/drink correction sequence removed.
+      // Fast Food now focuses on SmartBar making the messy shorthand mostly green,
+      // with only optional sauces and the gray retry remaining.
+      // Yellow: optional extras are reviewed and selected.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="fast-sauces"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 650,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 240 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-panel="optional"] [data-tourbar-qualifier-option="ranch"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 520,
+        pulseMs: 620,
+      },
+      { kind: "pause", delayMs: 360 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-panel="optional"] [data-tourbar-qualifier-option="buffalo"]',
+        label: "",
+        click: true,
+        delayMs: 80,
+        aimMs: 500,
+        pulseMs: 620,
+      },
+      { kind: "pause", delayMs: 420 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 100,
+        aimMs: 460,
+        pulseMs: 560,
+      },
+      { kind: "pause", delayMs: 720 },
+
+      // Gray: unmatched phrase is retried and becomes a matched cart line.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-state="unrecognized"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 650,
+        pulseMs: 820,
+      },
+      { kind: "pause", delayMs: 260 },
+      {
+        kind: "typeInput",
+        targetSelector: '[data-tourbar-cart-retry-input="true"]',
+        value: "Crispy chicken wrap",
+        clearFirst: true,
+        delayMs: 120,
+      },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-retry-submit="true"]',
+        label: "",
+        click: true,
+        delayMs: 160,
+        aimMs: 520,
+        pulseMs: 680,
+      },
+      { kind: "pause", delayMs: 520 },
+      // FoodTrio desktop rebuild: checkout is a recognized scripted fixture step,
+      // then the sheet closes before the next order starts fresh.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        label: "",
+        click: false,
+        delayMs: 160,
+        aimMs: 520,
+        pulseMs: 560,
+        anchorY: 0.68,
+      },
+      // FOODTRIO_ALL_CHECKOUTS_REAL_THINKING_LABEL_V1:
+      // The Checkout label thinks for 2250ms, then this command fires the real click.
+      {
+        kind: "checkoutThinkingOverlay",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        message: "Checkout",
+        durationMs: 2250,
+        clickAfter: true,
+      },
+      // FOODTRIO_CHECKOUT_HANDOFF_HOLD_FIX:
+      // Let the checkout handoff card fully drop/open before the next demo closes the sheet.
+      // Earlier timing closed the sheet while the handoff was still animating.
+      { kind: "pause", delayMs: 3300 },
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 650 },
     ],
   },
   {
     id: "food-trio-desktop-casual-dining",
     chapter: "Casual dining",
     label: "Range",
-    helper: "Courses, sides, drinks, and dessert organized cleanly.",
+    helper: "Full meal, full range.",
     surface: "ordering",
     commands: [
+      { kind: "shell", type: "closeSheet", delayMs: 120, settleMs: 650 },
+      // Casual-dining slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.casualDiningIntro.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.casualDiningIntro, 950, 1400),
       {
-        kind: "cards",
-        cards: [
-          "Casual dining",
-          "Apps, entrees, sides, dessert, drinks",
-          "Organized checkout",
-        ],
+        kind: "typePrimary",
+        value: "Start with avocado eggrolls, two dinner salads, Chicken Madeira with mashed potatoes, Herb-Crusted Salmon, and one Original Cheesecake with whipped cream — add extra whipped cream if available.",
+        delayMs: 240,
       },
-      { kind: "pause", delayMs: 900 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-smartbar-primary-submit="true"]',
+        label: "",
+        delayMs: 240,
+        pulseMs: 820,
+      },
+      { kind: "submitPrimary", delayMs: 650 },
+      { kind: "pause", delayMs: 1350 },
+
+      // FoodTrio desktop selection-state fix: casual dining resolves one red and one yellow tile.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="casual-salmon"]',
+        label: "",
+        click: true,
+        delayMs: 140,
+        aimMs: 650,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 240 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-panel="required"] [data-tourbar-qualifier-option="asparagus"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 520,
+        pulseMs: 640,
+      },
+      { kind: "pause", delayMs: 780 },
+      // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+      // Reopen a green/ready Madeira tile to prove ready items can still be changed.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="casual-madeira"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 650,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 260 },
+      // FOODTRIO_CASUAL_CLEAN_BEAT_STORY D13B:
+      // Madeira is green/ready, but ready items can still be changed.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.casualMadeiraReview, 900, 1500),
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-panel="optional"] [data-tourbar-qualifier-option="side-salad"]',
+        label: "",
+        click: true,
+        delayMs: 100,
+        aimMs: 500,
+        pulseMs: 620,
+      },
+      { kind: "pause", delayMs: 360 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 90,
+        aimMs: 460,
+        pulseMs: 540,
+      },
+      { kind: "pause", delayMs: 520 },
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-line-key="casual-cheesecake"]',
+        label: "",
+        click: true,
+        delayMs: 120,
+        aimMs: 650,
+        pulseMs: 760,
+      },
+      { kind: "pause", delayMs: 300 },
+      // FOODTRIO_CASUAL_CLEAN_BEAT_STORY D20A:
+      // Extra whipped cream was already captured from the prompt.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.casualCheesecakeReview, 900, 1500),
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-cart-action-close="optional"]',
+        label: "",
+        click: true,
+        delayMs: 100,
+        aimMs: 460,
+        pulseMs: 560,
+      },
+      { kind: "pause", delayMs: 950 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-checkout",
+    chapter: "Checkout",
+    label: "Checkout handoff",
+    helper: "Finish the last FoodTrio order before the finale.",
+    surface: "ordering",
+    commands: [
+      // FOODTRIO_CHECKOUT_THEN_FINALE_TEARDOWN:
+      // Checkout handoff is its own beat. Let the handoff card fully drop,
+      // then close the sheet before the finale surface/cards begin.
+      {
+        kind: "pointerClick",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        label: "",
+        click: false,
+        delayMs: 160,
+        aimMs: 520,
+        pulseMs: 560,
+        anchorY: 0.68,
+      },
+      // FOODTRIO_ALL_CHECKOUTS_REAL_THINKING_LABEL_V1:
+      // Same label treatment as Coffee/Fast Food: Checkout thinks, then clicks.
+      {
+        kind: "checkoutThinkingOverlay",
+        targetSelector: '[data-tourbar-order-checkout="true"], [data-tourbar-order-cta="checkout"], [data-tourbar-checkout-button="true"]',
+        message: "Checkout",
+        durationMs: 2250,
+        clickAfter: true,
+      },
+      // FoodTrio desktop rebuild: checkout is clicked by the overlay command and routed through the recognized fixture nextMove.
+      { kind: "pause", delayMs: 3200 },
+      { kind: "shell", type: "closeSheet", delayMs: 80, settleMs: 760 },
+      { kind: "pause", delayMs: 450 },
+    ],
+  },
+  {
+    id: "food-trio-desktop-finale",
+    chapter: "Finale",
+    label: "One bar",
+    helper: "Words in. Cart out.",
+    surface: "finale",
+    commands: [
+      // FOODTRIO_CHECKOUT_THEN_FINALE_TEARDOWN:
+      // The previous step has closed the handoff sheet. Advancing to this
+      // finale surface tears down the FoodTrio target wall before cards run.
+      { kind: "pause", delayMs: 450 },
+      // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleProof.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleProof, 900, 1300),
+      // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleClose.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleClose, 900, 1500),
     ],
   },
 ];

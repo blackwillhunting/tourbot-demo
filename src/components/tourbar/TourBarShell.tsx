@@ -23,6 +23,7 @@ import TourBarConsultantChat, {
 import { getSmartBarMobileShellStyles } from "./smartbar-mobile/smartBarMobileStyles";
 import {
   ArrowRight,
+  Compass,
   Loader2,
   MessageSquare,
   Search,
@@ -137,6 +138,8 @@ export type TourBarShellDemoCommand = {
 };
 
 export type TourBarShellAppearance = "auto" | "light" | "dark";
+export type TourBarShellSheetRevealMode = "native" | "composerClip";
+export type TourBarShellChromeVariant = "default" | "blueCoreGlass";
 
 export type TourBarShellProps = {
   primaryPlaceholder?: string;
@@ -149,6 +152,9 @@ export type TourBarShellProps = {
   requireBookingContext?: boolean;
   appearance?: TourBarShellAppearance;
   smartBarMobileChrome?: boolean;
+  desktopCompassChrome?: boolean;
+  sheetRevealMode?: TourBarShellSheetRevealMode;
+  chromeVariant?: TourBarShellChromeVariant;
   consultantChat?: TourBarConsultantChatConfig;
   demoCommand?: TourBarShellDemoCommand | null;
   onPrimarySubmit: (query: string, context: TourBarShellTurnContext) => Promise<TourBarShellResult>;
@@ -473,6 +479,9 @@ export default function TourBarShell({
   requireBookingContext = false,
   appearance = "dark",
   smartBarMobileChrome = false,
+  desktopCompassChrome = false,
+  sheetRevealMode = "native",
+  chromeVariant = "default",
   consultantChat,
   demoCommand,
   onPrimarySubmit,
@@ -592,7 +601,8 @@ export default function TourBarShell({
   };
 
   const waitForResultReveal = async (tourBarResult: TourBarShellResult, turnKind: TourBarShellTurnKind) => {
-    if (!isPhoneShellViewport || !beforeResultReveal) return;
+    const shouldRunResultReveal = isPhoneShellViewport || desktopCompassChrome;
+    if (!shouldRunResultReveal || !beforeResultReveal) return;
 
     try {
       await beforeResultReveal(tourBarResult, turnKind);
@@ -764,7 +774,12 @@ export default function TourBarShell({
 
     setBookingContextReturnResult(null);
     setIsOpen(true);
-    setQuery(isPhoneShellViewport ? "" : cleanQuery);
+    // Phone and official blue/glass desktop both keep the primary composer as the
+    // continuing input surface, so clear it after submission instead of leaving
+    // the submitted prompt parked in the box.
+    const shouldClearPrimaryComposerOnSubmit =
+      isPhoneShellViewport || chromeVariant === "blueCoreGlass" || desktopCompassChrome;
+    setQuery(shouldClearPrimaryComposerOnSubmit ? "" : cleanQuery);
     setFollowUp("");
     collapseMobileComposer();
 
@@ -1266,7 +1281,7 @@ export default function TourBarShell({
     result?.body && isPhoneShellViewport
       ? compactMobileResultText(result.body)
       : result?.body || "";
-  const shouldShowResultBody = Boolean(resultBodyForDisplay) && !useMobileActionResult;
+  const shouldShowResultBody = Boolean(resultBodyForDisplay) && !useMobileActionResult && !(!isPhoneShellViewport && (chromeVariant === "blueCoreGlass" || desktopCompassChrome));
   const mobileFooterMode: TourBarMobileFooterMode | null = isPhoneShellViewport
     ? consultantChatVisible
       ? "chat"
@@ -1321,12 +1336,18 @@ export default function TourBarShell({
       ? "min(82svh, 640px)"
       : "min(78svh, 680px)";
   const mobileSheetInnerMaxHeight = `calc(${mobileSheetMaxHeight} - 56px)`;
+  // Desktop blue/glass sheets are anchored below the composer, so cap the whole
+  // dropdown assembly against the remaining visual space, not just the cart list.
+  // The list/accounting blocks inside OrderReview then scroll within this outer guard.
+  const desktopBlueCoreGlassSheetMaxHeight = "min(85dvh, calc(100dvh - 8.5rem))";
 
   const resolvedAppearance = resolveTourBarShellAppearance(appearance, isPhoneShellViewport);
   const isLightShell = resolvedAppearance === "light";
   const mobileGlassChrome = isPhoneShellViewport && smartBarMobileChrome;
   const mobileVisualAppearance: TourBarShellAppearance = mobileGlassChrome ? "dark" : resolvedAppearance;
   const mobileShellStyles = getSmartBarMobileShellStyles(true, false);
+  const desktopBlueCoreGlass = !isPhoneShellViewport && (chromeVariant === "blueCoreGlass" || desktopCompassChrome);
+  const desktopUsesCompass = !isPhoneShellViewport && (desktopCompassChrome || desktopBlueCoreGlass);
 
   const shellRootClass = isPhoneShellViewport
     ? mobileGlassChrome
@@ -1340,7 +1361,9 @@ export default function TourBarShell({
       : isLightShell
         ? "fixed inset-x-0 bottom-0 top-auto z-[10060] min-h-[76px] w-auto overflow-visible border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-18px_42px_rgba(15,23,42,0.16)] backdrop-blur-xl"
         : "fixed inset-x-0 bottom-0 top-auto z-[10060] min-h-[76px] w-auto overflow-visible bg-slate-950 text-white shadow-[0_-18px_42px_rgba(2,6,23,0.38)]"
-    : "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]";
+    : desktopBlueCoreGlass
+      ? "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 text-white sm:w-[430px] md:w-[470px]"
+      : "absolute right-0 top-1/2 w-[calc(100vw-2rem)] -translate-y-1/2 sm:w-[430px] md:w-[470px]";
 
   const shellSheetAnchorClass = isPhoneShellViewport
     ? mobileGlassChrome
@@ -1354,31 +1377,44 @@ export default function TourBarShell({
       : isLightShell
         ? "max-h-[78svh] min-h-0 overflow-hidden border border-slate-200/80 bg-white/96 p-2 text-slate-950 shadow-[0_28px_76px_rgba(15,23,42,0.18)] ring-1 ring-white/90 backdrop-blur-xl"
         : "max-h-[78svh] min-h-0 overflow-hidden bg-slate-950 p-2 text-white shadow-[0_28px_76px_rgba(2,6,23,0.50)]"
-    : "max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl";
+    : desktopBlueCoreGlass
+      ? "max-h-[min(85dvh,calc(100dvh-8.5rem))] min-h-0 overflow-hidden rounded-b-[24px] rounded-t-[14px] border border-white/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(226,238,246,0.74))] text-slate-950 shadow-[0_28px_76px_rgba(23,34,124,0.22),inset_0_1px_1px_rgba(255,255,255,0.72)] ring-1 ring-white/70 backdrop-blur-xl"
+      : "max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-b-[24px] rounded-t-[14px] border border-slate-200 bg-white/96 shadow-2xl shadow-slate-950/16 ring-1 ring-white/70 backdrop-blur-xl";
 
   const shellSheetMaxHeightStyle = isPhoneShellViewport
     ? { maxHeight: mobileSheetMaxHeight }
-    : undefined;
+    : desktopBlueCoreGlass
+      ? { maxHeight: desktopBlueCoreGlassSheetMaxHeight }
+      : undefined;
 
   const shellSheetInnerMaxHeightStyle = isPhoneShellViewport
     ? { maxHeight: mobileSheetInnerMaxHeight }
-    : undefined;
+    : desktopBlueCoreGlass
+      ? { maxHeight: desktopBlueCoreGlassSheetMaxHeight }
+      : undefined;
 
   const shellSheetFrameClass = isPhoneShellViewport
     ? "grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
-    : undefined;
+    : desktopBlueCoreGlass
+      ? "grid max-h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+      : undefined;
 
   const shellSheetBodyClass = isPhoneShellViewport
     ? mobileGlassChrome
       ? "min-h-0 space-y-2 overflow-y-auto overscroll-contain px-2 pb-3 pt-1"
       : "min-h-0 space-y-2 overflow-y-auto overscroll-contain p-2 pb-3"
-    : "space-y-3 px-4 py-3";
+    : desktopBlueCoreGlass
+      ? "min-h-0 space-y-2 overflow-hidden px-4 pb-3 pt-2"
+      : "space-y-3 px-4 py-3";
 
-  const shellSheetFooterClass = isLightShell
-    ? "shrink-0 border-t border-slate-200 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.10)]"
-    : "shrink-0 border-t border-slate-800 bg-slate-950 px-3 py-2 shadow-[0_-12px_28px_rgba(2,6,23,0.32)]";
+  const shellSheetFooterClass = desktopBlueCoreGlass
+    ? "shrink-0 border-t border-white/40 bg-white/58 px-3 py-2 shadow-[0_-12px_28px_rgba(23,34,124,0.12)] backdrop-blur-xl"
+    : isLightShell
+      ? "shrink-0 border-t border-slate-200 bg-white/98 px-3 py-2 shadow-[0_-12px_28px_rgba(15,23,42,0.10)]"
+      : "shrink-0 border-t border-slate-800 bg-slate-950 px-3 py-2 shadow-[0_-12px_28px_rgba(2,6,23,0.32)]";
 
   const shellSheetInitialY = isPhoneShellViewport ? "100%" : "-100%";
+  const desktopSheetRevealMode = isPhoneShellViewport ? "native" : sheetRevealMode;
   const showMobileCollapsedComposer = isPhoneShellViewport && mobileComposerCollapsed;
 
   const submitPrimaryComposer = () => {
@@ -1398,7 +1434,7 @@ export default function TourBarShell({
 
   const followUpComposer =
     !isPhoneShellViewport && onFollowUpSubmit && activeFollowUpResult?.canFollowUp !== false ? (
-      <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+      <div className={desktopBlueCoreGlass ? "flex items-end gap-2 rounded-2xl border border-white/35 bg-white/58 px-3 py-2 shadow-[0_14px_34px_rgba(23,34,124,0.12)] ring-1 ring-white/55 backdrop-blur-xl" : "flex items-end gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm"}>
         <textarea
           ref={followUpRef}
           value={followUp}
@@ -1419,7 +1455,7 @@ export default function TourBarShell({
           data-smartbar-pointer-kind="submit"
           onClick={() => void submitFollowUp()}
           disabled={!canAskFollowUp}
-          className="mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"
+          className={desktopBlueCoreGlass ? "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#17227c] text-white shadow-[0_10px_24px_rgba(23,34,124,0.24)] transition hover:bg-[#1d2b91] disabled:cursor-not-allowed disabled:opacity-45" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"}
           aria-label="Ask TourBar follow-up"
         >
           {isAnswering ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
@@ -1433,6 +1469,8 @@ export default function TourBarShell({
       data-tourbar-appearance={resolvedAppearance}
       data-tourbar-viewport={isPhoneShellViewport ? "phone" : "desktop"}
       data-smartbar-mobile-footer-mode={mobileFooterMode || undefined}
+      data-smartbar-desktop-compass-chrome={desktopUsesCompass ? "true" : undefined}
+      data-smartbar-chrome-variant={desktopBlueCoreGlass ? "blueCoreGlass" : undefined}
       className={shellRootClass}
     >
       <AnimatePresence mode="wait">
@@ -1454,9 +1492,11 @@ export default function TourBarShell({
                   : isLightShell
                     ? "group absolute inset-0 flex items-center justify-center overflow-hidden border-t border-slate-200/80 bg-white/96 px-4 text-slate-600 shadow-[0_-16px_36px_rgba(15,23,42,0.14)] transition hover:bg-white hover:text-slate-950"
                     : "group absolute inset-0 flex items-center justify-center overflow-hidden bg-slate-950 px-4 text-white/70 shadow-[0_-16px_36px_rgba(2,6,23,0.34)] transition hover:bg-slate-900 hover:text-white/90"
-                : isLightShell
-                  ? "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-950/10 ring-1 ring-white transition hover:bg-slate-50 hover:text-slate-950"
-                  : "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
+                : desktopBlueCoreGlass
+                  ? "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-[#17227c] text-white shadow-[0_18px_40px_rgba(23,34,124,0.24),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-white/15 transition hover:bg-[#1d2b91]"
+                  : isLightShell
+                    ? "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-slate-700 shadow-md shadow-slate-950/10 ring-1 ring-white transition hover:bg-slate-50 hover:text-slate-950"
+                    : "group absolute inset-0 inline-flex items-center justify-center overflow-hidden rounded-full bg-slate-950 text-white shadow-md shadow-slate-950/20 ring-1 ring-slate-950/10 transition hover:bg-slate-800"
             }
             aria-label={launcherAriaLabel}
             title={launcherTitle}
@@ -1471,7 +1511,11 @@ export default function TourBarShell({
                   : "pointer-events-none inline-flex h-full w-full items-center justify-center rounded-full animate-pulse"
               }
             >
-              <Sparkles className={isPhoneShellViewport ? `h-4 w-4 animate-pulse ${mobileGlassChrome ? "text-white/88" : isLightShell ? "text-orange-500" : "text-white/75"}` : "h-4 w-4"} />
+              {desktopUsesCompass ? (
+                <Compass className="h-4 w-4" />
+              ) : (
+                <Sparkles className={isPhoneShellViewport ? `h-4 w-4 animate-pulse ${mobileGlassChrome ? "text-white/88" : isLightShell ? "text-orange-500" : "text-white/75"}` : "h-4 w-4"} />
+              )}
               {isPhoneShellViewport ? (
                 <span className={`text-[13px] font-black uppercase tracking-[0.14em] ${mobileGlassChrome ? mobileShellStyles.chromeLabelClass : isLightShell ? "text-slate-700" : "text-white/70"}`}>SmartBar</span>
               ) : null}
@@ -1532,10 +1576,10 @@ export default function TourBarShell({
                     key="tourbar-mobile-entry-composer"
                     initial={false}
                   >
-                    <div className={isPhoneShellViewport ? mobileGlassChrome ? `pointer-events-auto min-h-[76px] overflow-visible rounded-[30px] ${mobileShellStyles.upperGlassClass}` : `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
+                    <div className={isPhoneShellViewport ? mobileGlassChrome ? `pointer-events-auto min-h-[76px] overflow-visible rounded-[30px] ${mobileShellStyles.upperGlassClass}` : `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : desktopBlueCoreGlass ? "overflow-hidden rounded-[22px] border border-white/25 bg-[linear-gradient(180deg,rgba(29,43,145,0.98),rgba(23,34,124,0.96))] text-white shadow-[0_24px_62px_rgba(23,34,124,0.28),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-white/15 backdrop-blur-xl" : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
                   <div className={isPhoneShellViewport ? "flex min-h-[76px] items-start gap-2 px-3 pb-2 pt-3" : "flex items-end gap-2 px-3 py-2"}>
-                    <span className={isPhoneShellViewport ? mobileGlassChrome ? `mt-1 ${mobileShellStyles.chromeIconBubbleClass}` : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center ${isLightShell ? "text-orange-500" : "text-white/85"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
-                      <Search className="h-4 w-4" />
+                    <span className={isPhoneShellViewport ? mobileGlassChrome ? `mt-1 ${mobileShellStyles.chromeIconBubbleClass}` : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center ${isLightShell ? "text-orange-500" : "text-white/85"}` : desktopBlueCoreGlass ? "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.22)] ring-1 ring-white/18" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
+                      {desktopUsesCompass ? <Compass className="h-4 w-4" /> : <Search className="h-4 w-4" />}
                     </span>
                     <textarea
                       ref={queryRef}
@@ -1551,7 +1595,7 @@ export default function TourBarShell({
                       }}
                       placeholder={primaryComposerPlaceholder}
                       rows={isPhoneShellViewport ? 2 : 1}
-                      className={isPhoneShellViewport ? mobileGlassChrome ? `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-semibold leading-6 outline-none placeholder:text-white/38 md:text-sm ${mobileShellStyles.inputTextClass}` : `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-medium leading-6 outline-none md:text-sm ${isLightShell ? "text-slate-950 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}` : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"}
+                      className={isPhoneShellViewport ? mobileGlassChrome ? `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-semibold leading-6 outline-none placeholder:text-white/38 md:text-sm ${mobileShellStyles.inputTextClass}` : `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-medium leading-6 outline-none md:text-sm ${isLightShell ? "text-slate-950 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}` : desktopBlueCoreGlass ? "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-semibold leading-6 text-white/86 outline-none placeholder:text-white/38" : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"}
                     />
                     <button
                       type="button"
@@ -1560,7 +1604,7 @@ export default function TourBarShell({
                       data-smartbar-pointer-kind="submit"
                       onClick={submitPrimaryComposer}
                       disabled={!canSubmit}
-                      className={isPhoneShellViewport ? mobileGlassChrome ? "mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.18] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.26)] ring-1 ring-white/22 transition hover:bg-white/[0.24] disabled:cursor-not-allowed disabled:opacity-45" : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-45 ${isLightShell ? "text-slate-700 hover:text-slate-950" : "text-white hover:text-white/80"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"}
+                      className={isPhoneShellViewport ? mobileGlassChrome ? "mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.18] text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.26)] ring-1 ring-white/22 transition hover:bg-white/[0.24] disabled:cursor-not-allowed disabled:opacity-45" : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-45 ${isLightShell ? "text-slate-700 hover:text-slate-950" : "text-white hover:text-white/80"}` : desktopBlueCoreGlass ? "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.22)] ring-1 ring-white/18 transition hover:bg-white/22 disabled:cursor-not-allowed disabled:opacity-45" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45"}
                       aria-label={canUseMobilePrimaryFollowUp ? "Ask SmartBar follow-up" : "Submit SmartBar query"}
                     >
                       {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
@@ -1600,7 +1644,7 @@ export default function TourBarShell({
                           setIsOpen(false);
                         }
                       }}
-                      className={isPhoneShellViewport ? mobileGlassChrome ? "mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.10] text-white/58 ring-1 ring-white/14 transition hover:bg-white/[0.18] hover:text-white" : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition ${isLightShell ? "text-slate-400 hover:text-slate-900" : "text-white/50 hover:text-white"}` : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"}
+                      className={isPhoneShellViewport ? mobileGlassChrome ? "mt-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.10] text-white/58 ring-1 ring-white/14 transition hover:bg-white/[0.18] hover:text-white" : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center transition ${isLightShell ? "text-slate-400 hover:text-slate-900" : "text-white/50 hover:text-white"}` : desktopBlueCoreGlass ? "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/62 transition hover:bg-white/12 hover:text-white" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"}
                       aria-label="Close TourBar"
                     >
                       <X className="h-4 w-4" />
@@ -1616,6 +1660,7 @@ export default function TourBarShell({
                   <motion.div
                     key={regularSheetKey}
                     data-tourbar-sheet-panel="true"
+                    data-tourbar-sheet-reveal-mode={desktopSheetRevealMode}
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}
@@ -1636,7 +1681,7 @@ export default function TourBarShell({
                       )}
 
                       {isLoading && (
-                        <div className={isPhoneShellViewport ? mobileGlassChrome ? "px-4 py-4 text-[15px] font-semibold leading-6 text-white/84" : `px-4 py-4 text-[15px] font-semibold leading-6 ${isLightShell ? "text-slate-600" : "text-white/80"}` : "px-4 py-4 text-sm font-medium text-slate-600"}>
+                        <div className={isPhoneShellViewport ? mobileGlassChrome ? "px-4 py-4 text-[15px] font-semibold leading-6 text-white/84" : `px-4 py-4 text-[15px] font-semibold leading-6 ${isLightShell ? "text-slate-600" : "text-white/80"}` : desktopBlueCoreGlass ? "px-4 py-4 text-sm font-semibold text-slate-700" : "px-4 py-4 text-sm font-medium text-slate-600"}>
                           <ThinkingText body={loadingMessage} />
                         </div>
                       )}
@@ -1652,7 +1697,7 @@ export default function TourBarShell({
                           {isStandaloneSheet ? (
                             <>
                               {!isPhoneShellViewport && (
-                                <div className="shrink-0 border-b border-emerald-100 bg-emerald-50/90 px-4 py-3">
+                                <div className={desktopBlueCoreGlass ? "shrink-0 border-b border-white/45 bg-white/52 px-4 py-3 backdrop-blur-xl" : "shrink-0 border-b border-emerald-100 bg-emerald-50/90 px-4 py-3"}>
                                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700/70">
                                     Booking handoff
                                   </div>
@@ -1665,7 +1710,7 @@ export default function TourBarShell({
                               <div className={shellSheetBodyClass}>
                                 {standaloneSheet}
                                 {isPhoneShellViewport && mobileControls}
-                                {!isPhoneShellViewport && followUpComposer}
+                                {!isPhoneShellViewport && !desktopBlueCoreGlass && followUpComposer}
                               </div>
                               {isPhoneShellViewport && followUpComposer && (
                                 <div className={shellSheetFooterClass}>
@@ -1676,11 +1721,13 @@ export default function TourBarShell({
                           ) : (
                             <>
                               {!isPhoneShellViewport && (
-                                <div className="shrink-0 border-b border-slate-200 bg-slate-50/80 px-4 py-3">
+                                <div className={desktopBlueCoreGlass ? "shrink-0 px-4 pb-1.5 pt-3" : "shrink-0 border-b border-slate-200 bg-slate-50/80 px-4 py-3"}>
                                   <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
                                     {resultEyebrow}
                                   </div>
-                                  <div className="mt-1 text-sm font-semibold text-slate-950">{result!.title}</div>
+                                  {!desktopBlueCoreGlass && (
+                                    <div className="mt-1 text-sm font-semibold text-slate-950">{result!.title}</div>
+                                  )}
                                 </div>
                               )}
 
@@ -1719,19 +1766,19 @@ export default function TourBarShell({
                                       data-tourbar-nextmove-invitation={result!.invitation!.text}
                                       onClick={() => void runNextMove()}
                                       disabled={isLoading || isAnswering}
-                                      className="group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"
+                                      className={desktopBlueCoreGlass ? "group flex w-full items-center justify-between gap-3 rounded-2xl bg-[#17227c] px-3 py-2.5 text-left text-sm font-semibold leading-5 text-white shadow-[0_14px_34px_rgba(23,34,124,0.20)] ring-1 ring-white/25 transition hover:bg-[#1d2b91] disabled:cursor-not-allowed disabled:opacity-55" : "group flex w-full items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-55"}
                                     >
                                       <span>{result!.invitation!.text}</span>
-                                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5" />
+                                      <ArrowRight className={desktopBlueCoreGlass ? "h-4 w-4 shrink-0 text-white/78 transition group-hover:translate-x-0.5" : "h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5"} />
                                     </button>
                                   ) : (
-                                    <div className="rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80">
+                                    <div className={desktopBlueCoreGlass ? "rounded-2xl bg-white/58 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-white/55 backdrop-blur-xl" : "rounded-2xl bg-slate-50 px-3 py-2.5 text-sm font-semibold leading-5 text-slate-900 ring-1 ring-slate-200/80"}>
                                       {result!.invitation!.text}
                                     </div>
                                   )
                                 )}
 
-                                {!isPhoneShellViewport && followUpComposer}
+                                {!isPhoneShellViewport && !desktopBlueCoreGlass && followUpComposer}
                               </div>
                               {isPhoneShellViewport && followUpComposer && (
                                 <div className={shellSheetFooterClass}>
@@ -1752,6 +1799,7 @@ export default function TourBarShell({
                   <motion.div
                     key="consultant-chat-sheet"
                     data-tourbar-sheet-panel="true"
+                    data-tourbar-sheet-reveal-mode={desktopSheetRevealMode}
                     initial={{ height: 0 }}
                     animate={{ height: "auto" }}
                     exit={{ height: 0 }}

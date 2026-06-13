@@ -8,9 +8,10 @@ import TourBarShell, {
   type TourBarShellResult,
   type TourBarShellTurnContext,
 } from "../TourBarShell";
-import { OrderReview, type CarryoutOrder, type GuideAiCarryoutResponse, type ReviewMode } from "../TourBarOrdering";
+import { OrderReview, type CarryoutLine, type CarryoutOrder, type CarryoutQualifierGroup, type CarryoutQualifierOption, type GuideAiCarryoutResponse, type ReviewItem, type ReviewMode, type TourBarOrderingFocusTarget } from "../TourBarOrdering";
 import { TourBarBookingHandoffSheet, TourBarNavigationControls, type TourBarBookingHandoff, type TourBarBookingNavigationState } from "../TourBarBooking";
 import TourBarAfterHoursLeadSheet from "../TourBarAfterHoursLeadSheet";
+import ThinkingText from "../ThinkingText";
 import SmartBarDemoScrubber from "./SmartBarDemoScrubber";
 import SmartBarDemoToolbarFrame from "./SmartBarDemoToolbarFrame";
 import BurgerRushMobileExperience from "../smartbar-mobile/burgerrush/BurgerRushMobileExperience";
@@ -101,6 +102,7 @@ const OPENING_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [
 ];
 
 const BURGERRUSH_ONLY_DEMO_TUTOR_CARDS: SmartBarTutorCard[] = [];
+const FOOD_TRIO_DESKTOP_OPENING_TUTOR_CARDS: SmartBarTutorCard[] = [];
 
 type MobileBurgerRushStage = "intro" | "placement" | "demo" | "outro";
 
@@ -507,6 +509,40 @@ async function scrollSpeedDemoStageToTarget(stage: HTMLElement, targetId: string
   return scrollSpeedDemoStageElementIntoView(stage, target);
 }
 
+function speedDemoScrollableAncestor(target: HTMLElement) {
+  let node = target.parentElement;
+
+  while (node && node !== document.body && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    const canScrollY = /(auto|scroll)/.test(style.overflowY || "");
+
+    if (canScrollY && node.scrollHeight > node.clientHeight + 2) {
+      return node;
+    }
+
+    node = node.parentElement;
+  }
+
+  return null;
+}
+
+async function scrollSpeedDemoOverflowAncestorToTarget(target: HTMLElement) {
+  const scroller = speedDemoScrollableAncestor(target);
+  if (!scroller) return;
+
+  await waitForFrame();
+
+  const scrollerRect = scroller.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const targetTopInScroller = scroller.scrollTop + targetRect.top - scrollerRect.top;
+  const safeInset = Math.min(28, Math.max(12, scroller.clientHeight * 0.08));
+  const desiredTop = targetTopInScroller - safeInset;
+  const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+
+  scroller.scrollTo({ top: speedDemoClamp(desiredTop, 0, maxTop), behavior: "auto" });
+  await waitForFrame();
+}
+
 async function lockSpeedDemoPointerTarget(
   stage: HTMLElement | null,
   command: Extract<SmartBarSpeedCommand, { kind: "pointerClick" }>,
@@ -525,6 +561,10 @@ async function lockSpeedDemoPointerTarget(
 
     if (target && stage?.contains(target)) {
       await scrollSpeedDemoStageElementIntoView(stage, target);
+    }
+
+    if (target) {
+      await scrollSpeedDemoOverflowAncestorToTarget(target);
     }
 
     if (cancelled()) return null;
@@ -1152,8 +1192,414 @@ function bookingHandoff(kind: "ocean" | "family"): TourBarBookingHandoff {
   };
 }
 
+
+// FoodTrio desktop fixtures: desktop-adapted from the mobile FoodTrio source of truth.
+function foodTrioSlug(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "choice";
+}
+
+function foodTrioOptionLabels(labels: string[]) {
+  return labels.map((label) => ({ label, value: foodTrioSlug(label) }));
+}
+
+function foodTrioReadyLine(
+  id: string,
+  targetId: string,
+  title: string,
+  priceLabel: string,
+  knownSelections: string[] = [],
+  options: string[] = [],
+  selectionMode: "single" | "multi" = "multi",
+) {
+  return {
+    lineItemId: id,
+    id,
+    targetId,
+    title,
+    quantity: 1,
+    priceLabel,
+    status: "ready",
+    knownSelections,
+    qualifierGroups: options.length
+      ? [
+          {
+            kind: "modifier",
+            qualifierId: `${id}-options`,
+            label: "Optional edits",
+            targetId,
+            required: false,
+            missing: false,
+            selectionMode,
+            options: foodTrioOptionLabels(options),
+          },
+        ]
+      : [],
+  };
+}
+
+function foodTrioRequiredLine(
+  id: string,
+  targetId: string,
+  title: string,
+  priceLabel: string | undefined,
+  knownSelections: string[],
+  qualifierLabel: string,
+  options: string[],
+) {
+  return {
+    lineItemId: id,
+    id,
+    targetId,
+    title,
+    quantity: 1,
+    priceLabel,
+    status: "needs_qualifier",
+    knownSelections,
+    missingQualifiers: [{ qualifierId: `${id}-required`, label: qualifierLabel, targetId }],
+    qualifierGroups: [
+      {
+        qualifierId: `${id}-required`,
+        label: qualifierLabel,
+        targetId,
+        required: true,
+        missing: true,
+        options: foodTrioOptionLabels(options),
+      },
+    ],
+  };
+}
+
+function foodTrioCoffeeOrder(): CarryoutOrder {
+  const items = [
+    foodTrioReadyLine(
+      "coffee-cold-brew",
+      "foodtrio-coffee-cold-brew",
+      "Cold Brew",
+      "$6.25",
+      ["Black", "Vanilla cold foam"],
+      ["Extra cold foam", "Splash oat milk", "Light ice", "No sweetener"],
+    ),
+    foodTrioReadyLine(
+      "coffee-matcha-latte",
+      "foodtrio-coffee-cappuccino",
+      "Matcha Latte",
+      "$6.95",
+      ["Almond milk", "No foam", "Light ice"],
+      ["Extra matcha", "Less sweet", "Oat milk"],
+    ),
+    foodTrioReadyLine(
+      "coffee-iced-vanilla-latte",
+      "foodtrio-coffee-iced-vanilla-latte",
+      "Iced Vanilla Latte",
+      "$7.25",
+      ["Oat milk", "Half sweet", "Light ice", "Extra shot"],
+      ["Vanilla cold foam", "Caramel drizzle", "Extra vanilla"],
+    ),
+  ];
+
+  return {
+    type: "carryout_order",
+    status: "ready_cart",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    totals: {
+      status: "ready",
+      subtotal: 20.45,
+      estimatedTax: 1.64,
+      estimatedTotal: 22.09,
+      currency: "USD",
+    },
+  };
+}
+
+function foodTrioFastFoodOrder(): CarryoutOrder {
+  // FOODTRIO_FAST_FOOD_GREEN_FOCUS_STORY:
+  // Fast food proves messy shorthand becomes a mostly-ready green cart.
+  // Prompt: "2 chick mals, 1 spicy, both diet coke, 6 kids nug bbq sauce, extra sauces, crunch wrap"
+  const spicyMeal = foodTrioReadyLine(
+    "fast-spicy-meal",
+    "foodtrio-fast-spicy-sandwich-meal",
+    "1 × Spicy Chicken Sandwich Meal",
+    "$10.99",
+    ["Medium fries", "Diet Coke"],
+  );
+  const mildMeal = foodTrioReadyLine(
+    "fast-mild-meal",
+    "foodtrio-fast-original-sandwich-meal",
+    "1 × Mild Chicken Sandwich Meal",
+    "$10.49",
+    ["Medium fries", "Diet Coke"],
+  );
+  const kidsNuggets = foodTrioReadyLine(
+    "fast-kids-nuggets",
+    "foodtrio-fast-nuggets",
+    "Kids Nuggets",
+    "$5.99",
+    ["6-count", "BBQ sauce"],
+  );
+  const sauces = foodTrioReadyLine(
+    "fast-sauces",
+    "foodtrio-fast-sauces",
+    "Sauce bundle",
+    "$0.00",
+    ["BBQ"],
+    ["Ranch", "Buffalo", "Honey mustard", "Extra BBQ"],
+  );
+  // Order is intentionally bottom-to-top for the desktop cart renderer:
+  // visual top after gray retry row should read spicy, mild, kids, sauces.
+  const items = [sauces, kidsNuggets, mildMeal, spicyMeal];
+
+  return {
+    type: "carryout_order",
+    status: "partial_match",
+    nextAction: "show_cart",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    cannotMatchItems: [
+      {
+        text: "crunch wrap",
+        reason: "not_on_menu",
+      },
+    ],
+    totals: {
+      status: "partial",
+      subtotal: 27.47,
+      estimatedTax: null,
+      estimatedTotal: null,
+      currency: "USD",
+    },
+  };
+}
+
+function foodTrioCasualDiningOrder(finalReady = false): CarryoutOrder {
+  const avocadoRolls = foodTrioReadyLine(
+    "casual-avocado-rolls",
+    "foodtrio-casual-avocado-rolls",
+    "Avocado Eggrolls",
+    "$14.95",
+    ["Share plate", "Tamarind sauce"],
+  );
+  const salads = foodTrioReadyLine(
+    "casual-salads",
+    "foodtrio-casual-dinner-salad",
+    "2 × Dinner Salads",
+    "$17.90",
+    ["One ranch", "One vinaigrette"],
+  );
+  // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+  // Madeira is green because "with mashed potatoes" was captured on first pass.
+  // The side choices remain available so the demo can reopen a green tile and change it.
+  const madeira = foodTrioReadyLine(
+    "casual-madeira",
+    "foodtrio-casual-chicken-madeira",
+    "Chicken Madeira",
+    "$24.95",
+    ["Mashed potatoes"],
+    [
+      "Asparagus",
+      "Rice pilaf",
+      "Side salad",
+      // FOODTRIO_MADEIRA_KEEP_MASHED_OPTION:
+      // Mashed potatoes must remain in the option list after it is deselected.
+      "Mashed potatoes",
+    ],
+  );
+  const salmon = finalReady
+    ? foodTrioReadyLine(
+        "casual-salmon",
+        "foodtrio-casual-herb-salmon",
+        "Herb-Crusted Salmon",
+        "$27.95",
+        ["Asparagus"],
+        ["Rice pilaf", "Mashed potatoes", "Side salad"],
+      )
+    : foodTrioRequiredLine(
+        "casual-salmon",
+        "foodtrio-casual-herb-salmon",
+        "Herb-Crusted Salmon",
+        undefined,
+        [],
+        "Choose entree side",
+        ["Asparagus", "Rice pilaf", "Mashed potatoes", "Side salad"],
+      );
+  // FOODTRIO_CASUAL_CLEAN_BEAT_STORY:
+  // Extra whipped cream is already captured from the prompt, so the demo reviews it instead of clicking it.
+  const cheesecake = foodTrioReadyLine(
+    "casual-cheesecake",
+    "foodtrio-casual-cheesecake",
+    "Original Cheesecake",
+    "$10.50",
+    ["Whipped cream", "Extra whipped cream"],
+    ["Extra whipped cream", "No whipped cream", "Strawberry sauce"],
+  );
+  // Backend-style order is reversed by TourBarOrdering into the visible cart:
+  // Avocado Eggrolls → Dinner Salads → Salmon → Madeira → Cheesecake.
+  const items = [cheesecake, madeira, salmon, salads, avocadoRolls];
+
+  return {
+    type: "carryout_order",
+    status: finalReady ? "ready_cart" : "needs_qualifier",
+    nextAction: finalReady ? "show_cart" : "choose_qualifier",
+    items,
+    completeItems: items.filter((item) => item.status === "ready"),
+    pendingItems: items.filter((item) => item.status !== "ready"),
+    ...(finalReady
+      ? {}
+      : {
+          currentStep: {
+            type: "qualifier",
+            itemId: "casual-salmon",
+            targetId: "foodtrio-casual-herb-salmon",
+            qualifierId: "casual-salmon-required",
+            question: "Choose entree side",
+          },
+        }),
+    totals: {
+      status: finalReady ? "ready" : "partial",
+      subtotal: finalReady ? 96.25 : 68.30,
+      estimatedTax: finalReady ? 7.70 : null,
+      estimatedTotal: finalReady ? 103.95 : null,
+      currency: "USD",
+    },
+  };
+}
+
+function lockedFoodTrioCasualDiningOrder(): CarryoutOrder {
+  return {
+    ...foodTrioCasualDiningOrder(true),
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+  };
+}
+
+// FoodTrio desktop rebuild: use the same simple fixture checkout pattern as the
+// working desktop demos. Checkout is a scripted fixture handoff per order, not
+// derived from the live cart mutation path.
+function lockedFoodTrioOrder(order: CarryoutOrder): CarryoutOrder {
+  const normalized = speedDemoNormalizeFoodTrioOrder(order) || order;
+  const items = Array.isArray(normalized.items)
+    ? normalized.items
+    : [...(normalized.completeItems || []), ...(normalized.pendingItems || [])];
+
+  return {
+    ...normalized,
+    status: "ready_cart",
+    nextAction: "checkout_handoff",
+    lockedForHandoff: true,
+    handoffStatus: "ready",
+    items,
+    completeItems: items,
+    pendingItems: [],
+    cannotMatchItems: [],
+    totals: {
+      ...(normalized.totals || {}),
+      status: "ready",
+    },
+  };
+}
+
+function lockedFoodTrioCoffeeOrder(): CarryoutOrder {
+  return lockedFoodTrioOrder(foodTrioCoffeeOrder());
+}
+
+function lockedFoodTrioFastFoodOrder(): CarryoutOrder {
+  const resolvedOrder = speedDemoBuildFoodTrioSnapshotOrder(
+    foodTrioFastFoodOrder(),
+    "fast-sauces",
+  ) || foodTrioFastFoodOrder();
+  const withRetry = speedDemoReplaceCannotMatchItem(resolvedOrder, 0, "Crispy chicken wrap") || resolvedOrder;
+  return lockedFoodTrioOrder(withRetry);
+}
+
+function foodTrioQueryIsCoffee(text: string) {
+  return /\b(coffee|latte|matcha|cold brew|espresso|oat milk|almond milk|vanilla cold foam|three drinks)\b/.test(text);
+}
+
+function foodTrioQueryIsFastFood(text: string) {
+  return /\b(chx|chick|mals?|sandwch|nug|nugs|sauce|sauces|diet coke|coke|wrap|spicy|mild)\b/.test(text);
+}
+
+function foodTrioQueryIsCasualDining(text: string) {
+  return /\b(eggrolls?|salads?|salmon|madeira|cheesecake|whipped cream|appetizer|entree|dinner salads?)\b/.test(text);
+}
+
 function fixtureResult(query: string): TourBarShellResult {
   const text = query.trim().toLowerCase();
+
+  if (text === "__checkout_foodtrio_coffee") {
+    return orderResult(lockedFoodTrioCoffeeOrder(), {
+      title: "Beanstack Coffee order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-coffee-checkout",
+      commerceAction: "carryout_checkout_handoff",
+      focusTargetId: "foodtrio-coffee-iced-vanilla-latte",
+    });
+  }
+
+  if (text === "__checkout_foodtrio_fast_food") {
+    return orderResult(lockedFoodTrioFastFoodOrder(), {
+      title: "Cluck & Fry order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-fast-food-checkout",
+      commerceAction: "carryout_checkout_handoff",
+      focusTargetId: "foodtrio-fast-crispy-wrap",
+    });
+  }
+
+  if (text === "__checkout_foodtrio" || text === "__checkout_foodtrio_casual") {
+    return orderResult(lockedFoodTrioCasualDiningOrder(), {
+      title: "Tablehouse Grill order locked for handoff",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-casual-checkout",
+      commerceAction: "carryout_checkout_handoff",
+      focusTargetId: "foodtrio-casual-cheesecake",
+    });
+  }
+
+  if (foodTrioQueryIsCoffee(text)) {
+    return orderResult(foodTrioCoffeeOrder(), {
+      title: "Beanstack Coffee cart",
+      body: "Three customized drinks captured with modifiers preserved.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-coffee",
+      focusTargetId: "foodtrio-coffee-iced-vanilla-latte",
+      nextQuery: "__checkout_foodtrio_coffee",
+      separateSheetNextMove: true,
+    });
+  }
+
+  if (foodTrioQueryIsFastFood(text)) {
+    return orderResult(foodTrioFastFoodOrder(), {
+      title: "Cluck & Fry group order",
+      body: "Messy group order parsed into ready items, missing choices, optional extras, and one unmatched phrase.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-fast-food",
+      focusTargetId: "foodtrio-fast-original-sandwich-meal",
+      nextQuery: "__checkout_foodtrio_fast_food",
+      separateSheetNextMove: true,
+    });
+  }
+
+  if (foodTrioQueryIsCasualDining(text)) {
+    // FoodTrio desktop selection-state fix: start casual dining with one red tile
+    // and one yellow tile so the demo can show the same resolution choreography as mobile.
+    return orderResult(foodTrioCasualDiningOrder(false), {
+      title: "Tablehouse Grill order",
+      body: "Courses, sides, and dessert are organized into a checkout-ready cart.",
+      reviewMode: "cart",
+      stableSheetKey: "foodtrio-casual-dining",
+      focusTargetId: "foodtrio-casual-herb-salmon",
+      // FOODTRIO_CASUAL_MADEIRA_GREEN_EDITABLE:
+      // Promote Madeira to green from the start while keeping its side choices editable.
+      promoteReadyLineItemId: "casual-madeira",
+      nextQuery: "__checkout_foodtrio_casual",
+      separateSheetNextMove: true,
+    });
+  }
 
   if (
     text.includes("hedge fund") ||
@@ -1625,29 +2071,429 @@ function renderMobileSpeedControls(result: TourBarShellResult, actions: TourBarS
   return null;
 }
 
-function renderSpeedExtras(result: TourBarShellResult, actions: TourBarShellActions) {
+
+function speedDemoCloneOrder(order: CarryoutOrder | null): CarryoutOrder | null {
+  if (!order) return null;
+  return JSON.parse(JSON.stringify(order)) as CarryoutOrder;
+}
+
+function speedDemoOptionRawId(option: CarryoutQualifierOption) {
+  return String(option.value || option.label || "").trim();
+}
+
+function speedDemoOptionKey(option: CarryoutQualifierOption) {
+  return speedDemoOptionRawId(option).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "option";
+}
+
+function speedDemoLineKeys(line: CarryoutLine) {
+  return [line.lineItemId, line.id].filter((value): value is string => Boolean(value));
+}
+
+function speedDemoLineMatchesReviewItem(line: CarryoutLine, item: ReviewItem) {
+  const targetKeys = speedDemoLineKeys(item.line);
+  const lineKeys = speedDemoLineKeys(line);
+  return Boolean(
+    lineKeys.some((key) => targetKeys.includes(key)) ||
+      (line.targetId && item.line.targetId && line.targetId === item.line.targetId) ||
+      (line.title && item.line.title && line.title === item.line.title),
+  );
+}
+
+function speedDemoReviewItemResolvedKeys(item: ReviewItem) {
+  return [item.key, item.line.lineItemId, item.line.id, item.line.targetId].filter((value): value is string => Boolean(value));
+}
+
+function speedDemoMergeResolvedKeyList(current: string, nextKeys: Array<string | undefined | null>) {
+  const keys = new Set(
+    String(current || "")
+      .split("|")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+
+  nextKeys
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .forEach((value) => keys.add(value));
+
+  return Array.from(keys).join("|");
+}
+
+function speedDemoResolvedKeySet(keyList: string) {
+  return new Set(
+    String(keyList || "")
+      .split("|")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function speedDemoLineMatchesResolvedKeySet(line: CarryoutLine, resolvedKeys: Set<string>) {
+  if (!resolvedKeys.size) return false;
+  return [line.lineItemId, line.id, line.targetId]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .some((value) => resolvedKeys.has(value));
+}
+
+function speedDemoBuildFoodTrioSnapshotOrder(order: CarryoutOrder | null, resolvedKeyList: string) {
+  const nextOrder = speedDemoCloneOrder(order);
+  if (!nextOrder) return null;
+
+  const resolvedKeys = speedDemoResolvedKeySet(resolvedKeyList);
+  if (!resolvedKeys.size) return nextOrder;
+
+  const lines = Array.isArray(nextOrder.items)
+    ? nextOrder.items
+    : [...(nextOrder.completeItems || []), ...(nextOrder.pendingItems || [])];
+
+  nextOrder.items = lines.map((line) => {
+    if (!speedDemoLineMatchesResolvedKeySet(line, resolvedKeys)) return line;
+
+    return {
+      ...line,
+      status: "ready",
+      missingQualifiers: [],
+      priceLabel: line.priceLabel || SPEED_DEMO_FOODTRIO_PRICE_BY_LINE_ID[line.lineItemId || line.id || ""],
+      qualifierGroups: (line.qualifierGroups || []).map((group) => ({
+        ...group,
+        missing: false,
+      })),
+    };
+  });
+
+  // FoodTrio desktop hard-snapshot reset:
+  // the demo advances explicit visual snapshots. Once a red/yellow/gray tile is
+  // handled, the rendered cart is rebuilt from the snapshot key list instead of
+  // letting later fixture updates resurrect earlier yellow/red states.
+  return speedDemoNormalizeFoodTrioOrder(nextOrder);
+}
+
+
+function speedDemoGroupMatches(a: CarryoutQualifierGroup, b: CarryoutQualifierGroup) {
+  return Boolean(
+    (a.qualifierId && b.qualifierId && a.qualifierId === b.qualifierId) ||
+      (a.label && b.label && a.label === b.label) ||
+      (a.targetId && b.targetId && a.targetId === b.targetId),
+  );
+}
+
+function speedDemoSelectedLabel(option: CarryoutQualifierOption) {
+  return String(option.label || option.value || "").trim();
+}
+
+const SPEED_DEMO_FOODTRIO_PRICE_BY_LINE_ID: Record<string, string> = {
+  "fast-spicy-meal": "$10.99",
+  "fast-mild-meal": "$10.49",
+  "fast-kids-nuggets": "$5.99",
+  "foodtrio-retry-crispy-chicken-wrap": "$8.99",
+};
+
+function speedDemoLineStillPending(line: CarryoutLine) {
+  const status = String(line.status || "").toLowerCase();
+  return Boolean(
+    status.includes("pending") ||
+      status.includes("need") ||
+      line.missingQualifiers?.length ||
+      line.qualifierGroups?.some((group) => Boolean(group.required && group.missing)),
+  );
+}
+
+function speedDemoMoneyNumber(priceLabel?: string | null) {
+  const value = Number(String(priceLabel || "").replace(/[^0-9.]+/g, ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function speedDemoNormalizeFoodTrioOrder(order: CarryoutOrder | null): CarryoutOrder | null {
+  if (!order) return null;
+
+  const lines = Array.isArray(order.items)
+    ? order.items
+    : [...(order.completeItems || []), ...(order.pendingItems || [])];
+  const pendingItems = lines.filter(speedDemoLineStillPending);
+  const completeItems = lines.filter((line) => !speedDemoLineStillPending(line));
+  const cannotMatchItems = order.cannotMatchItems || [];
+  const subtotal = completeItems.reduce((total, line) => total + speedDemoMoneyNumber(line.priceLabel), 0);
+  const estimatedTax = subtotal > 0 ? Math.round(subtotal * 0.08 * 100) / 100 : null;
+  const estimatedTotal = subtotal > 0 && estimatedTax !== null ? Math.round((subtotal + estimatedTax) * 100) / 100 : null;
+
+  return {
+    ...order,
+    items: lines,
+    completeItems,
+    pendingItems,
+    status: pendingItems.length ? (cannotMatchItems.length ? "partial_match" : "needs_qualifier") : cannotMatchItems.length ? "partial_match" : "ready_cart",
+    nextAction: pendingItems.length ? "choose_qualifier" : "show_cart",
+    currentStep: pendingItems[0]
+      ? {
+          type: "qualifier",
+          itemId: pendingItems[0].id || pendingItems[0].lineItemId,
+          targetId: pendingItems[0].targetId,
+          qualifierId: pendingItems[0].qualifierGroups?.[0]?.qualifierId,
+          question: pendingItems[0].qualifierGroups?.[0]?.label,
+        }
+      : undefined,
+    totals: {
+      ...(order.totals || {}),
+      status: pendingItems.length || cannotMatchItems.length ? "partial" : "ready",
+      subtotal: subtotal || order.totals?.subtotal || null,
+      estimatedTax: pendingItems.length ? null : estimatedTax,
+      estimatedTotal: pendingItems.length ? null : estimatedTotal,
+      currency: order.totals?.currency || "USD",
+    },
+  };
+}
+
+function speedDemoApplyLocalOptionSelection(
+  currentOrder: CarryoutOrder | null,
+  item: ReviewItem,
+  group: CarryoutQualifierGroup,
+  option: CarryoutQualifierOption,
+) {
+  const nextOrder = speedDemoCloneOrder(currentOrder);
+  if (!nextOrder) return null;
+
+  const lines = Array.isArray(nextOrder.items)
+    ? nextOrder.items
+    : [...(nextOrder.completeItems || []), ...(nextOrder.pendingItems || [])];
+  const targetLine = lines.find((line) => speedDemoLineMatchesReviewItem(line, item));
+  if (!targetLine) return nextOrder;
+
+  const selectedLabel = speedDemoSelectedLabel(option);
+  const selectedValue = option.value || option.label || "";
+  const isRequired = Boolean(group.required || group.missing || item.pending);
+  const allowsMulti = String(group.selectionMode || "").toLowerCase() === "multi" || String(group.kind || "").toLowerCase() === "modifier";
+  const optionKey = speedDemoOptionKey(option);
+  let foundGroup = false;
+
+  let selectedWasAlreadyOnForTargetGroup = false;
+
+  targetLine.qualifierGroups = (targetLine.qualifierGroups || []).map((candidate) => {
+    if (!speedDemoGroupMatches(candidate, group)) return candidate;
+    foundGroup = true;
+
+    const currentOptions = candidate.options || group.options || [];
+    const selectedWasAlreadyOn = currentOptions.some((candidateOption) => {
+      const candidateSelected = Boolean(candidateOption.selected || candidateOption.state === "selected");
+      return candidateSelected && speedDemoOptionKey(candidateOption) === optionKey;
+    }) || (targetLine.knownSelections || []).some((selection) => String(selection || "").trim().toLowerCase() === String(selectedLabel || "").trim().toLowerCase() || String(selection || "").trim().toLowerCase() === String(selectedValue || "").trim().toLowerCase());
+    selectedWasAlreadyOnForTargetGroup = selectedWasAlreadyOn;
+
+    const nextOptions = currentOptions.map((candidateOption) => {
+      const selected = speedDemoOptionKey(candidateOption) === optionKey
+        ? allowsMulti && !isRequired
+          ? !selectedWasAlreadyOn
+          : true
+        : allowsMulti && !isRequired
+          ? Boolean(candidateOption.selected || candidateOption.state === "selected")
+          : false;
+
+      return {
+        ...candidateOption,
+        selected,
+        state: selected ? "selected" : "available",
+      };
+    });
+
+    return {
+      ...candidate,
+      missing: isRequired ? false : candidate.missing,
+      selectedValue: isRequired ? selectedValue : candidate.selectedValue,
+      selectedLabel: isRequired ? selectedLabel : candidate.selectedLabel,
+      options: nextOptions,
+    };
+  });
+
+  if (!foundGroup) {
+    targetLine.qualifierGroups = [
+      ...(targetLine.qualifierGroups || []),
+      {
+        ...group,
+        missing: false,
+        selectedValue,
+        selectedLabel,
+        options: (group.options || []).map((candidateOption) => {
+          const selected = speedDemoOptionKey(candidateOption) === optionKey;
+          return { ...candidateOption, selected, state: selected ? "selected" : "available" };
+        }),
+      },
+    ];
+  }
+
+  const knownSelections = new Set((targetLine.knownSelections || []).filter(Boolean));
+  const targetLineIdForSelection = String(targetLine.lineItemId || targetLine.id || "");
+  const casualMadeiraSideLabels = ["Asparagus", "Rice pilaf", "Side salad", "Mashed potatoes"];
+  const selectedLooksLikeCasualMadeiraSide = casualMadeiraSideLabels.some(
+    (label) => String(label).trim().toLowerCase() === String(selectedLabel || "").trim().toLowerCase(),
+  );
+
+  if (targetLineIdForSelection === "casual-madeira" && !isRequired && selectedLabel && selectedLooksLikeCasualMadeiraSide) {
+    // FOODTRIO_CASUAL_CLEAN_BEAT_STORY:
+    // Madeira is a green ready tile being changed. Side salad replaces mashed
+    // potatoes instead of being treated like an added extra.
+    const nextKnownSelections = Array.from(knownSelections).filter(
+      (selection) =>
+        !casualMadeiraSideLabels.some(
+          (label) => String(label).trim().toLowerCase() === String(selection || "").trim().toLowerCase(),
+        ),
+    );
+    knownSelections.clear();
+    nextKnownSelections.forEach((selection) => knownSelections.add(selection));
+    knownSelections.add(selectedLabel);
+  } else if (allowsMulti && !isRequired && selectedLabel) {
+    if (selectedWasAlreadyOnForTargetGroup) {
+      knownSelections.delete(selectedLabel);
+      if (selectedValue) knownSelections.delete(selectedValue);
+    } else {
+      knownSelections.add(selectedLabel);
+    }
+  } else if (selectedLabel) {
+    knownSelections.add(selectedLabel);
+  }
+  targetLine.knownSelections = Array.from(knownSelections);
+
+  if (isRequired) {
+    targetLine.status = "ready";
+    targetLine.missingQualifiers = [];
+    targetLine.priceLabel = targetLine.priceLabel || SPEED_DEMO_FOODTRIO_PRICE_BY_LINE_ID[targetLine.lineItemId || targetLine.id || ""];
+  }
+
+  nextOrder.items = lines;
+  return speedDemoNormalizeFoodTrioOrder(nextOrder);
+}
+
+function speedDemoReplaceCannotMatchItem(currentOrder: CarryoutOrder | null, retryIndex: number, retryValue: string) {
+  const nextOrder = speedDemoCloneOrder(currentOrder);
+  if (!nextOrder) return null;
+
+  const cleanValue = retryValue.trim() || "Crispy chicken wrap";
+  const retryLine: CarryoutLine = {
+    lineItemId: "foodtrio-retry-crispy-chicken-wrap",
+    id: "foodtrio-retry-crispy-chicken-wrap",
+    targetId: "foodtrio-fast-crispy-wrap",
+    title: cleanValue,
+    quantity: 1,
+    priceLabel: SPEED_DEMO_FOODTRIO_PRICE_BY_LINE_ID["foodtrio-retry-crispy-chicken-wrap"],
+    status: "ready",
+    knownSelections: ["Matched from retry"],
+    qualifierGroups: [],
+  };
+
+  const lines = Array.isArray(nextOrder.items)
+    ? [...nextOrder.items]
+    : [...(nextOrder.completeItems || []), ...(nextOrder.pendingItems || [])];
+
+  nextOrder.items = [retryLine, ...lines];
+  nextOrder.cannotMatchItems = (nextOrder.cannotMatchItems || []).filter((_, index) => index !== retryIndex);
+  return speedDemoNormalizeFoodTrioOrder(nextOrder);
+}
+
+type SmartBarSpeedOrderReviewProps = {
+  result: TourBarShellResult;
+  actions: TourBarShellActions;
+  orderReviewAppearance?: "light";
+  blueGlassOrderReview?: boolean;
+  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void;
+};
+
+function SmartBarSpeedOrderReview({
+  result,
+  actions,
+  orderReviewAppearance = "light",
+  blueGlassOrderReview = false,
+  onNavigateToFocus,
+}: SmartBarSpeedOrderReviewProps) {
+  const raw = (result.raw || {}) as GuideAiCarryoutResponse & { __speedDemo?: { activeIndex?: number; reviewMode?: ReviewMode; stableSheetKey?: string } };
+  const fixtureOrder = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
+  // FoodTrio desktop rebuild: blue/glass demo state resets by fixture/order key only.
+  // Do not include item/cannot-match mutations in the reset key, or resolving gray
+  // rows remounts the review and wipes already-resolved red/yellow snapshots.
+  const baseResetKey = raw.__speedDemo?.stableSheetKey || result.title || "order";
+  const fixtureResetKey = `${baseResetKey}-${(fixtureOrder?.items || []).map((line) => line.lineItemId || line.id || line.title).join("|")}-${(fixtureOrder?.cannotMatchItems || []).map((item) => item.text || item.label || item.title || item.item).join("|")}`;
+  const resetKey = blueGlassOrderReview ? baseResetKey : fixtureResetKey;
+  const [localOrder, setLocalOrder] = useState<CarryoutOrder | null>(() => speedDemoCloneOrder(fixtureOrder));
+  const [speedDemoResolvedLineItemIds, setSpeedDemoResolvedLineItemIds] = useState("");
+
+  useEffect(() => {
+    setLocalOrder(speedDemoCloneOrder(fixtureOrder));
+    setSpeedDemoResolvedLineItemIds("");
+  }, [resetKey]);
+
+  const snapshotOrder = useMemo(
+    () => (blueGlassOrderReview
+      ? speedDemoBuildFoodTrioSnapshotOrder(localOrder || fixtureOrder, speedDemoResolvedLineItemIds)
+      : localOrder || fixtureOrder),
+    [blueGlassOrderReview, fixtureOrder, localOrder, speedDemoResolvedLineItemIds],
+  );
+
+  return (
+    <OrderReview
+      key={resetKey}
+      appearance={orderReviewAppearance}
+      blueGlassSurface={blueGlassOrderReview}
+      speedDemoResolvedLineItemIds={speedDemoResolvedLineItemIds}
+      result={result}
+      actions={actions}
+      carryoutOrder={snapshotOrder}
+      activeIndex={raw.__speedDemo?.activeIndex || 0}
+      reviewMode={raw.__speedDemo?.reviewMode || "cart"}
+      onActiveIndexChange={() => undefined}
+      onReviewModeChange={() => undefined}
+      onLocalOptionSelect={(item, group, option) => {
+        const nextOrder = speedDemoApplyLocalOptionSelection(localOrder || fixtureOrder, item, group, option);
+        setLocalOrder(nextOrder);
+        // FoodTrio desktop snapshot stabilization:
+        // the visible demo is cinematic, not an emergent cart-state exercise.
+        // Once a tile has been handled by the script, keep that tile promoted
+        // for the current order so later actions, especially gray retry, cannot
+        // rebuild the original fixture and turn completed yellow tiles back yellow.
+        if (blueGlassOrderReview) {
+          setSpeedDemoResolvedLineItemIds((current) =>
+            speedDemoMergeResolvedKeyList(current, speedDemoReviewItemResolvedKeys(item)),
+          );
+        }
+        return nextOrder;
+      }}
+      onSilentReprice={(nextOrder) => {
+        if (nextOrder) setLocalOrder(speedDemoNormalizeFoodTrioOrder(speedDemoCloneOrder(nextOrder)));
+      }}
+      onRemoveItem={() => undefined}
+      onRetryItemReplace={(retryIndex, retryValue) => {
+        const nextOrder = speedDemoReplaceCannotMatchItem(localOrder || fixtureOrder, retryIndex, retryValue);
+        setLocalOrder(nextOrder);
+        if (blueGlassOrderReview) {
+          setSpeedDemoResolvedLineItemIds((current) =>
+            speedDemoMergeResolvedKeyList(current, ["foodtrio-retry-crispy-chicken-wrap"]),
+          );
+        }
+      }}
+      // FOODTRIO_DESKTOP_ITEM_TAP_SPOTLIGHT_FIX:
+      // The desktop speed-demo wrapper renders OrderReview directly, so it must
+      // forward item tile focus requests. Without this, red/yellow/gray tile taps
+      // open panels but never scroll/spotlight the matching menu card.
+      onNavigateToFocus={onNavigateToFocus}
+      notOnMenuLabel="Not on the demo menu"
+    />
+  );
+}
+
+function renderSpeedExtras(
+  result: TourBarShellResult,
+  actions: TourBarShellActions,
+  orderReviewAppearance: "light" = "light",
+  blueGlassOrderReview = false,
+  onNavigateToFocus?: (target: TourBarOrderingFocusTarget) => void,
+) {
   const mode = result.mode || "";
 
   if (mode === "speed_order") {
-    const raw = (result.raw || {}) as GuideAiCarryoutResponse & { __speedDemo?: { activeIndex?: number; reviewMode?: ReviewMode } };
-    const order = raw.carryoutOrder || raw.visibleContext?.carryoutOrder || null;
     return (
-      <OrderReview
-        appearance="light"
+      <SmartBarSpeedOrderReview
         result={result}
         actions={actions}
-        carryoutOrder={order}
-        activeIndex={raw.__speedDemo?.activeIndex || 0}
-        reviewMode={raw.__speedDemo?.reviewMode || "cart"}
-        onActiveIndexChange={() => undefined}
-        onReviewModeChange={() => undefined}
-        onLocalOptionSelect={() => order}
-        onSilentReprice={() => undefined}
-        onRemoveItem={() => undefined}
-        onRetryItemReplace={(_retryIndex, retryValue, panelActions) => {
-          panelActions.submitFollowUp(retryValue);
-        }}
-        notOnMenuLabel="Not on the demo menu"
+        orderReviewAppearance={orderReviewAppearance}
+        blueGlassOrderReview={blueGlassOrderReview}
+        onNavigateToFocus={onNavigateToFocus}
       />
     );
   }
@@ -1884,6 +2730,45 @@ function SmartBarMobileDemoBackdrop({ children }: { children?: any }) {
 
 export type SmartBarSpeedDemoVariant = "full" | "burgerRushOnly" | "foodTrioDesktop";
 
+type CheckoutThinkingOverlayState = {
+  id: number;
+  message: string;
+  rect: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
+};
+
+function SmartBarCheckoutThinkingOverlay({ overlay }: { overlay: CheckoutThinkingOverlayState | null }) {
+  return (
+    <AnimatePresence>
+      {overlay ? (
+        <motion.div
+          key={overlay.id}
+          initial={{ opacity: 0, scale: 0.998 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.998 }}
+          transition={{ duration: 0.12, ease: "easeOut" }}
+          style={{
+            top: overlay.rect.top,
+            left: overlay.rect.left,
+            width: overlay.rect.width,
+            height: overlay.rect.height,
+          }}
+          className="pointer-events-none fixed z-[10145] inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-black text-[#17227c] shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_10px_24px_rgba(15,23,42,0.18)] ring-1 ring-white/70"
+        >
+          {/* FOODTRIO_CHECKOUT_REAL_THINKING_LABEL_V1:
+              Use the same training-animation label treatment. No dots,
+              no new wording — the Checkout label itself thinks. */}
+          <ThinkingText body={overlay.message || "Checkout"} />
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
 export default function SmartBarSpeedDemo({
   autoPlay = false,
   variant = "full",
@@ -1902,6 +2787,7 @@ export default function SmartBarSpeedDemo({
   const [tutorBlocking, setTutorBlocking] = useState(true);
   const [introRunId, setIntroRunId] = useState(0);
   const [fakePointer, setFakePointer] = useState<SmartBarFakePointerState | null>(null);
+  const [checkoutThinkingOverlay, setCheckoutThinkingOverlay] = useState<CheckoutThinkingOverlayState | null>(null);
   const [replayVisible, setReplayVisible] = useState(false);
   const [mobileBurgerRushStage, setMobileBurgerRushStage] = useState<MobileBurgerRushStage>("intro");
   const [mobileNexaIntroReady, setMobileNexaIntroReady] = useState(false);
@@ -1941,7 +2827,7 @@ export default function SmartBarSpeedDemo({
     },
     [mobileBurgerRushShell, variant],
   );
-  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? [] : OPENING_DEMO_TUTOR_CARDS;
+  const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? FOOD_TRIO_DESKTOP_OPENING_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
   const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!mobileFullShell || mobileNexaIntroReady);
   useLayoutEffect(() => {
     if (!directMobileShell || typeof document === "undefined") return;
@@ -2112,6 +2998,15 @@ export default function SmartBarSpeedDemo({
   }, [autoPlay, mobileBurgerRushShell, mobileBurgerRushStage]);
 
   useEffect(() => {
+    if (variant === "foodTrioDesktop") {
+      setTutorBlocking(false);
+      setTutorStackCards([]);
+      setActiveTutorLane(null);
+      setTutorNoticeA(null);
+      setTutorNoticeB(null);
+      return;
+    }
+
     if (mobileBurgerRushShell && mobileBurgerRushStage !== "intro") {
       setTutorBlocking(false);
       setTutorStackCards([]);
@@ -2218,7 +3113,7 @@ export default function SmartBarSpeedDemo({
     return () => {
       cancelled = true;
     };
-  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, mobileBurgerRushStage, openingTutorCards]);
+  }, [clearReplayFallbackTimer, introRunId, mobileBurgerRushShell, mobileBurgerRushStage, openingTutorCards, variant]);
 
   const completeMobilePlacementIntro = useCallback(() => {
     if (!mobileBurgerRushShell) return;
@@ -2341,6 +3236,60 @@ export default function SmartBarSpeedDemo({
 
       setTutorStackCards([]);
       await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
+    },
+    [],
+  );
+
+  const showCheckoutThinkingOverlay = useCallback(
+    async (
+      command: Extract<SmartBarSpeedCommand, { kind: "checkoutThinkingOverlay" }>,
+      cancelled: () => boolean,
+    ) => {
+      const stage = targetStageRef.current;
+      const durationMs = Math.min(2500, Math.max(2000, command.durationMs ?? 2250));
+      let target: HTMLElement | null = null;
+
+      for (let attempt = 0; attempt < 14; attempt += 1) {
+        target = findSpeedDemoPointerTarget(stage, undefined, command.targetSelector);
+        if (target && speedDemoElementLooksVisible(target)) break;
+        target = null;
+        await wait(80);
+        if (cancelled()) return;
+      }
+
+      if (!target) return;
+
+      await scrollSpeedDemoOverflowAncestorToTarget(target);
+      await waitForSpeedDemoStableRect(target);
+      if (cancelled() || !speedDemoElementLooksVisible(target)) return;
+
+      const rect = target.getBoundingClientRect();
+      const overlayId = Date.now();
+
+      setCheckoutThinkingOverlay({
+        id: overlayId,
+        message: command.message || "Checkout",
+        rect: {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+
+      await wait(durationMs);
+
+      setCheckoutThinkingOverlay((current) => (current?.id === overlayId ? null : current));
+
+      if (cancelled()) return;
+
+      if (command.clickAfter !== false) {
+        await wait(70);
+        if (cancelled()) return;
+        target.click();
+      }
+
+      await wait(90);
     },
     [],
   );
@@ -2699,6 +3648,10 @@ export default function SmartBarSpeedDemo({
         await showScriptCards(command, cancelled);
         return;
       }
+      if (command.kind === "checkoutThinkingOverlay") {
+        await showCheckoutThinkingOverlay(command, cancelled);
+        return;
+      }
       if (command.kind === "pointerClick") {
         await showPointerClick(command, cancelled);
         return;
@@ -2737,7 +3690,7 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [mobileFullShell, runMobileFullCommand, sendCommand, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
+    [mobileFullShell, runMobileFullCommand, sendCommand, showCheckoutThinkingOverlay, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
   );
 
   useEffect(() => {
@@ -2818,6 +3771,38 @@ export default function SmartBarSpeedDemo({
     await wait(180);
   };
 
+  const focusFoodTrioOrderingTarget = useCallback(
+    (target: TourBarOrderingFocusTarget) => {
+      const targetId = String(target.targetId || "").trim();
+      const targetSelector = target.targetSelector;
+      if (!targetId && !targetSelector) return;
+
+      void (async () => {
+        const stage = targetStageRef.current;
+        const stageTarget = stage && targetId
+          ? await scrollSpeedDemoStageToTarget(stage, targetId)
+          : null;
+
+        await smartbarFocusTarget(
+          {
+            pageId: "smartbar-speed-demo",
+            targetId: targetId || undefined,
+            targetSelector,
+            label: target.label,
+          },
+          {
+            initialDelayMs: 40,
+            attempts: 12,
+            overlayDurationMs: speedDemoIsPhoneViewport() ? 3600 : 2800,
+            scrollBehavior: speedDemoIsPhoneViewport() ? "smooth" : "auto",
+            skipPlacementScroll: Boolean(stageTarget),
+          },
+        );
+      })();
+    },
+    [],
+  );
+
   const onPrimarySubmit = async (query: string, _context: TourBarShellTurnContext) => {
     const result = fixtureResult(query);
     await wait(speedDemoFixtureThinkingMs(result, query));
@@ -2867,9 +3852,13 @@ export default function SmartBarSpeedDemo({
     };
   }, [toolbarSurface]);
 
+  const activeChromeVariant = variant === "foodTrioDesktop" ? "blueCoreGlass" : "default";
+  const activeOrderReviewAppearance = "light";
+
   const smartBarNode = mobileBurgerRushShell || mobileFullShell ? null : (
     <TourBarShell
               appearance="light"
+              chromeVariant={activeChromeVariant}
               primaryPlaceholder="Ask in plain English..."
               followUpPlaceholder="Ask a follow-up..."
               launcherTitle="SmartBar speed demo"
@@ -2890,7 +3879,7 @@ export default function SmartBarSpeedDemo({
               onPrimarySubmit={onPrimarySubmit}
               onFollowUpSubmit={onFollowUpSubmit}
               beforeResultReveal={beforeResultReveal}
-              renderResultExtras={renderSpeedExtras}
+              renderResultExtras={(result, actions) => renderSpeedExtras(result, actions, activeOrderReviewAppearance, variant === "foodTrioDesktop", variant === "foodTrioDesktop" ? focusFoodTrioOrderingTarget : undefined)}
               renderMobileControls={renderMobileSpeedControls}
               buildThreadMessage={(result) => [result.title, result.body].filter(Boolean).join("\n")}
             />
@@ -3021,6 +4010,10 @@ export default function SmartBarSpeedDemo({
       </SmartBarFlashCardRail>
 
       <SmartBarFakePointerOverlay pointer={fakePointer} />
+      {/* FOODTRIO_CHECKOUT_REAL_THINKING_LABEL_V1:
+          Demo-level label layer over Checkout. The visible word "Checkout" uses
+          the real ThinkingText animation for 2000-2500ms, then the real click fires. */}
+      <SmartBarCheckoutThinkingOverlay overlay={checkoutThinkingOverlay} />
 
       <div className="relative z-[10070] px-4 pt-4 sm:px-6">
         {isFinaleSurface ? (
@@ -3030,7 +4023,11 @@ export default function SmartBarSpeedDemo({
             </div>
           </div>
         ) : (
-          <SmartBarDemoToolbarFrame surface={toolbarSurface} smartBarNode={smartBarNode} />
+          <SmartBarDemoToolbarFrame
+            surface={toolbarSurface}
+            smartBarNode={smartBarNode}
+            chromeVariant={activeChromeVariant}
+          />
         )}
       </div>
 
@@ -3047,7 +4044,14 @@ export default function SmartBarSpeedDemo({
             : "relative z-10 h-[calc(100svh-106px)] overflow-y-auto overscroll-contain pb-32 pt-2 [scrollbar-gutter:stable]"
         }
       >
-        <SmartBarSpeedTargetWall surface={toolbarSurface} variant={variant === "foodTrioDesktop" ? "foodTrioDesktop" : "standard"} />
+        {/* FOODTRIO_FINALE_USES_NEUTRAL_TARGET_WALL:
+            FoodTrio uses its restaurant target wall until the finale. On the
+            finale surface, render the neutral finale wall so the FoodTrio page
+            visibly tears down before finale cards run. */}
+        <SmartBarSpeedTargetWall
+          surface={toolbarSurface}
+          variant={variant === "foodTrioDesktop" && !isFinaleSurface ? "foodTrioDesktop" : "standard"}
+        />
       </div>
 
 
@@ -3074,6 +4078,7 @@ export default function SmartBarSpeedDemo({
     </main>
   );
 }
+
 
 
 

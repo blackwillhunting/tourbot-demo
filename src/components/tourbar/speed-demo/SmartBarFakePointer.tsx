@@ -120,23 +120,27 @@ export function SmartBarFakePointerOverlay({ pointer }: { pointer: SmartBarFakeP
               {pointer.phase === "pulse" ? (
                 <>
                   <motion.span
-                    className="absolute -left-3 -top-3 h-7 w-7 rounded-full border-2 border-emerald-300/80 bg-emerald-300/20 shadow-[0_0_24px_rgba(16,185,129,0.45)]"
-                    initial={{ opacity: 0.95, scale: 0.45 }}
-                    animate={{ opacity: 0, scale: 4.4 }}
-                    transition={{ duration: 0.72, ease: "easeOut" }}
+                    className="absolute -left-2.5 -top-2.5 h-6 w-6 rounded-full border border-white/80 bg-white/24 shadow-[0_0_18px_rgba(255,255,255,0.38)]"
+                    initial={{ opacity: 0.82, scale: 0.55 }}
+                    animate={{ opacity: 0, scale: 2.25 }}
+                    transition={{ duration: 0.46, ease: "easeOut" }}
                   />
                   <motion.span
-                    className="absolute -left-2 -top-2 h-5 w-5 rounded-full border border-white/90 bg-emerald-400/35"
-                    initial={{ opacity: 0.9, scale: 0.7 }}
-                    animate={{ opacity: 0, scale: 1.7 }}
-                    transition={{ duration: 0.38, ease: "easeOut" }}
+                    className="absolute -left-1.5 -top-1.5 h-4 w-4 rounded-full border border-slate-900/12 bg-emerald-300/22"
+                    initial={{ opacity: 0.66, scale: 0.72 }}
+                    animate={{ opacity: 0, scale: 1.35 }}
+                    transition={{ duration: 0.28, ease: "easeOut" }}
                   />
                 </>
               ) : null}
 
               <SmartBarFakePointerIcon />
 
-              {null}
+              {pointer.label ? (
+                <div className="pointer-events-none absolute left-7 top-7 whitespace-nowrap rounded-full border border-slate-200 bg-white/96 px-3 py-1.5 text-[12px] font-black text-slate-900 shadow-xl shadow-slate-950/18 ring-1 ring-white/80">
+                  {pointer.label}
+                </div>
+              ) : null}
             </div>
           </motion.div>
         ) : null}
