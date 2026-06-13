@@ -36,21 +36,6 @@ function isSmartBarHostname() {
   return SMARTBAR_HOSTNAMES.has(window.location.hostname.toLowerCase());
 }
 
-function isFoodTrioMobileViewport() {
-  if (typeof window === "undefined") return false;
-
-  const params = new URLSearchParams(window.location.search);
-  const forcedView = (params.get("view") || params.get("mode") || "").trim().toLowerCase();
-
-  if (forcedView === "mobile" || forcedView === "phone") return true;
-  if (forcedView === "desktop") return false;
-
-  // FOODTRIO_PUBLIC_ROUTE_DEVICE_AWARE_V1:
-  // Public /food-trio should present naturally:
-  // desktop/laptop visitors get the polished desktop FoodTrio demo,
-  // phone-sized visitors keep the mobile FoodTrio app.
-  return window.matchMedia("(max-width: 767px)").matches;
-}
 
 
 function smartBarSpeedVariantFromPath(path: string) {
@@ -292,11 +277,7 @@ function Router() {
   if (path === "/food-trio") {
     return (
       <ProtectedDemoRoute>
-        {isFoodTrioMobileViewport() ? (
-          <FoodTrioMobileExperience />
-        ) : (
-          <LaunchSelectorTourBar variant="foodTrioDesktop" />
-        )}
+        <FoodTrioMobileExperience />
       </ProtectedDemoRoute>
     );
   }
@@ -411,3 +392,4 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <Router />
   </React.StrictMode>,
 );
+
