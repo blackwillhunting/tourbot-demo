@@ -670,10 +670,18 @@ function smartBarMobileRemoveOneLineInstance(
   return nextLines;
 }
 
+type SmartBarMobileIntroCallout = {
+  eyebrow?: string;
+  title: string;
+  body?: string;
+};
+
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   /** Demo-only underlay guard to prevent page controls from flashing through the scripted submit transition. */
   demoTransitionShield?: boolean;
+  /** Optional first-load callout shown above the footer launcher while SmartBar is at rest. */
+  introCallout?: SmartBarMobileIntroCallout | null;
   /** Label shown in the companion pill when the entry box is empty. */
   entryModeLabel?: string;
   /** Label shown in the companion pill while the shared surface is being prepared. */
@@ -692,6 +700,7 @@ type SmartBarMobileShellProps = {
 export default function SmartBarMobileShell({
   mode = "lab",
   demoTransitionShield = false,
+  introCallout = null,
   entryModeLabel = "Type order",
   buildingLabel = "Building cart...",
   demoSubmission = null,
@@ -740,6 +749,7 @@ export default function SmartBarMobileShell({
   const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
   const [adaptiveRailOffset, setAdaptiveRailOffset] = useState(0);
+  const [introTypedTitle, setIntroTypedTitle] = useState("");
   const [stableViewportWidth] = useState(() => {
     if (typeof window === "undefined") return 390;
 
@@ -839,9 +849,44 @@ export default function SmartBarMobileShell({
   }, []);
 
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const title = introCallout?.title || "";
+    if (!title || phase !== "rest") {
+      setIntroTypedTitle("");
+      return;
+    }
+
+    let index = 0;
+    let intervalId: number | null = null;
+    setIntroTypedTitle("");
+
+    const delayId = window.setTimeout(() => {
+      intervalId = window.setInterval(() => {
+        index += 1;
+        setIntroTypedTitle(title.slice(0, index));
+
+        if (index >= title.length && intervalId !== null) {
+          window.clearInterval(intervalId);
+          intervalId = null;
+        }
+      }, 36);
+    }, 260);
+
+    return () => {
+      window.clearTimeout(delayId);
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, [introCallout?.title, phase]);
+
   const mobileShellSideInset = 36;
   const mobileShellMaxWidth = 390;
   const entryPillWidth = Math.min(Math.max(stableViewportWidth - mobileShellSideInset * 2, 240), mobileShellMaxWidth);
+  const introTypeCharCount = Math.max(1, introTypedTitle.length);
+  const introTypeMaxWidth = Math.min(entryPillWidth - 22, 336);
+  const introTypeCapsuleWidth = Math.min(Math.max(42, introTypeCharCount * 8.35 + 34), introTypeMaxWidth);
+  const introTypeGlassWidth = Math.min(Math.max(70, introTypeCapsuleWidth + 24), entryPillWidth);
   const smartBarAdaptiveRailStyle: CSSProperties = {
     transform: `translate3d(${adaptiveRailOffset}px, 0, 0)`,
     transition: "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
@@ -2792,6 +2837,49 @@ export default function SmartBarMobileShell({
               </AnimatePresence>
             </motion.div>
           </motion.section>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {introCallout && phase === "rest" && (
+          <motion.div
+            key="smartbar-intro-callout"
+            data-smartbar-mobile-intro-callout="true"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.99 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            className="pointer-events-none fixed inset-x-0 z-[10082] flex justify-center px-0"
+            style={{ bottom: 68 + keyboardLift, ...smartBarAdaptiveRailStyle }}
+          >
+            <div
+              className="relative flex h-[52px] items-center justify-center px-2 text-center text-white shadow-2xl"
+              style={{
+                ...SMARTBAR_MOBILE_FOG_GLASS_STYLE,
+                width: introTypeGlassWidth,
+                borderRadius: 999,
+                transition: "width 160ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }}
+            >
+              <div
+                className="flex h-[34px] items-center justify-center overflow-hidden rounded-full px-3.5 text-[13px] font-black tracking-[-0.02em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.30),0_10px_24px_rgba(2,6,23,0.26)]"
+                style={{
+                  ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE,
+                  width: introTypeCapsuleWidth,
+                  transition: "width 160ms cubic-bezier(0.22, 1, 0.36, 1)",
+                }}
+              >
+                <span className="truncate whitespace-nowrap">
+                  {introTypedTitle}
+                </span>
+                {introTypedTitle.length < introCallout.title.length && (
+                  <span className="ml-0.5 inline-block animate-pulse text-white/86">|</span>
+                )}
+              </div>
+
+              <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-white/18 bg-slate-900/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]" />
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

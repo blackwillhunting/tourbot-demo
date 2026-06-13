@@ -62,6 +62,8 @@ const FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_MAX_PX = 560;
 const FOOD_TRIO_TARGET_SCROLL_DURATION_MS = 2100;
 const FOOD_TRIO_TARGET_SPOTLIGHT_AFTER_SCROLL_MS = 260;
 const FOOD_TRIO_FIRST_NAVIGATION_STAGE_PX = 520;
+const FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS = 4400;
+const FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS = 260;
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => {
@@ -1369,6 +1371,7 @@ export default function FoodTrioMobileExperience() {
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [introStageVisible, setIntroStageVisible] = useState(true);
+  const [smartBarIntroCalloutVisible, setSmartBarIntroCalloutVisible] = useState(true);
   const [introSpotlightActive, setIntroSpotlightActive] = useState(false);
   const [introSpotlightTarget, setIntroSpotlightTarget] = useState<"red" | "yellow">("red");
   const [introRevealLineId, setIntroRevealLineId] = useState<string | null>(null);
@@ -2107,7 +2110,14 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     );
 
     const runStoryboard = async () => {
-      await wait(420);
+      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
+      if (cancelled) return;
+
+      setSmartBarIntroCalloutVisible(false);
+      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
+      if (cancelled) return;
+
+      await wait(320);
 
       for (const beat of FOOD_TRIO_STORYBOARD) {
         if (cancelled) return;
@@ -2337,6 +2347,9 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
         mode="overlay"
         entryModeLabel="Type order"
         buildingLabel="Building cart..."
+        introCallout={smartBarIntroCalloutVisible ? {
+          title: "Type words, get cart prefilled",
+        } : null}
         demoSubmission={demoSubmission}
         onSubmitPrompt={handleSubmitPrompt}
         onNavigateToLine={handleNavigateToLine}
@@ -2524,3 +2537,4 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     </div>
   );
 }
+
