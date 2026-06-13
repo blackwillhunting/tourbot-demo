@@ -115,6 +115,7 @@ function tourBotDemoPathIsFoodRoute(cleanPath: string) {
     cleanPath === "/smartbar-burgerrush" ||
     cleanPath === "/direct-ordering" ||
     cleanPath === "/food-trio" ||
+    cleanPath === "/food-trio-mobile" ||
     cleanPath === "/food-trio-desktop"
   );
 }
@@ -1031,7 +1032,10 @@ export default function LaunchSelectorTourBar({
 
       setFitsAnimationVisible(false);
 
-      if (currentTourBotDemoPath() === "/food-trio-desktop") {
+      // FOODTRIO_PUBLIC_ROUTE_DESKTOP_INTRO_V1:
+      // /food-trio can now route desktop users into the desktop variant, so it
+      // should receive the same FoodTrio intro animation as /food-trio-desktop.
+      if (currentTourBotDemoPath() === "/food-trio-desktop" || currentTourBotDemoPath() === "/food-trio") {
         const postFitsNotice = FOOD_TRIO_DESKTOP_POST_FITS_SLIPS[0];
 
         setPreludeStackCards([
