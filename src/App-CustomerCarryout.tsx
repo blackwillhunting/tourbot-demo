@@ -781,13 +781,16 @@ export default function AppCustomerCarryout() {
             siteLabel={`${RESTAURANT_NAME} Carryout`}
             orderTitle={`${RESTAURANT_NAME} order`}
             notOnMenuLabel={`Not on the ${RESTAURANT_NAME} menu`}
-            primaryPlaceholder="Tell TourBar what you want to order..."
+            primaryPlaceholder="Tell SmartBar what you want to order..."
             followUpPlaceholder="Add items, pick choices, or say checkout..."
-            launcherTitle={`${RESTAURANT_NAME} ordering`}
-            launcherAriaLabel={`Open ${RESTAURANT_NAME} ordering`}
+            launcherTitle={`${RESTAURANT_NAME} SmartBar ordering`}
+            launcherAriaLabel={`Open ${RESTAURANT_NAME} SmartBar ordering`}
             resultEyebrow="Restaurant order"
             initialLoadingMessage="Building your restaurant draft cart…"
             followUpLoadingMessage="Updating your restaurant order…"
+            appearance="light"
+            blueGlassSurface
+            chromeVariant="blueCoreGlass"
           />}
       />
 
@@ -910,3 +913,4 @@ export default function AppCustomerCarryout() {
     </div>
   );
 }
+

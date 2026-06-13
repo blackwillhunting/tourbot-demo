@@ -318,6 +318,15 @@ function Router() {
     );
   }
 
+
+  if (path === "/restaurant-new") {
+    return (
+      <ProtectedDemoRoute>
+        <AppCustomerCarryout />
+      </ProtectedDemoRoute>
+    );
+  }
+
   if (path === "/restaurant") {
     return (
       <ProtectedDemoRoute>

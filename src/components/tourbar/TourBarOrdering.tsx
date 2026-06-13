@@ -976,6 +976,7 @@ export type ReviewMode = "review" | "cart";
 type CartLineState = "ready" | "optional" | "pending" | "unrecognized";
 type CartStatusFilter = "all" | CartLineState;
 type TourBarOrderingAppearance = "dark" | "light";
+type TourBarOrderingChromeVariant = "default" | "blueCoreGlass";
 
 type CartActionPanel =
   | { kind: "required" | "optional"; itemKey: string }
@@ -1692,6 +1693,7 @@ export function OrderReview({
 }: {
   appearance?: TourBarOrderingAppearance;
   blueGlassSurface?: boolean;
+  chromeVariant?: TourBarOrderingChromeVariant;
   speedDemoResolvedLineItemIds?: string;
   result: TourBarShellResult;
   actions: TourBarShellActions;
@@ -2612,6 +2614,9 @@ export type TourBarOrderingProps = {
   resultEyebrow?: string;
   initialLoadingMessage?: string;
   followUpLoadingMessage?: string;
+  appearance?: TourBarOrderingAppearance;
+  blueGlassSurface?: boolean;
+  chromeVariant?: TourBarOrderingChromeVariant;
 };
 
 export default function TourBarOrdering({
@@ -2626,6 +2631,9 @@ export default function TourBarOrdering({
   resultEyebrow = "BurgerRush order",
   initialLoadingMessage = "Building your BurgerRush draft cart…",
   followUpLoadingMessage = "Updating your order…",
+  appearance = "dark",
+  blueGlassSurface = false,
+  chromeVariant = "default",
 }: TourBarOrderingProps) {
   const [carryoutOrder, setCarryoutOrderState] = useState<CarryoutOrder | null>(null);
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
@@ -2742,6 +2750,8 @@ export default function TourBarOrdering({
 
   return (
     <TourBarShell
+      appearance={appearance}
+      chromeVariant={chromeVariant}
       primaryPlaceholder={primaryPlaceholder}
       followUpPlaceholder={followUpPlaceholder}
       launcherTitle={launcherTitle}
@@ -2768,6 +2778,8 @@ export default function TourBarOrdering({
           onRetryItemReplace={replaceCannotMatchItem}
           onNavigateToFocus={focusOrderingTarget}
           notOnMenuLabel={notOnMenuLabel}
+          appearance={appearance}
+          blueGlassSurface={blueGlassSurface}
         />
       )}
       renderStandaloneSheet={(result, actions) => (
@@ -2785,6 +2797,8 @@ export default function TourBarOrdering({
           onRetryItemReplace={replaceCannotMatchItem}
           onNavigateToFocus={focusOrderingTarget}
           notOnMenuLabel={notOnMenuLabel}
+          appearance={appearance}
+          blueGlassSurface={blueGlassSurface}
         />
       )}
       onResult={(result) => {
@@ -2811,4 +2825,10 @@ export default function TourBarOrdering({
     />
   );
 }
+
+
+
+
+
+
 
