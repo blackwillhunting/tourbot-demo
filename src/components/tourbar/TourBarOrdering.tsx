@@ -1555,6 +1555,28 @@ function navigateToItem(
   });
 }
 
+function cartReviewStableTextKey(value: unknown) {
+  const cleaned = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return cleaned ? `title:${cleaned}` : "";
+}
+
+function cartEntryStableReviewKeys(entry: ReviewItem): string[] {
+  return [
+    entry.key,
+    ...lineIdentityKeys(entry.line),
+    entry.line.targetId,
+    cartReviewStableTextKey(entry.line.title),
+    cartReviewStableTextKey(entry.label),
+    cartReviewStableTextKey(lineLabel(entry.line)),
+  ].filter((value): value is string => Boolean(value));
+}
+
 function cartEntryMatchesKey(entry: ReviewItem, key?: string) {
   const cleanKey = String(key || "").trim();
   if (!cleanKey) return false;
@@ -1563,13 +1585,10 @@ function cartEntryMatchesKey(entry: ReviewItem, key?: string) {
     .split("|")
     .map((value) => value.trim())
     .filter(Boolean);
+  const entryKeys = cartEntryStableReviewKeys(entry);
 
   return candidateKeys.some((candidateKey) =>
-    Boolean(
-      valuesEqual(entry.key, candidateKey) ||
-        lineIdentityKeys(entry.line).some((lineKey) => valuesEqual(lineKey, candidateKey)) ||
-        valuesEqual(entry.line.targetId, candidateKey),
-    ),
+    entryKeys.some((entryKey) => valuesEqual(entryKey, candidateKey)),
   );
 }
 
@@ -1609,6 +1628,28 @@ function resolvedKeysForCartEntry(entry?: ReviewItem) {
     entry.line.targetId,
     entry.targetId,
   ].filter((value): value is string => Boolean(value));
+}
+
+const SMARTBAR_REVIEWED_CART_ENTRY_KEYS_STORAGE = "smartbar.reviewedCartEntryKeys.v1";
+
+function readSmartBarReviewedCartEntryKeys() {
+  if (typeof window === "undefined") return "";
+
+  try {
+    return window.sessionStorage.getItem(SMARTBAR_REVIEWED_CART_ENTRY_KEYS_STORAGE) || "";
+  } catch {
+    return "";
+  }
+}
+
+function writeSmartBarReviewedCartEntryKeys(value: string) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(SMARTBAR_REVIEWED_CART_ENTRY_KEYS_STORAGE, value || "");
+  } catch {
+    // Session storage can be unavailable in restricted browser modes.
+  }
 }
 
 function promoteCartEntries(entries: ReviewItem[], promotedKey?: string) {
@@ -1714,7 +1755,17 @@ export function OrderReview({
   void activeIndex;
 
   const [cartActionPanel, setCartActionPanel] = useState<CartActionPanel>(null);
-  const [recentlyCompletedItemKey, setRecentlyCompletedItemKey] = useState("");
+  const [recentlyCompletedItemKeyState, setRecentlyCompletedItemKeyState] = useState(() =>
+    readSmartBarReviewedCartEntryKeys(),
+  );
+  const setRecentlyCompletedItemKey = useCallback((nextValue: string | ((current: string) => string)) => {
+    setRecentlyCompletedItemKeyState((current) => {
+      const resolvedValue = typeof nextValue === "function" ? nextValue(current) : nextValue;
+      writeSmartBarReviewedCartEntryKeys(resolvedValue);
+      return resolvedValue;
+    });
+  }, []);
+  const recentlyCompletedItemKey = recentlyCompletedItemKeyState;
   const [confirmingOptionKey, setConfirmingOptionKey] = useState("");
   const response = (result.raw || {}) as GuideAiCarryoutResponse;
   const order = carryoutOrder || extractCarryoutOrder(response);
