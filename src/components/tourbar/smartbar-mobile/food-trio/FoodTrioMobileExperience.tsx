@@ -494,8 +494,8 @@ function foodTrioPrepareCasualDiningResult(result: SmartBarMobileOrderResult): S
     values.some((value) => normalizeOptionKey(value) === normalizeOptionKey(option))
   );
 
-  const preselectedOption = "Extra whipped cream";
-  const addedOption = "Fresh strawberries";
+  const selectedOptions = ["Whipped cream", "Extra whipped cream"];
+  const reviewOptions = ["Extra whipped cream", "No whipped cream", "Strawberry sauce", "Whipped cream"];
 
   return {
     ...result,
@@ -504,32 +504,24 @@ function foodTrioPrepareCasualDiningResult(result: SmartBarMobileOrderResult): S
         return line;
       }
 
-      const details = [...(line.details || [])];
+      const details = [...(line.details || [])].filter((detail) => normalizeOptionKey(detail) !== "fresh-strawberries");
+      selectedOptions.forEach((option) => {
+        if (!optionExists(details, option)) {
+          details.push(option);
+        }
+      });
 
-      // Preselected means it is already included on the line.
-      // Do not remove it from options; the option chip still needs to exist
-      // so the UI can visibly show it as already selected.
-      if (!optionExists(details, preselectedOption)) {
-        details.push(preselectedOption);
-      }
-
-      const options = [...(line.options || [])];
-
-      if (!optionExists(options, preselectedOption)) {
-        options.unshift(preselectedOption);
-      }
-
-      if (!optionExists(options, addedOption)) {
-        options.push(addedOption);
-      }
+      const options = reviewOptions.filter((option, index, values) => (
+        values.findIndex((value) => normalizeOptionKey(value) === normalizeOptionKey(option)) === index
+      ));
 
       return {
         ...line,
         status: "options",
-        helper: "Extra whipped cream already included. Optional toppings available.",
+        helper: "Extra whipped cream already captured. Optional toppings available.",
         details,
         options,
-        optionSelectionMode: line.optionSelectionMode || "multi",
+        optionSelectionMode: "multi",
       };
     }),
   };
@@ -769,7 +761,7 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
   },
   {
     kind: "cards",
-    cards: ["Coffee shop.", "A few items.", "Lots of detail."],
+    cards: ["Coffee.", "Small order.", "Lots of detail."],
     holdMs: 4000,
   },
   {
@@ -784,7 +776,7 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
   },
   {
     kind: "cards",
-    cards: ["Fast food.", "Big order.", "Fast cleanup."],
+    cards: ["Fast food.", "Messy shorthand.", "Mostly ready."],
     holdMs: 4000,
   },
   {
@@ -875,15 +867,9 @@ type FoodTrioNarratorCardBeat = {
 };
 
 const FOOD_TRIO_FAST_FOOD_FILTER_CARD: FoodTrioNarratorCardBeat = {
-  delayMs: 0,
-  holdMs: 5000,
-  cards: ["Long messy order.", "Use color filters.", "Cut through it fast."],
-};
-
-const FOOD_TRIO_CASUAL_GREEN_EDIT_CARD: FoodTrioNarratorCardBeat = {
-  delayMs: 15420,
-  holdMs: 5000,
-  cards: ["Green means ready.", "But you can edit."],
+  delayMs: 500,
+  holdMs: 3600,
+  cards: ["Messy shorthand.", "Mostly ready."],
 };
 
 const FOOD_TRIO_COFFEE_CART_SELECTORS = {
@@ -895,6 +881,7 @@ const FOOD_TRIO_COFFEE_CART_SELECTORS = {
   extraMatcha: '[data-smartbar-mobile-option-key="extra-matcha"]',
   lightIce: '[data-smartbar-mobile-option-key="light-ice"]',
   coldBrew: '[data-smartbar-mobile-line-title-key="cold-brew"]',
+  extraColdFoam: '[data-smartbar-mobile-option-key="extra-cold-foam"]',
   detailClose: '[data-smartbar-mobile-detail-close="true"]',
   checkout: '[data-smartbar-mobile-checkout="true"]',
 } as const;
@@ -904,45 +891,55 @@ const FOOD_TRIO_COFFEE_CART_SELECTORS = {
 // - To slow one moment, change only that beat's delayMs.
 // - Fast food and casual dining are still in their old pointer functions for now.
 const FOOD_TRIO_COFFEE_CART_BEATS: FoodTrioPointerBeat[] = [
-  // Drink 1: first real menu navigation moment, after the prompt creates the cart.
+  // FOODTRIO_MOBILE_COFFEE_REVIEW_ONLY_FLOW_V1:
+  // Coffee now matches the desktop story:
+  // details are captured first-pass, SmartBar jumps to each yellow item for review,
+  // Latte and Matcha are left unchanged, and only Cold Brew gets one added extra.
   {
     kind: "cart-card",
     delayMs: 500,
-    cards: ["Tap an item.", "SmartBar scrolls the site.", "Spotlights the match."],
-    holdMs: 5200,
+    cards: ["Details captured.", "Jump to review."],
+    holdMs: 3600,
   },
-  { kind: "move", delayMs: 900, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.latte, tooltip: "Tap cart item" },
-  { kind: "tap", delayMs: 1900, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.latte },
-  { kind: "move", delayMs: 5200, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.vanillaColdFoam, tooltip: "Choose option" },
-  { kind: "tap", delayMs: 2400, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.vanillaColdFoam },
-  { kind: "move", delayMs: 1140, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.caramelDrizzle },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.caramelDrizzle },
-  { kind: "move", delayMs: 1140, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraVanilla },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraVanilla },
-  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
 
-  // Drink 2: add one modifier and remove one existing modifier.
-  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.matcha },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.matcha },
-  { kind: "move", delayMs: 4200, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraMatcha },
-  { kind: "tap", delayMs: 1200, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraMatcha },
-  { kind: "move", delayMs: 1140, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.lightIce },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.lightIce },
-  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
-  { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
-
-  // Drink 3: review and pass. This teaches that yellow does not force a change.
-  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.coldBrew, tooltip: "Tap to review" },
-  { kind: "tap", delayMs: 1800, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.coldBrew },
+  // Drink 1: review Iced Vanilla Latte, no change.
+  { kind: "move", delayMs: 900, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.latte, tooltip: "Jump to review" },
+  { kind: "tap", delayMs: 1500, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.latte },
   {
     kind: "cart-card",
-    delayMs: 900,
-    cards: ["Extras are optional.", "You can leave as is."],
-    holdMs: 4500,
+    delayMs: 4300,
+    cards: ["Details picked up.", "Looks good.", "No change."],
+    holdMs: 3400,
   },
-  { kind: "move", delayMs: 800, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10, tooltip: "Move on" },
-  { kind: "tap", delayMs: 1800, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+  { kind: "move", delayMs: 760, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+  { kind: "tap", delayMs: 1040, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+
+  // Drink 2: review Matcha Latte, no change.
+  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.matcha, tooltip: "Jump to review" },
+  { kind: "tap", delayMs: 1200, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.matcha },
+  {
+    kind: "cart-card",
+    delayMs: 4300,
+    cards: ["Also spot on."],
+    holdMs: 2400,
+  },
+  { kind: "move", delayMs: 760, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+  { kind: "tap", delayMs: 1040, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+
+  // Drink 3: review Cold Brew, then add one extra.
+  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.coldBrew, tooltip: "Jump to review" },
+  { kind: "tap", delayMs: 1500, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.coldBrew },
+  {
+    kind: "cart-card",
+    delayMs: 4300,
+    cards: ["Let's add something."],
+    holdMs: 2300,
+  },
+  { kind: "move", delayMs: 760, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraColdFoam, tooltip: "Add extra foam" },
+  { kind: "tap", delayMs: 1200, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.extraColdFoam },
+  { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+  { kind: "tap", delayMs: 1040, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.detailClose, anchorX: 0.10 },
+
   { kind: "move", delayMs: 1220, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.checkout, anchorX: 0.10 },
   { kind: "tap", delayMs: 980, selector: FOOD_TRIO_COFFEE_CART_SELECTORS.checkout, anchorX: 0.10 },
   { kind: "hide", delayMs: 1120 },
@@ -1644,22 +1641,12 @@ export default function FoodTrioMobileExperience() {
   const runFastFoodCartPointer = useCallback((onComplete?: () => void) => {
     clearFoodTrioPointerTimers();
 
-    const filterIntroCard = FOOD_TRIO_FAST_FOOD_FILTER_CARD;
-    const filterIntroDelayMs = filterIntroCard.delayMs;
-    const filterIntroHoldMs = filterIntroCard.holdMs;
-    const uglyCartPreviewHoldMs = 5200;
-    const navigationHoldMs = 2400;
-    const navigationThresholds = [3700, 8100, 12500, 19220, 25920, 36940];
+    // FOODTRIO_MOBILE_FAST_FOOD_DESKTOP_STORY_FLOW_V1:
+    // Fast Food now matches desktop: messy shorthand, mostly green,
+    // one yellow sauce review, one gray retry. No red correction gauntlet.
+    scheduleFoodTrioNarratorCard(FOOD_TRIO_FAST_FOOD_FILTER_CARD);
 
-    const adjustedDelay = (delayMs: number) => (
-      delayMs +
-      uglyCartPreviewHoldMs +
-      filterIntroDelayMs +
-      filterIntroHoldMs +
-      navigationThresholds.filter((threshold) => delayMs > threshold).length * navigationHoldMs
-    );
-
-    const queueRaw = (delayMs: number, callback: () => void) => {
+    const queue = (delayMs: number, callback: () => void) => {
       const timer = window.setTimeout(
         callback,
         Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE),
@@ -1667,260 +1654,126 @@ export default function FoodTrioMobileExperience() {
       pointerTimersRef.current.push(timer);
     };
 
-    // Fast Food first impression: show the ugly, long cart before filtering it.
-    // This uses the same invisible scroll buttons as the final all-green proof.
-    queueRaw(520, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5, 0, false, 0.5, "Scan the mess");
-    });
-
-    queueRaw(1500, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
-    });
-
-    queueRaw(3260, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5, 0, false, 0.5, "Back to filters");
-    });
-
-    queueRaw(4240, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
-    });
-
-    scheduleFoodTrioNarratorCard({
-      ...filterIntroCard,
-      delayMs: uglyCartPreviewHoldMs + filterIntroDelayMs,
-    });
-
-    const queue = (delayMs: number, callback: () => void) => {
-      const timer = window.setTimeout(
-        callback,
-        Math.round(adjustedDelay(delayMs) * FOOD_TRIO_POINTER_CADENCE),
-      );
-      pointerTimersRef.current.push(timer);
-    };
-
     if (onComplete) {
       const completionTimer = window.setTimeout(
         onComplete,
-        Math.round(adjustedDelay(53800 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round((31400 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
       );
       narratorCardTimersRef.current.push(completionTimer);
     }
 
-    // Fast Food lesson: reckless group order triage by color.
-    // Red first: required missing choices.
-    queue(620, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
+    // Yellow: review sauce bundle and add two extras.
+    queue(4300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5, 0, false, 0.5, "Yellow review");
     });
 
-    queue(1580, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
-    });
-
-    queue(2720, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="regular-chicken-sandwich-meal"]', 0.5);
-    });
-
-    queue(3700, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="regular-chicken-sandwich-meal"]', 0.5);
-    });
-
-    queue(4920, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="large-fries-dr-pepper"]', 0.5);
-    });
-
-    queue(5900, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="large-fries-dr-pepper"]', 0.5);
-    });
-
-    queue(7120, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="kids-nuggets"]', 0.5);
-    });
-
-    queue(8100, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="kids-nuggets"]', 0.5);
-    });
-
-    queue(9320, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="8-count"]', 0.5);
-    });
-
-    queue(10300, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="8-count"]', 0.5);
-    });
-
-    queue(11520, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="dr-pepper"]', 0.5);
-    });
-
-    queue(12500, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="dr-pepper"]', 0.5);
-    });
-
-    queue(13720, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="large"]', 0.5);
-    });
-
-    queue(14700, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="large"]', 0.5);
-    });
-
-    // Yellow next: optional group extras. Resolve both yellow rows so the final proof is all-green.
-    queue(16040, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
-    });
-
-    queue(17020, () => {
+    queue(5300, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
     });
 
-    queue(18240, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="large-fries"]', 0.5);
+    queue(6600, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5, 0, false, 0.5, "Jump to review");
     });
 
-    queue(19220, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="large-fries"]', 0.5);
-    });
-
-    queue(20440, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="extra-crispy"]', 0.5);
-    });
-
-    queue(21420, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="extra-crispy"]', 0.5);
-    });
-
-    queue(22640, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
-    });
-
-    queue(23620, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
-    });
-
-    queue(24940, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
-    });
-
-    queue(25920, () => {
+    queue(7700, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
     });
 
-    queue(27140, () => {
+    queue(9000, () => {
+      setNarratorCards(["Add the extras."]);
+    });
+
+    queue(10100, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
     });
 
-    queue(28120, () => {
+    queue(11200, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
     });
 
-    queue(29340, () => {
+    queue(12500, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
     });
 
-    queue(30320, () => {
+    queue(13600, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
     });
 
-    queue(31540, () => {
+    queue(15100, () => {
+      setNarratorCards([]);
       moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(32520, () => {
+    queue(16200, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
-    // Gray last: resolve the mystery item.
-    queue(33760, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
+    // Gray: resolve the unmatched crunch wrap.
+    queue(17800, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5, 0, false, 0.5, "Gray retry");
     });
 
-    queue(34740, () => {
+    queue(18800, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
     });
 
-    queue(35960, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
+    queue(20100, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5, 0, false, 0.5, "One quick fix");
     });
 
-    queue(36940, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunchy-wrap-thing"]', 0.5);
+    queue(21200, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5);
     });
 
-    queue(38300, () => {
+    queue(22500, () => {
+      setNarratorCards(["One quick fix."]);
+    });
+
+    queue(23900, () => {
       fillFoodTrioRetryInput("Crispy Chicken Wrap");
     });
 
-    queue(39380, () => {
+    queue(25200, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(40360, () => {
+    queue(26300, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, 0.10);
     });
 
-    queue(41720, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
-    });
-
-    queue(42700, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
-    });
-
-    // Scroll proof: use invisible side buttons after returning to the full all-green cart.
-    queue(44000, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
-    });
-
-    queue(44980, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
-    });
-
-    queue(46640, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
-    });
-
-    queue(47620, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
-    });
-
-    queue(49300, () => {
+    queue(28000, () => {
+      setNarratorCards([]);
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(50280, () => {
+    queue(29100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(53800, () => {
+    queue(31400, () => {
+      setNarratorCards([]);
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
-  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, fillFoodTrioRetryInput, moveFoodTrioPointerToElement]);
+  }, [
+    clearFoodTrioPointerTimers,
+    clickFoodTrioPointerElement,
+    fillFoodTrioRetryInput,
+    moveFoodTrioPointerToElement,
+    scheduleFoodTrioNarratorCard,
+  ]);
 
-  const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
+
+const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     clearFoodTrioPointerTimers();
+    clearFoodTrioNarratorCards();
 
-    const greenEditCard = FOOD_TRIO_CASUAL_GREEN_EDIT_CARD;
-    const navigationHoldMs = 2400;
-    const greenCardHoldMs = greenEditCard.holdMs;
-    const greenCardBaseTimeMs = greenEditCard.delayMs;
-    const greenFilterBaseTimeMs = greenCardBaseTimeMs + 700;
-    const navigationThresholds = [3780, 10500, 19300];
-
-    const adjustedDelay = (delayMs: number) => (
-      delayMs +
-      navigationThresholds.filter((threshold) => delayMs > threshold).length * navigationHoldMs +
-      (delayMs >= greenFilterBaseTimeMs ? greenCardHoldMs : 0)
-    );
-
-    scheduleFoodTrioNarratorCard({
-      ...greenEditCard,
-      delayMs: adjustedDelay(greenCardBaseTimeMs),
-    });
-
+    // FOODTRIO_MOBILE_CASUAL_FILTER_STORY_FLOW_V1:
+    // Casual uses filters as the phone-native navigation system:
+    // red required side, green editable ready item, yellow captured extra.
     const queue = (delayMs: number, callback: () => void) => {
       const timer = window.setTimeout(
         callback,
-        Math.round(adjustedDelay(delayMs) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round(delayMs * FOOD_TRIO_POINTER_CADENCE),
       );
       pointerTimersRef.current.push(timer);
     };
@@ -1928,131 +1781,156 @@ export default function FoodTrioMobileExperience() {
     if (onComplete) {
       const completionTimer = window.setTimeout(
         onComplete,
-        Math.round(adjustedDelay(34900 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round((49200 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
       );
       narratorCardTimersRef.current.push(completionTimer);
     }
 
-    // Dining lesson: mostly ready restaurant items, one required side, one weird dessert option,
-    // plus a green item can still be changed.
-    queue(620, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
+    queue(600, () => {
+      setNarratorCards(["Full meal captured.", "Fix only what needs attention."]);
     });
 
-    queue(1580, () => {
+    // Red: choose the required salmon side.
+    queue(4300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5, 0, false, 0.5, "Red required");
+    });
+
+    queue(5400, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="pending"]', 0.5);
     });
 
-    queue(2800, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5);
+    queue(6800, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5, 0, false, 0.5, "Pick side");
     });
 
-    queue(3780, () => {
+    queue(7900, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5);
     });
 
-    queue(5000, () => {
+    queue(9300, () => {
+      setNarratorCards(["Pick the missing side."]);
+    });
+
+    queue(10600, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="asparagus"]', 0.5);
     });
 
-    queue(5980, () => {
+    queue(11700, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="asparagus"]', 0.5);
     });
 
-    queue(7320, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
-    });
-
-    queue(8300, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
-    });
-
-    queue(9520, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
-    });
-
-    queue(10500, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
-    });
-
-    queue(11720, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="fresh-strawberries"]', 0.5, 0, false, 0.5, "Add another topping");
-    });
-
-    queue(12700, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="fresh-strawberries"]', 0.5);
-    });
-
-    queue(13920, () => {
+    queue(13200, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(14900, () => {
+    queue(14300, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
-    // The only green tap: ready means done, not immutable.
-    queue(16120, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
+    queue(15800, () => {
+      setNarratorCards([]);
     });
 
-    queue(17100, () => {
+    // Green: ready item can still be changed.
+    queue(16500, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5, 0, false, 0.5, "Green ready");
+    });
+
+    queue(17600, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
     });
 
-    queue(18320, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
+    queue(19000, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5, 0, false, 0.5, "Ready, editable");
     });
 
-    queue(19300, () => {
+    queue(20100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
     });
 
-    queue(20520, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
-    });
-
     queue(21500, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="rice-pilaf"]', 0.5);
+      setNarratorCards(["Green is ready.", "But can be changed."]);
     });
 
-    queue(22840, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    queue(22900, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
     });
 
-    queue(23820, () => {
+    queue(24000, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
+    });
+
+    queue(25500, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(26600, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(28100, () => {
+      setNarratorCards([]);
+    });
+
+    // Yellow: extra whipped cream was already captured. Review only.
+    queue(28800, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5, 0, false, 0.5, "Yellow review");
+    });
+
+    queue(29900, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(31300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5, 0, false, 0.5, "Review captured extra");
+    });
+
+    queue(32400, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
+    });
+
+    queue(33800, () => {
+      setNarratorCards(["Got my extra cream?", "Good!"]);
+    });
+
+    queue(36000, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(37100, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(38600, () => {
+      setNarratorCards([]);
+    });
+
+    queue(39300, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5, 0, false, 0.5, "Full cart");
+    });
+
+    queue(40400, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
-    // Scroll proof: use invisible side buttons after returning to the full cart.
-    queue(25120, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="down"]', 0.5);
-    });
-
-    queue(26100, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="down"]', 0.5);
-    });
-
-    queue(27760, () => {
-      moveFoodTrioPointerToElement('[data-food-trio-scroll-button="up"]', 0.5);
-    });
-
-    queue(28740, () => {
-      clickFoodTrioPointerElement('[data-food-trio-scroll-button="up"]', 0.5);
-    });
-
-    queue(30420, () => {
+    queue(41800, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(31400, () => {
+    queue(42900, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(34900, () => {
+    queue(49200, () => {
+      setNarratorCards([]);
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
-  }, [clearFoodTrioPointerTimers, clickFoodTrioPointerElement, moveFoodTrioPointerToElement]);
+  }, [
+    clearFoodTrioNarratorCards,
+    clearFoodTrioPointerTimers,
+    clickFoodTrioPointerElement,
+    moveFoodTrioPointerToElement,
+  ]);
 
 
   const runFoodTrioNarratorSequence = useCallback((

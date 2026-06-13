@@ -28,17 +28,17 @@ export const FOOD_TRIO_SCENARIOS: FoodTrioScenario[] = [
     id: "fast-food",
     brand: "Cluck & Fry",
     category: "Fast food ordering",
-    proof: "A reckless group order becomes sortable by red, yellow, and gray.",
-    shortPrompt: "Messy group order with typos",
+    proof: "Messy shorthand becomes a mostly-ready green cart.",
+    shortPrompt: "Messy shorthand, mostly ready",
     samplePrompt:
-      "need 4 chx sandwch meals 2 spicy 1 no pickels one reg, larg fryz, 3 dr peperrs, kid nugs bbq, xtra sauces, and that crunchy wrap thing if u have it",
+      "2 chick mals, 1 spicy, both diet coke, 6 kids nug bbq sauce, extra sauces, crunch wrap",
   },
   {
     id: "casual-dining",
     brand: "Tablehouse Grill",
     category: "Casual dining ordering",
-    proof: "Full-service menus have weird choices, and ready items stay editable.",
-    shortPrompt: "Full table order with weird choices",
+    proof: "Full meal captured; filters jump straight to what needs attention.",
+    shortPrompt: "Full meal, filter to what matters",
     samplePrompt:
       "Start with avocado eggrolls, two dinner salads, Chicken Madeira with mashed potatoes, Herb-Crusted Salmon, and one Original Cheesecake with whipped cream — add extra whipped cream if available.",
   },
@@ -125,43 +125,32 @@ const COFFEE_LINES: SmartBarMobileOrderLine[] = [
 ];
 
 const FAST_FOOD_LINES: SmartBarMobileOrderLine[] = [
+  // FOODTRIO_MOBILE_FAST_FOOD_DESKTOP_STORY_DATA_V1:
+  // Mobile Fast Food now matches the polished desktop story:
+  // messy shorthand, mostly green, one yellow sauce review, one gray retry.
   line(
-    "fast-spicy-meals",
+    "fast-spicy-meal",
     "foodtrio-fast-spicy-sandwich-meal",
-    "2 × Spicy Chicken Sandwich Meals",
-    "$22.98",
-    ["Large fries", "Dr Pepper", "No edits needed"],
+    "1 × Spicy Chicken Sandwich Meal",
+    "$10.99",
+    ["Medium fries", "Diet Coke"],
+    "Parsed from shorthand",
   ),
   line(
-    "fast-regular-meal",
+    "fast-mild-meal",
     "foodtrio-fast-original-sandwich-meal",
-    "Regular Chicken Sandwich Meal",
-    "$10.99",
-    ["No pickles", "Choice needed"],
-    "Choose side and drink",
-    "pending",
-    ["Large fries + Dr Pepper", "Waffle fries + lemonade", "Fruit cup + water"],
+    "1 × Mild Chicken Sandwich Meal",
+    "$10.49",
+    ["Medium fries", "Diet Coke"],
+    "Parsed from shorthand",
   ),
   line(
     "fast-kids-nuggets",
     "foodtrio-fast-nuggets",
     "Kids Nuggets",
-    "$6.95",
-    ["BBQ sauce", "Count missing"],
-    "Choose nugget count",
-    "pending",
-    ["6-count", "8-count", "12-count"],
-  ),
-  line(
-    "fast-large-fries",
-    "foodtrio-fast-waffle-fries",
-    "Large Fries",
-    "$7.50",
-    ["Large", "Group order"],
-    "Extras available",
-    "options",
-    ["No salt", "Extra crispy", "Add cheese", "Side ketchup"],
-    "multi",
+    "$5.99",
+    ["6-count", "BBQ sauce"],
+    "Parsed from shorthand",
   ),
   line(
     "fast-sauces",
@@ -169,25 +158,15 @@ const FAST_FOOD_LINES: SmartBarMobileOrderLine[] = [
     "Sauce bundle",
     "$0.00",
     ["BBQ"],
-    "Add group sauces",
+    "Optional sauces available",
     "options",
     ["Ranch", "Buffalo", "Honey mustard", "Extra BBQ"],
     "multi",
   ),
   line(
-    "fast-dr-peppers",
-    "foodtrio-fast-drinks",
-    "3 × Dr Pepper",
-    "$8.70",
-    ["Size unclear"],
-    "Choose drink size",
-    "pending",
-    ["Medium", "Large", "No ice"],
-  ),
-  line(
-    "fast-crunchy-wrap",
+    "fast-crunch-wrap",
     "foodtrio-fast-original-sandwich-meal",
-    "crunchy wrap thing",
+    "crunch wrap",
     "—",
     [],
     "Could not match exact item",
@@ -198,6 +177,9 @@ const FAST_FOOD_LINES: SmartBarMobileOrderLine[] = [
 ];
 
 const CASUAL_DINING_LINES: SmartBarMobileOrderLine[] = [
+  // FOODTRIO_MOBILE_CASUAL_FILTER_STORY_DATA_V1:
+  // Mobile Casual now uses filters as the phone-native navigation system:
+  // red required side, green editable ready item, yellow captured extra.
   line(
     "casual-avocado-rolls",
     "foodtrio-casual-avocado-rolls",
@@ -213,34 +195,34 @@ const CASUAL_DINING_LINES: SmartBarMobileOrderLine[] = [
     ["One ranch", "One vinaigrette"],
   ),
   line(
-    "casual-madeira",
-    "foodtrio-casual-chicken-madeira",
-    "Chicken Madeira",
-    "$24.95",
-    ["Mashed potatoes", "Extra mushroom sauce"],
-    "Ready, but side can change",
-    "ready",
-    ["Mashed potatoes", "Asparagus", "Rice pilaf", "Side salad"],
-  ),
-  line(
     "casual-salmon",
     "foodtrio-casual-herb-salmon",
     "Herb-Crusted Salmon",
     "$27.95",
-    ["Side needed"],
+    [],
     "Choose entree side",
     "pending",
     ["Asparagus", "Rice pilaf", "Mashed potatoes", "Side salad"],
+  ),
+  line(
+    "casual-madeira",
+    "foodtrio-casual-chicken-madeira",
+    "Chicken Madeira",
+    "$24.95",
+    ["Mashed potatoes"],
+    "Ready, but side can change",
+    "ready",
+    ["Asparagus", "Rice pilaf", "Side salad", "Mashed potatoes"],
   ),
   line(
     "casual-cheesecake",
     "foodtrio-casual-cheesecake",
     "Original Cheesecake",
     "$10.50",
-    ["Whipped cream"],
-    "Dessert option available",
+    ["Whipped cream", "Extra whipped cream"],
+    "Extra whipped cream already captured",
     "options",
-    ["Extra whipped cream", "No whipped cream", "Strawberry sauce"],
+    ["Extra whipped cream", "No whipped cream", "Strawberry sauce", "Whipped cream"],
     "multi",
   ),
 ];
@@ -254,7 +236,7 @@ export function foodTrioScenarioFromQuery(query: string, fallback: FoodTrioScena
 
   if (/\b(coffee|latte|matcha|cold brew|cappuccino|espresso|oat|almond|foam|drinks?)\b/.test(text)) return "coffee";
   if (/\b(eggrolls?|salad|salmon|madeira|pasta|cheesecake|mocktail|appetizer|entree|dessert|whipped)\b/.test(text)) return "casual-dining";
-  if (/\b(chx|sandwch|nugget|nugs|fries|fryz|waffle|sauce|sauces|dr pepper|pepper|wrap|spicy|grilled sandwich)\b/.test(text)) return "fast-food";
+  if (/\b(chx|chick|chicken|sandwch|sandwich|mals|meals|nugget|nugs|fries|fryz|waffle|sauce|sauces|diet coke|coke|dr pepper|pepper|wrap|spicy|grilled sandwich)\b/.test(text)) return "fast-food";
 
   return fallback;
 }
