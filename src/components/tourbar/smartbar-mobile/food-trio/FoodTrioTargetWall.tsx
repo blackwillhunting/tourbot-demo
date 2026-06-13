@@ -83,9 +83,9 @@ const GLOWS: Record<Tone, string> = {
 };
 
 const SHAPES: Record<Shape, string> = {
-  feature: "col-span-2 min-h-[134px] rounded-[1.35rem] border px-3.5 py-3.5 shadow-xl ring-1",
-  square: "col-span-1 min-h-[122px] rounded-[1.15rem] border px-3 py-3 shadow-lg ring-1",
-  line: "col-span-2 min-h-[74px] rounded-none border-x-0 border-t border-b px-3 py-2.5 ring-0 shadow-none",
+  feature: "col-span-2 min-h-[134px] rounded-[1.35rem] border px-3.5 py-3.5 shadow-xl ring-1 md:min-h-[156px] md:px-4 md:py-4",
+  square: "col-span-1 min-h-[122px] rounded-[1.15rem] border px-3 py-3 shadow-lg ring-1 md:min-h-[140px] md:px-3.5 md:py-3.5",
+  line: "col-span-2 min-h-[74px] rounded-none border-x-0 border-t border-b px-3 py-2.5 ring-0 shadow-none md:col-span-3 md:min-h-[82px] md:px-4",
 };
 
 const ROUTE_BREAK_DEPTHS: Record<FoodTargetRouteBreak["depth"], string> = {
@@ -93,6 +93,24 @@ const ROUTE_BREAK_DEPTHS: Record<FoodTargetRouteBreak["depth"], string> = {
   medium: "min-h-[8.5rem]",
   long: "min-h-[12rem]",
 };
+
+const FOOD_TRIO_DESKTOP_TARGET_CLASSES: Partial<Record<string, string>> = {
+  // Desktop-only choreography. Mobile remains the unmodified base wall.
+  // These margin nudges give the universal SmartBar a few believable collision
+  // moments so the adaptive rail can visibly move itself out of the way.
+  "foodtrio-coffee-iced-vanilla-latte": "md:mt-10 lg:mt-14",
+  "foodtrio-coffee-cold-brew": "md:mt-8 lg:mt-12",
+  "foodtrio-fast-spicy-sandwich-meal": "md:mt-10 lg:mt-14",
+  "foodtrio-fast-original-sandwich-meal": "md:mt-14 lg:mt-20",
+  "foodtrio-fast-grilled-sandwich-meal": "md:mt-16 lg:mt-24",
+  "foodtrio-fast-nuggets": "md:mt-10 lg:mt-16",
+  "foodtrio-casual-chicken-madeira": "md:mt-14 lg:mt-20",
+  "foodtrio-casual-cheesecake": "md:mt-16 lg:mt-24",
+};
+
+function foodTrioDesktopTargetClass(targetId: string) {
+  return FOOD_TRIO_DESKTOP_TARGET_CLASSES[targetId] || "";
+}
 
 const FOOD_TARGET_ROUTE_BREAKS: Partial<Record<string, FoodTargetRouteBreak>> = {
   "foodtrio-coffee-iced-vanilla-latte": {
@@ -534,6 +552,7 @@ function FoodMenuTarget({
         "relative overflow-hidden transition-[filter,opacity,transform] duration-300",
         SHAPES[target.shape],
         targetToneClass(target),
+        foodTrioDesktopTargetClass(target.id),
         active ? "z-10 brightness-110" : "",
         dimmed ? "brightness-90 saturate-75" : "",
       ].join(" ")}
@@ -595,8 +614,8 @@ export default function FoodTrioTargetWall({
   onSamplePrompt,
 }: FoodTrioTargetWallProps) {
   return (
-    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-14 px-3 pb-40 pt-4 text-white">
-      <header className="rounded-[1.7rem] border border-white/12 bg-slate-950/88 p-4 shadow-2xl shadow-black/30">
+    <div className="mx-auto flex w-full max-w-[460px] flex-col gap-14 px-3 pb-40 pt-4 text-white md:max-w-[760px] md:gap-20 md:px-6 md:pb-56 md:pt-8 lg:max-w-[880px]">
+      <header className="rounded-[1.7rem] border border-white/12 bg-slate-950/88 p-4 shadow-2xl shadow-black/30 md:p-5">
         <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200/70">FoodTrio mobile demo</div>
         <h1 className="mt-1 text-[22px] font-semibold leading-tight">Three food orders. One SmartBar.</h1>
         <p className="mt-2 text-[12px] leading-relaxed text-white/64">
@@ -631,7 +650,7 @@ export default function FoodTrioTargetWall({
             id={scenarioAnchorId(scenario.id)}
             data-foodtrio-scenario={scenario.id}
             className={[
-              "scroll-mt-24 rounded-[2rem] border p-4 shadow-2xl shadow-black/30",
+              "scroll-mt-24 rounded-[2rem] border p-4 shadow-2xl shadow-black/30 md:scroll-mt-20 md:p-5",
               SECTION_TONES[scenario.id],
               isActiveScenario ? "ring-2 ring-cyan-200/28" : "ring-1 ring-white/5",
             ].join(" ")}
@@ -651,7 +670,7 @@ export default function FoodTrioTargetWall({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-2 gap-3.5 md:grid-cols-3 md:gap-4 lg:gap-5">
               {targets.flatMap((target) => {
                 const routeBreak = FOOD_TARGET_ROUTE_BREAKS[target.id];
 

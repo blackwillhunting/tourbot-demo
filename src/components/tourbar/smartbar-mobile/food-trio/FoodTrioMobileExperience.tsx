@@ -56,6 +56,9 @@ const FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS = 1400;
 const FOOD_TRIO_TIMELINE_CARD_SETTLE_MS = 360;
 const FOOD_TRIO_INTRO_POINTER_AIM_SETTLE_MS = 520;
 const FOOD_TRIO_TARGET_TOP_INSET_PX = 10;
+const FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_VIEWPORT_RATIO = 0.64;
+const FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_MIN_PX = 340;
+const FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_MAX_PX = 560;
 const FOOD_TRIO_TARGET_SCROLL_DURATION_MS = 2100;
 const FOOD_TRIO_TARGET_SPOTLIGHT_AFTER_SCROLL_MS = 260;
 const FOOD_TRIO_FIRST_NAVIGATION_STAGE_PX = 520;
@@ -232,13 +235,26 @@ function scrollToFoodTrioScenario(scenarioId: FoodTrioScenarioId) {
   target?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function foodTrioTargetTopInsetPx() {
+  if (typeof window === "undefined") return FOOD_TRIO_TARGET_TOP_INSET_PX;
+
+  const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+  if (!isDesktop) return FOOD_TRIO_TARGET_TOP_INSET_PX;
+
+  const preferredInset = window.innerHeight * FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_VIEWPORT_RATIO;
+  return Math.min(
+    Math.max(preferredInset, FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_MIN_PX),
+    FOOD_TRIO_DESKTOP_TARGET_TOP_INSET_MAX_PX,
+  );
+}
+
 function foodTrioTargetScrollTop(target: HTMLElement) {
   const currentTop = window.scrollY || document.documentElement.scrollTop || 0;
   const targetRect = target.getBoundingClientRect();
   const maxTop = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
 
   return Math.min(
-    Math.max(currentTop + targetRect.top - FOOD_TRIO_TARGET_TOP_INSET_PX, 0),
+    Math.max(currentTop + targetRect.top - foodTrioTargetTopInsetPx(), 0),
     maxTop,
   );
 }

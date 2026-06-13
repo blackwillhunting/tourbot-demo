@@ -172,6 +172,7 @@ const SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY = "(min-width: 768px)";
 const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-surface='true']";
 const SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX = 36;
 const SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX = 28;
+const SMARTBAR_ADAPTIVE_RAIL_MEASURE_DELAY_MS = 80;
 
 type SmartBarAdaptiveSpotlightRect = {
   left: number;
@@ -219,51 +220,125 @@ function smartBarAdaptiveRailUnionRect(elements: HTMLElement[]) {
   );
 }
 
-function smartBarAdaptiveRailRectsOverlap(
+function smartBarAdaptiveRailMaxMove(viewportWidth: number) {
+  return Math.max(80, Math.min(360, viewportWidth * 0.28));
+}
+
+function smartBarClampAdaptiveRailOffset(offset: number, viewportWidth: number) {
+  const maxMove = smartBarAdaptiveRailMaxMove(viewportWidth);
+  return Math.max(-maxMove, Math.min(maxMove, offset));
+}
+
+function smartBarAdaptiveRailOffsetWithMinimumNudge(offset: number) {
+  if (Math.abs(offset) < 1) return 0;
+
+  const direction = offset < 0 ? -1 : 1;
+  return direction * Math.max(Math.abs(offset), SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX);
+}
+
+function smartBarAdaptiveRailShiftRect(
+  rect: SmartBarAdaptiveSpotlightRect,
+  deltaX: number,
+): SmartBarAdaptiveSpotlightRect {
+  return {
+    ...rect,
+    left: rect.left + deltaX,
+    right: rect.right + deltaX,
+  };
+}
+
+function smartBarAdaptiveRailOverlapArea(
   targetRect: SmartBarAdaptiveSpotlightRect,
   shellRect: SmartBarAdaptiveSpotlightRect,
   margin: number,
 ) {
-  return (
-    targetRect.left < shellRect.right + margin &&
-    targetRect.right > shellRect.left - margin &&
-    targetRect.top < shellRect.bottom + margin &&
-    targetRect.bottom > shellRect.top - margin
+  const overlapWidth = Math.max(
+    0,
+    Math.min(targetRect.right, shellRect.right + margin) -
+      Math.max(targetRect.left, shellRect.left - margin),
   );
+  const overlapHeight = Math.max(
+    0,
+    Math.min(targetRect.bottom, shellRect.bottom + margin) -
+      Math.max(targetRect.top, shellRect.top - margin),
+  );
+
+  return overlapWidth * overlapHeight;
 }
 
-function smartBarClampAdaptiveRailOffset(offset: number, viewportWidth: number) {
-  const maxMove = Math.max(80, Math.min(360, viewportWidth * 0.28));
-  return Math.max(-maxMove, Math.min(maxMove, offset));
+function smartBarAdaptiveRailUniqueOffsets(offsets: number[], viewportWidth: number) {
+  const seen = new Set<number>();
+
+  return offsets.reduce<number[]>((acc, offset) => {
+    const clamped = Math.round(smartBarClampAdaptiveRailOffset(offset, viewportWidth));
+    if (seen.has(clamped)) return acc;
+
+    seen.add(clamped);
+    acc.push(clamped);
+    return acc;
+  }, []);
+}
+
+type SmartBarAdaptiveRailCandidate = {
+  offset: number;
+  shellRect: SmartBarAdaptiveSpotlightRect;
+};
+
+function smartBarAdaptiveRailCandidateScore(
+  candidate: SmartBarAdaptiveRailCandidate,
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  viewportWidth: number,
+) {
+  const margin = SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX;
+  const overlapArea = smartBarAdaptiveRailOverlapArea(targetRect, candidate.shellRect, margin);
+  const edgeOverflow =
+    Math.max(0, 18 - candidate.shellRect.left) +
+    Math.max(0, candidate.shellRect.right - (viewportWidth - 18));
+
+  // Collision is the real failure. Distance from center is a small tie-breaker,
+  // so the rail naturally returns to center whenever center is clear.
+  return overlapArea * 1000 + edgeOverflow * 1000 + Math.abs(candidate.offset) * 0.18;
 }
 
 function smartBarAdaptiveRailOffsetForTarget(
   targetRect: SmartBarAdaptiveSpotlightRect,
-  shellRect: SmartBarAdaptiveSpotlightRect,
+  currentShellRect: SmartBarAdaptiveSpotlightRect,
   viewportWidth: number,
+  currentOffset: number,
 ) {
   const margin = SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX;
+  const baseShellRect = smartBarAdaptiveRailShiftRect(currentShellRect, -currentOffset);
 
-  if (!smartBarAdaptiveRailRectsOverlap(targetRect, shellRect, margin)) return 0;
+  const moveLeftToClear =
+    targetRect.left - margin - baseShellRect.right;
+  const moveRightToClear =
+    targetRect.right + margin - baseShellRect.left;
 
-  const targetCenter = (targetRect.left + targetRect.right) / 2;
-  const shellCenter = (shellRect.left + shellRect.right) / 2;
-  const targetIsLeft = targetCenter < shellCenter;
-  const targetIsCentered = Math.abs(targetCenter - shellCenter) < 18;
+  const candidateOffsets = smartBarAdaptiveRailUniqueOffsets(
+    [
+      0,
+      currentOffset,
+      smartBarAdaptiveRailOffsetWithMinimumNudge(moveLeftToClear),
+      smartBarAdaptiveRailOffsetWithMinimumNudge(moveRightToClear),
+      -smartBarAdaptiveRailMaxMove(viewportWidth),
+      smartBarAdaptiveRailMaxMove(viewportWidth),
+    ],
+    viewportWidth,
+  );
 
-  const leftSpace = shellRect.left;
-  const rightSpace = viewportWidth - shellRect.right;
-  const moveRight = targetIsCentered ? rightSpace >= leftSpace : targetIsLeft;
+  const candidates = candidateOffsets.map<SmartBarAdaptiveRailCandidate>((offset) => ({
+    offset,
+    shellRect: smartBarAdaptiveRailShiftRect(baseShellRect, offset),
+  }));
 
-  const rawOverlap = moveRight
-    ? shellRect.right + margin - targetRect.left
-    : targetRect.right - (shellRect.left - margin);
+  return candidates.reduce((best, candidate) => {
+    const bestScore = smartBarAdaptiveRailCandidateScore(best, targetRect, viewportWidth);
+    const candidateScore = smartBarAdaptiveRailCandidateScore(candidate, targetRect, viewportWidth);
 
-  const neededMove = Math.abs(rawOverlap) + margin;
-  const visibleMove = Math.max(SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX, neededMove);
-
-  return smartBarClampAdaptiveRailOffset(moveRight ? visibleMove : -visibleMove, viewportWidth);
+    return candidateScore < bestScore ? candidate : best;
+  }, candidates[0]).offset;
 }
+
 
 
 
@@ -639,6 +714,7 @@ export default function SmartBarMobileShell({
   const handoffResetTimerRef = useRef<number | null>(null);
   const choiceLockedLineIdRef = useRef<string | null>(null);
   const adaptiveRailReturnTimerRef = useRef<number | null>(null);
+  const adaptiveRailOffsetRef = useRef(0);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
@@ -682,42 +758,24 @@ export default function SmartBarMobileShell({
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return;
 
-    const clearRailReturnTimer = () => {
+    const clearRailTimer = () => {
       if (adaptiveRailReturnTimerRef.current === null) return;
       window.clearTimeout(adaptiveRailReturnTimerRef.current);
       adaptiveRailReturnTimerRef.current = null;
     };
 
-    const returnRailToCenter = (delayMs = 0) => {
-      clearRailReturnTimer();
-
-      if (delayMs <= 0) {
-        setAdaptiveRailOffset(0);
-        return;
-      }
-
-      adaptiveRailReturnTimerRef.current = window.setTimeout(() => {
-        adaptiveRailReturnTimerRef.current = null;
-        setAdaptiveRailOffset(0);
-      }, delayMs);
+    const setRailOffset = (nextOffset: number) => {
+      const roundedOffset = Math.round(nextOffset);
+      adaptiveRailOffsetRef.current = roundedOffset;
+      setAdaptiveRailOffset(roundedOffset);
     };
 
-    const handleSpotlightTarget = (event: Event) => {
-      const isDesktop = window.matchMedia(SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY).matches;
+    const returnRailToCenter = () => {
+      clearRailTimer();
+      setRailOffset(0);
+    };
 
-      if (!isDesktop) {
-        returnRailToCenter();
-        return;
-      }
-
-      const detail = ((event as CustomEvent<SmartBarAdaptiveSpotlightDetail>).detail || {}) as SmartBarAdaptiveSpotlightDetail;
-      const targetRect = detail.targetRect;
-
-      if (!targetRect) {
-        returnRailToCenter();
-        return;
-      }
-
+    const measureAndMoveForTarget = (targetRect: SmartBarAdaptiveSpotlightRect) => {
       const surfaces = Array.from(
         document.querySelectorAll<HTMLElement>(SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR),
       );
@@ -728,11 +786,42 @@ export default function SmartBarMobileShell({
         return;
       }
 
-      clearRailReturnTimer();
-      const nextOffset = smartBarAdaptiveRailOffsetForTarget(targetRect, shellRect, window.innerWidth);
-      setAdaptiveRailOffset(nextOffset);
-      // Hold rail position after spotlight fades; the next target recenters or moves it.
-};
+      const nextOffset = smartBarAdaptiveRailOffsetForTarget(
+        targetRect,
+        shellRect,
+        window.innerWidth,
+        adaptiveRailOffsetRef.current,
+      );
+
+      setRailOffset(nextOffset);
+    };
+
+    const handleSpotlightTarget = (event: Event) => {
+      clearRailTimer();
+
+      const isDesktop = window.matchMedia(SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY).matches;
+
+      if (!isDesktop) {
+        setRailOffset(0);
+        return;
+      }
+
+      const detail = ((event as CustomEvent<SmartBarAdaptiveSpotlightDetail>).detail || {}) as SmartBarAdaptiveSpotlightDetail;
+      const targetRect = detail.targetRect;
+
+      if (!targetRect) {
+        setRailOffset(0);
+        return;
+      }
+
+      // Let the page/spotlight settle for a beat, then choose the best position.
+      // Every target gets a fresh center/left/right candidate check, so a held
+      // offset can be corrected when it blocks the next target.
+      adaptiveRailReturnTimerRef.current = window.setTimeout(() => {
+        adaptiveRailReturnTimerRef.current = null;
+        measureAndMoveForTarget(targetRect);
+      }, SMARTBAR_ADAPTIVE_RAIL_MEASURE_DELAY_MS);
+    };
 
     const handleSpotlightClear = () => { /* hold rail position until next spotlight target */ };
     const handleResize = () => returnRailToCenter();
@@ -742,7 +831,7 @@ export default function SmartBarMobileShell({
     window.addEventListener("resize", handleResize);
 
     return () => {
-      clearRailReturnTimer();
+      clearRailTimer();
       window.removeEventListener("smartbar:spotlight-target", handleSpotlightTarget);
       window.removeEventListener("smartbar:spotlight-clear", handleSpotlightClear);
       window.removeEventListener("resize", handleResize);
