@@ -1948,8 +1948,10 @@ export const SMARTBAR_BURGERRUSH_MOBILE_STEPS: SmartBarSpeedStep[] = [
 const FOOD_TRIO_DESKTOP_CARD_COPY = {
   // FOODTRIO_COFFEE_FIRST_PASS_DETAIL_STORY:
   // Coffee now proves first-pass detail capture, not omission correction.
+  // FOODTRIO_DESKTOP_FINALE_SALES_SETUP_AND_COFFEE_REVIEW_COPY_V1:
+  // Coffee now makes the review jump explicit, matching the mobile clarity.
   coffeeIntro: ["Coffee", "Small order", "Lots of detail"],
-  coffeeCart: ["Details captured", "Ready to review"],
+  coffeeCart: ["Details captured", "Jump to review"],
   coffeeLatteReview: ["Details picked up", "Looks good", "No change"],
   coffeeMatchaReview: ["Also spot on"],
   coffeeColdBrewExtra: ["Let's add something"],
@@ -1964,8 +1966,12 @@ const FOOD_TRIO_DESKTOP_CARD_COPY = {
   casualMadeiraReview: ["Green is ready", "But can be changed"],
   casualCheesecakeReview: ["Got my extra cream?", "Good!"],
 
-  finaleProof: ["One bar.", "Any menu.", "Any order."],
-  finaleClose: ["Words in.", "Cart out.", "Checkout."],
+  // Desktop finale now carries the stronger sales/setup close from mobile.
+  finaleProof: ["One bar", "Any menu", "Any order"],
+  finaleSales: ["Fewer calls", "Fewer abandoned carts", "More direct orders"],
+  finaleSetupIntro: ["Setup is simple"],
+  finaleSetupSteps: ["Site scan", "Code snippet", "Menu pack"],
+  finaleClose: ["Direct orders", "Made simple"],
 } satisfies Record<string, SmartBarSpeedCardItem[]>;
 
 const FOOD_TRIO_DESKTOP_CARD_CINEMATIC_CADENCE = {
@@ -2440,8 +2446,14 @@ export const SMARTBAR_FOOD_TRIO_DESKTOP_STEPS: SmartBarSpeedStep[] = [
       { kind: "pause", delayMs: 450 },
       // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleProof.
       foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleProof, 900, 1300),
+      // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleSales.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleSales, 900, 1300),
+      // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleSetupIntro.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleSetupIntro, 900, 1100),
+      // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleSetupSteps.
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleSetupSteps, 900, 1300),
       // Finale slide card: edit copy in FOOD_TRIO_DESKTOP_CARD_COPY.finaleClose.
-      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleClose, 900, 1500),
+      foodTrioDesktopCardBeat(FOOD_TRIO_DESKTOP_CARD_COPY.finaleClose, 900, 1700),
     ],
   },
 ];
