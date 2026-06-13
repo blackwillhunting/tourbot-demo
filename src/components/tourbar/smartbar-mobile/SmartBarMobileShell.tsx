@@ -168,6 +168,105 @@ const demoLines: SmartBarMobileOrderLine[] = [
 
 const estimatedTotal = "$19.46";
 
+const SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY = "(min-width: 768px)";
+const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-surface='true']";
+const SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX = 36;
+const SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX = 28;
+const SMARTBAR_ADAPTIVE_RAIL_RETURN_DELAY_MS = 260;
+
+type SmartBarAdaptiveSpotlightRect = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width?: number;
+  height?: number;
+};
+
+type SmartBarAdaptiveSpotlightDetail = {
+  targetRect?: SmartBarAdaptiveSpotlightRect;
+  durationMs?: number;
+};
+
+function smartBarAdaptiveRailElementVisible(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function smartBarAdaptiveRailUnionRect(elements: HTMLElement[]) {
+  const rects = elements
+    .filter(smartBarAdaptiveRailElementVisible)
+    .map((element) => element.getBoundingClientRect());
+
+  if (!rects.length) return null;
+
+  return rects.reduce(
+    (union, rect) => ({
+      left: Math.min(union.left, rect.left),
+      right: Math.max(union.right, rect.right),
+      top: Math.min(union.top, rect.top),
+      bottom: Math.max(union.bottom, rect.bottom),
+      width: Math.max(union.right, rect.right) - Math.min(union.left, rect.left),
+      height: Math.max(union.bottom, rect.bottom) - Math.min(union.top, rect.top),
+    }),
+    {
+      left: rects[0].left,
+      right: rects[0].right,
+      top: rects[0].top,
+      bottom: rects[0].bottom,
+      width: rects[0].width,
+      height: rects[0].height,
+    },
+  );
+}
+
+function smartBarAdaptiveRailRectsOverlap(
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  shellRect: SmartBarAdaptiveSpotlightRect,
+  margin: number,
+) {
+  return (
+    targetRect.left < shellRect.right + margin &&
+    targetRect.right > shellRect.left - margin &&
+    targetRect.top < shellRect.bottom + margin &&
+    targetRect.bottom > shellRect.top - margin
+  );
+}
+
+function smartBarClampAdaptiveRailOffset(offset: number, viewportWidth: number) {
+  const maxMove = Math.max(80, Math.min(360, viewportWidth * 0.28));
+  return Math.max(-maxMove, Math.min(maxMove, offset));
+}
+
+function smartBarAdaptiveRailOffsetForTarget(
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  shellRect: SmartBarAdaptiveSpotlightRect,
+  viewportWidth: number,
+) {
+  const margin = SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX;
+
+  if (!smartBarAdaptiveRailRectsOverlap(targetRect, shellRect, margin)) return 0;
+
+  const targetCenter = (targetRect.left + targetRect.right) / 2;
+  const shellCenter = (shellRect.left + shellRect.right) / 2;
+  const targetIsLeft = targetCenter < shellCenter;
+  const targetIsCentered = Math.abs(targetCenter - shellCenter) < 18;
+
+  const leftSpace = shellRect.left;
+  const rightSpace = viewportWidth - shellRect.right;
+  const moveRight = targetIsCentered ? rightSpace >= leftSpace : targetIsLeft;
+
+  const rawOverlap = moveRight
+    ? shellRect.right + margin - targetRect.left
+    : targetRect.right - (shellRect.left - margin);
+
+  const neededMove = Math.abs(rawOverlap) + margin;
+  const visibleMove = Math.max(SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX, neededMove);
+
+  return smartBarClampAdaptiveRailOffset(moveRight ? visibleMove : -visibleMove, viewportWidth);
+}
+
+
 
 const SMARTBAR_MOBILE_ACTION_PILL_INTENSITY: "soft" | "strong" = "strong";
 const SMARTBAR_MOBILE_STRONG_ACTION_PILLS = SMARTBAR_MOBILE_ACTION_PILL_INTENSITY === "strong";
@@ -540,6 +639,7 @@ export default function SmartBarMobileShell({
   const handoffCollapseTimerRef = useRef<number | null>(null);
   const handoffResetTimerRef = useRef<number | null>(null);
   const choiceLockedLineIdRef = useRef<string | null>(null);
+  const adaptiveRailReturnTimerRef = useRef<number | null>(null);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
@@ -564,6 +664,7 @@ export default function SmartBarMobileShell({
   const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
+  const [adaptiveRailOffset, setAdaptiveRailOffset] = useState(0);
   const [stableViewportWidth] = useState(() => {
     if (typeof window === "undefined") return 390;
 
@@ -579,9 +680,89 @@ export default function SmartBarMobileShell({
     );
   });
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
+
+    const clearRailReturnTimer = () => {
+      if (adaptiveRailReturnTimerRef.current === null) return;
+      window.clearTimeout(adaptiveRailReturnTimerRef.current);
+      adaptiveRailReturnTimerRef.current = null;
+    };
+
+    const returnRailToCenter = (delayMs = 0) => {
+      clearRailReturnTimer();
+
+      if (delayMs <= 0) {
+        setAdaptiveRailOffset(0);
+        return;
+      }
+
+      adaptiveRailReturnTimerRef.current = window.setTimeout(() => {
+        adaptiveRailReturnTimerRef.current = null;
+        setAdaptiveRailOffset(0);
+      }, delayMs);
+    };
+
+    const handleSpotlightTarget = (event: Event) => {
+      const isDesktop = window.matchMedia(SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY).matches;
+
+      if (!isDesktop) {
+        returnRailToCenter();
+        return;
+      }
+
+      const detail = ((event as CustomEvent<SmartBarAdaptiveSpotlightDetail>).detail || {}) as SmartBarAdaptiveSpotlightDetail;
+      const targetRect = detail.targetRect;
+
+      if (!targetRect) {
+        returnRailToCenter();
+        return;
+      }
+
+      const surfaces = Array.from(
+        document.querySelectorAll<HTMLElement>(SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR),
+      );
+      const shellRect = smartBarAdaptiveRailUnionRect(surfaces);
+
+      if (!shellRect) {
+        returnRailToCenter();
+        return;
+      }
+
+      clearRailReturnTimer();
+      const nextOffset = smartBarAdaptiveRailOffsetForTarget(targetRect, shellRect, window.innerWidth);
+      setAdaptiveRailOffset(nextOffset);
+
+      const durationMs = Math.max(0, Number(detail.durationMs || 0));
+      if (durationMs > 0) {
+        returnRailToCenter(durationMs + SMARTBAR_ADAPTIVE_RAIL_RETURN_DELAY_MS);
+      }
+    };
+
+    const handleSpotlightClear = () => returnRailToCenter();
+    const handleResize = () => returnRailToCenter();
+
+    window.addEventListener("smartbar:spotlight-target", handleSpotlightTarget);
+    window.addEventListener("smartbar:spotlight-clear", handleSpotlightClear);
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      clearRailReturnTimer();
+      window.removeEventListener("smartbar:spotlight-target", handleSpotlightTarget);
+      window.removeEventListener("smartbar:spotlight-clear", handleSpotlightClear);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+
   const mobileShellSideInset = 36;
   const mobileShellMaxWidth = 390;
   const entryPillWidth = Math.min(Math.max(stableViewportWidth - mobileShellSideInset * 2, 240), mobileShellMaxWidth);
+  const smartBarAdaptiveRailStyle: CSSProperties = {
+    transform: `translate3d(${adaptiveRailOffset}px, 0, 0)`,
+    transition: "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
+    willChange: "transform",
+  };
 
   const cartTogglePillSize = 46;
   const safariControlLeftGap = 8;
@@ -1991,9 +2172,10 @@ export default function SmartBarMobileShell({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
-            style={{ bottom: 76 + keyboardLift }}
+            style={{ bottom: 76 + keyboardLift, ...smartBarAdaptiveRailStyle }}
           >
             <div
+              data-smartbar-mobile-adaptive-surface="true"
               className={upperGlassClass}
               style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
             >
@@ -2053,9 +2235,10 @@ export default function SmartBarMobileShell({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
-            style={{ bottom: 76 + keyboardLift }}
+            style={{ bottom: 76 + keyboardLift, ...smartBarAdaptiveRailStyle }}
           >
             <motion.div
+              data-smartbar-mobile-adaptive-surface="true"
               className={upperGlassClass}
               style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
               initial={{
@@ -2530,9 +2713,10 @@ export default function SmartBarMobileShell({
 
       <footer
         className="pointer-events-none fixed inset-x-0 z-[10084] flex justify-center px-0"
-        style={{ bottom: 12 + keyboardLift }}
+        style={{ bottom: 12 + keyboardLift, ...smartBarAdaptiveRailStyle }}
       >
         <div
+          data-smartbar-mobile-adaptive-surface="true"
           className="relative h-[46px]"
           style={{ width: entryPillWidth }}
         >

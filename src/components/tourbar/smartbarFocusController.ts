@@ -590,6 +590,7 @@ export function clearSmartBarFocusOverlay() {
   activeSmartBarFocusOverlayCleanup = null;
   cancelSmartBarFocusScroll();
   clearSmartBarFocusBottomRoom();
+  dispatchSmartBarSpotlightClear();
 
   document
     .querySelectorAll<HTMLElement>("[data-smartbar-focus-overlay='true']")
@@ -622,6 +623,37 @@ function applyFixedRect(node: HTMLElement, rect: ReturnType<typeof expandedCssRe
   node.style.top = `${rect.top}px`;
   node.style.width = `${rect.width}px`;
   node.style.height = `${rect.height}px`;
+}
+
+function smartBarFocusRectDetail(rect: DOMRect) {
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
+function dispatchSmartBarSpotlightTarget(element: HTMLElement, durationMs: number) {
+  if (typeof window === "undefined") return;
+
+  const rect = element.getBoundingClientRect();
+  window.dispatchEvent(
+    new CustomEvent("smartbar:spotlight-target", {
+      detail: {
+        targetRect: smartBarFocusRectDetail(rect),
+        durationMs,
+      },
+    }),
+  );
+}
+
+function dispatchSmartBarSpotlightClear() {
+  if (typeof window === "undefined") return;
+
+  window.dispatchEvent(new CustomEvent("smartbar:spotlight-clear"));
 }
 
 function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOptions = {}) {
@@ -677,6 +709,7 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
   frame.appendChild(frost);
   document.body.appendChild(frame);
   updateOverlayGeometry();
+  dispatchSmartBarSpotlightTarget(element, duration);
 
   let animationFrame = 0;
   const scheduleGeometryUpdate = () => {
@@ -701,6 +734,7 @@ function runSmartBarFocusOverlay(element: HTMLElement, options: SmartBarFocusOpt
     animationFrame = 0;
     frame.remove();
     clearSmartBarFocusBottomRoom();
+    dispatchSmartBarSpotlightClear();
     if (activeSmartBarFocusOverlayCleanup === cleanup) activeSmartBarFocusOverlayCleanup = null;
   };
 
