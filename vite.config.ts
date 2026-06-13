@@ -8,6 +8,9 @@ const apiProxyTarget =
   'http://127.0.0.1:7071'
 
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 2000,
+  },
   plugins: [react(), tailwindcss()],
   server: {
     host: '0.0.0.0',
