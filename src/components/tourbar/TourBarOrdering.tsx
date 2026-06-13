@@ -1720,7 +1720,7 @@ export function OrderReview({
   const order = carryoutOrder || extractCarryoutOrder(response);
   const speedDemoOrderingMeta = (response as GuideAiCarryoutResponse & { __speedDemo?: { promoteReadyLineItemId?: string; stableSheetKey?: string } }).__speedDemo || {};
   const speedDemoPromotedReadyLineItemId = String(speedDemoOrderingMeta.promoteReadyLineItemId || "").trim();
-  const speedDemoOrderIdentity = `${speedDemoOrderingMeta.stableSheetKey || result.title || "order"}|${(order?.items || []).map((line) => line.lineItemId || line.id || line.title).join("|")}|${(order?.cannotMatchItems || []).map((item) => cannotMatchLabel(item)).join("|")}`;
+  const speedDemoOrderIdentity = String(speedDemoOrderingMeta.stableSheetKey || "").trim();
   const items = order ? reviewItemsFrom(response, order) : [];
   const pendingItems = items.filter((entry) => entry.pending);
   const blueGlassResolvedKeyList = [speedDemoPromotedReadyLineItemId, speedDemoResolvedLineItemIds, recentlyCompletedItemKey]
@@ -1783,7 +1783,7 @@ export function OrderReview({
     // FoodTrio desktop per-order checkout fix:
     // reset blue/glass local overlay/completion state when a new demo order loads.
     // Otherwise the three FoodTrio demos can behave like one long cart lifecycle.
-    if (!blueGlassSurface) return;
+    if (!blueGlassSurface || !speedDemoOrderIdentity) return;
     setCartActionPanel(null);
     setRecentlyCompletedItemKey("");
     setConfirmingOptionKey("");
