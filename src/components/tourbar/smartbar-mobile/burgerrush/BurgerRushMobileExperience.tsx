@@ -517,6 +517,9 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       <SmartBarMobileShell
         mode="overlay"
         demoTransitionShield={demoFixtureMode}
+        introCallout={{
+          title: "Type words, get cart prefilled",
+        }}
         onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}
         onRemoveLine={handleRemoveLine}
