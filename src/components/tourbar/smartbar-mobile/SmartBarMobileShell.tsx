@@ -406,8 +406,12 @@ function smartBarMobileFooterPolicyStyle(status: SmartBarMobileOrderStatus | nul
 }
 
 function smartBarMobileFooterPolicyTextClass(status: SmartBarMobileOrderStatus | null) {
+  if (status === "pending") {
+    return "!font-black text-white";
+  }
+
   if (status === "options" || status === "unknown") {
-    return "text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.28)]";
+    return "!font-black text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.28)]";
   }
 
   return "text-white";
