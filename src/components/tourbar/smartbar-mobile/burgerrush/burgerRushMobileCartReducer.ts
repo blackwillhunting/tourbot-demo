@@ -676,29 +676,47 @@ function smartBarMobileCarryoutLineMatchesVisibleLine(
   carryoutIndex?: number,
 ) {
   const visibleSourceIndex = visibleLine.sourceLineIndex;
-  if (typeof visibleSourceIndex === "number" && typeof carryoutIndex === "number") {
-    return visibleSourceIndex === carryoutIndex;
-  }
+  const sourceIndexMatches = typeof visibleSourceIndex === "number" &&
+    typeof carryoutIndex === "number" &&
+    visibleSourceIndex === carryoutIndex;
 
+  // Source indices and lineItemIds can both be stale for add-on rows. The backend
+  // can return a one-item order for the new item at source index 0, then repricing
+  // can move that same row from pending -> complete, changing sourceBucket and
+  // lineItemId. Do not let lineItemId/sourceLineIndex alone target the wrong old
+  // cart row. Require item/title agreement, and use index only as a tie-breaker.
   const visibleSourceLineItemId = smartBarMobileSelectionKey(String(visibleLine.sourceLineItemId || ""));
   const carryoutLineItemId = smartBarMobileSelectionKey(String(carryoutLine.lineItemId || ""));
-  if (visibleSourceLineItemId && carryoutLineItemId) return visibleSourceLineItemId === carryoutLineItemId;
+  const visibleSourceItemId = smartBarMobileSelectionKey(String(visibleLine.sourceItemId || ""));
+  const carryoutItemId = smartBarMobileSelectionKey(String(carryoutLine.id || ""));
+  const itemMatches = Boolean(visibleSourceItemId && carryoutItemId && visibleSourceItemId === carryoutItemId);
+  const carryoutTitle = smartBarMobileComparableVisibleLineTitle(String(carryoutLine.title || carryoutLine.id || ""));
+  const visibleTitle = smartBarMobileComparableVisibleLineTitle(visibleLine.title || "");
+  const titleMatches = Boolean(carryoutTitle && visibleTitle && carryoutTitle === visibleTitle);
+
+  if (visibleSourceLineItemId && carryoutLineItemId && visibleSourceLineItemId === carryoutLineItemId) {
+    return Boolean(itemMatches || titleMatches || sourceIndexMatches);
+  }
 
   const visibleId = smartBarMobileSelectionKey(visibleLine.id || "");
   const carryoutIds = [carryoutLine.lineItemId, carryoutLine.id]
     .map((value) => smartBarMobileSelectionKey(String(value || "")))
     .filter(Boolean);
 
-  if (visibleId && carryoutIds.includes(visibleId)) return true;
+  if (visibleId && carryoutIds.includes(visibleId)) {
+    return Boolean(itemMatches || titleMatches || sourceIndexMatches);
+  }
 
-  const carryoutTitle = smartBarMobileComparableVisibleLineTitle(String(carryoutLine.title || carryoutLine.id || ""));
-  const visibleTitle = smartBarMobileComparableVisibleLineTitle(visibleLine.title || "");
-  if (!carryoutTitle || !visibleTitle || carryoutTitle !== visibleTitle) return false;
+  if (itemMatches) {
+    return Boolean(titleMatches || sourceIndexMatches || !visibleTitle || !carryoutTitle);
+  }
+
+  if (!titleMatches) return false;
 
   const carryoutPrice = smartBarMobileSelectionKey(smartBarMobilePriceFromLine(carryoutLine));
   const visiblePrice = smartBarMobileSelectionKey(visibleLine.price || "");
 
-  return Boolean(!carryoutPrice || !visiblePrice || carryoutPrice === visiblePrice);
+  return Boolean(sourceIndexMatches || !carryoutPrice || !visiblePrice || carryoutPrice === visiblePrice);
 }
 
 export function smartBarMobileRemoveLineFromCarryoutOrder(

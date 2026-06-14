@@ -698,17 +698,57 @@ function smartBarMobileHasReviewedOptionLineKey(
   return smartBarMobileReviewedOptionLineKeys(line).some((key) => reviewedKeys[key]);
 }
 
+function smartBarMobileLineComparableTitle(line: SmartBarMobileOrderLine) {
+  return smartBarMobileDemoKey(String(line.title || "").replace(/^\s*\d+\s*[×x]\s*/i, ""));
+}
+
+function smartBarMobileLineSourceItemKey(line: SmartBarMobileOrderLine) {
+  return smartBarMobileDemoKey(String(line.sourceItemId || line.targetId || ""));
+}
+
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
-  const leftKey = smartBarMobileLineInstanceKey(left);
-  const rightKey = smartBarMobileLineInstanceKey(right);
+  const leftExactKeys = [left.cartLineKey, left.id]
+    .map((value) => smartBarMobileDemoKey(String(value || "")))
+    .filter(Boolean);
+  const rightExactKeys = [right.cartLineKey, right.id]
+    .map((value) => smartBarMobileDemoKey(String(value || "")))
+    .filter(Boolean);
 
-  if (leftKey && rightKey) return leftKey === rightKey;
+  if (leftExactKeys.some((leftKey) => rightExactKeys.includes(leftKey))) return true;
 
-  if (left.sourceLineIndex !== undefined && right.sourceLineIndex !== undefined) {
-    return left.sourceLineIndex === right.sourceLineIndex;
+  const leftLineItemKey = smartBarMobileDemoKey(String(left.sourceLineItemId || ""));
+  const rightLineItemKey = smartBarMobileDemoKey(String(right.sourceLineItemId || ""));
+  const lineItemMatches = Boolean(leftLineItemKey && rightLineItemKey && leftLineItemKey === rightLineItemKey);
+  const leftItemKey = smartBarMobileLineSourceItemKey(left);
+  const rightItemKey = smartBarMobileLineSourceItemKey(right);
+  const leftTitleKey = smartBarMobileLineComparableTitle(left);
+  const rightTitleKey = smartBarMobileLineComparableTitle(right);
+  const sourceIndexMatches = left.sourceLineIndex !== undefined &&
+    right.sourceLineIndex !== undefined &&
+    left.sourceLineIndex === right.sourceLineIndex;
+
+  // Backend repricing can move a line from pending -> complete, which changes
+  // sourceBucket/lineItemId. Treat the item identity + visible title as the
+  // durable match so the freshly selected green line is not overwritten by the
+  // older red/pending shell instance on the first add-on edit.
+  if (lineItemMatches && (leftItemKey === rightItemKey || leftTitleKey === rightTitleKey || sourceIndexMatches)) {
+    return true;
   }
 
-  return Boolean(left.id && right.id && left.id === right.id);
+  if (leftItemKey && rightItemKey && leftItemKey === rightItemKey) {
+    if (!leftTitleKey || !rightTitleKey || leftTitleKey === rightTitleKey) return true;
+    if (sourceIndexMatches) return true;
+  }
+
+  if (leftTitleKey && rightTitleKey && leftTitleKey === rightTitleKey) {
+    if (sourceIndexMatches) return true;
+
+    const leftPrice = smartBarMobileDemoKey(String(left.price || ""));
+    const rightPrice = smartBarMobileDemoKey(String(right.price || ""));
+    return Boolean(!leftPrice || !rightPrice || leftPrice === rightPrice);
+  }
+
+  return false;
 }
 
 function smartBarMobileRemoveOneLineInstance(
@@ -1483,7 +1523,7 @@ export default function SmartBarMobileShell({
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
-      ? Promise.resolve(onApplyLineChoice(line, value, {
+      ? Promise.resolve(onApplyLineChoice(resolvedLine, value, {
           selected: !(multiSelect && valueAlreadySelected),
           multiSelect,
           valueAlreadySelected,
@@ -1514,7 +1554,7 @@ export default function SmartBarMobileShell({
 
     window.setTimeout(() => {
       const optimisticResult: SmartBarMobileOrderResult = {
-        lines: lines.map((candidate) => candidate.id === line.id ? resolvedLine : candidate),
+        lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, resolvedLine) ? resolvedLine : candidate),
       };
 
       setOrderLines(optimisticResult.lines);
@@ -1529,22 +1569,21 @@ export default function SmartBarMobileShell({
         .then((parentResult) => {
           if (!parentResult || parentResult.lines.length === 0) return;
 
-          const reviewedParentResult: SmartBarMobileOrderResult = multiSelect
-            ? {
-                ...parentResult,
-                lines: parentResult.lines.map((candidate) => (
-                  smartBarMobileLinesAreSameInstance(candidate, line)
-                    ? {
-                        ...candidate,
-                        status: "ready" as const,
-                        helper: "Reviewed and ready",
-                        options: candidate.options || line.options || [],
-                        optionSelectionMode: candidate.optionSelectionMode || "multi",
-                      }
-                    : candidate
-                )),
-              }
-            : parentResult;
+          const reviewedParentResult: SmartBarMobileOrderResult = {
+            ...parentResult,
+            lines: parentResult.lines.map((candidate) => (
+              smartBarMobileLinesAreSameInstance(candidate, resolvedLine)
+                ? {
+                    ...candidate,
+                    status: resolvedLine.status,
+                    helper: resolvedLine.helper,
+                    details: resolvedLine.details,
+                    options: candidate.options || resolvedLine.options || line.options || [],
+                    optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
+                  }
+                : candidate
+            )),
+          };
 
           setOrderLines(reviewedParentResult.lines);
           applyOrderResultEstimates(reviewedParentResult);
