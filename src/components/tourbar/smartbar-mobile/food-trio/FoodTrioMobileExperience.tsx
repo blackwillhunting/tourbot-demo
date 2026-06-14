@@ -1372,7 +1372,7 @@ export default function FoodTrioMobileExperience() {
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [introStageVisible, setIntroStageVisible] = useState(true);
-  const [smartBarIntroCalloutVisible, setSmartBarIntroCalloutVisible] = useState(true);
+  const [smartBarCalloutTitle, setSmartBarCalloutTitle] = useState<string | null>("Type words, get cart prefilled");
   const [useDesktopTargetWall, setUseDesktopTargetWall] = useState(false);
   const [introSpotlightActive, setIntroSpotlightActive] = useState(false);
   const [introSpotlightTarget, setIntroSpotlightTarget] = useState<"red" | "yellow">("red");
@@ -2127,7 +2127,7 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
       await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
       if (cancelled) return;
 
-      setSmartBarIntroCalloutVisible(false);
+      setSmartBarCalloutTitle(null);
       await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
       if (cancelled) return;
 
@@ -2182,6 +2182,21 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
         }
       }
 
+      clearSmartBarFocusOverlay();
+      clearFoodTrioPointerTimers();
+      clearFoodTrioNarratorCards();
+      setActiveTargetId(null);
+      setPointerState(FOOD_TRIO_POINTER_HIDDEN);
+
+      // Return the adaptive SmartBar rail to center, then type the final CTA.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("resize"));
+      }
+      await wait(640);
+      if (cancelled) return;
+
+      setSmartBarCalloutTitle("Converting words into orders.");
+
       introCompleted = true;
     };
 
@@ -2196,7 +2211,7 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
         introStartedRef.current = false;
       }
     };
-  }, [runFoodTrioIntroSimulation, runFoodTrioNarratorSequence, startScenario]);
+  }, [clearFoodTrioNarratorCards, clearFoodTrioPointerTimers, runFoodTrioIntroSimulation, runFoodTrioNarratorSequence, startScenario]);
 
   const handleSubmitPrompt = useCallback((query: string, meta?: SmartBarMobileSubmitMeta) => {
     if (introTeachingActiveRef.current && meta?.intent === "replace_unknown" && meta.replaceLineId) {
@@ -2370,8 +2385,8 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
         mode="overlay"
         entryModeLabel="Type order"
         buildingLabel="Building cart..."
-        introCallout={smartBarIntroCalloutVisible ? {
-          title: "Type words, get cart prefilled",
+        introCallout={smartBarCalloutTitle ? {
+          title: smartBarCalloutTitle,
         } : null}
         demoSubmission={demoSubmission}
         onSubmitPrompt={handleSubmitPrompt}
