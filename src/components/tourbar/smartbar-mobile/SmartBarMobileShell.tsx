@@ -756,6 +756,7 @@ export default function SmartBarMobileShell({
   const [keyboardLift, setKeyboardLift] = useState(0);
   const [adaptiveRailOffset, setAdaptiveRailOffset] = useState(0);
   const [introTypedTitle, setIntroTypedTitle] = useState("");
+  const [introCalloutDismissed, setIntroCalloutDismissed] = useState(false);
   const [stableViewportWidth] = useState(() => {
     if (typeof window === "undefined") return 390;
 
@@ -854,6 +855,10 @@ export default function SmartBarMobileShell({
     };
   }, []);
 
+
+  useEffect(() => {
+    setIntroCalloutDismissed(false);
+  }, [introCallout?.title]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2851,7 +2856,7 @@ export default function SmartBarMobileShell({
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
-        {introCallout && phase === "rest" && (
+        {introCallout && !introCalloutDismissed && phase === "rest" && (
           <motion.div
             key="smartbar-intro-callout"
             data-smartbar-mobile-intro-callout="true"
@@ -2859,7 +2864,17 @@ export default function SmartBarMobileShell({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.99 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none fixed inset-x-0 z-[10082] flex justify-center px-0"
+            role="button"
+            tabIndex={0}
+            aria-label="Dismiss SmartBar intro hint"
+            onClick={() => setIntroCalloutDismissed(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setIntroCalloutDismissed(true);
+              }
+            }}
+            className="pointer-events-auto fixed inset-x-0 z-[10082] flex cursor-pointer justify-center px-0"
             style={{ bottom: 68 + keyboardLift, ...smartBarAdaptiveRailStyle }}
           >
             <div
