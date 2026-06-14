@@ -547,7 +547,7 @@ function foodTrioPrepareCasualDiningResult(result: SmartBarMobileOrderResult): S
 }
 
 
-type FoodTrioIntroResolvedKey = "none" | "red" | "redYellow" | "all";
+type FoodTrioIntroResolvedKey = "none" | "red" | "redGray" | "redYellow" | "all";
 
 type FoodTrioIntroLineId =
   | "intro-green-ready"
@@ -635,6 +635,7 @@ type FoodTrioIntroBeat =
 const FOOD_TRIO_INTRO_RESOLVED_STATES: Record<FoodTrioIntroResolvedKey, { red: boolean; yellow: boolean; gray: boolean }> = {
   none: { red: false, yellow: false, gray: false },
   red: { red: true, yellow: false, gray: false },
+  redGray: { red: true, yellow: false, gray: true },
   redYellow: { red: true, yellow: true, gray: false },
   all: { red: true, yellow: true, gray: true },
 };
@@ -765,8 +766,8 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
   },
     {
     kind: "cards",
-    cards: ["Type order.", "Get cart.", "Tap colors,", "Checkout."],
-    holdMs: 4500,
+    cards: ["Type order.", "Get cart.", "Tap colors.", "Checkout."],
+    holdMs: 4400,
   },
   {
     kind: "cards",
@@ -966,6 +967,8 @@ const FOOD_TRIO_COFFEE_CART_BEATS: FoodTrioPointerBeat[] = [
 
 // Intro teaching timeline:
 // - delayMs is relative to the previous beat, not an absolute timestamp.
+// - Tapping a color row gets a teaching-card hint that explains why that
+//   color must be addressed; the footer tells what to tap next.
 // - To insert a safe card note during teaching, add:
 //   { kind: "teaching-card", delayMs: 0, cards: ["Your note."], holdMs: 1600 }
 // - The runner hides the pointer, lets the card slide in/out, waits briefly,
@@ -976,8 +979,8 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
   {
     kind: "teaching-card",
     delayMs: 0,
-    cards: ["Cart built.", "Colors tell you what to do."],
-    holdMs: 4000,
+    cards: ["Cart built.", "Footer tells next tap."],
+    holdMs: 3800,
   },
 
   // First, reveal the four color states without asking the viewer to act yet.
@@ -1027,14 +1030,13 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
   //   holdMs: 4300,
   // },
 
-  // Red: required choice.
+  // Red: requirements missing. Footer says: Tap red entries.
   {
     kind: "move-line",
     delayMs: 950,
     lineId: "intro-red-required",
     resolved: "none",
     selector: FOOD_TRIO_INTRO_SELECTORS.red,
-    tooltip: "Red means required choice",
   },
   {
     kind: "tap",
@@ -1042,8 +1044,14 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
     selector: FOOD_TRIO_INTRO_SELECTORS.red,
   },
   {
+    kind: "teaching-card",
+    delayMs: 650,
+    cards: ["Red = Required choice missing"],
+    holdMs: 2100,
+  },
+  {
     kind: "move",
-    delayMs: 1800,
+    delayMs: 750,
     selector: FOOD_TRIO_INTRO_SELECTORS.option1,
     tooltip: "Choose one option",
   },
@@ -1059,14 +1067,57 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
     resolved: "red",
   },
 
-  // Yellow: optional review.
+  // Gray: no menu match. Footer says: Retry gray entries.
+  {
+    kind: "move-line",
+    delayMs: 1500,
+    lineId: "intro-gray-match",
+    resolved: "red",
+    selector: FOOD_TRIO_INTRO_SELECTORS.gray,
+  },
+  {
+    kind: "tap",
+    delayMs: 2400,
+    selector: FOOD_TRIO_INTRO_SELECTORS.gray,
+  },
+  {
+    kind: "teaching-card",
+    delayMs: 650,
+    cards: ["Gray = Nothing matching on menu"],
+    holdMs: 2100,
+  },
+  {
+    kind: "type-retry",
+    delayMs: 750,
+    value: "New item entered",
+  },
+  {
+    kind: "move",
+    delayMs: 1300,
+    selector: FOOD_TRIO_INTRO_SELECTORS.retrySubmit,
+    anchorX: 0.10,
+    tooltip: "Clarify the item",
+  },
+  {
+    kind: "tap",
+    delayMs: 2100,
+    selector: FOOD_TRIO_INTRO_SELECTORS.retrySubmit,
+    anchorX: 0.10,
+  },
+  {
+    kind: "resolve",
+    delayMs: 1300,
+    lineId: "intro-gray-match",
+    resolved: "redGray",
+  },
+
+  // Yellow: extras available. Footer says: Review yellow entries.
   {
     kind: "move-line",
     delayMs: 1500,
     lineId: "intro-yellow-options",
-    resolved: "red",
+    resolved: "redGray",
     selector: FOOD_TRIO_INTRO_SELECTORS.yellow,
-    tooltip: "Yellow means optional review",
   },
   {
     kind: "tap",
@@ -1074,8 +1125,14 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
     selector: FOOD_TRIO_INTRO_SELECTORS.yellow,
   },
   {
+    kind: "teaching-card",
+    delayMs: 650,
+    cards: ["Yellow = Extras available as options"],
+    holdMs: 2100,
+  },
+  {
     kind: "move",
-    delayMs: 1800,
+    delayMs: 750,
     selector: FOOD_TRIO_INTRO_SELECTORS.option2,
     tooltip: "Add or skip extras",
   },
@@ -1110,45 +1167,6 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
     kind: "resolve",
     delayMs: 1200,
     lineId: "intro-yellow-options",
-    resolved: "redYellow",
-  },
-
-  // Gray: unmatched / clarify.
-  {
-    kind: "move-line",
-    delayMs: 1500,
-    lineId: "intro-gray-match",
-    resolved: "redYellow",
-    selector: FOOD_TRIO_INTRO_SELECTORS.gray,
-    tooltip: "Gray means not matched",
-  },
-  {
-    kind: "tap",
-    delayMs: 2400,
-    selector: FOOD_TRIO_INTRO_SELECTORS.gray,
-  },
-  {
-    kind: "type-retry",
-    delayMs: 1800,
-    value: "New item entered",
-  },
-  {
-    kind: "move",
-    delayMs: 1300,
-    selector: FOOD_TRIO_INTRO_SELECTORS.retrySubmit,
-    anchorX: 0.10,
-    tooltip: "Clarify the item",
-  },
-  {
-    kind: "tap",
-    delayMs: 2100,
-    selector: FOOD_TRIO_INTRO_SELECTORS.retrySubmit,
-    anchorX: 0.10,
-  },
-  {
-    kind: "resolve",
-    delayMs: 1300,
-    lineId: null,
     resolved: "all",
   },
 
@@ -1676,7 +1694,7 @@ export default function FoodTrioMobileExperience() {
 
     // FOODTRIO_MOBILE_FAST_FOOD_DESKTOP_STORY_FLOW_V1:
     // Fast Food now matches desktop: messy shorthand, mostly green,
-    // one yellow sauce review, one gray retry. No red correction gauntlet.
+    // one gray retry, then one yellow sauce review. No red correction gauntlet.
     scheduleFoodTrioNarratorCard(FOOD_TRIO_FAST_FOOD_FILTER_CARD);
 
     const queue = (delayMs: number, callback: () => void) => {
@@ -1690,103 +1708,96 @@ export default function FoodTrioMobileExperience() {
     if (onComplete) {
       const completionTimer = window.setTimeout(
         onComplete,
-        Math.round((31400 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round((32200 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
       );
       narratorCardTimersRef.current.push(completionTimer);
     }
 
-    // Yellow: review sauce bundle and add two extras.
+    // Gray: resolve the unmatched crunch wrap first.
     queue(4300, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5, 0, false, 0.5, "Yellow review");
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5, 0, false, 0.5, "Gray retry");
     });
 
     queue(5300, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
     });
 
     queue(6600, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5, 0, false, 0.5, "Jump to review");
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5, 0, false, 0.5, "One quick fix");
     });
 
     queue(7700, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5);
+    });
+
+    queue(10400, () => {
+      fillFoodTrioRetryInput("Crispy Chicken Wrap");
+    });
+
+    queue(11700, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(12800, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, 0.10);
+    });
+
+    // Yellow: once gray is cleared, review sauce bundle and add two extras.
+    queue(15100, () => {
+      setNarratorCards([]);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5, 0, false, 0.5, "Yellow review");
+    });
+
+    queue(16200, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
+    });
+
+    queue(17500, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5, 0, false, 0.5, "Jump to review");
+    });
+
+    queue(18600, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="sauce-bundle"]', 0.5);
     });
 
-    queue(9000, () => {
-      setNarratorCards(["Add the extras."]);
-    });
-
-    queue(10100, () => {
+    queue(21000, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
     });
 
-    queue(11200, () => {
+    queue(22100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="ranch"]', 0.5);
     });
 
-    queue(12500, () => {
+    queue(23400, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
     });
 
-    queue(13600, () => {
+    queue(24500, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="buffalo"]', 0.5);
     });
 
-    queue(15100, () => {
+    queue(26000, () => {
       setNarratorCards([]);
       moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(16200, () => {
+    queue(27100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
-    // Gray: resolve the unmatched crunch wrap.
-    queue(17800, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5, 0, false, 0.5, "Gray retry");
-    });
-
-    queue(18800, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="unknown"]', 0.5);
-    });
-
-    queue(20100, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5, 0, false, 0.5, "One quick fix");
-    });
-
-    queue(21200, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="crunch-wrap"]', 0.5);
-    });
-
-    queue(22500, () => {
-      setNarratorCards(["One quick fix."]);
-    });
-
-    queue(23900, () => {
-      fillFoodTrioRetryInput("Crispy Chicken Wrap");
-    });
-
-    queue(25200, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, false, 0.10);
-    });
-
-    queue(26300, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-retry-submit="true"]', 0.5, 0, 0.10);
-    });
-
-    queue(28000, () => {
-      setNarratorCards([]);
+    queue(28800, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(29100, () => {
+    queue(29900, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(31400, () => {
+    queue(32200, () => {
       setNarratorCards([]);
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
+
   }, [
     clearFoodTrioPointerTimers,
     clickFoodTrioPointerElement,
@@ -1819,10 +1830,6 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
       narratorCardTimersRef.current.push(completionTimer);
     }
 
-    queue(600, () => {
-      setNarratorCards(["Full meal captured.", "Fix only what needs attention."]);
-    });
-
     // Red: choose the required salmon side.
     queue(4300, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="pending"]', 0.5, 0, false, 0.5, "Red required");
@@ -1838,10 +1845,6 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
 
     queue(7900, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="herb-crusted-salmon"]', 0.5);
-    });
-
-    queue(9300, () => {
-      setNarratorCards(["Pick the missing side."]);
     });
 
     queue(10600, () => {
@@ -2219,12 +2222,12 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
         ...foodTrioIntroTeachingResult({
           revealLineId: null,
           redResolved: true,
-          yellowResolved: true,
+          yellowResolved: false,
           grayResolved: true,
         }),
         preserveResultLinesOnRetry: true,
       };
-      setIntroResolved({ red: true, yellow: true, gray: true });
+      setIntroResolved({ red: true, yellow: false, gray: true });
       setIntroRevealLineId(null);
       setIntroSpotlightActive(false);
       setLastResult(result);
