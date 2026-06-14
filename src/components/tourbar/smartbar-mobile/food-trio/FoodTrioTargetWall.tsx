@@ -696,3 +696,5 @@ export default function FoodTrioTargetWall({
     </div>
   );
 }
+
+

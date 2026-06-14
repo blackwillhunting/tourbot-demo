@@ -6,6 +6,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileSubmitMeta,
 } from "../SmartBarMobileShell";
 import FoodTrioTargetWall from "./FoodTrioTargetWall";
+import FoodTrioDesktopTargetWall from "./FoodTrioDesktopTargetWall";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../../smartbarFocusController";
 import {
   SmartBarFlashCard,
@@ -1372,6 +1373,7 @@ export default function FoodTrioMobileExperience() {
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [introStageVisible, setIntroStageVisible] = useState(true);
   const [smartBarIntroCalloutVisible, setSmartBarIntroCalloutVisible] = useState(true);
+  const [useDesktopTargetWall, setUseDesktopTargetWall] = useState(false);
   const [introSpotlightActive, setIntroSpotlightActive] = useState(false);
   const [introSpotlightTarget, setIntroSpotlightTarget] = useState<"red" | "yellow">("red");
   const [introRevealLineId, setIntroRevealLineId] = useState<string | null>(null);
@@ -1388,6 +1390,18 @@ export default function FoodTrioMobileExperience() {
   const pendingPointerScenarioRef = useRef<FoodTrioScenarioId | null>(null);
   const scenarioCompleteRef = useRef<(() => void) | null>(null);
   const scriptedPointerClickRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(min-width: 900px)");
+    const syncDesktopWall = () => setUseDesktopTargetWall(media.matches);
+
+    syncDesktopWall();
+    media.addEventListener("change", syncDesktopWall);
+
+    return () => media.removeEventListener("change", syncDesktopWall);
+  }, []);
 
   const clearFoodTrioPointerTimers = useCallback(() => {
     pointerTimersRef.current.forEach((timer) => window.clearTimeout(timer));
@@ -2298,6 +2312,8 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
   }, [lastResult]);
 
 
+  const TargetWallComponent = useDesktopTargetWall ? FoodTrioDesktopTargetWall : FoodTrioTargetWall;
+
   return (
     <div className="relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.24),transparent_32%),linear-gradient(180deg,#07111f_0%,#08111c_42%,#05070c_100%)] text-white">
       <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-72 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.10),transparent_58%)]" />
@@ -2308,10 +2324,10 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
           <div className="pointer-events-none absolute right-[-6rem] top-1/3 h-72 w-72 rounded-full bg-blue-300/24 blur-3xl" />
         </div>
       ) : null}
-      <FoodTrioTargetWall
+      <TargetWallComponent
         activeScenario={activeScenario}
         activeTargetId={activeTargetId}
-        onScenarioSelect={(scenarioId) => {
+        onScenarioSelect={(scenarioId: FoodTrioScenarioId) => {
               clearFoodTrioPointerTimers();
               clearFoodTrioNarratorCards();
               clearSmartBarFocusOverlay();
