@@ -4,6 +4,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileOrderLine,
   type SmartBarMobileOrderResult,
   type SmartBarMobileSubmitMeta,
+  type SmartBarMobileApplyChoiceMeta,
 } from "../SmartBarMobileShell";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../../smartbarFocusController";
 import {
@@ -411,17 +412,19 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     }
   }, [demoFixtureMode]);
 
-  const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string) => {
+  const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => {
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
     const nextLines = smartBarMobileApplyChoiceToVisibleLines(
       mobileOrderLinesRef.current,
       line,
       value,
+      meta?.selected ?? true,
     );
     const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
       mobileCarryoutOrderRef.current,
       line,
       value,
+      meta?.selected ?? true,
     );
     const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "—"
       ? previousEstimatedTotal
@@ -441,7 +444,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     try {
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
-        `selected ${value} for ${line.title}`,
+        `${meta?.selected === false ? "deselected" : "selected"} ${value} for ${line.title}`,
       );
 
       mobileOrderLinesRef.current = repricedResult.lines;

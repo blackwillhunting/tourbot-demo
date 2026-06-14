@@ -383,6 +383,16 @@ function smartBarMobileHydrateLineFromPrevious(
       )
   );
 
+  const lineHasIntentionalEmptyOptionDetails = Boolean(
+    line.status === "ready" &&
+      line.details.length === 0 &&
+      (
+        line.optionSelectionMode === "multi" ||
+        previous.optionSelectionMode === "multi" ||
+        (line.options || previous.options || []).length
+      )
+  );
+
   return {
     ...line,
     targetId: line.targetId || previous.targetId,
@@ -391,9 +401,11 @@ function smartBarMobileHydrateLineFromPrevious(
     optionSelectionMode: line.optionSelectionMode || previous.optionSelectionMode,
     options: line.options?.length ? line.options : previous.options,
     price: line.price && line.price !== "—" ? line.price : previous.price,
-    details: line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
-      ? line.details
-      : previous.details,
+    details: lineHasIntentionalEmptyOptionDetails
+      ? []
+      : line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
+        ? line.details
+        : previous.details,
   };
 }
 
@@ -728,6 +740,7 @@ function smartBarMobileChoiceDetails(
   value: string,
   optionLabels: string[] = [],
   selectionMode: "single" | "multi" = "single",
+  selected = true,
 ) {
   const valueKey = smartBarMobileSelectionKey(value);
   const optionKeys = new Set(
@@ -744,9 +757,12 @@ function smartBarMobileChoiceDetails(
     // Required qualifiers are single-choice. Optional extras are multi-select,
     // so selecting bacon must not erase cheese, sauce, or other extras.
     if (selectionMode === "single" && detailKey && optionKeys.has(detailKey) && detailKey !== valueKey) return false;
+    if (selectionMode === "multi" && !selected && detailKey === valueKey) return false;
 
     return true;
   });
+
+  if (selectionMode === "multi" && !selected) return cleaned;
 
   return Array.from(new Set([...cleaned, value]));
 }
@@ -755,6 +771,7 @@ export function smartBarMobileApplyChoiceToVisibleLines(
   lines: SmartBarMobileOrderLine[],
   selectedLine: SmartBarMobileOrderLine,
   value: string,
+  selected = true,
 ) {
   const nextLines = [...lines];
   const existingIndex = smartBarMobileFindMatchingLineIndex(nextLines, selectedLine);
@@ -765,7 +782,7 @@ export function smartBarMobileApplyChoiceToVisibleLines(
     status: "ready",
     helper: selectionMode === "multi" ? "Reviewed and ready" : `${value} selected`,
     price: selectedLine.price && selectedLine.price !== "—" ? selectedLine.price : "—",
-    details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || [], selectionMode),
+    details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || [], selectionMode, selected),
     options: selectedLine.options || [],
     optionSelectionMode: selectionMode,
   };
@@ -810,11 +827,34 @@ function smartBarMobileAddSelectedOptionalItem(
   ];
 }
 
+function smartBarMobileRemoveSelectedOptionalItem(
+  current: Array<Record<string, unknown>> | undefined,
+  option: Record<string, unknown> | undefined,
+  idField: "modifierId" | "id",
+  fallbackValue: string,
+) {
+  const existing = current || [];
+  const optionId = String(option?.value || option?.id || fallbackValue || "").trim();
+  const optionLabel = String(option?.label || fallbackValue || "").replace(/\s+/g, " ").trim();
+  const optionKey = smartBarMobileSelectionKey(optionId || optionLabel || fallbackValue);
+
+  if (!optionKey) return existing;
+
+  return existing.filter((item) => {
+    const selectedId = String(item[idField] || item.id || item.value || "").trim();
+    const selectedLabel = String(item.label || item.name || "").replace(/\s+/g, " ").trim();
+    const selectedKey = smartBarMobileSelectionKey(selectedId || selectedLabel);
+
+    return !smartBarMobileKeysMatch(selectedKey, optionKey);
+  });
+}
+
 function smartBarMobileApplyChoiceToCarryoutLine(
   carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
   selectedLine: SmartBarMobileOrderLine,
   value: string,
   carryoutIndex: number,
+  selectedChoice = true,
 ) {
   if (!smartBarMobileCarryoutLineMatchesVisibleLine(carryoutLine, selectedLine, carryoutIndex)) return carryoutLine;
 
@@ -851,7 +891,9 @@ function smartBarMobileApplyChoiceToCarryoutLine(
         const optionRecord = option as Record<string, unknown>;
         const selectedNow = smartBarMobileOptionLabelMatchesValue(optionRecord, value);
         const selected = groupSelectionMode === "multi"
-          ? Boolean(optionRecord.selected || optionRecord.state === "selected" || selectedNow)
+          ? selectedNow
+            ? selectedChoice
+            : Boolean(optionRecord.selected || optionRecord.state === "selected")
           : selectedNow;
 
         if (selectedNow) matchedOption = optionRecord;
@@ -880,16 +922,21 @@ function smartBarMobileApplyChoiceToCarryoutLine(
       }) || ({} as NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]),
     ),
     matchedSelectionMode,
+    selectedChoice,
   );
 
   const stillMissingGroup = qualifierGroups.some((group) => Boolean(group.required && group.missing));
   const stillPending = missingQualifiers.length > 0 || stillMissingGroup;
   const hasOptionalGroups = qualifierGroups.some((group) => smartBarMobileGroupIsOptional(group) && (group.options || []).length);
   const nextModifiers = matchedSelectionMode === "multi" && matchedGroupKind === "modifier"
-    ? smartBarMobileAddSelectedOptionalItem(carryoutLine.modifiers as Array<Record<string, unknown>> | undefined, matchedOption, "modifierId", value)
+    ? selectedChoice
+      ? smartBarMobileAddSelectedOptionalItem(carryoutLine.modifiers as Array<Record<string, unknown>> | undefined, matchedOption, "modifierId", value)
+      : smartBarMobileRemoveSelectedOptionalItem(carryoutLine.modifiers as Array<Record<string, unknown>> | undefined, matchedOption, "modifierId", value)
     : carryoutLine.modifiers;
   const nextUpgrades = matchedSelectionMode === "multi" && matchedGroupKind === "upgrade"
-    ? smartBarMobileAddSelectedOptionalItem(carryoutLine.upgrades as Array<Record<string, unknown>> | undefined, matchedOption, "id", value)
+    ? selectedChoice
+      ? smartBarMobileAddSelectedOptionalItem(carryoutLine.upgrades as Array<Record<string, unknown>> | undefined, matchedOption, "id", value)
+      : smartBarMobileRemoveSelectedOptionalItem(carryoutLine.upgrades as Array<Record<string, unknown>> | undefined, matchedOption, "id", value)
     : carryoutLine.upgrades;
 
   return {
@@ -926,13 +973,14 @@ export function smartBarMobileApplyChoiceToCarryoutOrder(
   order: CarryoutOrder | null,
   selectedLine: SmartBarMobileOrderLine,
   value: string,
+  selected = true,
 ): CarryoutOrder | null {
   if (!order) return order;
 
   const sourceItems = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const items = sourceItems.map((line, index) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index));
+  const items = sourceItems.map((line, index) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index, selected));
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
   const nextCurrentStep = smartBarMobileNextCurrentStep(order, pendingItems);

@@ -676,6 +676,12 @@ type SmartBarMobileIntroCallout = {
   body?: string;
 };
 
+export type SmartBarMobileApplyChoiceMeta = {
+  selected: boolean;
+  multiSelect: boolean;
+  valueAlreadySelected: boolean;
+};
+
 type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   /** Demo-only underlay guard to prevent page controls from flashing through the scripted submit transition. */
@@ -689,7 +695,7 @@ type SmartBarMobileShellProps = {
   /** Demo-only command hook for scripted mobile replays. Omit in normal use. */
   demoSubmission?: SmartBarMobileDemoSubmission | null;
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
-  onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
+  onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
@@ -1394,7 +1400,11 @@ export default function SmartBarMobileShell({
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
-      ? Promise.resolve(onApplyLineChoice(line, value))
+      ? Promise.resolve(onApplyLineChoice(line, value, {
+          selected: !(multiSelect && valueAlreadySelected),
+          multiSelect,
+          valueAlreadySelected,
+        }))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
     // Required choices are single-select and close the detail view after a short
