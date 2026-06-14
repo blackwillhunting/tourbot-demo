@@ -1395,7 +1395,7 @@ export default function FoodTrioMobileExperience() {
     if (typeof window === "undefined") return;
 
     const media = window.matchMedia("(min-width: 900px)");
-    const syncDesktopWall = () => setUseDesktopTargetWall(media.matches);
+    const syncDesktopWall = () => setUseDesktopTargetWall(window.location.pathname !== "/food-trio-mobile" && media.matches);
 
     syncDesktopWall();
     media.addEventListener("change", syncDesktopWall);
@@ -2311,8 +2311,15 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     return result;
   }, [lastResult]);
 
+  const forceMobileTargetWall =
+    typeof window !== "undefined" &&
+    window.location.pathname.replace(/\/$/, "") === "/food-trio-mobile";
 
-  const TargetWallComponent = useDesktopTargetWall ? FoodTrioDesktopTargetWall : FoodTrioTargetWall;
+  const TargetWallComponent = forceMobileTargetWall
+    ? FoodTrioTargetWall
+    : useDesktopTargetWall
+      ? FoodTrioDesktopTargetWall
+      : FoodTrioTargetWall;
 
   return (
     <div className="relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_20%_0%,rgba(59,130,246,0.24),transparent_32%),linear-gradient(180deg,#07111f_0%,#08111c_42%,#05070c_100%)] text-white">
