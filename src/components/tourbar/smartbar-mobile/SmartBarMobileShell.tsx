@@ -367,6 +367,52 @@ const SMARTBAR_MOBILE_BLUE_CONTROL_STYLE: CSSProperties = {
   WebkitBackdropFilter: "blur(18px) saturate(120%)",
 };
 
+const SMARTBAR_MOBILE_FOOTER_RED_STYLE: CSSProperties = {
+  background:
+    "linear-gradient(180deg, rgba(239,68,68,0.98) 0%, rgba(220,38,38,0.98) 52%, rgba(153,27,27,0.99) 100%)",
+  borderColor: "rgba(254,226,226,0.74)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(127,29,29,0.50), 0 16px 38px rgba(127,29,29,0.26), 0 5px 14px rgba(2,6,23,0.18)",
+  backdropFilter: "blur(18px) saturate(125%)",
+  WebkitBackdropFilter: "blur(18px) saturate(125%)",
+};
+
+const SMARTBAR_MOBILE_FOOTER_YELLOW_STYLE: CSSProperties = {
+  background:
+    "linear-gradient(180deg, rgba(254,240,138,0.98) 0%, rgba(250,204,21,0.98) 52%, rgba(234,179,8,0.99) 100%)",
+  borderColor: "rgba(254,249,195,0.84)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(161,98,7,0.40), 0 16px 38px rgba(161,98,7,0.24), 0 5px 14px rgba(2,6,23,0.16)",
+  backdropFilter: "blur(18px) saturate(125%)",
+  WebkitBackdropFilter: "blur(18px) saturate(125%)",
+};
+
+const SMARTBAR_MOBILE_FOOTER_GRAY_STYLE: CSSProperties = {
+  background:
+    "linear-gradient(180deg, rgba(226,232,240,0.98) 0%, rgba(203,213,225,0.98) 52%, rgba(148,163,184,0.99) 100%)",
+  borderColor: "rgba(248,250,252,0.82)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.38), inset 0 -1px 0 rgba(71,85,105,0.42), 0 16px 38px rgba(71,85,105,0.24), 0 5px 14px rgba(2,6,23,0.16)",
+  backdropFilter: "blur(18px) saturate(120%)",
+  WebkitBackdropFilter: "blur(18px) saturate(120%)",
+};
+
+function smartBarMobileFooterPolicyStyle(status: SmartBarMobileOrderStatus | null): CSSProperties {
+  if (status === "pending") return SMARTBAR_MOBILE_FOOTER_RED_STYLE;
+  if (status === "options") return SMARTBAR_MOBILE_FOOTER_YELLOW_STYLE;
+  if (status === "unknown") return SMARTBAR_MOBILE_FOOTER_GRAY_STYLE;
+
+  return SMARTBAR_MOBILE_BLUE_CONTROL_STYLE;
+}
+
+function smartBarMobileFooterPolicyTextClass(status: SmartBarMobileOrderStatus | null) {
+  if (status === "options" || status === "unknown") {
+    return "text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.28)]";
+  }
+
+  return "text-white";
+}
+
 
 
 function smartBarMobileResultIsGeneric(
@@ -965,11 +1011,21 @@ export default function SmartBarMobileShell({
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const unknownCount = lines.filter((line) => line.status === "unknown").length;
+  const cartGuidanceStatus: SmartBarMobileOrderStatus | null = !genericResult && lines.length > 0
+    ? blockingIssueCount > 0
+      ? "pending"
+      : unknownCount > 0
+        ? "unknown"
+        : optionCount > 0
+          ? "options"
+          : null
+    : null;
+  const unresolvedReviewCount = blockingIssueCount + unknownCount + optionCount;
   const visibleCartLines = cartStatusFilter
     ? lines.filter((line) => line.status === cartStatusFilter)
     : lines;
   const filteredCartCount = visibleCartLines.length;
-  const checkoutReady = !genericResult && lines.length > 0 && blockingIssueCount === 0;
+  const checkoutReady = !genericResult && lines.length > 0 && cartGuidanceStatus === null;
   const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
     subtotal: orderEstimatedSubtotal,
@@ -1740,12 +1796,18 @@ export default function SmartBarMobileShell({
     }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      return retryCheckingLineId === selectedLine.id ? "Checking..." : "Re-enter";
+      return retryCheckingLineId === selectedLine.id
+        ? "Checking..."
+        : retryDraft.trim() ? "Tap to retry" : "Retry gray entry";
     }
-    if (phase === "cart" && selectedLine) return "Tap to reopen";
-    if (phase === "cart") return checkoutReady ? "Tap for checkout" : `${blockingIssueCount} need attention`;
+    if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
+    if (phase === "cart" && selectedLine) return "Back to cart";
+    if (phase === "cart" && cartGuidanceStatus === "pending") return "Tap red entries";
+    if (phase === "cart" && cartGuidanceStatus === "unknown") return "Retry gray entries";
+    if (phase === "cart" && cartGuidanceStatus === "options") return "Review yellow entries";
+    if (phase === "cart") return "Tap for checkout";
     if (checkoutReady) return `Ready checkout · ${cartTotals.totalLabel}`;
-    return `${blockingIssueCount} need attention · ${cartTotals.totalLabel}`;
+    return `${unresolvedReviewCount} need attention · ${cartTotals.totalLabel}`;
   })();
 
   const handleCompanionClick = () => {
@@ -1803,6 +1865,13 @@ export default function SmartBarMobileShell({
 
       setSelectedLineId(null);
       setCartExpanded(true);
+      return;
+    }
+
+    if (phase === "cart" && cartGuidanceStatus) {
+      setSelectedLineId(null);
+      setCartExpanded(true);
+      setCartStatusFilter(cartGuidanceStatus);
       return;
     }
 
@@ -2118,6 +2187,15 @@ export default function SmartBarMobileShell({
 
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
+  const companionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && !genericResult
+    ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
+      ? selectedLine.status
+      : !selectedLine
+        ? cartGuidanceStatus
+        : null
+    : null;
+  const companionPillStyle = smartBarMobileFooterPolicyStyle(companionPolicyStatus);
+  const companionTextClass = smartBarMobileFooterPolicyTextClass(companionPolicyStatus);
   const {
     rootTextClass,
     upperGlassClass,
@@ -2665,7 +2743,7 @@ export default function SmartBarMobileShell({
                             <Check className="h-3.5 w-3.5" />
                             Complete
                           </>
-                        ) : `${blockingIssueCount} open`}
+                        ) : `${unresolvedReviewCount} open`}
                       </div>
                     </div>
 
@@ -2945,24 +3023,25 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-launcher={phase === "rest" ? "true" : undefined}
             data-smartbar-mobile-submit={phase === "entry" && entryDraft.trim() ? "true" : undefined}
             data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
+            data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && cartGuidanceStatus ? cartGuidanceStatus : undefined}
             data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
             className={`${chromePillClass} h-[46px] min-w-0 justify-center px-4`}
-            style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: launcherPillWidth, left: launcherPillLeft }}
+            style={{ ...companionPillStyle, width: launcherPillWidth, left: launcherPillLeft }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <span className="inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] text-white">
-                <Compass className="h-[18px] w-[18px] shrink-0 text-white" strokeWidth={2.25} />
+              <span className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}>
+                <Compass className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.25} />
                 <span>{companionLabel}</span>
               </span>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
-              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] text-white">
+              <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
                 <ThinkingText text={companionLabel} />
               </span>
             ) : (
-              <span className="inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] text-white">
+              <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
                 {companionLabel}
               </span>
             )}
