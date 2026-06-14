@@ -168,6 +168,9 @@ const demoLines: SmartBarMobileOrderLine[] = [
 
 const estimatedTotal = "$19.46";
 
+const SMARTBAR_MOBILE_CHECKOUT_COLLAPSE_DURATION_MS = 760;
+const SMARTBAR_MOBILE_CHECKOUT_RESET_AFTER_COLLAPSE_MS = 980;
+
 const SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY = "(min-width: 768px)";
 const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-surface='true']";
 const SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX = 36;
@@ -1157,6 +1160,18 @@ export default function SmartBarMobileShell({
   const fakeCartPanelRadius = phase === "building_cart"
     ? buildPanelRadius
     : handoffState === "complete" || (phase === "cart" && !cartExpanded) ? 999 : 30;
+  const fakeCartPanelTransition: Transition = handoffState === "complete"
+    ? {
+        height: {
+          duration: SMARTBAR_MOBILE_CHECKOUT_COLLAPSE_DURATION_MS / 1000,
+          ease: [0.16, 1, 0.3, 1],
+        },
+        borderRadius: {
+          duration: 0.68,
+          ease: [0.16, 1, 0.3, 1],
+        },
+      }
+    : { duration: 0.26, ease: [0.22, 1, 0.36, 1] };
 
   const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
     setOrderEstimatedSubtotal(result.estimatedSubtotal);
@@ -1759,7 +1774,7 @@ export default function SmartBarMobileShell({
       handoffResetTimerRef.current = window.setTimeout(() => {
         handoffResetTimerRef.current = null;
         resetToRest();
-      }, 320);
+      }, SMARTBAR_MOBILE_CHECKOUT_RESET_AFTER_COLLAPSE_MS);
     }, 3000);
   };
 
@@ -2475,7 +2490,7 @@ export default function SmartBarMobileShell({
                 height: fakeCartPanelHeight,
                 borderRadius: fakeCartPanelRadius,
               }}
-              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+              transition={fakeCartPanelTransition}
             >
               <AnimatePresence initial={false}>
                 {phase === "building_cart" && (

@@ -1811,9 +1811,9 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     clearFoodTrioPointerTimers();
     clearFoodTrioNarratorCards();
 
-    // FOODTRIO_MOBILE_CASUAL_FILTER_STORY_FLOW_V1:
+    // FOODTRIO_MOBILE_CASUAL_FILTER_STORY_FLOW_V2:
     // Casual uses filters as the phone-native navigation system:
-    // red required side, green editable ready item, yellow captured extra.
+    // red required side, yellow captured extra, then green editable ready item.
     const queue = (delayMs: number, callback: () => void) => {
       const timer = window.setTimeout(
         callback,
@@ -1825,7 +1825,7 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     if (onComplete) {
       const completionTimer = window.setTimeout(
         onComplete,
-        Math.round((49200 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round((50300 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
       );
       narratorCardTimersRef.current.push(completionTimer);
     }
@@ -1867,100 +1867,103 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
       setNarratorCards([]);
     });
 
-    // Green: ready item can still be changed.
+    // Yellow: extra whipped cream was already captured. Review yellow before optional green edits.
     queue(16500, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5, 0, false, 0.5, "Green ready");
-    });
-
-    queue(17600, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
-    });
-
-    queue(19000, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5, 0, false, 0.5, "Ready, editable");
-    });
-
-    queue(20100, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
-    });
-
-    queue(21500, () => {
-      setNarratorCards(["Green is ready.", "But can be changed."]);
-    });
-
-    queue(22900, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
-    });
-
-    queue(24000, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
-    });
-
-    queue(25500, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
-    });
-
-    queue(26600, () => {
-      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
-    });
-
-    queue(28100, () => {
-      setNarratorCards([]);
-    });
-
-    // Yellow: extra whipped cream was already captured. Review only.
-    queue(28800, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="options"]', 0.5, 0, false, 0.5, "Yellow review");
     });
 
-    queue(29900, () => {
+    queue(17600, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="options"]', 0.5);
     });
 
-    queue(31300, () => {
+    queue(19000, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5, 0, false, 0.5, "Review captured extra");
     });
 
-    queue(32400, () => {
+    queue(20100, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="original-cheesecake"]', 0.5);
     });
 
-    queue(33800, () => {
+    queue(21500, () => {
       setNarratorCards(["Got my extra cream?", "Good!"]);
     });
 
-    queue(36000, () => {
+    queue(23700, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(37100, () => {
+    queue(24800, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
-    queue(38600, () => {
+    queue(26300, () => {
       setNarratorCards([]);
     });
 
-    queue(39300, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5, 0, false, 0.5, "Full cart");
+    // Green: ready item can still be changed after yellow review is satisfied.
+    queue(27000, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-status-filter="ready"]', 0.5, 0, false, 0.5, "Green ready");
+    });
+
+    queue(28100, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-status-filter="ready"]', 0.5);
+    });
+
+    queue(29500, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5, 0, false, 0.5, "Ready, editable");
+    });
+
+    queue(30600, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-line-title-key="chicken-madeira"]', 0.5);
+    });
+
+    queue(32000, () => {
+      setNarratorCards(["Green is ready.", "But can be changed."]);
+    });
+
+    // Give the SmartBar rail time to finish evading the Chicken Madeira card before aiming at Side Salad.
+    queue(33800, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
+    });
+
+    // The pointer is visual, not the click source. Delay this tap so the pulse lands after the rail shift settles.
+    queue(35500, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-option-key="side-salad"]', 0.5);
+    });
+
+    queue(37100, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(38200, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
+    });
+
+    queue(39700, () => {
+      setNarratorCards([]);
     });
 
     queue(40400, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5, 0, false, 0.5, "Full cart");
+    });
+
+    queue(41500, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
-    queue(41800, () => {
+    queue(42900, () => {
       moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
     });
 
-    queue(42900, () => {
+    queue(44000, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(49200, () => {
+    queue(50300, () => {
       setNarratorCards([]);
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });
+
   }, [
     clearFoodTrioNarratorCards,
     clearFoodTrioPointerTimers,
