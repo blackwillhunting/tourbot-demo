@@ -889,7 +889,7 @@ type FoodTrioNarratorCardBeat = {
 const FOOD_TRIO_FAST_FOOD_FILTER_CARD: FoodTrioNarratorCardBeat = {
   delayMs: 500,
   holdMs: 3600,
-  cards: ["Messy shorthand.", "Mostly ready."],
+  cards: ["Using filters helps."],
 };
 
 const FOOD_TRIO_COFFEE_CART_SELECTORS = {
@@ -1708,7 +1708,7 @@ export default function FoodTrioMobileExperience() {
     if (onComplete) {
       const completionTimer = window.setTimeout(
         onComplete,
-        Math.round((32200 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
+        Math.round((34700 + FOOD_TRIO_AFTER_SCENARIO_SETTLE_MS) * FOOD_TRIO_POINTER_CADENCE),
       );
       narratorCardTimersRef.current.push(completionTimer);
     }
@@ -1785,15 +1785,24 @@ export default function FoodTrioMobileExperience() {
       clickFoodTrioPointerElement('[data-smartbar-mobile-detail-close="true"]', 0.5, 0, 0.10);
     });
 
+    // Return to the full cart view before checkout.
     queue(28800, () => {
-      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
     });
 
     queue(29900, () => {
+      clickFoodTrioPointerElement('[data-smartbar-mobile-cart-view="default"]', 0.5);
+    });
+
+    queue(31600, () => {
+      moveFoodTrioPointerToElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, false, 0.10);
+    });
+
+    queue(32700, () => {
       clickFoodTrioPointerElement('[data-smartbar-mobile-checkout="true"]', 0.5, 0, 0.10);
     });
 
-    queue(32200, () => {
+    queue(34700, () => {
       setNarratorCards([]);
       setPointerState(FOOD_TRIO_POINTER_HIDDEN);
     });

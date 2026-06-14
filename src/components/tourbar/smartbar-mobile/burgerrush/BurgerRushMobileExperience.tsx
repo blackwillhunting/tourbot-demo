@@ -35,6 +35,64 @@ function BurgerRushMobileProductSurface({ hideMobileBrowseControls = false }: { 
   );
 }
 
+function smartBarMobileRetryKey(value: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/^\s*\d+\s*[×x]\s*/i, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function smartBarMobileRetryLineInstanceKey(line: SmartBarMobileOrderLine) {
+  return smartBarMobileRetryKey(String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || ""));
+}
+
+function smartBarMobileRetryLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
+  const leftKey = smartBarMobileRetryLineInstanceKey(left);
+  const rightKey = smartBarMobileRetryLineInstanceKey(right);
+
+  if (leftKey && rightKey) return leftKey === rightKey;
+
+  if (left.sourceLineIndex !== undefined && right.sourceLineIndex !== undefined) {
+    return left.sourceLineIndex === right.sourceLineIndex;
+  }
+
+  return Boolean(left.id && right.id && left.id === right.id);
+}
+
+function smartBarMobileRetryFallbackLine(query: string, meta?: SmartBarMobileSubmitMeta): SmartBarMobileOrderLine {
+  const title = query.trim() || meta?.replaceLineTitle || "Requested item";
+  const key = smartBarMobileRetryKey(title) || smartBarMobileRetryKey(meta?.replaceLineId || "") || "item";
+
+  return {
+    id: meta?.replaceLineId || `retry-unmatched-${key}`,
+    cartLineKey: meta?.replaceLineId || `retry-unmatched-${key}`,
+    title,
+    status: "unknown",
+    helper: "Not on the BurgerRush menu",
+    price: "—",
+    details: [],
+    retryPrompt: "Try the item again with a BurgerRush menu name.",
+  };
+}
+
+function smartBarMobileEnsureRetryReplacementLine(
+  lines: SmartBarMobileOrderLine[],
+  previousLines: SmartBarMobileOrderLine[],
+  query: string,
+  meta?: SmartBarMobileSubmitMeta,
+) {
+  if (meta?.intent !== "replace_unknown") return lines;
+
+  const hasReplacementCandidate = lines.some((line) => (
+    !previousLines.some((previousLine) => smartBarMobileRetryLinesAreSameInstance(previousLine, line))
+  ));
+
+  if (hasReplacementCandidate) return lines;
+
+  return [...lines, smartBarMobileRetryFallbackLine(query, meta)];
+}
+
 // Mobile navigation speed controls. Tune these first for demo pacing.
 
 
@@ -355,14 +413,22 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       const fixtureResult = smartBarMobileDemoFixtureResult(query, meta);
       const resultForMerge = {
         ...fixtureResult,
-        lines: smartBarMobileFilterReplacementLine(fixtureResult.lines, meta),
+        lines: smartBarMobileEnsureRetryReplacementLine(
+          smartBarMobileFilterReplacementLine(fixtureResult.lines, meta),
+          previousLines,
+          query,
+          meta,
+        ),
       };
-      const mergedResult = smartBarMobileMergeOrderResults(
+      const mergedResultBase = smartBarMobileMergeOrderResults(
         resultForMerge,
         previousLines,
         previousEstimatedTotal,
         shouldUseExistingCart,
       );
+      const mergedResult = replacingUnknown
+        ? { ...mergedResultBase, preserveResultLinesOnRetry: true }
+        : mergedResultBase;
 
       mobileOrderLinesRef.current = mergedResult.lines;
       mobileEstimatedTotalRef.current = mergedResult.estimatedTotal || previousEstimatedTotal;
@@ -375,14 +441,22 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt);
       const resultForMerge = {
         ...result,
-        lines: smartBarMobileFilterReplacementLine(result.lines, meta),
+        lines: smartBarMobileEnsureRetryReplacementLine(
+          smartBarMobileFilterReplacementLine(result.lines, meta),
+          previousLines,
+          query,
+          meta,
+        ),
       };
-      const mergedResult = smartBarMobileMergeOrderResults(
+      const mergedResultBase = smartBarMobileMergeOrderResults(
         resultForMerge,
         previousLines,
         previousEstimatedTotal,
         shouldUseExistingCart,
       );
+      const mergedResult = replacingUnknown
+        ? { ...mergedResultBase, preserveResultLinesOnRetry: true }
+        : mergedResultBase;
 
       mobileOrderLinesRef.current = mergedResult.lines;
       mobileEstimatedTotalRef.current = mergedResult.estimatedTotal || previousEstimatedTotal;
@@ -396,12 +470,15 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     } catch (error) {
       console.warn("SmartBar mobile guide API failed", error);
       const errorResult = smartBarMobileApiErrorResult(promptQuery, error);
-      const mergedErrorResult = smartBarMobileMergeOrderResults(
+      const mergedErrorResultBase = smartBarMobileMergeOrderResults(
         errorResult,
         previousLines,
         previousEstimatedTotal,
         shouldUseExistingCart,
       );
+      const mergedErrorResult = replacingUnknown
+        ? { ...mergedErrorResultBase, preserveResultLinesOnRetry: true }
+        : mergedErrorResultBase;
 
       if (shouldUseExistingCart) {
         mobileOrderLinesRef.current = mergedErrorResult.lines;

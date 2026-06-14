@@ -786,6 +786,7 @@ export default function SmartBarMobileShell({
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
   const [entryDraft, setEntryDraft] = useState("");
+  const [entryFocused, setEntryFocused] = useState(false);
   const [hasEditedEntryDraft, setHasEditedEntryDraft] = useState(false);
   const [submittedPromptPreview, setSubmittedPromptPreview] = useState("");
   const [buildingStatusLabel, setBuildingStatusLabel] = useState(buildingLabel);
@@ -1287,6 +1288,7 @@ export default function SmartBarMobileShell({
 
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
+    setEntryFocused(false);
 
     const activeElement = typeof document !== "undefined"
       ? document.activeElement as HTMLElement | null
@@ -1405,6 +1407,7 @@ export default function SmartBarMobileShell({
       if (cancelled) return;
 
       entryTextareaRef.current?.focus({ preventScroll: true });
+      setEntryFocused(document.activeElement === entryTextareaRef.current);
 
       for (let index = 1; index <= query.length; index += 1) {
         if (cancelled) return;
@@ -1693,6 +1696,7 @@ export default function SmartBarMobileShell({
 
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
+    setEntryFocused(false);
     clearBuildTimer();
     disarmClose();
     choiceLockedLineIdRef.current = null;
@@ -1722,6 +1726,7 @@ export default function SmartBarMobileShell({
   const resetToRest = () => {
     entryTextareaRef.current?.blur();
     retryTextareaRef.current?.blur();
+    setEntryFocused(false);
     clearBuildTimer();
     clearHandoffTimers();
     setHandoffState("idle");
@@ -2421,6 +2426,15 @@ export default function SmartBarMobileShell({
               style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
             >
               <div className="relative h-full px-3 py-2">
+                {entryFocused && !entryDraft.trim() && (
+                  <div
+                    data-smartbar-mobile-entry-ready-cursor="true"
+                    className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center"
+                    aria-hidden="true"
+                  >
+                    <span className="h-6 w-[2px] rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.92),0_0_24px_rgba(56,189,248,0.58)] animate-pulse" />
+                  </div>
+                )}
                 <textarea
                   data-smartbar-mobile-entry-input="true"
                   ref={entryTextareaRef}
@@ -2429,6 +2443,8 @@ export default function SmartBarMobileShell({
                     setEntryDraft(event.target.value);
                     setHasEditedEntryDraft(true);
                   }}
+                  onFocus={() => setEntryFocused(true)}
+                  onBlur={() => setEntryFocused(false)}
                   className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent caret-transparent selection:bg-slate-900/15"
                   placeholder=""
                   spellCheck={false}
