@@ -1261,6 +1261,16 @@ export default function SmartBarMobileShell({
     setCloseArmed(false);
   };
 
+  const resetAdaptiveRailToCenter = () => {
+    if (typeof window !== "undefined" && adaptiveRailReturnTimerRef.current !== null) {
+      window.clearTimeout(adaptiveRailReturnTimerRef.current);
+      adaptiveRailReturnTimerRef.current = null;
+    }
+
+    adaptiveRailOffsetRef.current = 0;
+    setAdaptiveRailOffset(0);
+  };
+
   useEffect(() => {
     if (phase !== "building_cart") {
       setBuildingStatusLabel(buildingLabel);
@@ -1338,6 +1348,7 @@ export default function SmartBarMobileShell({
     disarmClose();
     clearBuildTimer();
     clearHandoffTimers();
+    resetAdaptiveRailToCenter();
     setHandoffState("idle");
     setSelectedLineId(null);
     setCartStatusFilter(null);
