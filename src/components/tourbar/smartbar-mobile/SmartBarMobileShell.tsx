@@ -992,8 +992,9 @@ export default function SmartBarMobileShell({
   const introTypeMaxWidth = Math.min(entryPillWidth - 22, 336);
   const introTypeCapsuleWidth = Math.min(Math.max(42, introTypeCharCount * 8.35 + 34), introTypeMaxWidth);
   const introTypeGlassWidth = Math.min(Math.max(70, introTypeCapsuleWidth + 24), entryPillWidth);
+  const smartBarAdaptiveRailVisibleOffset = phase === "rest" ? 0 : adaptiveRailOffset;
   const smartBarAdaptiveRailStyle: CSSProperties = {
-    transform: `translate3d(${adaptiveRailOffset}px, 0, 0)`,
+    transform: `translate3d(${smartBarAdaptiveRailVisibleOffset}px, 0, 0)`,
     transition: "transform 420ms cubic-bezier(0.22, 1, 0.36, 1)",
     willChange: "transform",
   };
@@ -1779,6 +1780,7 @@ export default function SmartBarMobileShell({
     setEntryFocused(false);
     clearBuildTimer();
     clearHandoffTimers();
+    resetAdaptiveRailToCenter();
     setHandoffState("idle");
     setPhase("rest");
     setEntryDraft("");
