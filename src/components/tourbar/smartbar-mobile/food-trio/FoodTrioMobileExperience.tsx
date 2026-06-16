@@ -1390,7 +1390,7 @@ export default function FoodTrioMobileExperience() {
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [introStageVisible, setIntroStageVisible] = useState(true);
-  const [smartBarCalloutTitle, setSmartBarCalloutTitle] = useState<string | null>("Type or say your order, cart prefills.");
+  const [smartBarCalloutTitle, setSmartBarCalloutTitle] = useState<string | null>("Type or say your order");
   const [useDesktopTargetWall, setUseDesktopTargetWall] = useState(false);
   const [introSpotlightActive, setIntroSpotlightActive] = useState(false);
   const [introSpotlightTarget, setIntroSpotlightTarget] = useState<"red" | "yellow">("red");
