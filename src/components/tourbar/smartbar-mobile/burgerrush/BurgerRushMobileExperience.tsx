@@ -598,7 +598,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         mode="overlay"
         demoTransitionShield={demoFixtureMode}
         introCallout={{
-          title: "Type words, get cart prefilled",
+          title: "Type or say your order, cart prefills",
         }}
         onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}

@@ -709,7 +709,7 @@ type FoodTrioStoryboardBeat =
       skipSegmentCard?: boolean;
     };
 
-const FOOD_TRIO_INTRO_ANIMATION_PROMPT = "Enter order in plain English.";
+const FOOD_TRIO_INTRO_ANIMATION_PROMPT = "Type or say your order.";
 
 const FOOD_TRIO_INTRO_ANIMATION_BEATS: FoodTrioIntroAnimationBeat[] = [
   {
@@ -1083,7 +1083,7 @@ const FOOD_TRIO_INTRO_TIMELINE: FoodTrioIntroBeat[] = [
   {
     kind: "teaching-card",
     delayMs: 650,
-    cards: ["Gray = Nothing matching on menu"],
+    cards: ["Gray = Unknown item"],
     holdMs: 2100,
   },
   {
@@ -1390,7 +1390,7 @@ export default function FoodTrioMobileExperience() {
   const [pointerState, setPointerState] = useState<FoodTrioPointerState>(FOOD_TRIO_POINTER_HIDDEN);
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [introStageVisible, setIntroStageVisible] = useState(true);
-  const [smartBarCalloutTitle, setSmartBarCalloutTitle] = useState<string | null>("Type words, get cart prefilled");
+  const [smartBarCalloutTitle, setSmartBarCalloutTitle] = useState<string | null>("Type or say your order, cart prefills.");
   const [useDesktopTargetWall, setUseDesktopTargetWall] = useState(false);
   const [introSpotlightActive, setIntroSpotlightActive] = useState(false);
   const [introSpotlightTarget, setIntroSpotlightTarget] = useState<"red" | "yellow">("red");
