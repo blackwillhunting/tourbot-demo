@@ -2210,7 +2210,7 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
       await wait(640);
       if (cancelled) return;
 
-      setSmartBarCalloutTitle("Converting words into orders.");
+      setSmartBarCalloutTitle("Turning words into orders.");
 
       introCompleted = true;
     };

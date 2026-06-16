@@ -3,6 +3,7 @@ import { AnimatePresence, motion, type TargetAndTransition, type Transition } fr
 import {
   ArrowRight,
   Check,
+  Pencil,
   ChevronDown,
   ChevronUp,
   Compass,
@@ -227,11 +228,6 @@ function smartBarAdaptiveRailMaxMove(viewportWidth: number) {
   return Math.max(80, Math.min(360, viewportWidth * 0.28));
 }
 
-function smartBarClampAdaptiveRailOffset(offset: number, viewportWidth: number) {
-  const maxMove = smartBarAdaptiveRailMaxMove(viewportWidth);
-  return Math.max(-maxMove, Math.min(maxMove, offset));
-}
-
 function smartBarAdaptiveRailOffsetWithMinimumNudge(offset: number) {
   if (Math.abs(offset) < 1) return 0;
 
@@ -269,25 +265,52 @@ function smartBarAdaptiveRailOverlapArea(
   return overlapWidth * overlapHeight;
 }
 
-function smartBarAdaptiveRailUniqueOffsets(offsets: number[], viewportWidth: number) {
-  const seen = new Set<number>();
-
-  return offsets.reduce<number[]>((acc, offset) => {
-    const clamped = Math.round(smartBarClampAdaptiveRailOffset(offset, viewportWidth));
-    if (seen.has(clamped)) return acc;
-
-    seen.add(clamped);
-    acc.push(clamped);
-    return acc;
-  }, []);
-}
-
 type SmartBarAdaptiveRailCandidate = {
   offset: number;
   shellRect: SmartBarAdaptiveSpotlightRect;
 };
 
-function smartBarAdaptiveRailCandidateScore(
+function smartBarAdaptiveRailBoundOffset(
+  offset: number,
+  viewportWidth: number,
+  minViewportOffset: number,
+  maxViewportOffset: number,
+) {
+  const maxMove = smartBarAdaptiveRailMaxMove(viewportWidth);
+  const moveBounded = Math.max(-maxMove, Math.min(maxMove, offset));
+  const viewportMin = Math.min(minViewportOffset, maxViewportOffset);
+  const viewportMax = Math.max(minViewportOffset, maxViewportOffset);
+
+  return Math.max(viewportMin, Math.min(viewportMax, moveBounded));
+}
+
+function smartBarAdaptiveRailUniqueBoundedOffsets(
+  offsets: number[],
+  viewportWidth: number,
+  minViewportOffset: number,
+  maxViewportOffset: number,
+) {
+  const seen = new Set<number>();
+
+  return offsets.reduce<number[]>((acc, offset) => {
+    const bounded = Math.round(
+      smartBarAdaptiveRailBoundOffset(
+        offset,
+        viewportWidth,
+        minViewportOffset,
+        maxViewportOffset,
+      ),
+    );
+
+    if (seen.has(bounded)) return acc;
+
+    seen.add(bounded);
+    acc.push(bounded);
+    return acc;
+  }, []);
+}
+
+function smartBarAdaptiveRailCandidateMetrics(
   candidate: SmartBarAdaptiveRailCandidate,
   targetRect: SmartBarAdaptiveSpotlightRect,
   viewportWidth: number,
@@ -297,10 +320,86 @@ function smartBarAdaptiveRailCandidateScore(
   const edgeOverflow =
     Math.max(0, 18 - candidate.shellRect.left) +
     Math.max(0, candidate.shellRect.right - (viewportWidth - 18));
+  const leftPinned = candidate.shellRect.left <= 22;
+  const rightPinned = candidate.shellRect.right >= viewportWidth - 22;
+  const pinnedWhileColliding = overlapArea > 0 && (leftPinned || rightPinned);
 
-  // Collision is the real failure. Distance from center is a small tie-breaker,
-  // so the rail naturally returns to center whenever center is clear.
-  return overlapArea * 1000 + edgeOverflow * 1000 + Math.abs(candidate.offset) * 0.18;
+  return {
+    overlapArea,
+    edgeOverflow,
+    leftPinned,
+    rightPinned,
+    pinnedWhileColliding,
+  };
+}
+
+function smartBarAdaptiveRailCandidateScore(
+  candidate: SmartBarAdaptiveRailCandidate,
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  viewportWidth: number,
+) {
+  const metrics = smartBarAdaptiveRailCandidateMetrics(candidate, targetRect, viewportWidth);
+
+  // Collision is the real failure. A pinned rail that still collides is worse
+  // than a wider jump across the target, because it reads as the SmartBar being
+  // trapped on the wrong side. This keeps left-safe FoodTrio targets from
+  // pushing an already-left rail farther left; the rail crosses to the open side.
+  return (
+    metrics.overlapArea * 1000 +
+    metrics.edgeOverflow * 6000 +
+    (metrics.pinnedWhileColliding ? metrics.overlapArea * 2400 + 1600000 : 0) +
+    Math.abs(candidate.offset) * 0.18
+  );
+}
+
+function smartBarAdaptiveRailBestCandidate(
+  candidates: SmartBarAdaptiveRailCandidate[],
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  viewportWidth: number,
+) {
+  return candidates.reduce((best, candidate) => {
+    const bestScore = smartBarAdaptiveRailCandidateScore(best, targetRect, viewportWidth);
+    const candidateScore = smartBarAdaptiveRailCandidateScore(candidate, targetRect, viewportWidth);
+
+    return candidateScore < bestScore ? candidate : best;
+  }, candidates[0]);
+}
+
+function smartBarAdaptiveRailEscapePinnedCandidate(
+  best: SmartBarAdaptiveRailCandidate,
+  candidates: SmartBarAdaptiveRailCandidate[],
+  targetRect: SmartBarAdaptiveSpotlightRect,
+  viewportWidth: number,
+) {
+  const bestMetrics = smartBarAdaptiveRailCandidateMetrics(best, targetRect, viewportWidth);
+  if (!bestMetrics.pinnedWhileColliding) return best;
+
+  const escapeCandidates = candidates
+    .map((candidate) => ({
+      candidate,
+      metrics: smartBarAdaptiveRailCandidateMetrics(candidate, targetRect, viewportWidth),
+      score: smartBarAdaptiveRailCandidateScore(candidate, targetRect, viewportWidth),
+    }))
+    .filter(({ candidate, metrics }) => {
+      if (metrics.pinnedWhileColliding) return false;
+      if (bestMetrics.leftPinned) return candidate.offset > best.offset;
+      if (bestMetrics.rightPinned) return candidate.offset < best.offset;
+      return false;
+    })
+    .sort((left, right) => {
+      const overlapDelta = left.metrics.overlapArea - right.metrics.overlapArea;
+      if (Math.abs(overlapDelta) > 1) return overlapDelta;
+
+      const overflowDelta = left.metrics.edgeOverflow - right.metrics.edgeOverflow;
+      if (Math.abs(overflowDelta) > 1) return overflowDelta;
+
+      if (bestMetrics.leftPinned) return right.candidate.offset - left.candidate.offset;
+      if (bestMetrics.rightPinned) return left.candidate.offset - right.candidate.offset;
+
+      return left.score - right.score;
+    });
+
+  return escapeCandidates[0]?.candidate ?? best;
 }
 
 function smartBarAdaptiveRailOffsetForTarget(
@@ -310,23 +409,30 @@ function smartBarAdaptiveRailOffsetForTarget(
   currentOffset: number,
 ) {
   const margin = SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX;
+  const maxMove = smartBarAdaptiveRailMaxMove(viewportWidth);
   const baseShellRect = smartBarAdaptiveRailShiftRect(currentShellRect, -currentOffset);
+  const minViewportOffset = Math.max(-maxMove, Math.ceil(18 - baseShellRect.left));
+  const maxViewportOffset = Math.min(maxMove, Math.floor(viewportWidth - 18 - baseShellRect.right));
 
   const moveLeftToClear =
     targetRect.left - margin - baseShellRect.right;
   const moveRightToClear =
     targetRect.right + margin - baseShellRect.left;
 
-  const candidateOffsets = smartBarAdaptiveRailUniqueOffsets(
+  const candidateOffsets = smartBarAdaptiveRailUniqueBoundedOffsets(
     [
       0,
       currentOffset,
       smartBarAdaptiveRailOffsetWithMinimumNudge(moveLeftToClear),
       smartBarAdaptiveRailOffsetWithMinimumNudge(moveRightToClear),
-      -smartBarAdaptiveRailMaxMove(viewportWidth),
-      smartBarAdaptiveRailMaxMove(viewportWidth),
+      minViewportOffset,
+      maxViewportOffset,
+      -maxMove,
+      maxMove,
     ],
     viewportWidth,
+    minViewportOffset,
+    maxViewportOffset,
   );
 
   const candidates = candidateOffsets.map<SmartBarAdaptiveRailCandidate>((offset) => ({
@@ -334,14 +440,49 @@ function smartBarAdaptiveRailOffsetForTarget(
     shellRect: smartBarAdaptiveRailShiftRect(baseShellRect, offset),
   }));
 
-  return candidates.reduce((best, candidate) => {
-    const bestScore = smartBarAdaptiveRailCandidateScore(best, targetRect, viewportWidth);
-    const candidateScore = smartBarAdaptiveRailCandidateScore(candidate, targetRect, viewportWidth);
+  const currentOverlapArea = smartBarAdaptiveRailOverlapArea(targetRect, currentShellRect, margin);
+  const currentShellCenterX = (currentShellRect.left + currentShellRect.right) / 2;
+  const targetCenterX = (targetRect.left + targetRect.right) / 2;
+  const isLeftShiftedIntoTargetLane =
+    currentOverlapArea > 0 &&
+    targetCenterX >= currentShellCenterX - 12 &&
+    (currentShellCenterX < viewportWidth / 2 - SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX ||
+      currentOffset < -SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX);
 
-    return candidateScore < bestScore ? candidate : best;
-  }, candidates[0]).offset;
+  if (isLeftShiftedIntoTargetLane) {
+    const leftMostCandidate = candidates.reduce((leftMost, candidate) =>
+      candidate.offset < leftMost.offset ? candidate : leftMost,
+    );
+    const rightMostCandidate = candidates.reduce((rightMost, candidate) =>
+      candidate.offset > rightMost.offset ? candidate : rightMost,
+    );
+    const leftMostMetrics = smartBarAdaptiveRailCandidateMetrics(
+      leftMostCandidate,
+      targetRect,
+      viewportWidth,
+    );
+    const rightMostMetrics = smartBarAdaptiveRailCandidateMetrics(
+      rightMostCandidate,
+      targetRect,
+      viewportWidth,
+    );
+    const leftEscapeStillCoversTarget = leftMostMetrics.overlapArea > 0;
+    const rightEscapeHasClearance =
+      rightMostCandidate.offset > Math.max(0, currentOffset + SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX) &&
+      rightMostMetrics.edgeOverflow <= 1;
+
+    // Covered-target escape rule: when the SmartBar is already sitting left and
+    // the highlighted target is still underneath it, a softer score-based move
+    // can keep pushing left into the wall. If the far-left escape still covers
+    // the target, cross to the open right side instead.
+    if (leftEscapeStillCoversTarget && rightEscapeHasClearance) {
+      return rightMostCandidate.offset;
+    }
+  }
+
+  const best = smartBarAdaptiveRailBestCandidate(candidates, targetRect, viewportWidth);
+  return smartBarAdaptiveRailEscapePinnedCandidate(best, candidates, targetRect, viewportWidth).offset;
 }
-
 
 
 
@@ -429,6 +570,64 @@ function smartBarMobileResultIsGeneric(
     result &&
       typeof result === "object" &&
       "surfaceKind" in result,
+  );
+}
+
+
+function smartBarMobileRenderInlineMarkdown(text: string, keyPrefix = "inline"): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return (
+        <strong key={key} className="font-black text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    return <span key={key}>{part}</span>;
+  });
+}
+
+function SmartBarMobileFormattedBody({ text }: { text: string }) {
+  const blocks = text.split(/\n\s*\n/g).map((block) => block.trim()).filter(Boolean);
+
+  return (
+    <div className="space-y-3">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split(/\n+/g).map((line) => line.trim()).filter(Boolean);
+        const bulletLines = lines.filter((line) => /^[-•]\s+/.test(line));
+
+        if (bulletLines.length && bulletLines.length === lines.length) {
+          return (
+            <ul key={`block-${blockIndex}`} className="space-y-2">
+              {bulletLines.map((line, lineIndex) => {
+                const cleanLine = line.replace(/^[-•]\s+/, "");
+                return (
+                  <li key={`block-${blockIndex}-line-${lineIndex}`} className="flex gap-2">
+                    <span className="mt-[0.18rem] text-white/54">•</span>
+                    <span className="min-w-0 flex-1">
+                      {smartBarMobileRenderInlineMarkdown(cleanLine, `block-${blockIndex}-line-${lineIndex}`)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        return (
+          <p key={`block-${blockIndex}`}>
+            {lines.map((line, lineIndex) => (
+              <span key={`block-${blockIndex}-line-${lineIndex}`}>
+                {smartBarMobileRenderInlineMarkdown(line, `block-${blockIndex}-line-${lineIndex}`)}
+                {lineIndex < lines.length - 1 ? <br /> : null}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
   );
 }
 
@@ -986,6 +1185,10 @@ export default function SmartBarMobileShell({
   }, [introCallout?.title, phase]);
 
   const mobileShellSideInset = 36;
+  const isBookingGenericSurface =
+    genericResult?.surfaceKind === "booking_tour" ||
+    genericResult?.surfaceKind === "booking_summary";
+  const isDesktopBookingGenericSurface = isOverlay && stableViewportWidth >= 768 && isBookingGenericSurface;
   const mobileShellMaxWidth = 390;
   const entryPillWidth = Math.min(Math.max(stableViewportWidth - mobileShellSideInset * 2, 240), mobileShellMaxWidth);
   const introTypeCharCount = Math.max(1, introTypedTitle.length);
@@ -1032,6 +1235,7 @@ export default function SmartBarMobileShell({
   const buildPanelRadius = buildPanelHeight > realComposerHeight + 18 ? 30 : 999;
   const collapsedCartPanelHeight = 90;
   const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
+  const maxGenericPanelHeight = Math.max(320, Math.floor(stableViewportHeight * (isDesktopBookingGenericSurface ? 0.88 : 0.75)));
 
   const lines = useMemo(() => {
     return orderLines.map((line) => {
@@ -1083,17 +1287,17 @@ export default function SmartBarMobileShell({
   });
   const cartTotalMotionKey = `${phase}-${lines.length}-${cartTotals.totalLabel}`;
   const measuredGenericSurfaceHeight = measuredGenericPanelHeight
-    ? Math.min(maxCartPanelHeight, Math.max(220, measuredGenericPanelHeight + 2))
+    ? Math.min(maxGenericPanelHeight, Math.max(240, measuredGenericPanelHeight + 18))
     : null;
   const chatPanelEstimatedHeight = measuredGenericSurfaceHeight
-    ? Math.min(maxCartPanelHeight, Math.max(200, measuredGenericSurfaceHeight))
-    : Math.min(maxCartPanelHeight, Math.max(200, genericResult?.height ?? 200));
-  const shellChatPanelHeight = Math.min(maxCartPanelHeight, Math.max(456, genericResult?.height ?? 456));
+    ? Math.min(maxGenericPanelHeight, Math.max(200, measuredGenericSurfaceHeight))
+    : Math.min(maxGenericPanelHeight, Math.max(200, genericResult?.height ?? 200));
+  const shellChatPanelHeight = Math.min(maxGenericPanelHeight, Math.max(456, genericResult?.height ?? 456));
   const bookingPanelMeasuredHeight =
     genericResult &&
-    (genericResult.surfaceKind === "booking_tour" || genericResult.surfaceKind === "booking_summary") &&
+    genericResult.surfaceKind === "booking_summary" &&
     measuredGenericSurfaceHeight
-      ? Math.min(maxCartPanelHeight, Math.max(260, measuredGenericSurfaceHeight))
+      ? Math.min(maxGenericPanelHeight, Math.max(260, measuredGenericSurfaceHeight))
       : null;
   const genericPanelHeight = genericResult
     ? genericResult.surfaceKind === "chat_shell"
@@ -1101,8 +1305,10 @@ export default function SmartBarMobileShell({
       : genericResult.surfaceKind === "chat"
         ? chatPanelEstimatedHeight
         : genericResult.surfaceKind === "info"
-          ? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
-          : bookingPanelMeasuredHeight ?? Math.min(maxCartPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
+          ? measuredGenericSurfaceHeight ?? Math.min(maxGenericPanelHeight, Math.max(360, (genericResult.height ?? 420) + 18))
+          : genericResult.surfaceKind === "booking_tour"
+            ? measuredGenericSurfaceHeight ?? Math.min(maxGenericPanelHeight, Math.max(280, (genericResult.height ?? 320) + 18))
+            : bookingPanelMeasuredHeight ?? Math.min(maxGenericPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
     : 0;
 
   useEffect(() => {
@@ -1113,7 +1319,7 @@ export default function SmartBarMobileShell({
 
     const node = genericContentMeasureRef.current;
     const isChat = genericResult.surfaceKind === "chat";
-    const fallbackHeight = Math.min(maxCartPanelHeight, Math.max(isChat ? 200 : 240, genericResult.height ?? (isChat ? 200 : 280)));
+    const fallbackHeight = Math.min(maxGenericPanelHeight, Math.max(isChat ? 200 : 280, genericResult.height ?? (isChat ? 200 : 360)));
     setMeasuredGenericPanelHeight(fallbackHeight);
 
     let frame = 0;
@@ -1125,7 +1331,7 @@ export default function SmartBarMobileShell({
 
         setMeasuredGenericPanelHeight((current) => {
           const clampedHeight = Math.min(
-            maxCartPanelHeight,
+            maxGenericPanelHeight,
             Math.max(isChat ? 200 : 240, nextHeight),
           );
           return current === clampedHeight ? current : clampedHeight;
@@ -1152,7 +1358,7 @@ export default function SmartBarMobileShell({
       if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
 
       setMeasuredGenericPanelHeight((current) => {
-        const clampedHeight = Math.min(maxCartPanelHeight, Math.max(200, Math.ceil(nextHeight)));
+        const clampedHeight = Math.min(maxGenericPanelHeight, Math.max(200, Math.ceil(nextHeight)));
         return current === clampedHeight ? current : clampedHeight;
       });
     };
@@ -1164,7 +1370,7 @@ export default function SmartBarMobileShell({
       observer?.disconnect();
       window.removeEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
     };
-  }, [genericResult?.surfaceKind, genericResult?.title, genericResult?.content, genericResult?.height, maxCartPanelHeight]);
+  }, [genericResult?.surfaceKind, genericResult?.title, genericResult?.content, genericResult?.height, maxGenericPanelHeight]);
 
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
@@ -1908,7 +2114,29 @@ export default function SmartBarMobileShell({
 
     if (phase === "building_cart") return;
 
-    if (phase === "cart" && genericResult) return;
+    if (phase === "cart" && genericResult) {
+      const footerLabel = String(genericResult.statusLabel || "");
+      const footerAction = genericResult.actions?.find((action) => {
+        if (/tap for booking/i.test(footerLabel)) return action.id === "booking-summary" || action.id === "booking-handoff";
+        if (/choose room|add room/i.test(footerLabel)) return action.id === "booking-add-room";
+        if (/tap packages/i.test(footerLabel)) return action.id === "booking-review-packages";
+        if (/tap when done/i.test(footerLabel)) return action.id === "booking-packages-done";
+        if (/review packages/i.test(footerLabel)) return false;
+        return false;
+      });
+
+      if (footerAction) {
+        handleGenericActionClick(footerAction, genericResult);
+      } else if (/tap for booking/i.test(footerLabel)) {
+        handleGenericActionClick({
+          id: "booking-summary",
+          label: "Tap for booking",
+          helper: "Review handoff",
+          variant: "primary",
+        }, genericResult);
+      }
+      return;
+    }
 
     if (phase === "cart" && selectedLine?.status === "unknown") {
       submitRetry();
@@ -1991,6 +2219,12 @@ export default function SmartBarMobileShell({
 
   const handleGenericActionClick = (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => {
     if (handoffLocked || action.disabled) return;
+
+    if (action.id === "booking-edit-room-search") {
+      returnToEntryFromCart();
+      window.setTimeout(() => entryTextareaRef.current?.focus(), 80);
+      return;
+    }
 
     const actionResult = onGenericAction?.(action, result);
     if (!actionResult) return;
@@ -2119,7 +2353,9 @@ export default function SmartBarMobileShell({
       setSubmittedPromptPreview(
         actionId === "booking-nav-next"
           ? "Next"
-          : actionId === "booking-context-continue"
+          : actionId === "booking-nav-back"
+            ? "Back"
+            : actionId === "booking-context-continue"
             ? "Continue search"
             : actionId === "booking-summary" || actionId === "booking-handoff"
               ? "Prepare booking summary"
@@ -2163,7 +2399,8 @@ export default function SmartBarMobileShell({
   }, [buildingLabel]);
 
   useEffect(() => {
-    const handleDomiOpenEntry = () => {
+    const handleDomiOpenEntry = (event: Event) => {
+      const shouldResetDomiState = Boolean((event as CustomEvent<{ reset?: boolean }>).detail?.reset);
       entryTextareaRef.current?.blur();
       retryTextareaRef.current?.blur();
       clearBuildTimer();
@@ -2185,6 +2422,7 @@ export default function SmartBarMobileShell({
       setSubmittedPromptPreview("");
       setEntryDraft("");
       setHasEditedEntryDraft(false);
+      if (shouldResetDomiState) onResetCart?.();
       setPhase("entry");
     };
 
@@ -2193,7 +2431,7 @@ export default function SmartBarMobileShell({
     return () => {
       window.removeEventListener("smartbar-mobile-domi-open-entry", handleDomiOpenEntry as EventListener);
     };
-  }, []);
+  }, [onResetCart]);
 
   useEffect(() => {
     const handleDomiDemoPreAction = (event: Event) => {
@@ -2213,7 +2451,9 @@ export default function SmartBarMobileShell({
       setSubmittedPromptPreview(
         actionId === "booking-nav-next"
           ? "Next"
-          : actionId === "booking-context-continue"
+          : actionId === "booking-nav-back"
+            ? "Back"
+            : actionId === "booking-context-continue"
             ? "Continue search"
             : actionId === "booking-summary" || actionId === "booking-handoff"
               ? "Prepare booking summary"
@@ -2263,13 +2503,20 @@ export default function SmartBarMobileShell({
 
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
-  const companionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && !genericResult
-    ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
-      ? selectedLine.status
-      : !selectedLine
-        ? cartGuidanceStatus
-        : null
+  const genericCompanionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
+    ? /previewing|choose room|add room|tap packages|tap when done|review packages/i.test(genericResult.statusLabel || "")
+      ? "options"
+      : null
     : null;
+  const companionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
+    ? genericCompanionPolicyStatus
+    : phase === "cart"
+      ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
+        ? selectedLine.status
+        : !selectedLine
+          ? cartGuidanceStatus
+          : null
+      : null;
   const companionPillStyle = smartBarMobileFooterPolicyStyle(companionPolicyStatus);
   const companionTextClass = smartBarMobileFooterPolicyTextClass(companionPolicyStatus);
   const {
@@ -2287,16 +2534,35 @@ export default function SmartBarMobileShell({
 
   const genericActions = genericResult?.actions || [];
   const bookingNavActions = genericActions.filter((action) =>
-    action.id === "booking-nav-back" || action.id === "booking-nav-next",
+    action.id === "booking-nav-back" ||
+    action.id === "booking-add-room" ||
+    action.id === "booking-edit-room-search" ||
+    action.id === "booking-review-packages" ||
+    action.id === "booking-nav-next",
   );
   const standardGenericActions = genericActions
-    .filter((action) => action.id !== "booking-nav-back" && action.id !== "booking-nav-next")
+    .filter((action) =>
+      action.id !== "booking-nav-back" &&
+      action.id !== "booking-add-room" &&
+      action.id !== "booking-edit-room-search" &&
+      action.id !== "booking-review-packages" &&
+      action.id !== "booking-nav-next",
+    )
     .filter((action) => {
       const isBookingSurface =
         genericResult?.surfaceKind === "booking_tour" ||
         genericResult?.surfaceKind === "booking_summary";
 
       if (!isBookingSurface) return true;
+
+      if (/tap for booking/i.test(genericResult?.statusLabel || "") &&
+        (action.id === "booking-summary" || action.id === "booking-handoff")) {
+        return false;
+      }
+
+      if (/tap when done/i.test(genericResult?.statusLabel || "") && action.id === "booking-packages-done") {
+        return false;
+      }
 
       // Booking surfaces already render their deliberate CTA and Back/Next rail.
       // Do not also render suggestion chips as extra dark default buttons.
@@ -2320,14 +2586,26 @@ export default function SmartBarMobileShell({
 
     if (action.id === "booking-nav-back") {
       return strongPills
-        ? "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/26 bg-slate-950/92 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_rgba(2,6,23,0.28)] ring-1 ring-white/18 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-        : "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full border border-white/18 bg-slate-950/82 px-4 py-3 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+        ? "flex h-[58px] w-[64px] shrink-0 items-center justify-center rounded-full border border-rose-100/44 bg-rose-500/95 px-0 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_24px_rgba(225,29,72,0.28)] ring-1 ring-rose-100/34 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex h-[58px] w-[64px] shrink-0 items-center justify-center rounded-full border border-rose-100/34 bg-rose-500/88 px-0 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_10px_24px_rgba(225,29,72,0.22)] ring-1 ring-rose-100/26 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
     }
 
     if (action.id === "booking-nav-next") {
       return strongPills
-        ? "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/98 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.52),0_10px_24px_rgba(14,165,233,0.28)] ring-1 ring-sky-50/56 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-        : "flex min-h-[54px] w-full items-center justify-center gap-2 rounded-full bg-sky-200/94 px-4 py-3 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_10px_24px_rgba(14,165,233,0.22)] ring-1 ring-sky-100/46 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40";
+        ? "flex h-[58px] w-[64px] shrink-0 items-center justify-center rounded-full bg-emerald-300/98 px-0 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.54),0_10px_24px_rgba(16,185,129,0.30)] ring-1 ring-emerald-50/58 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex h-[58px] w-[64px] shrink-0 items-center justify-center rounded-full bg-emerald-300/94 px-0 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.48),0_10px_24px_rgba(16,185,129,0.24)] ring-1 ring-emerald-100/50 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+    }
+
+    if (action.id === "booking-edit-room-search") {
+      return strongPills
+        ? "flex h-[58px] w-[54px] shrink-0 items-center justify-center rounded-full border border-white/24 bg-slate-950/92 px-0 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_rgba(2,6,23,0.30)] ring-1 ring-white/18 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex h-[58px] w-[54px] shrink-0 items-center justify-center rounded-full border border-white/18 bg-slate-950/78 px-0 text-center text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
+    }
+
+    if (action.id === "booking-add-room" || action.id === "booking-review-packages") {
+      return strongPills
+        ? "flex h-[58px] min-w-0 flex-1 items-center justify-center gap-2 rounded-full border border-amber-100/60 bg-amber-300/98 px-3 py-2 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.48),0_10px_24px_rgba(180,83,9,0.28)] ring-1 ring-amber-50/54 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+        : "flex h-[58px] min-w-0 flex-1 items-center justify-center gap-2 rounded-full border border-amber-100/46 bg-amber-300/92 px-3 py-2 text-center text-sm font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_24px_rgba(180,83,9,0.20)] ring-1 ring-amber-100/40 transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45";
     }
 
     if (action.variant === "secondary") {
@@ -2638,7 +2916,7 @@ export default function SmartBarMobileShell({
                             <div className="mb-2 inline-flex max-w-full items-center rounded-full border border-white/20 bg-slate-950/78 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.24)]">
                               {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className={bookingNavActions.length >= 3 ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = (selectedLine.details || []).some((detail) => {
                                   return detail.trim().toLowerCase() === option.trim().toLowerCase();
@@ -2720,7 +2998,7 @@ export default function SmartBarMobileShell({
                     <div
                       className={genericResult?.surfaceKind === "chat"
                         ? "mt-0 min-h-0 shrink-0 overflow-visible pr-0 pb-0"
-                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[calc(100svh-260px)] shrink-0" : "mt-0 max-h-[calc(100svh-300px)] shrink-0"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                        : `${genericResult?.surfaceKind === "info" ? "mt-0 max-h-[75svh] shrink-0" : isBookingGenericSurface ? "mt-0 max-h-[80svh] shrink-0" : "mt-0 max-h-[72svh] shrink-0"} min-h-0 overflow-y-auto overflow-x-hidden pr-0 pb-0 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={genericResult?.surfaceKind === "chat" ? undefined : { WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {genericResult.content ? (
@@ -2742,13 +3020,17 @@ export default function SmartBarMobileShell({
                           }}
                           className={genericResult?.surfaceKind === "chat" ? "min-h-0 text-[15px] leading-6 text-white/86" : genericResult?.surfaceKind === "info" ? "space-y-0 text-[15px] leading-6 text-white/86" : "space-y-3 text-[15px] leading-6 text-white/86"}
                         >
-                          {genericResult.content}
+                          {typeof genericResult.content === "string" ? (
+                            <SmartBarMobileFormattedBody text={genericResult.content} />
+                          ) : (
+                            genericResult.content
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-3">
                           {genericResult.body && (
                             <div className="rounded-[24px] border border-white/18 bg-slate-950/68 px-4 py-3 text-[15px] font-semibold leading-6 text-white/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
-                              {genericResult.body}
+                              <SmartBarMobileFormattedBody text={genericResult.body} />
                             </div>
                           )}
                           {genericResult.helper && (
@@ -2763,26 +3045,51 @@ export default function SmartBarMobileShell({
                     {!!genericActions.length && (
                       <div className={genericResult?.surfaceKind === "info" ? "mt-3 shrink-0 space-y-2 pb-0" : "mt-3 shrink-0 space-y-2 pb-0"}>
                         {!!bookingNavActions.length && (
-                          <div className="grid grid-cols-2 gap-2">
-                            {bookingNavActions.map((action) => (
-                              <button
-                                key={action.id}
-                                type="button"
-                                data-smartbar-mobile-generic-action={action.id}
-                                data-domi-demo-next-target={action.id === "booking-nav-next" ? "true" : undefined}
-                                data-domi-demo-summary-target={action.id === "booking-summary" || action.id === "booking-handoff" || /prepare booking summary/i.test(action.label) ? "true" : undefined}
-                                disabled={action.disabled}
-                                onClick={() => handleGenericActionClick(action, genericResult)}
-                                className={genericActionButtonClass(action)}
-                              >
-                                {action.id === "booking-nav-back" && <ArrowRight className="h-4 w-4 shrink-0 rotate-180" />}
-                                <span className="min-w-0">
-                                  <span className="block leading-5">{action.label}</span>
-                                  {action.helper && <span className="mt-0.5 block truncate text-[11px] font-semibold opacity-72">{action.helper}</span>}
-                                </span>
-                                {action.id === "booking-nav-next" && <ArrowRight className="h-4 w-4 shrink-0" />}
-                              </button>
-                            ))}
+                          <div className="flex items-stretch gap-2">
+                            {bookingNavActions.map((action) => {
+                              const isBack = action.id === "booking-nav-back";
+                              const isNext = action.id === "booking-nav-next";
+                              const isEdit = action.id === "booking-edit-room-search";
+                              const isPrimaryBookingWizardAction =
+                                action.id === "booking-add-room" || action.id === "booking-review-packages";
+
+                              return (
+                                <button
+                                  key={action.id}
+                                  type="button"
+                                  data-smartbar-mobile-generic-action={action.id}
+                                  data-domi-demo-next-target={isNext ? "true" : undefined}
+                                  data-domi-demo-summary-target={action.id === "booking-summary" || action.id === "booking-handoff" || /prepare booking summary/i.test(action.label) ? "true" : undefined}
+                                  disabled={action.disabled}
+                                  onClick={() => handleGenericActionClick(action, genericResult)}
+                                  className={genericActionButtonClass(action)}
+                                  aria-label={action.label}
+                                >
+                                  {isBack ? (
+                                    <ArrowRight className="h-5 w-5 shrink-0 rotate-180" />
+                                  ) : isNext ? (
+                                    <ArrowRight className="h-5 w-5 shrink-0" />
+                                  ) : isEdit ? (
+                                    <Pencil className="h-[18px] w-[18px] shrink-0" />
+                                  ) : isPrimaryBookingWizardAction ? (
+                                    <>
+                                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950/12 text-[22px] font-black leading-none ring-1 ring-slate-950/10">
+                                        +
+                                      </span>
+                                      <span className="min-w-0 text-left">
+                                        <span className="block truncate leading-5">{action.label}</span>
+                                        {action.helper && <span className="mt-0.5 block truncate text-[11px] font-semibold opacity-72">{action.helper}</span>}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <span className="min-w-0">
+                                      <span className="block leading-5">{action.label}</span>
+                                      {action.helper && <span className="mt-0.5 block truncate text-[11px] font-semibold opacity-72">{action.helper}</span>}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
