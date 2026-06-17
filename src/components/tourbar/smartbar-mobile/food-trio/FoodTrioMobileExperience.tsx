@@ -2195,18 +2195,9 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     setDemoSubmission(null);
     setActiveTargetId(null);
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
-
-    // Bookend the Order Board. Cards explain the handoff before/after;
-    // the board choreography itself stays clean so cards never cover tiles,
-    // the ticket sheet, or the pointer.
-    setNarratorCards(["Order sent.", "Staff gets the ticket.", "On a tablet."]);
-    await wait(4800);
-    setNarratorCards([]);
-    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + FOOD_TRIO_TIMELINE_CARD_SETTLE_MS);
-
     setOrderBoardFinaleVisible(true);
-    await wait(720);
 
+    await wait(2400);
     const orderTile = document.querySelector<HTMLElement>('[data-smartbar-order-board-tile="S-186"]');
     if (orderTile) {
       const rect = orderTile.getBoundingClientRect();
@@ -2226,37 +2217,21 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
       });
     }
 
-    // Let the board load and the new order arrive before the pointer moves.
-    await wait(3000);
+    await wait(420);
     moveFoodTrioPointerToElement('[data-smartbar-order-board-tile="S-186"]', 0.5, 0, false, 0.5);
-
-    // Let the pointer visibly land on S-186 before tapping.
     await wait(2000);
     clickFoodTrioPointerElement('[data-smartbar-order-board-tile="S-186"]', 0.5, 0, 0.5);
 
-    // Let the ticket open, then narrate the clean handoff while it is visible.
-    await wait(1000);
-    setNarratorCards(["Clean order.", "Ready to enter."]);
-
-    // Hold the open ticket before moving down to the SWIPE/Entered target.
-    await wait(4000);
-    setNarratorCards([]);
-    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + FOOD_TRIO_TIMELINE_CARD_SETTLE_MS);
-
+    await wait(1700);
     moveFoodTrioPointerToElement('[data-smartbar-order-board-demo-entered-target="true"]', 0.5, 0, false, 0.5);
     await wait(650);
     clickFoodTrioPointerElement('[data-smartbar-order-board-demo-entered-target="true"]', 0.5, 0, 0.5);
 
-    await wait(1800);
+    await wait(1400);
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
-    await wait(900);
+    await wait(420);
     setOrderBoardFinaleVisible(false);
     await wait(780);
-
-    setNarratorCards(["Phone ordering\nwithout the phone."]);
-    await wait(3000);
-    setNarratorCards([]);
-    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + FOOD_TRIO_TIMELINE_CARD_SETTLE_MS);
   }, [
     clearFoodTrioNarratorCards,
     clearFoodTrioPointerTimers,
@@ -2269,13 +2244,6 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     introStartedRef.current = true;
     let introCompleted = false;
     let cancelled = false;
-
-    const isOrderBoardFinalePreview = (() => {
-      if (typeof window === "undefined") return false;
-
-      const params = new URLSearchParams(window.location.search);
-      return params.get("t") === "order-board-finale" || params.get("devStart") === "orderBoard";
-    })();
 
     const runStoryboardCards = (cards: string[], holdMs: number) => (
       new Promise<void>((resolve) => {
@@ -2290,32 +2258,16 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     );
 
     const runStoryboard = async () => {
-      if (isOrderBoardFinalePreview) {
-        setSmartBarCalloutTitle(null);
-        setIntroStageVisible(true);
-        setActiveScenario("casual-dining");
-        setActiveTargetId(null);
-        clearSmartBarFocusOverlay();
-        clearFoodTrioPointerTimers();
-        clearFoodTrioNarratorCards();
-        await wait(360);
-        if (cancelled) return;
-      } else {
-        await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
-        if (cancelled) return;
+      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
+      if (cancelled) return;
 
-        setSmartBarCalloutTitle(null);
-        await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
-        if (cancelled) return;
+      setSmartBarCalloutTitle(null);
+      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
+      if (cancelled) return;
 
-        await wait(320);
-      }
+      await wait(320);
 
-      const storyboardStartIndex = isOrderBoardFinalePreview
-        ? Math.max(FOOD_TRIO_STORYBOARD.findIndex((beat) => beat.kind === "order-board-finale"), 0)
-        : 0;
-
-      for (const beat of FOOD_TRIO_STORYBOARD.slice(storyboardStartIndex)) {
+      for (const beat of FOOD_TRIO_STORYBOARD) {
         if (cancelled) return;
 
         switch (beat.kind) {
