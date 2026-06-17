@@ -844,38 +844,18 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
   },
   {
     kind: "cards",
-    cards: ["Phone ordering\nwithout the phone."],
-    holdMs: 3600,
+    cards: ["Your POS stays."],
+    holdMs: 3200,
   },
   {
     kind: "cards",
-    cards: ["Not a POS.", "Not a replacement."],
-    holdMs: 3600,
-  },
-  {
-    kind: "cards",
-    cards: ["A new intake lane."],
-    holdMs: 2800,
-  },
-  {
-    kind: "cards",
-    cards: ["Your POS stays.", "Staff enters the ticket."],
-    holdMs: 4000,
-  },
-  {
-    kind: "cards",
-    cards: ["Fewer phone interruptions.", "Fewer missed details."],
-    holdMs: 3800,
-  },
-  {
-    kind: "cards",
-    cards: ["More direct orders.", "Less phone chaos."],
-    holdMs: 3800,
-  },
-  {
-    kind: "cards",
-    cards: ["Simple setup.", "Site scan.", "Menu pack.", "Tablet board."],
+    cards: ["Phone calls.", "Replaced by AI."],
     holdMs: 4200,
+  },
+  {
+    kind: "cards",
+    cards: ["Orders land\nas ready tickets."],
+    holdMs: 3800,
   },
   {
     kind: "cards",
