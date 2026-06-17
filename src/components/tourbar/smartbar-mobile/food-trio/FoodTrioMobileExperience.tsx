@@ -842,31 +842,46 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
   {
     kind: "order-board-finale",
   },
-{
-  kind: "cards",
-  cards: ["One bar.", "Any menu.", "Any order."],
-  holdMs: 3500,
-},
-{
-  kind: "cards",
-  cards: ["Fewer calls.", "Fewer abandoned carts.", "More direct orders."],
-  holdMs: 3500,
-},
-{
-  kind: "cards",
-  cards: ["Setup is simple."],
-  holdMs: 2400,
-},
-{
-  kind: "cards",
-  cards: ["Site scan.", "Code snippet.", "Menu pack."],
-  holdMs: 3000,
-},
-{
-  kind: "cards",
-  cards: ["Direct orders.", "Made simple."],
-  holdMs: 5500,
-},
+  {
+    kind: "cards",
+    cards: ["Phone ordering\nwithout the phone."],
+    holdMs: 3600,
+  },
+  {
+    kind: "cards",
+    cards: ["Not a POS.", "Not a replacement."],
+    holdMs: 3600,
+  },
+  {
+    kind: "cards",
+    cards: ["A new intake lane."],
+    holdMs: 2800,
+  },
+  {
+    kind: "cards",
+    cards: ["Your POS stays.", "Staff enters the ticket."],
+    holdMs: 4000,
+  },
+  {
+    kind: "cards",
+    cards: ["Fewer phone interruptions.", "Fewer missed details."],
+    holdMs: 3800,
+  },
+  {
+    kind: "cards",
+    cards: ["More direct orders.", "Less phone chaos."],
+    holdMs: 3800,
+  },
+  {
+    kind: "cards",
+    cards: ["Simple setup.", "Site scan.", "Menu pack.", "Tablet board."],
+    holdMs: 4200,
+  },
+  {
+    kind: "cards",
+    cards: ["Direct orders.", "Made simple."],
+    holdMs: 5500,
+  },
 ];
 
 type FoodTrioPointerBeat =
@@ -2195,9 +2210,22 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     setDemoSubmission(null);
     setActiveTargetId(null);
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
-    setOrderBoardFinaleVisible(true);
 
-    await wait(2400);
+    setNarratorCards(["Order sent.", "Staff gets the ticket.", "On a tablet."]);
+    await wait(4800);
+    setNarratorCards([]);
+    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + FOOD_TRIO_TIMELINE_CARD_SETTLE_MS);
+
+    setOrderBoardFinaleVisible(true);
+    setNarratorCards(["Live board of orders"]);
+
+    // Board timing:
+    // - board mounts immediately
+    // - S-187 lands after 4000ms via demoRevealDelayMs
+    // - wait 1500ms after that reveal before moving the pointer
+    await wait(5500);
+    setNarratorCards([]);
+
     const orderTile = document.querySelector<HTMLElement>('[data-smartbar-order-board-tile="S-186"]');
     if (orderTile) {
       const rect = orderTile.getBoundingClientRect();
@@ -2219,19 +2247,36 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
 
     await wait(420);
     moveFoodTrioPointerToElement('[data-smartbar-order-board-tile="S-186"]', 0.5, 0, false, 0.5);
-    await wait(2000);
+    await wait(1500);
     clickFoodTrioPointerElement('[data-smartbar-order-board-tile="S-186"]', 0.5, 0, 0.5);
 
-    await wait(1700);
+    await wait(900);
+    setNarratorCards(["Clean order.", "Ready to enter."]);
+    await wait(2600);
+    setNarratorCards([]);
+    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+
+    setNarratorCards(["A phone call.", "Replaced with a ticket."]);
+    // Keep the open S-186 ticket visible for roughly 7 seconds total before marking it entered.
+    await wait(3100);
+    setNarratorCards([]);
+    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+
     moveFoodTrioPointerToElement('[data-smartbar-order-board-demo-entered-target="true"]', 0.5, 0, false, 0.5);
     await wait(650);
     clickFoodTrioPointerElement('[data-smartbar-order-board-demo-entered-target="true"]', 0.5, 0, 0.5);
 
     await wait(1400);
     setPointerState(FOOD_TRIO_POINTER_HIDDEN);
-    await wait(420);
+    setNarratorCards(["Order board updated"]);
+
+    await wait(4000);
+    setNarratorCards([]);
+    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + FOOD_TRIO_TIMELINE_CARD_SETTLE_MS);
+
     setOrderBoardFinaleVisible(false);
     await wait(780);
+
   }, [
     clearFoodTrioNarratorCards,
     clearFoodTrioPointerTimers,
@@ -2258,16 +2303,32 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
     );
 
     const runStoryboard = async () => {
-      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
-      if (cancelled) return;
+      const searchParams = new URLSearchParams(window.location.search);
+      const startAtOrderBoard =
+        searchParams.get("t") === "order-board-finale" ||
+        searchParams.get("devStart") === "orderBoard";
 
-      setSmartBarCalloutTitle(null);
-      await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
-      if (cancelled) return;
+      let storyboardBeats = FOOD_TRIO_STORYBOARD;
 
-      await wait(320);
+      if (startAtOrderBoard) {
+        setIntroStageVisible(true);
+        setSmartBarCalloutTitle(null);
+        const orderBoardIndex = FOOD_TRIO_STORYBOARD.findIndex((beat) => beat.kind === "order-board-finale");
+        storyboardBeats = orderBoardIndex >= 0 ? FOOD_TRIO_STORYBOARD.slice(orderBoardIndex) : FOOD_TRIO_STORYBOARD;
+        await wait(240);
+        if (cancelled) return;
+      } else {
+        await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_HOLD_MS);
+        if (cancelled) return;
 
-      for (const beat of FOOD_TRIO_STORYBOARD) {
+        setSmartBarCalloutTitle(null);
+        await wait(FOOD_TRIO_SMARTBAR_INTRO_CALLOUT_EXIT_MS);
+        if (cancelled) return;
+
+        await wait(320);
+      }
+
+      for (const beat of storyboardBeats) {
         if (cancelled) return;
 
         switch (beat.kind) {
@@ -2522,7 +2583,7 @@ const runCasualDiningCartPointer = useCallback((onComplete?: () => void) => {
           <SmartBarOrderBoardMock
             demoMode
             demoRevealOrderId="S-187"
-            demoRevealDelayMs={950}
+            demoRevealDelayMs={4000}
             className="!min-h-[100svh]"
           />
         </div>
