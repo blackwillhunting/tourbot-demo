@@ -133,9 +133,11 @@ function SmartBarStackCard({ card }: { card: SmartBarFlashCardStackItem }) {
 export function SmartBarFlashCardStack({
   cards,
   mode = "standard",
+  align = "end",
 }: {
   cards: SmartBarFlashCardStackItem[];
   mode?: SmartBarFlashCardCascadeMode;
+  align?: "end" | "center";
 }) {
   const config = STACK_CONFIG[mode];
 
@@ -159,7 +161,7 @@ export function SmartBarFlashCardStack({
                 transition: SMARTBAR_FLASH_CARD_EXIT_TRANSITION,
               }}
               transition={SMARTBAR_FLASH_CARD_ENTER_TRANSITION}
-              className="absolute right-0 top-1/2 flex w-full items-center justify-end"
+              className={`absolute right-0 top-1/2 flex w-full items-center ${align === "center" ? "justify-center" : "justify-end"}`}
               style={{ zIndex: 40 + index }}
             >
               <SmartBarStackCard card={card} />

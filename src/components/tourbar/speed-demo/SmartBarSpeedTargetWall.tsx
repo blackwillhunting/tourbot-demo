@@ -1853,6 +1853,76 @@ function DomiPacingCard({
   );
 }
 
+type DomiSignalPanelItem = {
+  label: string;
+  value: string;
+  tone?: "sky" | "emerald" | "amber" | "violet" | "slate";
+};
+
+function DomiSignalPanel({
+  eyebrow,
+  title,
+  body,
+  items,
+  Icon,
+  className = "",
+}: {
+  eyebrow: string;
+  title: string;
+  body?: string;
+  items: DomiSignalPanelItem[];
+  Icon: LucideIcon;
+  className?: string;
+}) {
+  const toneClass = (tone: DomiSignalPanelItem["tone"] = "sky") => {
+    if (tone === "emerald") return "bg-emerald-50 text-emerald-800 ring-emerald-100";
+    if (tone === "amber") return "bg-amber-50 text-amber-900 ring-amber-100";
+    if (tone === "violet") return "bg-violet-50 text-violet-800 ring-violet-100";
+    if (tone === "slate") return "bg-slate-100 text-slate-700 ring-slate-200";
+    return "bg-sky-50 text-sky-800 ring-sky-100";
+  };
+
+  return (
+    <DomiCard className={`border-slate-200/75 bg-white/90 text-slate-950 ${className}`}>
+      <div className="p-4 sm:p-5 md:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+              {eyebrow}
+            </div>
+            <h3 className="mt-2 text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
+              {title}
+            </h3>
+          </div>
+          <div className="rounded-2xl bg-slate-950 p-3 text-white shadow-sm ring-1 ring-slate-700/20">
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+
+        {body ? (
+          <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
+            {body}
+          </p>
+        ) : null}
+
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {items.map((item) => (
+            <div
+              key={`${item.label}-${item.value}`}
+              className={`rounded-2xl px-3 py-2.5 text-sm font-black shadow-sm ring-1 ${toneClass(item.tone)}`}
+            >
+              <div className="text-[10px] uppercase tracking-[0.16em] opacity-60">
+                {item.label}
+              </div>
+              <div className="mt-1 leading-5">{item.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DomiCard>
+  );
+}
+
 function DomiSurfaceLayer({ active }: { active: boolean }) {
   const copy = SURFACE_COPY.booking;
   const domiSection = (index: number) => DOMI_SECTIONS[index];
@@ -1863,91 +1933,171 @@ function DomiSurfaceLayer({ active }: { active: boolean }) {
       initial={false}
       animate={active ? { opacity: 1, y: 0 } : { opacity: 0, y: 18 }}
       transition={{ duration: 0.26, ease: "easeOut" }}
-      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[5200px] sm:min-h-[6400px]`}
+      className={`${active ? "relative" : "pointer-events-none absolute inset-x-0 top-0"} min-h-[5600px] sm:min-h-[7200px]`}
     >
-      <div className="mb-5 grid gap-3 sm:mb-8 sm:gap-5 md:grid-cols-6 xl:grid-cols-12">
-        <div className="rounded-[22px] border border-sky-200/70 bg-white/90 p-4 text-slate-950 shadow-xl shadow-sky-950/10 ring-1 ring-white/80 backdrop-blur-xl sm:rounded-[34px] sm:p-6 md:col-span-6 xl:col-span-7">
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-12 xl:items-stretch">
+        <div className="rounded-[22px] border border-sky-200/70 bg-white/90 p-4 text-slate-950 shadow-xl shadow-sky-950/10 ring-1 ring-white/80 backdrop-blur-xl sm:rounded-[34px] sm:p-6 xl:col-span-7">
           <div className="text-[11px] font-black uppercase tracking-[0.2em] text-sky-700/80">
             {copy.eyebrow}
           </div>
           <h2 className="mt-1.5 text-2xl font-black tracking-tight text-slate-950 sm:mt-2 sm:text-4xl">
             {copy.title}
           </h2>
-          <p className="mt-2 max-w-2xl text-xs font-medium leading-5 text-slate-600 sm:mt-3 sm:text-base sm:leading-7">
-            The booking layer now mirrors real Domi room cards, package cards, and the booking preview panel instead of invented demo objects.
+          <p className="mt-2 max-w-3xl text-xs font-medium leading-5 text-slate-600 sm:mt-3 sm:text-base sm:leading-7">
+            The Domi target wall now uses the desktop canvas: rooms, packages, filters, amenity signals, and booking context spread across the page so SmartBar has real objects to avoid.
           </p>
+        </div>
+
+        <DomiSignalPanel
+          eyebrow="Desktop target field"
+          title="Objects across the canvas"
+          body="The bar should stay compact while the hotel page creates left, center, and right collision moments."
+          Icon={Network}
+          className="xl:col-span-5"
+          items={[
+            { label: "Left rail", value: "tower + family", tone: "sky" },
+            { label: "Center", value: "best-fit rooms", tone: "emerald" },
+            { label: "Right rail", value: "packages + booking", tone: "violet" },
+            { label: "Motion", value: "shift, don't widen", tone: "amber" },
+          ]}
+        />
+      </div>
+
+      <div className="mt-6 grid gap-5 sm:mt-9 sm:gap-7 xl:grid-cols-12 xl:gap-8">
+        <div className="space-y-5 sm:space-y-7 xl:col-span-7">
+          <DomiSectionCard section={domiSection(0)} index={0} />
+          <DomiSignalPanel
+            eyebrow="Stay signals"
+            title="What SmartBar has to reconcile"
+            body="Domi is intentionally choice-heavy: the same guest intent can point to value, view, breakfast, family, or premium-room tradeoffs."
+            Icon={BarChart3}
+            items={[
+              { label: "View", value: "ocean preferred", tone: "sky" },
+              { label: "Budget", value: "not villa tier", tone: "emerald" },
+              { label: "Dates", value: "Aug 4-9", tone: "amber" },
+              { label: "Guest", value: "solo now, family later", tone: "violet" },
+            ]}
+          />
+        </div>
+
+        <div className="space-y-5 sm:space-y-7 xl:col-span-5 xl:pt-24">
+          <DomiSectionCard section={domiSection(1)} index={1} />
+          <DomiSignalPanel
+            eyebrow="Site filters"
+            title="Visible page controls"
+            body="These objects give the demo a real booking-site feel instead of a narrow scripted lane."
+            Icon={Search}
+            items={[
+              { label: "Tower", value: "Ocean / Garden / Family", tone: "slate" },
+              { label: "View", value: "garden to ocean", tone: "sky" },
+              { label: "Meal", value: "breakfast add-on", tone: "amber" },
+              { label: "Booking", value: "summary handoff", tone: "emerald" },
+            ]}
+          />
         </div>
       </div>
 
-      <div className="max-w-[820px] space-y-5 sm:space-y-8">
-        {DOMI_SECTIONS.slice(0, 2).map((section, index) => (
-          <DomiSectionCard key={section.id} section={section} index={index} />
-        ))}
-
-        <div className="space-y-16 sm:space-y-20 xl:space-y-24">
+      <div className="mt-10 grid gap-7 sm:mt-14 sm:gap-10 xl:grid-cols-12 xl:gap-x-8 xl:gap-y-16">
+        <div className="xl:col-span-6">
           <DomiSectionCard section={domiSection(2)} index={2} />
+        </div>
 
-          <DomiPacingCard
+        <div className="space-y-7 sm:space-y-10 xl:col-span-6 xl:pt-28">
+          <DomiSignalPanel
             eyebrow="Availability scan"
             title="Tower and floor options"
-            body="The room path now has to travel past real-looking hotel context before the next recommendation appears."
+            body="The first recommendation sits on the left while the supporting inventory lives on the opposite side, forcing horizontal page awareness."
             Icon={Building2}
+            items={[
+              { label: "Tower", value: "Garden", tone: "emerald" },
+              { label: "Floor", value: "quiet wing", tone: "slate" },
+              { label: "Walking", value: "path access", tone: "sky" },
+              { label: "Rate", value: "value band", tone: "amber" },
+            ]}
           />
-
           <DomiSectionCard section={domiSection(5)} index={5} />
+        </div>
 
+        <div className="space-y-7 sm:space-y-10 xl:col-span-5 xl:pt-12">
           <DomiPacingCard
             eyebrow="Stay context"
             title="Arrival, parking, and guest needs"
-            body="These intermediate stops keep the page feeling like a site, not three cards staged in demo order."
+            body="The page now has visible booking context on the left before the main best-fit room appears on the right."
             Icon={CalendarDays}
           />
+          <DomiSectionCard section={domiSection(6)} index={6} />
+        </div>
 
-          <DomiPacingCard
+        <div className="xl:col-span-7">
+          <DomiSectionCard section={domiSection(3)} index={3} />
+        </div>
+
+        <div className="xl:col-span-6">
+          <DomiSectionCard section={domiSection(7)} index={7} />
+        </div>
+
+        <div className="space-y-7 sm:space-y-10 xl:col-span-6 xl:pt-24">
+          <DomiSignalPanel
             eyebrow="Amenity comparison"
             title="Breakfast, pool, and quiet-zone tradeoffs"
-            body="The spotlight has a longer vertical trip, so the recommendation change feels earned."
+            body="Package cards sit away from room cards so the SmartBar has to navigate between different parts of the hotel page."
             Icon={Coffee}
+            items={[
+              { label: "Breakfast", value: "daily credit", tone: "amber" },
+              { label: "Pool", value: "family wing", tone: "sky" },
+              { label: "Spa", value: "weekend package", tone: "violet" },
+              { label: "Checkout", value: "late eligible", tone: "emerald" },
+            ]}
           />
+          <DomiSectionCard section={domiSection(8)} index={8} />
+        </div>
 
-          <DomiSectionCard section={domiSection(3)} index={3} />
-
+        <div className="space-y-7 sm:space-y-10 xl:col-span-5 xl:pt-8">
           <DomiPacingCard
             eyebrow="Rate comparison"
             title="Nightly rate versus total stay cost"
-            body="SmartBar can compare room value without every recommendation sitting directly next to the last one."
+            body="A compact rail of price signals keeps the desktop page busy while the bar remains narrow and tall."
             Icon={CreditCard}
           />
-
-          <DomiSectionCard section={domiSection(6)} index={6} />
-
-          <DomiPacingCard
-            eyebrow="Package fit"
-            title="Breakfast and leisure package checks"
-            body="The second recommendation now pans through more hotel material before reaching the premium option."
+          <DomiSignalPanel
+            eyebrow="Booking math"
+            title="Estimate before handoff"
             Icon={ClipboardList}
+            items={[
+              { label: "Room", value: "$379/night", tone: "sky" },
+              { label: "Meal", value: "+$32/night", tone: "amber" },
+              { label: "Taxes", value: "estimated", tone: "slate" },
+              { label: "Status", value: "ready to prep", tone: "emerald" },
+            ]}
           />
+        </div>
 
+        <div className="xl:col-span-7 xl:pt-28">
+          <DomiSectionCard section={domiSection(4)} index={4} />
+        </div>
+
+        <div className="space-y-7 sm:space-y-10 xl:col-span-6">
           <DomiPacingCard
             eyebrow="Guest intent"
             title="View preference and occasion"
-            body="This final bridge keeps the Coastal Villa from feeling like the next pre-staged card."
+            body="The villa path sits back on the right side, creating another chance for the bar to step away from the active target."
             Icon={Sparkles}
           />
+        </div>
 
-          <DomiSectionCard section={domiSection(4)} index={4} />
-
+        <div className="space-y-7 sm:space-y-10 xl:col-span-6 xl:pt-20">
           <DomiPacingCard
             eyebrow="Booking context"
             title="Dates and guests needed before handoff"
-            body="After the recommendations, the page still has useful context before the final booking summary."
+            body="After recommendations, the page still has real context before the final booking summary."
             Icon={MessageSquare}
           />
-
-          {DOMI_SECTIONS.slice(7).map((section, index) => (
-            <DomiSectionCard key={section.id} section={section} index={index + 7} />
+          {DOMI_SECTIONS.slice(9).map((section, index) => (
+            <DomiSectionCard key={section.id} section={section} index={index + 9} />
           ))}
+        </div>
 
+        <div className="xl:col-span-12">
           <DomiBookingPanelReplica />
         </div>
       </div>
@@ -2096,13 +2246,15 @@ export default function SmartBarSpeedTargetWall({
       data-smartbar-speed-finale-stage={surface === "finale" ? "true" : undefined}
       className={surface === "finale"
         ? "relative z-10 mx-auto max-w-7xl px-3 pb-44 pt-6 sm:px-6 sm:pb-56 sm:pt-10"
-        : "relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
+        : surface === "booking"
+          ? "relative z-10 mx-auto w-full max-w-[1540px] px-3 pb-44 pt-4 sm:px-8 sm:pb-56 sm:pt-10 2xl:max-w-[1680px]"
+          : "relative z-10 mx-auto max-w-7xl px-2 pb-44 pt-3 sm:px-6 sm:pb-56 sm:pt-8"
       }
     >
       {surface === "finale" ? (
         <FinaleNeutralSurfaceLayer />
       ) : (
-        <div className="relative min-h-[2200px] sm:min-h-[3200px]">
+        <div className={surface === "booking" ? "relative min-h-[5600px] sm:min-h-[7200px]" : "relative min-h-[2200px] sm:min-h-[3200px]"}>
           <InfoSurfaceLayer active={surface === "info"} />
           <CarryoutSurfaceLayer active={surface === "ordering"} />
           {surface === "booking" ? <DomiSurfaceLayer active /> : <LegacySurfaceLayer surface="booking" active={false} />}

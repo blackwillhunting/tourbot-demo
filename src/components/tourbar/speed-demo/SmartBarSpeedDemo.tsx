@@ -2803,9 +2803,11 @@ export default function SmartBarSpeedDemo({
   const followUpDraftRef = useRef("");
   const mobileBurgerRushShell = variant === "burgerRushOnly" && speedDemoIsPhoneViewport();
   const mobileFullShell = variant === "full" && speedDemoIsPhoneViewport();
-  const directMobileShell = mobileBurgerRushShell || mobileFullShell;
+  const desktopFullMobileShell = variant === "full" && !speedDemoIsPhoneViewport();
+  const generalFullMobileShell = mobileFullShell || desktopFullMobileShell;
+  const directMobileShell = mobileBurgerRushShell || generalFullMobileShell;
   useEffect(() => {
-    if (!mobileFullShell) {
+    if (!generalFullMobileShell) {
       setMobileNexaIntroReady(true);
       return;
     }
@@ -2817,7 +2819,7 @@ export default function SmartBarSpeedDemo({
     }, 1050);
 
     return () => window.clearTimeout(timer);
-  }, [mobileFullShell]);
+  }, [generalFullMobileShell]);
 
   const demoSteps = useMemo(
     () => {
@@ -2828,7 +2830,7 @@ export default function SmartBarSpeedDemo({
     [mobileBurgerRushShell, variant],
   );
   const openingTutorCards = variant === "burgerRushOnly" ? BURGERRUSH_ONLY_DEMO_TUTOR_CARDS : variant === "foodTrioDesktop" ? FOOD_TRIO_DESKTOP_OPENING_TUTOR_CARDS : OPENING_DEMO_TUTOR_CARDS;
-  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!mobileFullShell || mobileNexaIntroReady);
+  const effectiveAutoPlay = autoPlay && !mobileBurgerRushShell && (!generalFullMobileShell || mobileNexaIntroReady);
   useLayoutEffect(() => {
     if (!directMobileShell || typeof document === "undefined") return;
 
@@ -3500,7 +3502,7 @@ export default function SmartBarSpeedDemo({
 
   const runMobileFullCommand = useCallback(
     async (command: SmartBarSpeedCommand, cancelled: () => boolean) => {
-      if (!mobileFullShell) return false;
+      if (!generalFullMobileShell) return false;
 
       if (command.kind === "shell") {
         if (command.type === "open") {
@@ -3570,7 +3572,7 @@ export default function SmartBarSpeedDemo({
 
       return false;
     },
-    [mobileFullPointerCommand, mobileFullShell, openMobileFullEntry, showPointerClick, typeIntoElement],
+    [generalFullMobileShell, mobileFullPointerCommand, openMobileFullEntry, showPointerClick, typeIntoElement],
   );
 
 
@@ -3581,7 +3583,7 @@ export default function SmartBarSpeedDemo({
 
       if (command.kind === "pause") return;
 
-      if (mobileFullShell && command.kind !== "cards" && command.kind !== "focusTarget") {
+      if (generalFullMobileShell && command.kind !== "cards" && command.kind !== "focusTarget") {
         const handled = await runMobileFullCommand(command, cancelled);
         if (handled) return;
       }
@@ -3690,7 +3692,7 @@ export default function SmartBarSpeedDemo({
         if (command.settleMs) await wait(command.settleMs);
       }
     },
-    [mobileFullShell, runMobileFullCommand, sendCommand, showCheckoutThinkingOverlay, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
+    [generalFullMobileShell, runMobileFullCommand, sendCommand, showCheckoutThinkingOverlay, showPointerClick, showScriptCards, typeIntoElement, typeIntoShell],
   );
 
   useEffect(() => {
@@ -3821,7 +3823,7 @@ export default function SmartBarSpeedDemo({
   const isFinaleSurface = toolbarSurface === "finale";
 
   useEffect(() => {
-    if (!mobileFullShell || toolbarSurface !== "booking" || mobileDomiRouteHandoffStartedRef.current) return;
+    if (!generalFullMobileShell || toolbarSurface !== "booking" || mobileDomiRouteHandoffStartedRef.current) return;
 
     mobileDomiRouteHandoffStartedRef.current = true;
 
@@ -3830,7 +3832,7 @@ export default function SmartBarSpeedDemo({
     }, 850);
 
     return () => window.clearTimeout(timer);
-  }, [mobileFullShell, toolbarSurface]);
+  }, [generalFullMobileShell, toolbarSurface]);
 
   useLayoutEffect(() => {
     clearSmartBarFocusOverlay();
@@ -3855,7 +3857,7 @@ export default function SmartBarSpeedDemo({
   const activeChromeVariant = variant === "foodTrioDesktop" ? "blueCoreGlass" : "default";
   const activeOrderReviewAppearance = "light";
 
-  const smartBarNode = mobileBurgerRushShell || mobileFullShell ? null : (
+  const smartBarNode = mobileBurgerRushShell || generalFullMobileShell ? null : (
     <TourBarShell
               appearance="light"
               chromeVariant={activeChromeVariant}
@@ -3886,7 +3888,10 @@ export default function SmartBarSpeedDemo({
   );
 
 
-  if (mobileFullShell) {
+  if (generalFullMobileShell) {
+    // Desktop intentionally falls through to the same parent-driven mobile
+    // branch used by narrow phone view. Do not mount SmartBarMobileGeneralExperience
+    // directly here; that creates a second demo/content driver.
     if (replayVisible) {
       return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
     }
@@ -3900,12 +3905,12 @@ export default function SmartBarSpeedDemo({
     }
 
     const mobileCards = (
-      <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10120]">
-        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
-        <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+      <SmartBarFlashCardRail className="pointer-events-none !fixed !left-0 !right-0 !top-[33%] z-[10120] !w-full sm:!top-[31%] lg:!top-[32%]">
+        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} align="center" />
+        <SmartBarFlashCardLane active={activeTutorLane === "a"} align="center">
           <SmartBarFlashCard notice={tutorNoticeA} />
         </SmartBarFlashCardLane>
-        <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+        <SmartBarFlashCardLane active={activeTutorLane === "b"} align="center">
           <SmartBarFlashCard notice={tutorNoticeB} />
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
@@ -3999,12 +4004,22 @@ export default function SmartBarSpeedDemo({
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden overscroll-none bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(15,23,42,0.10),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_52%,_#f8fafc_100%)] text-slate-950">
       <div className="pointer-events-none absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
 
-      <SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
-        <SmartBarFlashCardStack cards={tutorStackCards} mode={activeTutorStackMode} />
-        <SmartBarFlashCardLane active={activeTutorLane === "a"}>
+      <SmartBarFlashCardRail
+        className={
+          variant === "foodTrioDesktop"
+            ? "pointer-events-none !fixed !left-0 !right-0 !top-[32%] z-[10120] !w-full lg:!top-[31%]"
+            : "!top-[45%] sm:!top-1/2"
+        }
+      >
+        <SmartBarFlashCardStack
+          cards={tutorStackCards}
+          mode={activeTutorStackMode}
+          align={variant === "foodTrioDesktop" ? "center" : "end"}
+        />
+        <SmartBarFlashCardLane active={activeTutorLane === "a"} align={variant === "foodTrioDesktop" ? "center" : "end"}>
           <SmartBarFlashCard notice={tutorNoticeA} />
         </SmartBarFlashCardLane>
-        <SmartBarFlashCardLane active={activeTutorLane === "b"}>
+        <SmartBarFlashCardLane active={activeTutorLane === "b"} align={variant === "foodTrioDesktop" ? "center" : "end"}>
           <SmartBarFlashCard notice={tutorNoticeB} />
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>

@@ -31,6 +31,11 @@ import type { SmartBarSpeedSurface } from "../speed-demo/smartBarSpeedScript";
 
 type SmartBarMobileGeneralExperienceProps = {
   autoPlay?: boolean;
+  /**
+   * Mobile keeps its current compact fixtures. Desktop legacy uses the old
+   * desktop SmartBar speed-demo copy inside the new mobile-shell chrome.
+   */
+  contentProfile?: "mobile" | "desktopLegacy";
 };
 
 const SMARTBAR_MOBILE_GENERAL_START_KEY = "smartbar_mobile_general_start";
@@ -562,7 +567,180 @@ function readyGeneralCarryoutOrder(): SmartBarMobileOrderResult {
   };
 }
 
-export default function SmartBarMobileGeneralExperience({ autoPlay = false }: SmartBarMobileGeneralExperienceProps) {
+function legacyDesktopInfoResult(kind: "primary" | "specifics" | "proof" = "primary"): SmartBarMobileGenericResult {
+  if (kind === "specifics") {
+    return {
+      surfaceKind: "info",
+      eyebrow: "NexaPath Advisory",
+      title: "What we would actually do",
+      statusLabel: "Use cases",
+      body:
+        "For a hedge fund, the practical Copilot/agent work would usually look like this:\n\n- **Readiness review:** confirm Microsoft 365 permissions, data exposure, identity controls, and security boundaries before anyone turns agents loose.\n- **Use-case selection:** pick a few high-value workflows — investment committee prep, policy lookup, vendor-risk intake, ticket triage, or research summarization.\n- **Agent design:** define what each agent can answer, what systems it can touch, and when it must escalate for review.\n- **Pilot support:** build a small controlled rollout, train the first users, measure adoption, and tighten governance before expanding.",
+      actions: [
+        { id: "show-case-studies", label: "Show relevant case studies", helper: "Show relevant case studies" },
+        { id: "consultant", label: "Talk to consultant", variant: "secondary" },
+      ],
+      height: 560,
+    };
+  }
+
+  if (kind === "proof") {
+    return {
+      surfaceKind: "info",
+      eyebrow: "NexaPath Advisory",
+      title: "Relevant case studies",
+      statusLabel: "Case studies",
+      body:
+        "- **Hedge-fund operations assistant:** mapped analyst and operations questions to approved knowledge sources, then routed sensitive requests to human review.\n- **Compliance evidence helper:** organized policy, vendor-risk, and incident-response materials so leaders could ask plain-English questions before audits and tabletop reviews.\n- **Copilot adoption sprint:** coached a regulated firm through safe rollout patterns, permission cleanup, user training, and a short list of practical first agents.",
+      actions: [
+        { id: "consultant", label: "Talk to someone about Copilot support", helper: "Open handoff" },
+        { id: "start-order", label: "Next: ordering demo", variant: "secondary" },
+      ],
+      height: 520,
+    };
+  }
+
+  return {
+    surfaceKind: "info",
+    eyebrow: "NexaPath Advisory",
+    title: "Showing: Hedge Fund industry path",
+    statusLabel: "Industry path",
+    body:
+      "Yes — this hedge-fund path covers both core IT support needs and AI/copilot-related modernization. In this context, that typically means:\n\n- Secure trading and collaboration infrastructure\n- Cyber/compliance operating model support\n- AI/data visibility and workflow enhancement, including governed copilot-style capabilities\n\nFor a hedge fund, the site frames this as a combined approach: stable infrastructure first, then security/compliance, then AI/data and workflow opportunities in a regulated operating model.",
+    actions: [
+      { id: "show-copilot-use-cases", label: "Show Copilot use cases", helper: "AI & Data lane" },
+      { id: "consultant", label: "Talk to consultant", variant: "secondary" },
+    ],
+    height: 560,
+  };
+}
+
+function legacyDesktopChatResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "chat",
+    eyebrow: "Live handoff",
+    title: "Talk to a consultant",
+    statusLabel: "Context received",
+    body: "Context received — connecting consultant. The handoff carries the hedge-fund, IT support, and Copilot setup context forward.",
+    actions: [
+      { id: "start-order", label: "Next: ordering demo", helper: "Move to BurgerRush" },
+    ],
+    height: 340,
+  };
+}
+
+function legacyDesktopBookingTourResult(step: number): SmartBarMobileGenericResult {
+  const safeStep = Math.min(Math.max(step, 0), 2);
+  const rows = [
+    {
+      title: "Recommendation 1 of 3",
+      statusLabel: "Garden Terrace King",
+      body: "$239/night. A quieter garden-facing option with a resort feel and lower price. It is a value fit, but the view is softer than the Ocean View Suite.",
+    },
+    {
+      title: "Recommendation 2 of 3",
+      statusLabel: "Ocean View Suite",
+      body: "$379/night. Best fit for a strong view without jumping to the villa tier. Breakfast can be attached with the Breakfast Flex Plan.",
+    },
+    {
+      title: "Recommendation 3 of 3",
+      statusLabel: "Coastal Villa Suite",
+      body: "$549/night. The premium view-and-space option. It is stronger than needed for this request, so the Ocean View Suite remains the practical recommendation.",
+    },
+  ] as const;
+  const row = rows[safeStep];
+
+  return {
+    surfaceKind: "booking_tour",
+    eyebrow: "Domi Hotel",
+    title: row.title,
+    statusLabel: row.statusLabel,
+    progressLabel: "Rooms",
+    progressCurrent: safeStep + 1,
+    progressTotal: 3,
+    body: row.body,
+    actions: [
+      { id: "booking-nav-back", label: "Previous room", variant: "secondary", disabled: safeStep === 0 },
+      { id: "booking-nav-next", label: "Next stop", disabled: safeStep === 2 },
+      { id: "add-breakfast", label: "Add breakfast", variant: "secondary" },
+    ],
+    height: 380,
+  };
+}
+
+function legacyDesktopBreakfastResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "booking_tour",
+    eyebrow: "Domi Hotel",
+    title: "Breakfast Flex Plan",
+    statusLabel: "Package",
+    body: "Daily breakfast credit across the lobby café, buffet, and grab-and-go market. +$32/night.",
+    actions: [
+      { id: "prepare-booking", label: "Book this" },
+      { id: "show-rooms", label: "Review rooms", variant: "secondary" },
+    ],
+    height: 340,
+  };
+}
+
+function legacyDesktopBookingSummaryResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "booking_summary",
+    eyebrow: "Domi Hotel",
+    title: "Booking summary ready",
+    statusLabel: "Summary ready",
+    body: "Ocean View Suite · Breakfast Flex Plan · Aug 4–9, 2026 · 1 guest · Good view, not villa tier · $379/night + $32/night.",
+    actions: [
+      { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
+    ],
+    height: 340,
+  };
+}
+
+function legacyDesktopMissingContextResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "booking_tour",
+    eyebrow: "Domi Hotel",
+    title: "Select your stay dates",
+    statusLabel: "Dates required",
+    body: "I need stay dates before I can price and rank family-room options. Choose check-in and check-out dates to continue.",
+    actions: [
+      { id: "select-dates", label: "Select dates" },
+    ],
+    height: 340,
+  };
+}
+
+function legacyDesktopFamilyRecommendationResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "booking_summary",
+    eyebrow: "Domi Hotel",
+    title: "Family Double Room recommended",
+    statusLabel: "Family fit",
+    body: "Family Double Room · $249/night.\nFamily Comfort Bundle · +$55/stay.\nStay context: Jun 12–15, 2026 · 2 adults / 2 children.",
+    actions: [
+      { id: "restart-info", label: "Back to SmartBar overview", variant: "secondary" },
+    ],
+    height: 360,
+  };
+}
+
+function legacyDesktopFinaleResult(): SmartBarMobileGenericResult {
+  return {
+    surfaceKind: "info",
+    eyebrow: "Finale",
+    title: "SmartBar in one line",
+    statusLabel: "Short version",
+    body:
+      "SmartBar turns a plain visitor question into the next useful action.\nIt can answer, guide, qualify, compare, collect, and hand off without making the user hunt through the site.\nOn content-heavy sites, it behaves like a navigator.\nOn ordering or booking sites, it behaves like a completion layer.\nThe CTA is simple: ask for what you want, then let SmartBar open the right next step.",
+    actions: [
+      { id: "restart-info", label: "Replay from the top", variant: "secondary" },
+    ],
+    height: 430,
+  };
+}
+
+export default function SmartBarMobileGeneralExperience({ autoPlay = false, contentProfile = "mobile" }: SmartBarMobileGeneralExperienceProps) {
   const [surface, setSurface] = useState<SmartBarSpeedSurface>("info");
   const [bookingStep, setBookingStep] = useState(1);
   const [, setBreakfastAdded] = useState(false);
@@ -574,6 +752,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const pointerIdRef = useRef(0);
   const [narratorCards, setNarratorCards] = useState<string[]>([]);
   const [pointer, setPointer] = useState<SmartBarFakePointerState | null>(null);
+  const desktopLegacyContent = contentProfile === "desktopLegacy";
 
   const clearFocus = useCallback(() => {
     if (focusTimerRef.current !== null) {
@@ -735,6 +914,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("info");
     focusTarget(kind === "primary" ? "hedgefund-copilot" : "hedgefund-contact-cta");
 
+    if (desktopLegacyContent) return legacyDesktopInfoResult(kind);
+
     if (kind === "specifics") {
       return {
         surfaceKind: "info",
@@ -786,6 +967,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("info");
     focusTarget("hedgefund-contact-cta");
 
+    if (desktopLegacyContent) return legacyDesktopChatResult();
+
     return {
       surfaceKind: "chat",
       eyebrow: "Live handoff",
@@ -811,6 +994,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setBookingStep(safeStep);
     setSurface("booking");
     focusTarget("smartbar-booking-rooms", { resetToTop: true });
+
+    if (desktopLegacyContent) return legacyDesktopBookingTourResult(safeStep);
 
     const activeRoom = GENERAL_DOMI_ROOMS[safeStep];
 
@@ -840,6 +1025,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("booking");
     focusTarget("smartbar-booking-breakfast", { resetToTop: true });
 
+    if (desktopLegacyContent) return legacyDesktopBreakfastResult();
+
     return {
       surfaceKind: "booking_tour",
       eyebrow: "Domi Hotel",
@@ -864,6 +1051,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("booking");
     focusTarget("smartbar-booking-summary", { resetToTop: true });
 
+    if (desktopLegacyContent) return legacyDesktopBookingSummaryResult();
+
     return {
       surfaceKind: "booking_summary",
       eyebrow: "Domi Hotel",
@@ -881,6 +1070,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const buildBookingMissingContextResult = useCallback((): SmartBarMobileGenericResult => {
     setSurface("booking");
     focusTarget("smartbar-booking-context", { resetToTop: true });
+
+    if (desktopLegacyContent) return legacyDesktopMissingContextResult();
 
     return {
       surfaceKind: "booking_tour",
@@ -918,6 +1109,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     setSurface("booking");
     focusTarget("smartbar-booking-summary", { resetToTop: true });
 
+    if (desktopLegacyContent) return legacyDesktopFamilyRecommendationResult();
+
     return {
       surfaceKind: "booking_summary",
       eyebrow: "Domi Hotel",
@@ -935,6 +1128,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const buildFinaleResult = useCallback((): SmartBarMobileGenericResult => {
     setSurface("finale");
     focusTarget("smartbar-booking-toolbelt", { resetToTop: true });
+
+    if (desktopLegacyContent) return legacyDesktopFinaleResult();
 
     return {
       surfaceKind: "info",
@@ -954,6 +1149,7 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
     const text = smartBarGeneralCompact(query);
 
     if (text.includes("__case_studies") || text.includes("__nexa_proof") || text.includes("proof")) return buildInfoResult("proof");
+    if (text.includes("__copilot_use_cases")) return buildInfoResult("specifics");
     if (
       text.includes("specific") ||
       text.includes("actually do") ||
@@ -990,6 +1186,8 @@ export default function SmartBarMobileGeneralExperience({ autoPlay = false }: Sm
   const handleGenericAction = useCallback((action: SmartBarMobileGenericAction) => {
     if (action.disabled) return;
     if (action.id === "show-proof") submitDemoQuery("__nexa_proof");
+    if (action.id === "show-copilot-use-cases") submitDemoQuery("__copilot_use_cases");
+    if (action.id === "show-case-studies") submitDemoQuery("__case_studies");
     if (action.id === "consultant") submitDemoQuery("Perfect, can I talk to someone?");
     if (action.id === "start-order") submitDemoQuery("dbl chzbrger combo lg friez diet coke pie");
     if (action.id === "booking-back" || action.id === "booking-nav-back") submitDemoQuery("__booking_back");

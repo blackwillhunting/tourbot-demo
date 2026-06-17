@@ -108,6 +108,18 @@ function currentTourBotDemoPath() {
   return normalizeTourBotDemoPath(window.location.pathname) || "/";
 }
 
+function tourBotDemoPathIsDomiMobilePlayground(cleanPath: string) {
+  return cleanPath === "/domi-play";
+}
+
+function tourBotDemoPathIsDomiDedicatedDemo(cleanPath: string) {
+  return (
+    cleanPath === "/domi-smartbar" ||
+    cleanPath === "/domi-demo" ||
+    cleanPath === "/hotel-smartbar"
+  );
+}
+
 function tourBotDemoPathIsFoodRoute(cleanPath: string) {
   return (
     cleanPath === "/burger-rush" ||
@@ -194,7 +206,14 @@ function shouldResetAccessFromUrl() {
 }
 
 function shouldSkipFitsAnywhereAnimationOnPhone() {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  if (typeof window === "undefined") return false;
+
+  // The general SmartBar speed demo now uses the exact mobile-shell path on
+  // desktop too, so skip the old fits-anywhere interstitial on this route.
+  // FoodTrio keeps its own desktop intro behavior.
+  if (currentTourBotDemoPath() === "/smartbar-speed") return true;
+
+  if (typeof window.matchMedia !== "function") return false;
 
   return window.matchMedia("(max-width: 767px)").matches;
 }
@@ -855,7 +874,7 @@ function LaunchBackground() {
   );
 }
 
-export default function LaunchSelectorTourBar({
+function LaunchSelectorTourBarInner({
   variant = "full",
 }: {
   variant?: SmartBarSpeedDemoVariant;
@@ -875,8 +894,10 @@ export default function LaunchSelectorTourBar({
   const runIdRef = useRef(0);
   const activeNoticeLaneRef = useRef<SmartBarFlashCardLaneName | null>(null);
   const foodTrioIntroCompleteResolverRef = useRef<(() => void) | null>(null);
-  const isNexaPathMobilePlayground = currentTourBotDemoPath() === "/nexapath-play";
-  const isDomiMobilePlayground = currentTourBotDemoPath() === "/domi-play";
+  const currentDemoPath = currentTourBotDemoPath();
+  const isNexaPathMobilePlayground = currentDemoPath === "/nexapath-play";
+  const isDomiMobilePlayground = tourBotDemoPathIsDomiMobilePlayground(currentDemoPath);
+  const isDomiDedicatedDemo = tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath);
 
   const setActiveNoticeLaneState = useCallback((lane: SmartBarFlashCardLaneName | null) => {
     activeNoticeLaneRef.current = lane;
@@ -1130,7 +1151,7 @@ export default function LaunchSelectorTourBar({
     const loadAccessState = async () => {
       persistSmartBarMobileGeneralShortcut();
 
-      if (isNexaPathMobilePlayground || isDomiMobilePlayground) {
+      if (isNexaPathMobilePlayground || isDomiMobilePlayground || isDomiDedicatedDemo) {
         setLaunchVisible(false);
         setDemoVisible(true);
         return;
@@ -1165,7 +1186,7 @@ export default function LaunchSelectorTourBar({
       cancelled = true;
       runIdRef.current += 1;
     };
-  }, [isDomiMobilePlayground, isNexaPathMobilePlayground, startAcceptedFlow]);
+  }, [isDomiDedicatedDemo, isDomiMobilePlayground, isNexaPathMobilePlayground, startAcceptedFlow]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -1223,14 +1244,25 @@ export default function LaunchSelectorTourBar({
   );
 
   const allowMobileDemoPageScroll =
-    demoVisible && shouldSkipFitsAnywhereAnimationOnPhone();
+    demoVisible && (shouldSkipFitsAnywhereAnimationOnPhone() || variant === "full");
+
+  const useCenteredFoodTrioDesktopCards =
+    currentDemoPath === "/food-trio" || currentDemoPath === "/food-trio-desktop";
 
   if (isNexaPathMobilePlayground) {
     return <NexaPathMobileExperience />;
   }
 
   if (isDomiMobilePlayground) {
-    return <DomiMobileExperience />;
+    const shouldRunDomiDemo =
+      new URLSearchParams(window.location.search).get("demo") === "1" ||
+      new URLSearchParams(window.location.search).get("autoplay") === "1";
+
+    return <DomiMobileExperience autoPlay={shouldRunDomiDemo} />;
+  }
+
+  if (isDomiDedicatedDemo) {
+    return <DomiMobileExperience demoFixtureMode autoPlay />;
   }
 
   return (
@@ -1242,10 +1274,20 @@ export default function LaunchSelectorTourBar({
       }
     >
       {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} variant={variant} /> : <LaunchBackground />}
-<SmartBarFlashCardRail className="!top-[45%] sm:!top-1/2">
-        <SmartBarFlashCardStack cards={preludeStackCards} mode={activePreludeStackMode} />
+<SmartBarFlashCardRail
+        className={
+          useCenteredFoodTrioDesktopCards
+            ? "pointer-events-none !fixed !left-0 !right-0 !top-[32%] z-[10120] !w-full lg:!top-[31%]"
+            : "!top-[45%] sm:!top-1/2"
+        }
+      >
+        <SmartBarFlashCardStack
+          cards={preludeStackCards}
+          mode={activePreludeStackMode}
+          align={useCenteredFoodTrioDesktopCards ? "center" : "end"}
+        />
 
-        <SmartBarFlashCardLane active={launchVisible}>
+        <SmartBarFlashCardLane active={launchVisible} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
           <LaunchSlip
               passcode={passcode}
               isChecking={isChecking}
@@ -1255,11 +1297,11 @@ export default function LaunchSelectorTourBar({
           
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)}>
+        <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
           {noticeA ? <SmartBarFlashCard notice={noticeA} /> : null}
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "b" && Boolean(noticeB)}>
+        <SmartBarFlashCardLane active={activeNoticeLane === "b" && Boolean(noticeB)} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
           {noticeB ? <SmartBarFlashCard notice={noticeB} /> : null}
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
@@ -1277,5 +1319,12 @@ export default function LaunchSelectorTourBar({
   );
 }
 
+export default function LaunchSelectorTourBar(props: { variant?: SmartBarSpeedDemoVariant }) {
+  const currentDemoPath = currentTourBotDemoPath();
 
+  if (tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath)) {
+    return <DomiMobileExperience demoFixtureMode autoPlay />;
+  }
 
+  return <LaunchSelectorTourBarInner {...props} />;
+}

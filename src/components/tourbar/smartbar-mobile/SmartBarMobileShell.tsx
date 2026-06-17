@@ -169,8 +169,8 @@ const demoLines: SmartBarMobileOrderLine[] = [
 
 const estimatedTotal = "$19.46";
 
-const SMARTBAR_MOBILE_CHECKOUT_COLLAPSE_DURATION_MS = 760;
-const SMARTBAR_MOBILE_CHECKOUT_RESET_AFTER_COLLAPSE_MS = 980;
+const SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS = 760;
+const SMARTBAR_MOBILE_SEND_ORDER_REVEAL_DELAY_MS = 220;
 
 const SMARTBAR_ADAPTIVE_RAIL_DESKTOP_QUERY = "(min-width: 768px)";
 const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-surface='true']";
@@ -986,6 +986,8 @@ type SmartBarMobileShellProps = {
   buildingLabel?: string;
   /** Demo-only command hook for scripted mobile replays. Omit in normal use. */
   demoSubmission?: SmartBarMobileDemoSubmission | null;
+  /** Confirmation number shown after a ready cart is sent as a SmartBar ticket. */
+  sendOrderNumber?: string;
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
@@ -1002,6 +1004,7 @@ export default function SmartBarMobileShell({
   entryModeLabel = "Type order",
   buildingLabel = "Building cart...",
   demoSubmission = null,
+  sendOrderNumber = "S-184",
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
@@ -1411,7 +1414,7 @@ export default function SmartBarMobileShell({
   const fakeCartPanelTransition: Transition = handoffState === "complete"
     ? {
         height: {
-          duration: SMARTBAR_MOBILE_CHECKOUT_COLLAPSE_DURATION_MS / 1000,
+          duration: SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS / 1000,
           ease: [0.16, 1, 0.3, 1],
         },
         borderRadius: {
@@ -2031,14 +2034,33 @@ export default function SmartBarMobileShell({
 
     handoffCollapseTimerRef.current = window.setTimeout(() => {
       handoffCollapseTimerRef.current = null;
-      setHandoffState("complete");
       setCartExpanded(false);
 
       handoffResetTimerRef.current = window.setTimeout(() => {
         handoffResetTimerRef.current = null;
-        resetToRest();
-      }, SMARTBAR_MOBILE_CHECKOUT_RESET_AFTER_COLLAPSE_MS);
-    }, 3000);
+        setGenericResult({
+          surfaceKind: "info",
+          eyebrow: "Order sent",
+          title: `SmartBar Order ${sendOrderNumber}`,
+          statusLabel: "Order sent",
+          height: 268,
+          content: (
+            <div className="rounded-[28px] border border-white/18 bg-slate-950/72 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_28px_rgba(2,6,23,0.20)] ring-1 ring-white/12">
+              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200/88">Order sent</div>
+              <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{sendOrderNumber}</div>
+              <div className="mx-auto mt-3 max-w-[240px] rounded-full bg-white/92 px-4 py-2 text-sm font-black text-slate-950 shadow-sm">
+                Show this number at pickup.
+              </div>
+              <div className="mx-auto mt-3 max-w-[260px] text-sm font-semibold leading-5 text-white/72">
+                Your order was sent to the restaurant as a SmartBar ticket.
+              </div>
+            </div>
+          ),
+        });
+        setHandoffState("idle");
+        setCartExpanded(true);
+      }, SMARTBAR_MOBILE_SEND_ORDER_REVEAL_DELAY_MS);
+    }, SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS);
   };
 
   const toggleCartStatusFilter = (status: SmartBarMobileOrderStatus, count: number) => {
@@ -2069,7 +2091,7 @@ export default function SmartBarMobileShell({
     if (phase === "rest") return "SmartBar";
     if (closeArmed) return "Tap again...";
     if (handoffState === "handing_off") return "Sending...";
-    if (handoffState === "complete") return "Complete";
+    if (handoffState === "complete") return "Sent";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
     if (phase === "building_cart") {
       return buildingStatusLabel && buildingStatusLabel !== buildingLabel
@@ -2087,8 +2109,8 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && cartGuidanceStatus === "pending") return "Tap red entries";
     if (phase === "cart" && cartGuidanceStatus === "unknown") return "Retry gray entries";
     if (phase === "cart" && cartGuidanceStatus === "options") return "Review yellow entries";
-    if (phase === "cart") return "Tap for checkout";
-    if (checkoutReady) return `Ready checkout · ${cartTotals.totalLabel}`;
+    if (phase === "cart") return "Send order";
+    if (checkoutReady) return `Ready to send · ${cartTotals.totalLabel}`;
     return `${unresolvedReviewCount} need attention · ${cartTotals.totalLabel}`;
   })();
 
@@ -3417,6 +3439,7 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-launcher={phase === "rest" ? "true" : undefined}
             data-smartbar-mobile-submit={phase === "entry" && entryDraft.trim() ? "true" : undefined}
             data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
+            data-smartbar-mobile-send-order={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && cartGuidanceStatus ? cartGuidanceStatus : undefined}
             data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}

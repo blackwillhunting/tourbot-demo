@@ -88,16 +88,18 @@ export function SmartBarFlashCardRail({
 export function SmartBarFlashCardLane({
   active,
   children,
+  align = "end",
 }: {
   active: boolean;
   children: ReactNode;
+  align?: "end" | "center";
 }) {
   return (
     <motion.div
       initial={{ x: SMARTBAR_FLASH_CARD_OFFSCREEN_X }}
       animate={{ x: active ? 0 : SMARTBAR_FLASH_CARD_OFFSCREEN_X }}
       transition={active ? SMARTBAR_FLASH_CARD_ENTER_TRANSITION : SMARTBAR_FLASH_CARD_EXIT_TRANSITION}
-      className={`absolute inset-y-0 right-0 flex w-full items-center justify-end ${active ? "pointer-events-auto z-30" : "pointer-events-none z-20"}`}
+      className={`absolute inset-y-0 right-0 flex w-full items-center ${align === "center" ? "justify-center" : "justify-end"} ${active ? "pointer-events-auto z-30" : "pointer-events-none z-20"}`}
     >
       {children}
     </motion.div>

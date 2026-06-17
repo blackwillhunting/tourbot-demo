@@ -15,6 +15,7 @@ import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexap
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import SmartBarMobileFinaleExperience from "./components/tourbar/smartbar-mobile/finale/SmartBarMobileFinaleExperience";
 import SmartBarLiveMobileRuntime from "./components/tourbar/smartbar-mobile/SmartBarLiveMobileRuntime";
+import SmartBarOrderBoardMock from "./components/tourbar/order-board/SmartBarOrderBoardMock";
 import "./index.css";
 
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
@@ -201,6 +202,10 @@ function SmartBarMobileOnRealInformationalSite() {
 
 function Router() {
   const path = normalizedPath();
+
+  if (path === "/smartbar-order-board" || path === "/order-board" || path === "/local-order-board") {
+    return <SmartBarOrderBoardMock />;
+  }
 
   if (path === "/smartbar-mobile-lab") {
     return <SmartBarMobileShell />;

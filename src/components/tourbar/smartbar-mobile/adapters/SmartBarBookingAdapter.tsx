@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Trash2 } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
   type SmartBarMobileGenericAction,
@@ -126,18 +127,361 @@ function messageFromShellResult(result: TourBarShellResult) {
   return [result.title, result.body, invitation].filter(Boolean).join("\n");
 }
 
-function renderInlineEmphasis(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+function renderInlineEmphasis(text: string, keyPrefix = "inline") {
+  return text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+
     if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
-        <strong key={`${part}-${index}`} className="font-black text-white">
+        <strong key={key} className="font-bold text-white">
           {part.slice(2, -2)}
         </strong>
       );
     }
 
-    return <span key={`${part}-${index}`}>{part}</span>;
+    return <span key={key}>{part}</span>;
   });
+}
+
+function renderSmartBarBookingFormattedText(text: string) {
+  const blocks = String(text || "")
+    .split(/\n\s*\n/g)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (!blocks.length) return null;
+
+  return (
+    <div className="space-y-2.5">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split(/\n+/g).map((line) => line.trim()).filter(Boolean);
+        const bulletLines = lines.filter((line) => /^[-•]\s+/.test(line));
+
+        if (bulletLines.length && bulletLines.length === lines.length) {
+          return (
+            <ul key={`booking-block-${blockIndex}`} className="space-y-1.5">
+              {bulletLines.map((line, lineIndex) => {
+                const cleanLine = line.replace(/^[-•]\s+/, "");
+
+                return (
+                  <li key={`booking-block-${blockIndex}-line-${lineIndex}`} className="flex gap-2">
+                    <span className="mt-[0.32rem] text-white/56">•</span>
+                    <span className="min-w-0 flex-1">
+                      {renderInlineEmphasis(cleanLine, `booking-block-${blockIndex}-line-${lineIndex}`)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          );
+        }
+
+        return (
+          <p key={`booking-block-${blockIndex}`}> 
+            {lines.map((line, lineIndex) => (
+              <span key={`booking-block-${blockIndex}-line-${lineIndex}`}>
+                {renderInlineEmphasis(line, `booking-block-${blockIndex}-line-${lineIndex}`)}
+                {lineIndex < lines.length - 1 ? <br /> : null}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+
+type SmartBarBookingStayBlockTone = "ready" | "pending" | "optional" | "neutral" | "accounting" | "choice" | "empty";
+
+type SmartBarBookingStayBlock = {
+  id: string;
+  label: string;
+  value: string;
+  helper?: string;
+  tone: SmartBarBookingStayBlockTone;
+  actionId?: string;
+  actionLabel?: string;
+  actionVariant?: "primary" | "secondary";
+  removeActionId?: string;
+  removeActionLabel?: string;
+  trailingIcon?: "trash";
+};
+
+type SmartBarBookingStayCartProps = {
+  responseBody?: string;
+  essentials: SmartBarBookingStayBlock[];
+  room: SmartBarBookingStayBlock;
+  packages: SmartBarBookingStayBlock[];
+  estimate: SmartBarBookingStayBlock;
+  packagePanelOpen?: boolean;
+  packageOptions?: SmartBarBookingStayBlock[];
+  summary?: boolean;
+};
+
+type SmartBarBookingDemoWizardState = {
+  roomAdded: boolean;
+  packagesReviewed: boolean;
+  packageIds: string[];
+  breakfastRequested: boolean;
+};
+
+const SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID = "package-breakfast-flex";
+const SMARTBAR_BOOKING_DEMO_PACKAGE_IDS = [
+  "package-breakfast-flex",
+  "package-resort-parking",
+  "package-spa-credit",
+];
+
+const SMARTBAR_BOOKING_DEMO_PACKAGE_FALLBACK_META: Record<string, { title: string; price: string; signal: string }> = {
+  "package-breakfast-flex": {
+    title: "Breakfast Flex Plan",
+    price: "+$32/night",
+    signal: "Breakfast package for the active stay",
+  },
+  "package-resort-parking": {
+    title: "Valet Parking",
+    price: "+$24/night",
+    signal: "Convenient arrival and daily in/out parking",
+  },
+  "package-spa-credit": {
+    title: "Spa Credit",
+    price: "+$45/night",
+    signal: "Resort add-on for pool, spa, and relaxation stays",
+  },
+};
+
+function smartBarBookingDemoPackageMeta(site: TourBarBookingSiteAdapter, packageId: string) {
+  return site.getPackageMeta(packageId) || SMARTBAR_BOOKING_DEMO_PACKAGE_FALLBACK_META[packageId] || null;
+}
+
+
+function smartBarBookingStayBlockClass(tone: SmartBarBookingStayBlockTone) {
+  if (tone === "empty") {
+    return "border-transparent bg-transparent text-transparent shadow-none ring-transparent";
+  }
+
+  if (tone === "pending") {
+    return "border-red-200/70 bg-red-500/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_rgba(127,29,29,0.24)] ring-red-100/28";
+  }
+
+  if (tone === "ready") {
+    return "border-emerald-100/55 bg-emerald-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_22px_rgba(16,185,129,0.18)] ring-emerald-100/30";
+  }
+
+  if (tone === "optional") {
+    return "border-amber-100/58 bg-amber-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_22px_rgba(180,83,9,0.18)] ring-amber-100/30";
+  }
+
+  if (tone === "accounting") {
+    return "border-blue-300/52 bg-blue-800/96 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_22px_rgba(30,64,175,0.26)] ring-blue-100/24";
+  }
+
+  if (tone === "choice") {
+    return "border-slate-200/70 bg-white/94 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.70),0_10px_22px_rgba(15,23,42,0.16)] ring-white/46";
+  }
+
+  return "border-white/18 bg-slate-950/80 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_22px_rgba(2,6,23,0.18)] ring-white/12";
+}
+
+function SmartBarBookingStayBlockTile({ block, compact = false }: { block: SmartBarBookingStayBlock; compact?: boolean }) {
+  if (block.tone === "empty") {
+    return (
+      <div
+        className="min-h-[76px] rounded-[18px] border border-transparent bg-transparent"
+        aria-hidden="true"
+      />
+    );
+  }
+
+  const className = [
+    "min-w-0 rounded-[18px] border text-left ring-1 transition active:scale-[0.985]",
+    block.removeActionId ? "relative overflow-hidden p-0" : "px-2.5 py-2",
+    block.actionId ? "cursor-pointer hover:brightness-[1.04]" : "cursor-default",
+    smartBarBookingStayBlockClass(block.tone),
+  ].join(" ");
+
+  const content = (
+    <>
+      <span className="block truncate text-[9px] font-black uppercase tracking-[0.11em] opacity-70">
+        {block.label}
+      </span>
+      <span className={`${compact ? "text-[14px]" : "text-[15px]"} mt-0.5 block truncate font-black leading-4 tracking-[-0.02em]`}>
+        {block.value}
+      </span>
+      {block.helper ? (
+        <span className="mt-0.5 block truncate text-[10px] font-bold leading-3 opacity-68">
+          {block.helper}
+        </span>
+      ) : null}
+    </>
+  );
+
+  if (block.removeActionId) {
+    return (
+      <div className={className}>
+        <button
+          type="button"
+          data-smartbar-mobile-content-action={block.actionId || "booking-focus-room"}
+          data-smartbar-mobile-content-action-label={block.actionLabel || block.label}
+          data-smartbar-mobile-content-action-variant={block.actionVariant || "secondary"}
+          className="block w-full px-2.5 py-2 pr-12 text-left"
+        >
+          {content}
+        </button>
+        <button
+          type="button"
+          data-smartbar-mobile-content-action={block.removeActionId}
+          data-smartbar-mobile-content-action-label={block.removeActionLabel || "Remove"}
+          data-smartbar-mobile-content-action-variant="secondary"
+          className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/96 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(2,6,23,0.28)] ring-1 ring-white/14 transition active:scale-[0.96]"
+          aria-label={block.removeActionLabel || "Remove"}
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  if (!block.actionId) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <button
+      type="button"
+      data-smartbar-mobile-content-action={block.actionId}
+      data-smartbar-mobile-content-action-label={block.actionLabel || block.label}
+      data-smartbar-mobile-content-action-variant={block.actionVariant || "primary"}
+      className={className}
+    >
+      {content}
+    </button>
+  );
+}
+
+function SmartBarBookingStayCart({
+  responseBody,
+  essentials,
+  room,
+  packages,
+  estimate,
+  packagePanelOpen = false,
+  packageOptions = [],
+  summary = false,
+}: SmartBarBookingStayCartProps) {
+  if (summary) {
+    const checkIn = essentials.find((block) => block.id === "stay-check-in")?.value || "Missing";
+    const checkOut = essentials.find((block) => block.id === "stay-checkout")?.value || "Missing";
+    const guests = (essentials.find((block) => block.id === "stay-guests")?.value || "Missing").replace(/\s*·\s*/g, ", ");
+    const selectedPackages = packages.filter((block) => block.tone !== "empty" && block.tone === "ready");
+    const addOns = selectedPackages.length && !/reviewed/i.test(selectedPackages[0]?.value || "")
+      ? selectedPackages.map((block) => block.value).join(", ")
+      : "No package selected";
+    const dates = checkIn !== "Missing" && checkOut !== "Missing" ? `${checkIn} to ${checkOut}, 2026` : "Dates needed";
+    const summaryRows = [
+      ["Room", room.value || "Selected room"],
+      ["Add-ons", addOns],
+      ["Dates", dates],
+      ["Guests", guests],
+      ["Estimate", estimate.value || "Rate ready"],
+    ];
+
+    return (
+      <div className="rounded-[28px] border border-white/18 bg-slate-950/74 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+        <div className="mb-2 rounded-[22px] border border-white/16 bg-slate-950/88 px-4 py-3 text-[13px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/10">
+          Booking summary
+        </div>
+        <div className="overflow-hidden rounded-[24px] border border-white/14 bg-slate-950/84 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/10">
+          {summaryRows.map(([label, value]) => {
+            const editActionId = label === "Dates" ? "booking-edit-dates" : label === "Guests" ? "booking-edit-guests" : "";
+            const rowClass = "flex w-full items-center justify-between gap-3 border-b border-white/12 px-4 py-3 text-left last:border-b-0";
+            const labelNode = (
+              <span className="flex items-center gap-1.5 text-white/72">
+                {label}
+                {editActionId ? (
+                  <span className="rounded-full bg-sky-200/18 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-sky-100/86 ring-1 ring-sky-100/14">Edit</span>
+                ) : null}
+              </span>
+            );
+            const valueNode = <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>;
+
+            if (editActionId) {
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  data-smartbar-mobile-content-action={editActionId}
+                  data-smartbar-mobile-content-action-label={`Edit ${label.toLowerCase()}`}
+                  className={`${rowClass} transition hover:bg-white/[0.04] active:bg-white/[0.07]`}
+                >
+                  {labelNode}
+                  {valueNode}
+                </button>
+              );
+            }
+
+            return <div key={label} className={rowClass}>{labelNode}{valueNode}</div>;
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  if (packagePanelOpen) {
+    return (
+      <div className="rounded-[26px] border border-white/18 bg-slate-950/82 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100/78">Packages</div>
+            <div className="mt-0.5 text-[14px] font-black leading-4 text-white">Review available add-ons</div>
+          </div>
+          <div className="rounded-full bg-amber-300/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-950">Multi-select</div>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {packageOptions.map((block) => (
+            <SmartBarBookingStayBlockTile key={block.id} block={block} />
+          ))}
+        </div>
+        <div className="mt-3 rounded-[18px] border border-white/14 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold leading-4 text-white/72 ring-1 ring-white/8">
+          Leave selected packages on. Use the footer when done.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {responseBody ? (
+        <div className="rounded-[24px] border border-white/22 bg-slate-950/88 px-4 py-3 text-[14px] font-normal leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_28px_rgba(2,6,23,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">
+          {renderSmartBarBookingFormattedText(responseBody)}
+        </div>
+      ) : null}
+
+      <div className="rounded-[26px] border border-white/18 bg-slate-950/72 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+        <div className="mb-2">
+          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/74">Stay cart</div>
+        </div>
+
+        <div className="grid grid-cols-[0.72fr_0.72fr_1.34fr] gap-1.5">
+          {essentials.map((block) => (
+            <SmartBarBookingStayBlockTile key={block.id} block={block} compact />
+          ))}
+        </div>
+
+        <div className="mt-2 grid grid-cols-1 gap-1.5">
+          <SmartBarBookingStayBlockTile block={room} />
+        </div>
+
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          {packages.map((block) => (
+            <SmartBarBookingStayBlockTile key={block.id} block={block} />
+          ))}
+          <SmartBarBookingStayBlockTile block={estimate} />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type SmartBarBookingDatePreset = {
@@ -345,8 +689,8 @@ function SmartBarBookingContextSelectors({
     monthIndex: initialCalendarDate.getMonth(),
   });
   const [dateDraft, setDateDraft] = useState({
-    checkInDate: missingDates ? "" : initialDraft.checkInDate || "",
-    checkOutDate: missingDates ? "" : initialDraft.checkOutDate || "",
+    checkInDate: initialDraft.checkInDate || "",
+    checkOutDate: initialDraft.checkOutDate || "",
   });
   const [guestCounts, setGuestCounts] = useState({
     adults: Math.max(1, Math.floor(initialDraft.guestAdults || 1)),
@@ -402,7 +746,7 @@ function SmartBarBookingContextSelectors({
     });
 
     if (missingGuests) {
-      window.setTimeout(() => setStage("guests"), 180);
+      setStage("guests");
     }
   };
 
@@ -686,6 +1030,27 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
   });
   const navigationStateRef = useRef<SmartBarBookingNavigationState | null>(null);
   const navigationRunRef = useRef(0);
+  const demoFocusPanelVisibleRef = useRef(false);
+  const demoRoomPreviewViewedRef = useRef<Record<number, true>>({ 0: true });
+  const demoPackagePanelOpenRef = useRef(false);
+  const demoCommittedRoomIdRef = useRef<string | null>(null);
+  const demoWizardStateRef = useRef<SmartBarBookingDemoWizardState>({
+    roomAdded: false,
+    packagesReviewed: false,
+    packageIds: [],
+    breakfastRequested: false,
+  });
+  const [, setDemoWizardState] = useState<SmartBarBookingDemoWizardState>(demoWizardStateRef.current);
+  const setDemoWizardStateSync = (
+    nextState: SmartBarBookingDemoWizardState | ((current: SmartBarBookingDemoWizardState) => SmartBarBookingDemoWizardState),
+  ) => {
+    const resolvedState = typeof nextState === "function"
+      ? (nextState as (current: SmartBarBookingDemoWizardState) => SmartBarBookingDemoWizardState)(demoWizardStateRef.current)
+      : nextState;
+
+    demoWizardStateRef.current = resolvedState;
+    setDemoWizardState(resolvedState);
+  };
 
   const pageIdFromTarget = (targetId?: string | null): TourBarBookingPageId =>
     fallbackPageIdFromTarget(targetId);
@@ -828,7 +1193,6 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
           variant: "primary",
         },
       ],
-      height: missingDates ? 540 : 390,
       content: (
         <SmartBarBookingContextSelectors
           missingDates={missingDates}
@@ -1515,34 +1879,125 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     };
   };
 
+  const activeNavigationStep = () => {
+    const state = navigationStateRef.current;
+    if (!state || !state.steps.length) return null;
+
+    const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+    return state.steps[activeIndex] || null;
+  };
+
+  const markDemoRoomPreviewViewed = (index: number) => {
+    if (!demoFixtureMode) return;
+    const safeIndex = Math.max(0, Math.floor(index));
+    demoRoomPreviewViewedRef.current = {
+      ...demoRoomPreviewViewedRef.current,
+      [safeIndex]: true,
+    };
+  };
+
+  const resetDemoRoomPreviewViewed = (index = 0) => {
+    if (!demoFixtureMode) return;
+    const safeIndex = Math.max(0, Math.floor(index));
+    demoRoomPreviewViewedRef.current = { [safeIndex]: true };
+  };
+
+  const demoRoomPreviewProgress = () => {
+    const state = navigationStateRef.current;
+    if (!state || !state.steps.length) {
+      return { activeIndex: 0, total: 0, viewedCount: 0, allViewed: true };
+    }
+
+    const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+    const total = state.steps.length;
+    const viewedCount = Array.from({ length: total }).filter((_, index) => demoRoomPreviewViewedRef.current[index]).length;
+
+    return {
+      activeIndex,
+      total,
+      viewedCount,
+      allViewed: viewedCount >= total,
+    };
+  };
+
   const navigationActionsForRaw = (_raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
     const state = navigationStateRef.current;
     if (!state || state.steps.length < 2) return [];
 
     const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
-    const isFirst = activeIndex <= 0;
-    const isLast = activeIndex >= state.steps.length - 1;
-    const currentLabel = state.steps[activeIndex]?.targetText || state.steps[activeIndex]?.targetId || "stay option";
-    const nextLabel = !isLast
-      ? state.steps[activeIndex + 1]?.targetText || state.steps[activeIndex + 1]?.targetId || "next option"
-      : currentLabel;
+    const previousIndex = (activeIndex - 1 + state.steps.length) % state.steps.length;
+    const nextIndex = (activeIndex + 1) % state.steps.length;
+    const previousLabel = state.steps[previousIndex]?.targetText || state.steps[previousIndex]?.targetId || "previous option";
+    const nextLabel = state.steps[nextIndex]?.targetText || state.steps[nextIndex]?.targetId || "next option";
 
     return [
       {
         id: "booking-nav-back",
         label: "Back",
-        helper: `Stop ${activeIndex + 1} of ${state.steps.length}`,
+        helper: compactText(previousLabel).slice(0, 28) || `Stop ${previousIndex + 1} of ${state.steps.length}`,
         variant: "back",
-        disabled: isFirst,
+        disabled: false,
       },
       {
         id: "booking-nav-next",
         label: "Next",
-        helper: isLast ? `Stop ${activeIndex + 1} of ${state.steps.length}` : compactText(nextLabel).slice(0, 28),
+        helper: compactText(nextLabel).slice(0, 28) || `Stop ${nextIndex + 1} of ${state.steps.length}`,
         variant: "next",
-        disabled: isLast,
+        disabled: false,
       },
     ];
+  };
+
+  const demoBookingIsBreakfastFollowUp = (query: string) => {
+    const normalized = compactText(query).toLowerCase();
+    return /\b(add|include|with)\s+breakfast\b|\bbreakfast\s+(plan|package|add)/.test(normalized) &&
+      !normalized.includes("nice room");
+  };
+
+  const syncDemoNavigationStateForRaw = (raw: TourBarBookingRawResponse) => {
+    if (!demoFixtureMode) return;
+
+    const targets = navigationTargetsFromRaw(raw)
+      .filter((target) => Boolean(roomIdFromTarget(target.targetId)))
+      .slice(0, 3);
+
+    if (!targets.length) {
+      navigationStateRef.current = null;
+      resetDemoRoomPreviewViewed(0);
+      return;
+    }
+
+    const previous = navigationStateRef.current;
+    const previousKeys = previous?.steps.map((target) => target.targetId).join("|") || "";
+    const nextKeys = targets.map((target) => target.targetId).join("|");
+    const previousTargetId = previous?.steps[Math.min(Math.max(previous.activeIndex, 0), previous.steps.length - 1)]?.targetId || "";
+    const preservedIndex = targets.findIndex((target) => target.targetId === previousTargetId);
+    const rawPromptText = [
+      raw.prompt,
+      raw.message,
+      asRecord(raw.bookingArtifacts).rawPrompt,
+      asRecord(raw.bookingArtifacts).normalizedPrompt,
+    ].map((value) => String(value || "")).join(" ");
+    const breakfastRefinement = demoBookingIsBreakfastFollowUp(rawPromptText);
+
+    // A breakfast follow-up refines the same candidate set; it should not freeze
+    // on the room that happened to be previewed when the follow-up was typed.
+    // Restart the preview counter at room 1 so Back/Next can cycle through the
+    // updated room + breakfast combinations.
+    const activeIndex = breakfastRefinement ? 0 : preservedIndex >= 0 ? preservedIndex : 0;
+
+    navigationStateRef.current = {
+      steps: targets,
+      activeIndex,
+    };
+
+    if (breakfastRefinement) {
+      resetDemoRoomPreviewViewed(activeIndex);
+    } else if (previousKeys === nextKeys && preservedIndex >= 0) {
+      markDemoRoomPreviewViewed(activeIndex);
+    } else {
+      resetDemoRoomPreviewViewed(activeIndex);
+    }
   };
 
   const rawIsBookingSummaryMode = (raw: TourBarBookingRawResponse) => {
@@ -1588,7 +2043,92 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
   };
 
 
+  const demoWizardFooterLabelForRaw = (raw: TourBarBookingRawResponse, summaryMode = false) => {
+    if (!demoFixtureMode) return "";
+    if (summaryMode) return "Ready";
+
+    if (!rawHasBookableStay(raw) || !demoWizardStateRef.current.roomAdded) {
+      const progress = demoRoomPreviewProgress();
+      if (progress.total > 1 && !progress.allViewed) {
+        return `Previewing ${progress.activeIndex + 1} of ${progress.total}`;
+      }
+      return "Choose room";
+    }
+
+    if (!demoWizardStateRef.current.packagesReviewed) {
+      return demoPackagePanelOpenRef.current ? "Tap when done" : "Tap packages";
+    }
+
+    return "Tap for booking";
+  };
+
+  const demoWizardPrimaryActionForRaw = (raw: TourBarBookingRawResponse): SmartBarMobileGenericAction | null => {
+    if (!demoFixtureMode || !rawHasBookableStay(raw)) return null;
+
+    if (!demoWizardStateRef.current.roomAdded) {
+      return {
+        id: "booking-add-room",
+        label: "Add room",
+        helper: "Select preview",
+        variant: "primary",
+      };
+    }
+
+    if (!demoWizardStateRef.current.packagesReviewed) {
+      if (demoPackagePanelOpenRef.current) {
+        return {
+          id: "booking-packages-done",
+          label: "Tap when done",
+          helper: "Keep selected",
+          variant: "primary",
+        };
+      }
+
+      return {
+        id: "booking-review-packages",
+        label: "Review packages",
+        helper: "Add or skip",
+        variant: "primary",
+      };
+    }
+
+    return {
+      id: "booking-summary",
+      label: "Tap for booking",
+      helper: "Review handoff",
+      variant: "primary",
+    };
+  };
+
   const actionsForRaw = (raw: TourBarBookingRawResponse): SmartBarMobileGenericAction[] => {
+    const isSummaryMode = rawIsBookingSummaryMode(raw);
+    actionQueriesRef.current = {};
+
+    if (demoFixtureMode) {
+      const actions = isSummaryMode ? [] : navigationActionsForRaw(raw);
+      const primaryWizardAction = isSummaryMode ? null : demoWizardPrimaryActionForRaw(raw);
+
+      if (primaryWizardAction) {
+        const insertAt = actions.findIndex((action) => action.id === "booking-nav-next");
+        if (insertAt >= 0) actions.splice(insertAt, 0, primaryWizardAction);
+        else actions.push(primaryWizardAction);
+
+        if (!demoWizardStateRef.current.roomAdded) {
+          const editAction: SmartBarMobileGenericAction = {
+            id: "booking-edit-room-search",
+            label: "Edit",
+            helper: "Revise match",
+            variant: "secondary",
+          };
+          const nextIndex = actions.findIndex((action) => action.id === "booking-nav-next");
+          if (nextIndex >= 0) actions.splice(nextIndex, 0, editAction);
+          else actions.push(editAction);
+        }
+      }
+
+      return actions;
+    }
+
     const actions: SmartBarMobileGenericAction[] = [];
     const shellResult = buildTourBarBookingShellResult(raw, primaryTargetFromRaw(raw), {
       mode: TOURBAR_HOTEL_BOOKING_MODE,
@@ -1596,9 +2136,6 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     const nextLabel = shellResult.nextMove?.label || shellResult.invitation?.text || "";
     const nextQuery = shellResult.nextMove?.query || shellResult.nextMove?.label || shellResult.invitation?.text || "";
 
-    const isSummaryMode = rawIsBookingSummaryMode(raw);
-
-    actionQueriesRef.current = {};
     actions.push(...(isSummaryMode ? [] : navigationActionsForRaw(raw)));
 
     if (nextLabel && nextQuery) {
@@ -1642,14 +2179,6 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     return actions;
   };
 
-  const activeNavigationStep = () => {
-    const state = navigationStateRef.current;
-    if (!state || !state.steps.length) return null;
-
-    const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
-    return state.steps[activeIndex] || null;
-  };
-
   const guidedStepRoomId = (step?: TourBarBookingPageTarget | null) => {
     if (!step) return "";
 
@@ -1662,19 +2191,19 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     if (!roomId) return "";
 
     if (roomId === "room-garden-terrace") {
-      return "Garden Terrace King keeps the stay in a better-value band while still matching the view and breakfast intent.";
+      return "**Garden Terrace King** is the value-fit option.\n- Keeps the stay in a better-value band.\n- Still matches the requested view.\n- Breakfast can be added without moving into premium pricing.";
     }
 
     if (roomId === "room-ocean-view-suite") {
-      return "Ocean View Suite is the best balance of view, comfort, and breakfast compatibility without jumping to villa pricing.";
+      return "**Ocean View Suite** is the balanced upgrade.\n- Stronger view and comfort than the value room.\n- Breakfast compatibility stays intact.\n- Avoids the Coastal Villa price jump.";
     }
 
     if (roomId === "room-coastal-villa") {
-      return "Coastal Villa Suite gives the strongest view and most space, but it is the premium option for this stay.";
+      return "**Coastal Villa Suite** is the premium option.\n- Best view and most space.\n- Highest nightly rate in this set.\n- Useful for comparison, not the value recommendation.";
     }
 
     if (roomId === "room-family-double") {
-      return "Family Double Room is the practical fit for the completed family request, with enough guest capacity.";
+      return "**Family Double Room** is the practical family fit.\n- Matches the added guest-capacity need.\n- Keeps the stay practical.\n- Good fallback once the request changes from solo to family.";
     }
 
     const meta = site.getRoomMeta(roomId);
@@ -1686,6 +2215,245 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     if (!roomId) return "";
 
     return site.getRoomMeta(roomId)?.title || step?.targetText || "";
+  };
+
+  const stayCartPackageIdsFromRaw = (raw: TourBarBookingRawResponse) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+
+    return site.normalizePackageIds([
+      ...packageIdsFromStayPlan(activeStayPlan),
+      ...packageIdsFromCombination(selected),
+      ...asStringArray(visibleContext.selectedPackageIds),
+    ]);
+  };
+
+  const stayCartRoomIdFromRaw = (raw: TourBarBookingRawResponse) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const activeRoom = asRecord(activeStayPlan.room);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+
+    return String(
+      activeStayPlan.roomId ||
+        activeStayPlan.roomTargetId ||
+        activeRoom.targetId ||
+        activeRoom.roomId ||
+        selected.roomId ||
+        visibleContext.selectedRoomId ||
+        site.selectedRoom ||
+        "",
+    );
+  };
+
+  const demoStayCartMoneyAmount = (value?: string | null) => {
+    const match = String(value || "").match(/\$\s*([0-9]+(?:\.[0-9]+)?)/);
+    if (!match) return null;
+
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const demoStayCartEstimateWithBreakfast = (roomPrice: string, includeBreakfast: boolean) => {
+    if (!includeBreakfast) return roomPrice;
+
+    const roomAmount = demoStayCartMoneyAmount(roomPrice);
+    const breakfastAmount = demoStayCartMoneyAmount(site.getPackageMeta(SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID)?.price);
+
+    if (roomAmount === null || breakfastAmount === null) {
+      return `${roomPrice} + breakfast`;
+    }
+
+    const total = roomAmount + breakfastAmount;
+    const suffix = /night/i.test(roomPrice) ? "/night" : "";
+    return `$${total}${suffix}`;
+  };
+
+  const stayCartDataFromRaw = (raw: TourBarBookingRawResponse) => {
+    const visibleContext = asRecord(raw.visibleContext);
+    const bookingContext = asRecord(visibleContext.bookingContext);
+    const activeStayPlan = asRecord(raw.nextStepStayPlan || raw.activeStayPlan || visibleContext.activeStayPlan);
+    const planBookingContext = asRecord(activeStayPlan.bookingContext);
+    const selected = tourBarCombinationFromRaw(raw, { preferNextStep: true });
+    const roomAdded = !demoFixtureMode || demoWizardStateRef.current.roomAdded;
+    const navigationState = navigationStateRef.current;
+    const activePreviewIndex = navigationState && navigationState.steps.length
+      ? Math.min(Math.max(navigationState.activeIndex, 0), navigationState.steps.length - 1)
+      : 0;
+    const previewStep = demoFixtureMode && !roomAdded
+      ? navigationState?.steps[activePreviewIndex] || null
+      : null;
+    const previewRoomId = guidedStepRoomId(previewStep);
+    const committedRoomId = demoFixtureMode && roomAdded ? demoCommittedRoomIdRef.current || site.selectedRoom || workingStay.roomId || "" : "";
+    const rawRoomId = stayCartRoomIdFromRaw(raw);
+    const roomId = previewRoomId || committedRoomId || rawRoomId;
+    const roomMeta = site.getRoomMeta(roomId);
+    const packageIds = stayCartPackageIdsFromRaw(raw);
+    const packageTitles = asStringArray(selected.packageTitles);
+    const checkInDate = String(bookingContext.checkInDate || planBookingContext.checkInDate || (site.datesSelected ? site.checkInDate : ""));
+    const checkOutDate = String(bookingContext.checkOutDate || planBookingContext.checkOutDate || (site.datesSelected ? site.checkOutDate : ""));
+    const hasDates = Boolean(checkInDate && checkOutDate);
+    const adults = Math.max(1, Number(bookingContext.adults ?? bookingContext.guestAdults ?? planBookingContext.adults ?? site.guestAdults ?? 1));
+    const children = Math.max(0, Number(bookingContext.children ?? bookingContext.guestChildren ?? planBookingContext.children ?? site.guestChildren ?? 0));
+    const hasGuests = Boolean(bookingContext.guestLabel || bookingContext.guests || planBookingContext.guestLabel || planBookingContext.guests || site.guestsSelected);
+    const breakfastRequested = demoFixtureMode && demoWizardStateRef.current.breakfastRequested;
+    const packagesReviewed = !demoFixtureMode || demoWizardStateRef.current.packagesReviewed;
+    const breakfastSelectedForEstimate =
+      (demoFixtureMode && demoWizardStateRef.current.packageIds.includes(SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID)) ||
+      (breakfastRequested && !packagesReviewed);
+    const baseEstimate = normalizeSmartBarSummaryLabel(roomMeta?.price || priceLabelFromTourBarCombination(selected) || "Rate ready");
+    const estimate = demoStayCartEstimateWithBreakfast(baseEstimate, breakfastSelectedForEstimate);
+    const roomPreviewCount = navigationState?.steps.length || 0;
+    const roomPreviewLabel = roomPreviewCount > 1
+      ? `Matching room ${activePreviewIndex + 1} of ${roomPreviewCount}`
+      : "Matching room";
+
+    const essentials: SmartBarBookingStayBlock[] = [
+      {
+        id: "stay-check-in",
+        label: "In",
+        value: hasDates ? compactCalendarDateLabel(checkInDate) : "Missing",
+        helper: "Required",
+        tone: hasDates ? "ready" : "pending",
+        actionId: "booking-edit-dates",
+        actionLabel: "Edit dates",
+      },
+      {
+        id: "stay-checkout",
+        label: "Out",
+        value: hasDates ? compactCalendarDateLabel(checkOutDate) : "Missing",
+        helper: "Required",
+        tone: hasDates ? "ready" : "pending",
+        actionId: "booking-edit-dates",
+        actionLabel: "Edit dates",
+      },
+      {
+        id: "stay-guests",
+        label: "Guests",
+        value: hasGuests
+          ? `${adults} adult${adults === 1 ? "" : "s"} · ${children} kid${children === 1 ? "" : "s"}`
+          : "Missing",
+        helper: "Required",
+        tone: hasGuests ? "ready" : "pending",
+        actionId: "booking-edit-guests",
+        actionLabel: "Edit guests",
+      },
+    ];
+
+    const wizardPackageIds = demoFixtureMode ? demoWizardStateRef.current.packageIds : packageIds;
+    const packageReviewAvailable = Boolean(roomId && (roomAdded || breakfastRequested));
+
+    const room: SmartBarBookingStayBlock = roomId
+      ? {
+          id: "stay-room",
+          label: roomAdded ? "Room" : roomPreviewLabel,
+          value: normalizeSmartBarSummaryLabel(String(roomMeta?.title || selected.roomShortTitle || selected.roomTitle || "Selected room")),
+          helper: roomAdded ? roomMeta?.price || "Selected" : "Preview",
+          tone: roomAdded ? "ready" : "optional",
+          actionId: roomAdded ? "booking-focus-room" : "booking-focus-room-preview",
+          actionLabel: roomAdded ? "Focus room" : "Preview room",
+          actionVariant: roomAdded ? "secondary" : "primary",
+          removeActionId: roomAdded ? "booking-remove-room" : undefined,
+          removeActionLabel: "Remove room",
+          trailingIcon: roomAdded ? "trash" : undefined,
+        }
+      : {
+          id: "stay-room",
+          label: "Room",
+          value: "Not selected",
+          helper: "Required",
+          tone: "pending",
+          actionId: "booking-nav-next",
+          actionLabel: "Choose room",
+        };
+
+    const shouldShowPackageReviewBlock = breakfastRequested || packageReviewAvailable;
+    const packages: SmartBarBookingStayBlock[] = packagesReviewed
+      ? wizardPackageIds.length
+        ? wizardPackageIds.map((packageId, index) => {
+            const meta = site.getPackageMeta(packageId);
+            return {
+              id: `stay-package-${packageId}`,
+              label: index === 0 ? "Packages" : "Packages +",
+              value: normalizeSmartBarSummaryLabel(packageTitles[index] || meta?.title || packageId),
+              helper: meta?.price || "Added",
+              tone: "ready" as SmartBarBookingStayBlockTone,
+              actionId: "booking-review-packages",
+              actionLabel: "Review packages",
+              actionVariant: "secondary" as const,
+            };
+          })
+        : [
+            {
+              id: "stay-package-reviewed",
+              label: "Packages",
+              value: "Reviewed",
+              helper: "None added",
+              tone: "ready" as SmartBarBookingStayBlockTone,
+              actionId: "booking-review-packages",
+              actionLabel: "Review packages",
+              actionVariant: "secondary" as const,
+            },
+          ]
+      : shouldShowPackageReviewBlock
+        ? [
+            {
+              id: "stay-package-review",
+              label: "Packages",
+              value: breakfastRequested ? "Breakfast matched" : "Review",
+              helper: roomAdded
+                ? breakfastRequested ? "Tap packages" : "Breakfast available"
+                : breakfastRequested ? "Add room first" : "Breakfast available",
+              tone: "optional",
+              actionId: "booking-review-packages",
+              actionLabel: "Review packages",
+            },
+          ]
+        : [
+            {
+              id: "stay-package-placeholder",
+              label: "",
+              value: "",
+              helper: "",
+              tone: "empty" as SmartBarBookingStayBlockTone,
+            },
+          ];
+    const packageOptions: SmartBarBookingStayBlock[] = SMARTBAR_BOOKING_DEMO_PACKAGE_IDS.map((packageId) => {
+      const meta = smartBarBookingDemoPackageMeta(site, packageId);
+      const selected = wizardPackageIds.includes(packageId) ||
+        (packageId === SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID && breakfastRequested && !packagesReviewed);
+
+      return {
+        id: `package-option-${packageId}`,
+        label: packageId === SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID ? "Breakfast" : "Package",
+        value: meta?.title || packageId,
+        helper: selected ? meta?.price || "Selected" : meta?.price || "Available",
+        tone: (selected ? "ready" : "choice") as SmartBarBookingStayBlockTone,
+        actionId: selected ? `booking-focus-package-${packageId}` : `booking-package-toggle-${packageId}`,
+        actionLabel: selected ? `Focus ${meta?.title || packageId}` : `Toggle ${meta?.title || packageId} on`,
+        actionVariant: "primary" as const,
+      };
+    });
+
+    return {
+      essentials,
+      room,
+      packages,
+      packagePanelOpen: demoFixtureMode && demoPackagePanelOpenRef.current,
+      packageOptions,
+      estimate: {
+        id: "stay-estimate",
+        label: "Estimate",
+        value: estimate,
+        helper: hasDates && hasGuests && roomId
+          ? breakfastRequested && !packagesReviewed ? "Room + breakfast intent" : "Live estimate"
+          : "Needs required blocks",
+        tone: "accounting",
+        actionId: undefined,
+        actionLabel: "View estimate",
+      } as SmartBarBookingStayBlock,
+    };
   };
 
   const bookingSummaryRows = (raw: TourBarBookingRawResponse) => {
@@ -1749,14 +2517,26 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
   const contentForRaw = (raw: TourBarBookingRawResponse, summary = false): ReactNode => {
     const step = activeNavigationStep();
     const guidedBody = !summary ? guidedRoomBody(step) : "";
-    const body = summary ? "Review the stay details SmartBar has staged for handoff." : guidedBody || bookingResponseBody(raw);
+    const body = summary ? "BOOKING SUMMARY" : guidedBody || bookingResponseBody(raw);
     const rows = summary ? bookingSummaryRows(raw) : [];
+
+    if (demoFixtureMode) {
+      const showFocusPanel = !summary && demoFocusPanelVisibleRef.current;
+
+      return (
+        <SmartBarBookingStayCart
+          responseBody={showFocusPanel ? body : undefined}
+          summary={summary}
+          {...stayCartDataFromRaw(raw)}
+        />
+      );
+    }
 
     return (
       <div className="space-y-2.5">
         {body && (
-          <div className="rounded-[24px] border border-white/22 bg-slate-950/88 px-4 py-3 text-[15px] font-semibold leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_28px_rgba(2,6,23,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">
-            {renderInlineEmphasis(body)}
+          <div className="rounded-[24px] border border-white/22 bg-slate-950/88 px-4 py-3 text-[15px] font-normal leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_28px_rgba(2,6,23,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">
+            {renderSmartBarBookingFormattedText(body)}
           </div>
         )}
         {rows.length > 0 && (
@@ -1819,14 +2599,19 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     const guidedBody = !summary ? guidedRoomBody(step) : "";
     const guidedTitle = !summary ? guidedRoomTitle(step) : "";
     const body = summary ? "Review the stay details SmartBar has staged for handoff." : guidedBody || bookingResponseBody(raw);
-    const estimatedLines = Math.max(1, Math.ceil(body.length / 46));
+    const estimatedLines = Math.max(1, Math.ceil(body.length / 38));
     const summaryRowCount = summary ? bookingSummaryRows(raw).length : 0;
-    const estimatedHeight = summary
-      ? Math.min(380, Math.max(300, 62 + estimatedLines * 24 + summaryRowCount * 48))
-      : Math.min(
-          560,
-          Math.max(actions.length ? 290 : 240, 56 + estimatedLines * 25 + actions.length * 58),
-        );
+    const demoShowsFocusPanel = demoFixtureMode && !summary && demoFocusPanelVisibleRef.current;
+    const estimatedHeight = demoFixtureMode
+      ? summary
+        ? 560
+        : demoShowsFocusPanel ? 500 : 500
+      : summary
+        ? Math.min(460, Math.max(330, 72 + estimatedLines * 26 + summaryRowCount * 50))
+        : Math.min(
+            640,
+            Math.max(actions.length ? 330 : 260, 72 + estimatedLines * 27 + actions.length * 62),
+          );
     const navigates = resultHasNavigation(raw);
     const navigationState = navigationStateRef.current;
     const guidedProgress = navigationState && navigationState.steps.length > 1
@@ -1838,22 +2623,24 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
 
     return {
       surfaceKind: summary ? "booking_summary" : "booking_tour",
-      eyebrow: summary ? "Booking preload" : "Domi stay match",
+      eyebrow: summary ? "Booking summary" : "Domi stay match",
       title: summary ? "Booking summary" : guidedTitle || shellResult.title || "Domi booking match",
       helper: summary
-        ? "Room, add-ons, dates, guests, and estimate are ready for handoff."
+        ? "Review the staged room, add-ons, dates, guests, and estimate."
         : navigates
           ? "SmartBar opened the matching stay option on the site."
           : "Refine this stay or ask SmartBar for another option.",
-      statusLabel: guidedProgress ? `Stop ${guidedProgress.current}/${guidedProgress.total}` : summary ? "Ready" : navigates ? "Spotlight" : "Match ready",
+      statusLabel: demoFixtureMode
+        ? demoWizardFooterLabelForRaw(raw, summary)
+        : guidedProgress ? `Stop ${guidedProgress.current}/${guidedProgress.total}` : summary ? "Ready" : navigates ? "Spotlight" : "Match ready",
       actions,
       progressLabel: guidedProgress ? "Guided stops" : undefined,
       progressCurrent: guidedProgress?.current,
       progressTotal: guidedProgress?.total,
       height: estimatedHeight,
       content: contentForRaw(raw, summary),
-      navigationRevealDelayMs: navigates ? 3000 : undefined,
-      navigationRevealLabel: navigates ? "Spotlighting..." : undefined,
+      navigationRevealDelayMs: navigates && (!demoFixtureMode || demoFocusPanelVisibleRef.current) ? 3000 : undefined,
+      navigationRevealLabel: navigates && (!demoFixtureMode || demoFocusPanelVisibleRef.current) ? "Spotlighting..." : undefined,
     };
   };
 
@@ -1912,17 +2699,21 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
       };
     };
 
-    const isBreakfastFollowUp = /\b(add|include|with)\s+breakfast\b|\bbreakfast\s+(plan|package|add)/.test(normalized) && !normalized.includes("nice room");
+    const isBreakfastFollowUp = demoBookingIsBreakfastFollowUp(query);
     const isFamilyRecommendation = /family recommendation|family room|family double/.test(normalized);
     const isSummary = /\b(book|reserve|reservation|summary|prepare)\b/.test(normalized);
 
+    const breakfastBeforeRoomCommit = isBreakfastFollowUp && demoFixtureMode && !demoWizardStateRef.current.roomAdded;
+    const previewRoomId = guidedStepRoomId(activeNavigationStep());
     const activeRoomId = isFamilyRecommendation
       ? "room-family-double"
-      : isBreakfastFollowUp || isSummary
-        ? workingStay.roomId || site.selectedRoom || "room-ocean-view-suite"
-        : "room-garden-terrace";
+      : breakfastBeforeRoomCommit
+        ? previewRoomId || workingStay.roomId || site.selectedRoom || "room-ocean-view-suite"
+        : isBreakfastFollowUp || isSummary
+          ? workingStay.roomId || site.selectedRoom || previewRoomId || "room-ocean-view-suite"
+          : previewRoomId || "room-garden-terrace";
 
-    const packageIds = isBreakfastFollowUp || isSummary ? ["package-breakfast-flex"] : [];
+    const packageIds = isSummary || (isBreakfastFollowUp && !breakfastBeforeRoomCommit) ? [SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID] : [];
     const selectedCombination = makeCombo(activeRoomId, packageIds);
     const activeStayPlan = {
       roomId: activeRoomId,
@@ -1954,53 +2745,35 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
       makeCombo("room-coastal-villa"),
     ];
 
-    const rankedDestinations = isBreakfastFollowUp
+    const roomCandidateOrder = isBreakfastFollowUp
+      ? ["room-ocean-view-suite", "room-garden-terrace", "room-coastal-villa"]
+      : ["room-garden-terrace", "room-ocean-view-suite", "room-coastal-villa"];
+    const rankedDestinations = isFamilyRecommendation
       ? [
           {
-            pageId: "packages",
-            targetId: "package-breakfast-flex",
-            targetSelector: '[data-tour-id="package-breakfast-flex"], #package-breakfast-flex',
-            targetText: site.getPackageMeta("package-breakfast-flex")?.title || "Breakfast Flex Plan",
+            pageId: "rooms",
+            targetId: "room-family-double",
+            targetSelector: '[data-tour-id="room-family-double"], #room-family-double',
+            targetText: site.getRoomMeta("room-family-double")?.title || "Family Double Room",
           },
         ]
-      : isFamilyRecommendation
-        ? [
-            {
-              pageId: "rooms",
-              targetId: "room-family-double",
-              targetSelector: '[data-tour-id="room-family-double"], #room-family-double',
-              targetText: site.getRoomMeta("room-family-double")?.title || "Family Double Room",
-            },
-          ]
-        : [
-            {
-              pageId: "rooms",
-              targetId: "room-garden-terrace",
-              targetSelector: '[data-tour-id="room-garden-terrace"], #room-garden-terrace',
-              targetText: site.getRoomMeta("room-garden-terrace")?.title || "Garden Terrace King",
-            },
-            {
-              pageId: "rooms",
-              targetId: "room-ocean-view-suite",
-              targetSelector: '[data-tour-id="room-ocean-view-suite"], #room-ocean-view-suite',
-              targetText: site.getRoomMeta("room-ocean-view-suite")?.title || "Ocean View Suite",
-            },
-            {
-              pageId: "rooms",
-              targetId: "room-coastal-villa",
-              targetSelector: '[data-tour-id="room-coastal-villa"], #room-coastal-villa',
-              targetText: site.getRoomMeta("room-coastal-villa")?.title || "Coastal Villa Suite",
-            },
-          ];
+      : roomCandidateOrder.map((roomId) => ({
+          pageId: "rooms" as TourBarBookingPageId,
+          targetId: roomId,
+          targetSelector: `[data-tour-id="${roomId}"], #${roomId}`,
+          targetText: site.getRoomMeta(roomId)?.title || roomId,
+        }));
 
     const summaryMode = isSummary;
     const body = summaryMode
-      ? "SmartBar has staged the room, add-ons, dates, guests, and estimate for handoff."
+      ? "**Booking summary staged.**\n- Room, breakfast, dates, guests, and estimate are ready.\n- The next step can hand off cleanly to booking or checkout."
       : isBreakfastFollowUp
-        ? "Breakfast Flex has been added to the active stay. The room context stays intact, and the booking summary can be prepared next."
+        ? breakfastBeforeRoomCommit
+          ? "**Breakfast noted. Matching rooms updated.**\n- SmartBar keeps the same room set first.\n- The room is still a preview until you add it.\n- Breakfast will be reviewed after the room is selected."
+          : "**Breakfast requested.**\n- The selected room stays locked.\n- Review the package block before booking.\n- Dates and guest context are preserved."
         : isFamilyRecommendation
-          ? "For a family room, the Family Double is the best fit. It keeps the stay practical while preserving enough guest capacity."
-          : "Best fit: Garden Terrace King. It keeps the stay in a better-value band while still matching the view and breakfast intent. You can compare the Ocean View Suite and Coastal Villa next.";
+          ? "**Family Double is the best family fit.**\n- Guest capacity is now the priority.\n- The stay stays practical instead of jumping to a villa.\n- SmartBar can stage the summary next."
+          : "**Best fit: Garden Terrace King.**\n- Best value band for this request.\n- Still matches view and breakfast intent.\n- Ocean View Suite and Coastal Villa are available for comparison.";
 
     return {
       ok: true,
@@ -2066,6 +2839,19 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     const raw = demoFixtureMode
       ? buildDemoBookingRaw(query, promptContext, requestContext)
       : await postTourBarHotelBooking(query, turnContext, requestContext);
+    if (demoFixtureMode) {
+      if (demoBookingIsBreakfastFollowUp(query)) {
+        demoPackagePanelOpenRef.current = false;
+        setDemoWizardStateSync((current) => ({
+          ...current,
+          breakfastRequested: true,
+          packagesReviewed: false,
+          packageIds: current.roomAdded ? current.packageIds : [],
+        }));
+      }
+      syncDemoNavigationStateForRaw(raw);
+    }
+
     const shellResult = buildTourBarBookingShellResult(
       raw,
       requestContext.resultTarget || primaryTargetFromRaw(raw) || {},
@@ -2085,7 +2871,8 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
       },
     ];
 
-    focusResult(raw);
+    demoFocusPanelVisibleRef.current = false;
+    if (!demoFixtureMode) focusResult(raw);
     return toGenericResult(raw);
   };
 
@@ -2093,6 +2880,14 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
     action: SmartBarMobileGenericAction,
   ): Promise<SmartBarMobileSubmitResult> => {
     const raw = currentRawRef.current;
+
+    if ((action.id === "booking-edit-dates" || action.id === "booking-edit-guests") && !raw) {
+      return buildBookingContextSelectorResult(
+        pendingBookingQueryRef.current || "show updated booking options",
+        action.id === "booking-edit-dates",
+        action.id === "booking-edit-guests",
+      );
+    }
 
     if ((action.id === "booking-edit-dates" || action.id === "booking-edit-guests") && raw) {
       currentRawRef.current = raw;
@@ -2115,12 +2910,222 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
       return resumeBookingContextQuery();
     }
 
+    if (action.id === "booking-edit-room-search" && raw) {
+      demoFocusPanelVisibleRef.current = false;
+      demoPackagePanelOpenRef.current = false;
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-add-room" && raw) {
+      const previewRoomId = demoFixtureMode ? guidedStepRoomId(activeNavigationStep()) : "";
+      const roomId = previewRoomId || stayCartRoomIdFromRaw(raw);
+      const roomMeta = site.getRoomMeta(roomId);
+      if (roomId) {
+        demoCommittedRoomIdRef.current = roomId;
+        site.setSelectedRoom(roomId);
+        setWorkingStay((current) => ({
+          ...current,
+          roomId,
+          activeTargetId: roomId,
+          activeRoomId: roomId,
+        }));
+        demoPackagePanelOpenRef.current = false;
+        setDemoWizardStateSync((current) => ({
+          ...current,
+          roomAdded: true,
+          packagesReviewed: false,
+        }));
+        if (roomMeta && !demoFixtureMode) {
+          navigationRunRef.current += 1;
+          site.setCurrentPage(pageIdFromTarget(roomId));
+          spotlightAnchor(roomId, `[data-tour-id="${roomId}"], #${roomId}`, 180);
+        }
+        demoFocusPanelVisibleRef.current = false;
+      }
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-review-packages" && raw) {
+      if (demoFixtureMode) {
+        const primaryPackageId = SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID;
+        const shouldPreselectBreakfast = demoWizardStateRef.current.breakfastRequested;
+        demoPackagePanelOpenRef.current = true;
+        demoFocusPanelVisibleRef.current = false;
+
+        if (shouldPreselectBreakfast) {
+          const nextPackageIds = site.normalizePackageIds([
+            ...demoWizardStateRef.current.packageIds,
+            primaryPackageId,
+          ]);
+          site.setSelectedPackages(nextPackageIds);
+          setWorkingStay((current) => ({
+            ...current,
+            packageIds: nextPackageIds,
+            activePackageId: nextPackageIds[0] || current.activePackageId || null,
+          }));
+          setDemoWizardStateSync((current) => ({
+            ...current,
+            packageIds: nextPackageIds,
+            packagesReviewed: false,
+          }));
+        }
+
+        return toGenericResult(raw);
+      }
+
+      const primaryPackageId = SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID;
+      const nextPackageIds = site.normalizePackageIds([primaryPackageId]);
+      site.setSelectedPackages(nextPackageIds);
+      setWorkingStay((current) => ({
+        ...current,
+        packageIds: nextPackageIds,
+        activeTargetId: primaryPackageId,
+        activePackageId: primaryPackageId,
+      }));
+      setDemoWizardStateSync((current) => ({
+        ...current,
+        breakfastRequested: true,
+        packagesReviewed: true,
+        packageIds: nextPackageIds,
+      }));
+      navigationRunRef.current += 1;
+      site.setCurrentPage(pageIdFromTarget(primaryPackageId));
+      spotlightAnchor(primaryPackageId, `[data-tour-id="${primaryPackageId}"], #${primaryPackageId}`, 180);
+      return toGenericResult(raw);
+    }
+
+    if (action.id.startsWith("booking-package-toggle-") && raw) {
+      const packageId = action.id.replace("booking-package-toggle-", "");
+      const currentPackageIds = site.normalizePackageIds(demoWizardStateRef.current.packageIds);
+      const alreadySelected = currentPackageIds.includes(packageId);
+      const nextPackageIds = alreadySelected
+        ? currentPackageIds.filter((candidate) => candidate !== packageId)
+        : site.normalizePackageIds([...currentPackageIds, packageId]);
+
+      site.setSelectedPackages(nextPackageIds);
+      setWorkingStay((current) => ({
+        ...current,
+        packageIds: nextPackageIds,
+        activeTargetId: nextPackageIds[0] || current.activeRoomId || current.roomId,
+        activePackageId: nextPackageIds[0] || null,
+      }));
+      demoPackagePanelOpenRef.current = true;
+      setDemoWizardStateSync((current) => ({
+        ...current,
+        breakfastRequested: current.breakfastRequested || packageId === SMARTBAR_BOOKING_DEMO_PRIMARY_PACKAGE_ID,
+        packagesReviewed: false,
+        packageIds: nextPackageIds,
+      }));
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-packages-done" && raw) {
+      const nextPackageIds = site.normalizePackageIds(demoWizardStateRef.current.packageIds);
+      demoFocusPanelVisibleRef.current = false;
+      site.setSelectedPackages(nextPackageIds);
+      setWorkingStay((current) => ({
+        ...current,
+        packageIds: nextPackageIds,
+        activeTargetId: nextPackageIds[0] || current.activeRoomId || current.roomId,
+        activePackageId: nextPackageIds[0] || null,
+      }));
+      demoPackagePanelOpenRef.current = false;
+      setDemoWizardStateSync((current) => ({
+        ...current,
+        packagesReviewed: true,
+        packageIds: nextPackageIds,
+      }));
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-remove-room" && raw) {
+      demoCommittedRoomIdRef.current = null;
+      site.setSelectedRoom(null);
+      site.setSelectedPackages([]);
+      setWorkingStay((current) => ({
+        ...current,
+        roomId: null,
+        packageIds: [],
+        activeTargetId: null,
+        activeRoomId: null,
+        activePackageId: null,
+      }));
+      setDemoWizardStateSync({
+        roomAdded: false,
+        packagesReviewed: false,
+        packageIds: [],
+        breakfastRequested: false,
+      });
+      resetDemoRoomPreviewViewed(0);
+      demoPackagePanelOpenRef.current = false;
+      demoFocusPanelVisibleRef.current = false;
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-focus-room-preview" && raw) {
+      const state = navigationStateRef.current;
+      if (state && state.steps.length) {
+        const activeIndex = Math.min(Math.max(state.activeIndex, 0), state.steps.length - 1);
+        demoFocusPanelVisibleRef.current = true;
+        focusNavigationStep(state, activeIndex, 180);
+      }
+      return toGenericResult(raw);
+    }
+
+    if (action.id === "booking-add-package") {
+      return submitBookingQuery("add breakfast");
+    }
+
+    if (action.id === "booking-focus-room" && raw) {
+      const bookingTarget = bookingFocusTarget(raw);
+      if (bookingTarget) {
+        demoFocusPanelVisibleRef.current = true;
+        navigationRunRef.current += 1;
+        if (bookingTarget.pageId) site.setCurrentPage(bookingTarget.pageId);
+        spotlightAnchor(bookingTarget.targetId, bookingTarget.targetSelector, 180);
+      }
+      return toGenericResult(raw);
+    }
+
+    if ((action.id === "booking-focus-package" || action.id.startsWith("booking-focus-package-")) && raw) {
+      const explicitPackageId = action.id.startsWith("booking-focus-package-")
+        ? action.id.replace("booking-focus-package-", "")
+        : "";
+      const packageId = explicitPackageId || stayCartPackageIdsFromRaw(raw)[0];
+      if (packageId) {
+        navigationRunRef.current += 1;
+        demoPackagePanelOpenRef.current = true;
+        demoFocusPanelVisibleRef.current = true;
+        site.setCurrentPage(pageIdFromTarget(packageId));
+        setWorkingStay((current) => ({
+          ...current,
+          activeTargetId: packageId,
+          activePackageId: packageId,
+        }));
+        spotlightAnchor(packageId, `[data-tour-id="${packageId}"], #${packageId}`, 180);
+      }
+      return toGenericResult(raw);
+    }
+
     if ((action.id === "booking-nav-back" || action.id === "booking-nav-next") && raw) {
       const state = navigationStateRef.current;
       if (state && state.steps.length > 1) {
         const nextIndex = action.id === "booking-nav-next"
           ? state.activeIndex + 1
           : state.activeIndex - 1;
+
+        if (demoFixtureMode) {
+          const wrappedIndex = ((nextIndex % state.steps.length) + state.steps.length) % state.steps.length;
+          navigationStateRef.current = {
+            ...state,
+            activeIndex: wrappedIndex,
+          };
+          markDemoRoomPreviewViewed(wrappedIndex);
+          demoPackagePanelOpenRef.current = false;
+          demoFocusPanelVisibleRef.current = false;
+          return toGenericResult(raw);
+        }
+
         focusNavigationStep(state, nextIndex, 420);
         await wait(4200);
         return toGenericResult(raw);
@@ -2165,7 +3170,11 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
       const detail = (event as CustomEvent<{ actionId?: string }>).detail;
       const actionId = String(detail?.actionId || "").trim();
 
-      if (!["booking-nav-next", "booking-summary", "booking-handoff", "booking-context-continue"].includes(actionId)) return;
+      if (!(
+        ["booking-nav-back", "booking-nav-next", "booking-add-room", "booking-review-packages", "booking-summary", "booking-handoff", "booking-context-continue", "booking-focus-room-preview", "booking-remove-room", "booking-edit-room-search", "booking-packages-done", "booking-focus-package"].includes(actionId) ||
+        actionId.startsWith("booking-package-toggle-") ||
+        actionId.startsWith("booking-focus-package-")
+      )) return;
 
       const raw = currentRawRef.current;
       if (actionId !== "booking-context-continue" && !raw) return;
@@ -2174,10 +3183,22 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
         id: actionId,
         label: actionId === "booking-nav-next"
           ? "Next"
-          : actionId === "booking-context-continue"
-            ? "Continue search"
-            : "Prepare booking summary",
-        variant: actionId === "booking-nav-next" ? "next" : "primary",
+          : actionId === "booking-nav-back"
+            ? "Back"
+            : actionId === "booking-add-room"
+              ? "Add room"
+              : actionId === "booking-review-packages"
+                ? "Review packages"
+                : actionId === "booking-context-continue"
+                  ? "Continue search"
+                  : actionId === "booking-edit-room-search"
+                    ? "Edit"
+                    : actionId.startsWith("booking-package-toggle-")
+                      ? "Toggle package"
+                      : actionId === "booking-focus-package" || actionId.startsWith("booking-focus-package-")
+                        ? "Focus package"
+                        : "Tap for booking",
+        variant: actionId === "booking-nav-next" ? "next" : actionId === "booking-nav-back" ? "back" : "primary",
       };
 
       Promise.resolve(submitGenericAction(action))
@@ -2214,6 +3235,22 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
         threadRef.current = [];
         actionQueriesRef.current = {};
         pendingBookingQueryRef.current = "";
+        site.setCurrentPage("home");
+        site.setActiveAnchor(null);
+        site.setSelectedRoom(null);
+        site.setSelectedPackages([]);
+        site.setDatesSelected(false);
+        site.setGuestsSelected(false);
+        site.setGuestAdults(1);
+        site.setGuestChildren(0);
+        site.setGuestLabel("1 adult");
+        site.setBudgetBand("");
+        site.setCheckInDate("2026-08-04");
+        site.setCheckOutDate("2026-08-09");
+        demoCommittedRoomIdRef.current = null;
+        demoPackagePanelOpenRef.current = false;
+        demoFocusPanelVisibleRef.current = false;
+        resetDemoRoomPreviewViewed(0);
         bookingContextDraftRef.current = {
           datesSelected: false,
           checkInDate: "",
@@ -2226,6 +3263,13 @@ export default function SmartBarBookingAdapter({ site, demoFixtureMode = false, 
           guestLabel: "",
         };
         navigationStateRef.current = null;
+        demoFocusPanelVisibleRef.current = false;
+        setDemoWizardStateSync({
+          roomAdded: false,
+          packagesReviewed: false,
+          packageIds: [],
+          breakfastRequested: false,
+        });
       }}
     />
   );

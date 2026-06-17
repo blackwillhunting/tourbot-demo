@@ -518,6 +518,7 @@ export default function TourBarShell({
   const consultantChatAutoStartedRef = useRef(false);
   const [isPhoneShellViewport, setIsPhoneShellViewport] = useState(() => isSmartBarPhoneViewport());
   const [mobileComposerCollapsed, setMobileComposerCollapsed] = useState(false);
+  const [primaryComposerFocused, setPrimaryComposerFocused] = useState(false);
 
   useEffect(() => {
     const viewportQuery = window.matchMedia("(max-width: 767px)");
@@ -1348,6 +1349,22 @@ export default function TourBarShell({
   const mobileShellStyles = getSmartBarMobileShellStyles(true, false);
   const desktopBlueCoreGlass = !isPhoneShellViewport && (chromeVariant === "blueCoreGlass" || desktopCompassChrome);
   const desktopUsesCompass = !isPhoneShellViewport && (desktopCompassChrome || desktopBlueCoreGlass);
+  const primaryComposerCaretClass =
+    primaryComposerFocused && query.length === 0 && !isLoading && !isAnswering
+      ? desktopBlueCoreGlass || !isLightShell
+        ? "caret-white"
+        : "caret-slate-950"
+      : "caret-transparent";
+
+  const showPrimaryComposerReadyCursor =
+    isOpen && !mobileComposerCollapsed && query.length === 0 && !isLoading && !isAnswering;
+  const primaryComposerReadyCursorClass = [
+    "pointer-events-none block w-[3px] shrink-0 rounded-full opacity-100 animate-pulse",
+    isPhoneShellViewport ? "mt-[0.72rem] h-8" : "mb-1 h-5",
+    desktopBlueCoreGlass || !isLightShell
+      ? "bg-white shadow-[0_0_10px_rgba(255,255,255,0.88),0_0_22px_rgba(56,189,248,0.46)]"
+      : "bg-slate-950 shadow-[0_0_10px_rgba(15,23,42,0.38)]",
+  ].join(" ");
 
   const shellRootClass = isPhoneShellViewport
     ? mobileGlassChrome
@@ -1577,13 +1594,22 @@ export default function TourBarShell({
                     initial={false}
                   >
                     <div className={isPhoneShellViewport ? mobileGlassChrome ? `pointer-events-auto min-h-[76px] overflow-visible rounded-[30px] ${mobileShellStyles.upperGlassClass}` : `min-h-[76px] overflow-visible ${isLightShell ? "border-t border-slate-200/80 bg-white/96 text-slate-950 shadow-[0_-14px_32px_rgba(15,23,42,0.12)]" : "bg-slate-950 text-white"}` : desktopBlueCoreGlass ? "overflow-hidden rounded-[22px] border border-white/25 bg-[linear-gradient(180deg,rgba(29,43,145,0.98),rgba(23,34,124,0.96))] text-white shadow-[0_24px_62px_rgba(23,34,124,0.28),inset_0_1px_1px_rgba(255,255,255,0.18)] ring-1 ring-white/15 backdrop-blur-xl" : "overflow-hidden rounded-[22px] border border-slate-200 bg-white/96 shadow-xl shadow-slate-950/12 ring-1 ring-white/70 backdrop-blur-xl"}>
-                  <div className={isPhoneShellViewport ? "flex min-h-[76px] items-start gap-2 px-3 pb-2 pt-3" : "flex items-end gap-2 px-3 py-2"}>
+                  <div className={isPhoneShellViewport ? "relative flex min-h-[76px] items-start gap-2 px-3 pb-2 pt-3" : "relative flex items-end gap-2 px-3 py-2"}>
                     <span className={isPhoneShellViewport ? mobileGlassChrome ? `mt-1 ${mobileShellStyles.chromeIconBubbleClass}` : `mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center ${isLightShell ? "text-orange-500" : "text-white/85"}` : desktopBlueCoreGlass ? "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/16 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.22)] ring-1 ring-white/18" : "mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white"}>
                       {desktopUsesCompass ? <Compass className="h-4 w-4" /> : <Search className="h-4 w-4" />}
                     </span>
+                    {showPrimaryComposerReadyCursor ? (
+                      <span
+                        aria-hidden="true"
+                        data-smartbar-entry-ready-cursor="true"
+                        className={primaryComposerReadyCursorClass}
+                      />
+                    ) : null}
                     <textarea
                       ref={queryRef}
                       value={query}
+                      onFocus={() => setPrimaryComposerFocused(true)}
+                      onBlur={() => setPrimaryComposerFocused(false)}
                       onChange={(event) => {
                         setQuery(event.target.value);
                       }}
@@ -1595,7 +1621,16 @@ export default function TourBarShell({
                       }}
                       placeholder={primaryComposerPlaceholder}
                       rows={isPhoneShellViewport ? 2 : 1}
-                      className={isPhoneShellViewport ? mobileGlassChrome ? `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-semibold leading-6 outline-none placeholder:text-white/38 md:text-sm ${mobileShellStyles.inputTextClass}` : `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-medium leading-6 outline-none md:text-sm ${isLightShell ? "text-slate-950 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}` : desktopBlueCoreGlass ? "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-semibold leading-6 text-white/86 outline-none placeholder:text-white/38" : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400"}
+                      className={[
+                        isPhoneShellViewport
+                          ? mobileGlassChrome
+                            ? `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-semibold leading-6 outline-none placeholder:text-white/38 md:text-sm ${mobileShellStyles.inputTextClass}`
+                            : `max-h-32 min-h-[52px] flex-1 resize-none overflow-y-auto bg-transparent px-0 pb-1 pt-1.5 text-[16px] font-medium leading-6 outline-none md:text-sm ${isLightShell ? "text-slate-950 placeholder:text-slate-400" : "text-white placeholder:text-white/40"}`
+                          : desktopBlueCoreGlass
+                            ? "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-semibold leading-6 text-white/86 outline-none placeholder:text-white/38"
+                            : "max-h-32 min-h-8 flex-1 resize-none overflow-y-auto bg-transparent py-1 text-sm font-medium leading-6 text-slate-950 outline-none placeholder:text-slate-400",
+                        primaryComposerCaretClass,
+                      ].join(" ")}
                     />
                     <button
                       type="button"
