@@ -177,6 +177,7 @@ const SMARTBAR_ADAPTIVE_RAIL_SURFACE_SELECTOR = "[data-smartbar-mobile-adaptive-
 const SMARTBAR_ADAPTIVE_RAIL_MIN_NUDGE_PX = 36;
 const SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX = 28;
 const SMARTBAR_ADAPTIVE_RAIL_MEASURE_DELAY_MS = 80;
+const SMARTBAR_ADAPTIVE_RAIL_OFFSCREEN_LEFT_ALLOWANCE_RATIO = 0.62;
 
 type SmartBarAdaptiveSpotlightRect = {
   left: number;
@@ -411,7 +412,10 @@ function smartBarAdaptiveRailOffsetForTarget(
   const margin = SMARTBAR_ADAPTIVE_RAIL_SAFETY_MARGIN_PX;
   const maxMove = smartBarAdaptiveRailMaxMove(viewportWidth);
   const baseShellRect = smartBarAdaptiveRailShiftRect(currentShellRect, -currentOffset);
-  const minViewportOffset = Math.max(-maxMove, Math.ceil(18 - baseShellRect.left));
+  const offscreenLeftAllowance = Math.floor(
+    (baseShellRect.width || 0) * SMARTBAR_ADAPTIVE_RAIL_OFFSCREEN_LEFT_ALLOWANCE_RATIO,
+  );
+  const minViewportOffset = Math.max(-maxMove, Math.ceil(18 - baseShellRect.left - offscreenLeftAllowance));
   const maxViewportOffset = Math.min(maxMove, Math.floor(viewportWidth - 18 - baseShellRect.right));
 
   const moveLeftToClear =
@@ -570,6 +574,21 @@ function smartBarMobileResultIsGeneric(
     result &&
       typeof result === "object" &&
       "surfaceKind" in result,
+  );
+}
+
+
+const SMARTBAR_MOBILE_FORCED_SPOTLIGHT_MS = 7000;
+
+function smartBarMobileActionShouldForceSpotlight(actionId: string) {
+  const id = String(actionId || "");
+
+  return (
+    id === "booking-focus-room-preview" ||
+    id === "booking-focus-room" ||
+    id === "booking-focus-package" ||
+    id.startsWith("booking-focus-package-") ||
+    id.startsWith("booking-package-toggle-")
   );
 }
 
@@ -1137,16 +1156,19 @@ export default function SmartBarMobileShell({
     };
 
     const handleSpotlightClear = () => { /* hold rail position until next spotlight target */ };
+    const handleAdaptiveRailReset = () => returnRailToCenter();
     const handleResize = () => returnRailToCenter();
 
     window.addEventListener("smartbar:spotlight-target", handleSpotlightTarget);
     window.addEventListener("smartbar:spotlight-clear", handleSpotlightClear);
+    window.addEventListener("smartbar:adaptive-rail-reset", handleAdaptiveRailReset);
     window.addEventListener("resize", handleResize);
 
     return () => {
       clearRailTimer();
       window.removeEventListener("smartbar:spotlight-target", handleSpotlightTarget);
       window.removeEventListener("smartbar:spotlight-clear", handleSpotlightClear);
+      window.removeEventListener("smartbar:adaptive-rail-reset", handleAdaptiveRailReset);
       window.removeEventListener("resize", handleResize);
     };
   }, []);
@@ -2286,12 +2308,25 @@ export default function SmartBarMobileShell({
         buildTimerRef.current = window.setTimeout(() => {
           buildTimerRef.current = null;
 
-          if (smartBarMobileResultIsGeneric(nextResult) && nextResult.navigationRevealDelayMs && nextResult.navigationRevealDelayMs > 0) {
-            setBuildingStatusLabel(nextResult.navigationRevealLabel || "Spotlighting...");
+          const forcedSpotlightDelayMs = smartBarMobileActionShouldForceSpotlight(action.id)
+            ? SMARTBAR_MOBILE_FORCED_SPOTLIGHT_MS
+            : 0;
+          const resultSpotlightDelayMs = smartBarMobileResultIsGeneric(nextResult) && nextResult.navigationRevealDelayMs && nextResult.navigationRevealDelayMs > 0
+            ? nextResult.navigationRevealDelayMs
+            : 0;
+          const spotlightDelayMs = Math.max(forcedSpotlightDelayMs, resultSpotlightDelayMs);
+
+          if (spotlightDelayMs > 0) {
+            const spotlightLabel = smartBarMobileResultIsGeneric(nextResult)
+              ? nextResult.navigationRevealLabel || "Spotlighting"
+              : "Spotlighting";
+            setSubmittedPromptPreview(spotlightLabel);
+            setBuildingStatusLabel(spotlightLabel);
+            setCartExpanded(false);
             buildTimerRef.current = window.setTimeout(() => {
               buildTimerRef.current = null;
               revealGenericActionResult(nextResult);
-            }, nextResult.navigationRevealDelayMs);
+            }, spotlightDelayMs);
             return;
           }
 
@@ -2383,27 +2418,40 @@ export default function SmartBarMobileShell({
               ? "Prepare booking summary"
               : "SmartBar action",
       );
+      const forcedDomiSpotlight = smartBarMobileActionShouldForceSpotlight(actionId);
+
       setBuildingStatusLabel(
-        smartBarMobileResultIsGeneric(result) && result.navigationRevealLabel
-          ? result.navigationRevealLabel
-          : actionId === "booking-summary" || actionId === "booking-handoff"
-            ? "Preparing booking..."
-            : buildingLabel,
+        forcedDomiSpotlight
+          ? "Spotlighting"
+          : smartBarMobileResultIsGeneric(result) && result.navigationRevealLabel
+            ? result.navigationRevealLabel
+            : actionId === "booking-summary" || actionId === "booking-handoff"
+              ? "Preparing booking..."
+              : buildingLabel,
       );
       setGenericResult(null);
       setPhase("building_cart");
 
-      if (
-        smartBarMobileResultIsGeneric(result) &&
-        result.navigationRevealDelayMs &&
-        result.navigationRevealDelayMs > 0
-      ) {
-        setBuildingStatusLabel(result.navigationRevealLabel || "Spotlighting...");
+      const resultDomiSpotlightDelayMs = smartBarMobileResultIsGeneric(result) && result.navigationRevealDelayMs && result.navigationRevealDelayMs > 0
+        ? result.navigationRevealDelayMs
+        : 0;
+      const forcedDomiSpotlightDelayMs = forcedDomiSpotlight
+        ? SMARTBAR_MOBILE_FORCED_SPOTLIGHT_MS
+        : 0;
+      const domiSpotlightDelayMs = Math.max(resultDomiSpotlightDelayMs, forcedDomiSpotlightDelayMs);
+
+      if (domiSpotlightDelayMs > 0) {
+        const spotlightLabel = smartBarMobileResultIsGeneric(result)
+          ? result.navigationRevealLabel || "Spotlighting"
+          : "Spotlighting";
+        setSubmittedPromptPreview(spotlightLabel);
+        setBuildingStatusLabel(spotlightLabel);
+        setCartExpanded(false);
 
         buildTimerRef.current = window.setTimeout(() => {
           buildTimerRef.current = null;
           revealDomiDemoResult(result);
-        }, result.navigationRevealDelayMs);
+        }, domiSpotlightDelayMs);
         return;
       }
 
@@ -2484,7 +2532,7 @@ export default function SmartBarMobileShell({
       setBuildingStatusLabel(
         actionId === "booking-summary" || actionId === "booking-handoff"
           ? "Preparing booking..."
-          : "Spotlighting...",
+          : "Spotlighting",
       );
       setGenericResult(null);
       setPhase("building_cart");

@@ -290,9 +290,11 @@ function domiWait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
+const DOMI_TYPE_DELAY_MS = 34;
+
 function domiScriptedTypingWaitMs(query: string) {
-  // Matches submitDemoQuery typeDelayMs=22, plus entry-open and safety buffer.
-  return Math.max(900, query.length * 22 + 520);
+  // Matches submitDemoQuery typeDelayMs, plus entry-open and safety buffer.
+  return Math.max(900, query.length * DOMI_TYPE_DELAY_MS + 520);
 }
 
 function domiClickElement(element: HTMLElement) {
@@ -392,7 +394,7 @@ function DomiNarratorCards({ cards }: { cards: DomiNarratorCardItem[] }) {
   if (!cards.length && !noticeA && !noticeB && !stackCards.length && !exitHold) return null;
 
   return (
-    <SmartBarFlashCardRail className="pointer-events-none !fixed !left-0 !right-0 !top-[33%] z-[10130] !w-full sm:!top-[31%] lg:!top-[32%]">
+    <SmartBarFlashCardRail className="pointer-events-none !fixed !left-0 !right-0 !top-[33%] z-[10130] !w-full origin-top scale-[1.24] sm:!top-[31%] lg:!top-[32%]">
       <SmartBarFlashCardStack cards={stackCards} mode={stackCards.length >= 4 ? "flurry" : "standard"} align="center" />
       <SmartBarFlashCardLane active={activeLane === "a"} align="center">
         <SmartBarFlashCard notice={noticeA} />
@@ -539,10 +541,14 @@ type DomiMobileExperienceProps = {
 };
 
 export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay = false }: DomiMobileExperienceProps) {
+  const domiQueryParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const requestedDomiScenario = domiQueryParams?.get("domiScenario") || domiQueryParams?.get("scenario");
+  const startAtScenario2 = requestedDomiScenario === "2";
   const queryRequestedAutoPlay =
-    typeof window !== "undefined" &&
-    (new URLSearchParams(window.location.search).get("demo") === "1" ||
-      new URLSearchParams(window.location.search).get("autoplay") === "1");
+    Boolean(domiQueryParams) &&
+    (domiQueryParams?.get("demo") === "1" ||
+      domiQueryParams?.get("autoplay") === "1" ||
+      startAtScenario2);
   const effectiveAutoPlay = autoPlay || queryRequestedAutoPlay;
   const effectiveDemoFixtureMode = demoFixtureMode || queryRequestedAutoPlay;
   const focusSnapshotRef = useRef<MobileFocusSnapshot | null>(null);
@@ -690,7 +696,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       id: submissionIdRef.current,
       query,
       typing: true,
-      typeDelayMs: 22,
+      typeDelayMs: DOMI_TYPE_DELAY_MS,
       submitDelayMs: 60000,
       manualSubmit: true,
     });
@@ -791,8 +797,18 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(900);
       if (cancelled) return;
 
+      if (startAtScenario2) {
+        await pointToSelector('[data-smartbar-mobile-launcher="true"], [data-smartbar-mobile-companion="true"]', "Open", {
+          click: true,
+          waitForMs: 6000,
+        });
+        if (cancelled) return;
+
+        await domiWait(700);
+        if (cancelled) return;
+      } else {
       // start
-      await showDomiCards(["Example 3: Domi Hotel", "Booking flow", "SmartBar compares stay options"], 4200);
+      await showDomiCards(["Domi Hotel", "SmartBar compares stay options"], 3400);
       if (cancelled) return;
 
       // → tap launcher
@@ -803,11 +819,8 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       if (cancelled) return;
 
       // ↓ type initial prompt - complete
-      await showDomiCards(["Complete request", "Room, dates, view, breakfast"], 3600);
-      if (cancelled) return;
-
       await domiWait(500);
-      const initialPrompt = "Aug 4 to 9, nice room with view, just me";
+      const initialPrompt = "Aug 4 to 9, has to have a view, would like see lowest and highest price-wise, just me traveling";
       submitDemoQuery(initialPrompt);
       await domiWait(domiScriptedTypingWaitMs(initialPrompt));
       if (cancelled) return;
@@ -819,8 +832,17 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       });
       if (cancelled) return;
 
-      // ↓ room candidates are staged in the stay cart; arrows preview the current match set.
-      await showDomiCards(["Matching rooms", "Tap through the set", "No room is committed yet"], 3200);
+      // ↓ room candidates are staged in the stay cart; the navigator guides the current match set.
+      await domiWait(2000);
+      if (cancelled) return;
+
+      await showDomiCards(["Key data tiles green", "Focus shifts to room"], 3200);
+      if (cancelled) return;
+
+      await showDomiCards(["3 room recommendations", "Use Next to go thru"], 3200);
+      if (cancelled) return;
+
+      await domiWait(2000);
       if (cancelled) return;
 
       await pointToSelector('[data-smartbar-mobile-generic-action="booking-nav-next"]', "Next", {
@@ -840,7 +862,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       if (cancelled) return;
 
       // ↓ tap the Coastal Villa preview tile so the shell opens the focus panel and navigates to the room.
-      await showDomiCards(["Open the preview", "SmartBar jumps to Coastal Villa"], 3000);
+      await showDomiCards(["Select room", "SmartBar jumps to Coastal Villa"], 3200);
       if (cancelled) return;
 
       await pointToSelector('[data-smartbar-mobile-content-action="booking-focus-room-preview"]', "Preview", {
@@ -851,10 +873,13 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(4600);
       if (cancelled) return;
 
-      // ↓ click the pencil first, then type 'add breakfast'; this refines the same room set.
-      await showDomiCards(["Breakfast noted", "Revise the room match", "Add room still required"], 3600);
+      await showDomiCards(["Extra detail added in header"], 2400);
       if (cancelled) return;
 
+      await domiWait(5000);
+      if (cancelled) return;
+
+      // ↓ click the pencil first, then type 'add breakfast'; this refines the same room set.
       await pointToSelector('[data-smartbar-mobile-generic-action="booking-edit-room-search"]', "Edit", {
         click: true,
         waitForMs: 7000,
@@ -874,6 +899,9 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       });
       if (cancelled) return;
 
+      await showDomiCards(["Breakfast package added to each room", "Estimate updated"], 3200);
+      if (cancelled) return;
+
       // Breakfast refines the same set; tap through the updated candidates before choosing.
       await pointToSelector('[data-smartbar-mobile-generic-action="booking-nav-next"]', "Next", {
         click: false,
@@ -891,6 +919,9 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(2100);
       if (cancelled) return;
 
+      await showDomiCards(["Commit to a room", "Preview flips to green"], 3200);
+      if (cancelled) return;
+
       // → add the currently previewed room
       await pointToSelector('[data-smartbar-mobile-generic-action="booking-add-room"]', "Add room", {
         click: false,
@@ -900,6 +931,9 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       if (cancelled) return;
 
       await domiWait(3600);
+      if (cancelled) return;
+
+      await showDomiCards(["Room now set", "Focus shifts to packages", "Review is required"], 3600);
       if (cancelled) return;
 
       // → open packages panel; breakfast is preselected, then review/close the panel.
@@ -912,7 +946,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       if (cancelled) return;
 
       // ↓ tap the selected breakfast package so the focus panel navigates to that package section.
-      await showDomiCards(["Package navigation", "Tap Breakfast to jump to it"], 2800);
+      await showDomiCards(["Breakfast preselected", "Tap to see it"], 2800);
       if (cancelled) return;
 
       await pointToSelector('[data-smartbar-mobile-content-action="booking-focus-package-package-breakfast-flex"], [data-smartbar-mobile-content-action="booking-focus-package"]', "Breakfast", {
@@ -923,6 +957,12 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(4600);
       if (cancelled) return;
 
+      await domiWait(3000);
+      if (cancelled) return;
+
+      await showDomiCards(["No other packages of interest"], 2400);
+      if (cancelled) return;
+
       await pointToSelector('[data-smartbar-mobile-companion="true"]', "Done", {
         click: false,
         waitForMs: 7000,
@@ -931,6 +971,9 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       if (cancelled) return;
 
       await domiWait(3600);
+      if (cancelled) return;
+
+      await showDomiCards(["All items green", "Ready to book"], 3000);
       if (cancelled) return;
 
       // → tap to book
@@ -945,18 +988,25 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(5200);
       if (cancelled) return;
 
+      await domiWait(3000);
+      if (cancelled) return;
+
       // ↓ close booking summary and start a clean second search
       openDomiEntry({ reset: true });
       await domiWait(1100);
       if (cancelled) return;
+      }
 
-      // ↓ type 2nd prompt - incomplete
-      await showDomiCards(["Missing details", "SmartBar asks only what it needs"], 3800);
+      // ↓ type 2nd prompt - incomplete dates/guests; spa and price range are included.
+      await showDomiCards(["Next search", "Key details missing"], 3200);
       if (cancelled) return;
 
-      const familyPrompt = "need a family room";
+      const familyPrompt = "Need a family-friendly room with spa privileges included, I want to spend between $275 to $325 per night";
       submitDemoQuery(familyPrompt);
       await domiWait(domiScriptedTypingWaitMs(familyPrompt));
+      if (cancelled) return;
+
+      await domiWait(1500);
       if (cancelled) return;
 
       // → tap submit
@@ -968,6 +1018,12 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
 
       // ↓ open calendar
       await domiWait(2800);
+      if (cancelled) return;
+
+      await showDomiCards(["Dates and guests required", "Selectors faster than typing"], 3200);
+      if (cancelled) return;
+
+      await domiWait(1000);
       if (cancelled) return;
 
       // → tap checkin date
@@ -1017,14 +1073,37 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
         waitForMs: 7000,
       });
       runDomiAction("booking-context-continue");
+      await domiWait(2600);
       if (cancelled) return;
 
-      // ↓ commit the fresh family-room result, review package options, then book.
-      await showDomiCards(["New search", "Required details are set", "Now SmartBar builds a fresh stay"], 3200);
+      // ↓ two room matches appear with the spa package preselected.
+      await showDomiCards(["2 room matches", "Spa already selected"], 3200);
       if (cancelled) return;
 
-      // ↓ tap the Family Double preview tile so demo 2 also proves room navigation.
-      await showDomiCards(["Open the preview", "SmartBar jumps to Family Double"], 3000);
+      // → move from Garden Terrace to Family Double
+      await pointToSelector('[data-smartbar-mobile-generic-action="booking-nav-next"]', "Next", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-nav-next");
+      await domiWait(2300);
+      if (cancelled) return;
+
+      // ↓ hold on Family Double candidate
+      await domiWait(2500);
+      if (cancelled) return;
+
+      // → go back to Garden Terrace
+      await pointToSelector('[data-smartbar-mobile-generic-action="booking-nav-back"]', "Back", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-nav-back");
+      await domiWait(2300);
+      if (cancelled) return;
+
+      // ↓ preview Garden Terrace and select it.
+      await showDomiCards(["Check out Garden Terrace", "SmartBar jumps to the room"], 3000);
       if (cancelled) return;
 
       await pointToSelector('[data-smartbar-mobile-content-action="booking-focus-room-preview"]', "Preview", {
@@ -1035,6 +1114,10 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(4300);
       if (cancelled) return;
 
+      // ↓ hold on Garden Terrace spotlight
+      await domiWait(2500);
+      if (cancelled) return;
+
       await pointToSelector('[data-smartbar-mobile-generic-action="booking-add-room"]', "Add room", {
         click: false,
         waitForMs: 7000,
@@ -1043,12 +1126,37 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(2600);
       if (cancelled) return;
 
+      await showDomiCards(["Room set", "Package review next", "This is required"], 3600);
+      if (cancelled) return;
+
       await pointToSelector('[data-smartbar-mobile-content-action="booking-review-packages"], [data-smartbar-mobile-generic-action="booking-review-packages"]', "Packages", {
         click: false,
         waitForMs: 7000,
       });
       runDomiAction("booking-review-packages");
-      await domiWait(2100);
+      await domiWait(2300);
+      if (cancelled) return;
+
+      await showDomiCards(["Spa preselected", "Parking also looks good", "SmartBar has upsold"], 3800);
+      if (cancelled) return;
+
+      await domiWait(2000);
+      if (cancelled) return;
+
+      await pointToSelector('[data-smartbar-mobile-content-action="booking-package-toggle-package-resort-parking"]', "Parking", {
+        click: false,
+        waitForMs: 7000,
+      });
+      runDomiAction("booking-package-toggle-package-resort-parking");
+      await domiWait(4600);
+      if (cancelled) return;
+
+      // ↓ hold on Valet Parking spotlight
+      await domiWait(2000);
+      if (cancelled) return;
+
+      window.dispatchEvent(new CustomEvent("smartbar:adaptive-rail-reset"));
+      await domiWait(520);
       if (cancelled) return;
 
       await pointToSelector('[data-smartbar-mobile-companion="true"]', "Done", {
@@ -1059,7 +1167,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       await domiWait(3000);
       if (cancelled) return;
 
-      await showDomiCards(["Ready to book", "Fresh room, dates, guests, add-ons"], 3200);
+      await showDomiCards(["All green", "Ready to book"], 3200);
       if (cancelled) return;
 
       // → tap footer to open the booking summary
@@ -1092,7 +1200,7 @@ export default function DomiMobileExperience({ demoFixtureMode = false, autoPlay
       setPointer(null);
       setNarratorCards([]);
     };
-  }, [effectiveAutoPlay, openDomiEntry, pointToSelector, runDomiAction, showDomiCards, submitDemoQuery]);
+  }, [effectiveAutoPlay, openDomiEntry, pointToSelector, runDomiAction, showDomiCards, startAtScenario2, submitDemoQuery]);
 
 
   useEffect(() => () => clearFocus(), [clearFocus]);
