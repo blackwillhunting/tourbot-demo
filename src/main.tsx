@@ -239,6 +239,14 @@ function Router() {
     );
   }
 
+  if (path === "/domi-play-demo") {
+    return (
+      <ProtectedDemoRoute>
+        <DomiMobileExperience demoFixtureMode autoPlay />
+      </ProtectedDemoRoute>
+    );
+  }
+
   if (path === "/domi-play") {
     return (
       <ProtectedDemoRoute>

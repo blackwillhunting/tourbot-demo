@@ -114,6 +114,7 @@ function tourBotDemoPathIsDomiMobilePlayground(cleanPath: string) {
 
 function tourBotDemoPathIsDomiDedicatedDemo(cleanPath: string) {
   return (
+    cleanPath === "/domi-play-demo" ||
     cleanPath === "/domi-smartbar" ||
     cleanPath === "/domi-demo" ||
     cleanPath === "/hotel-smartbar"
