@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   SmartBarFlashCard,
@@ -93,7 +93,7 @@ function FinaleNarratorCards({ cards }: { cards: FinaleCard[] }) {
             id: `${sequenceId}-${index}-${visibleCards[index]}`,
             variant: "prelude",
             title: visibleCards[index],
-            density: visibleCards.length >= 4 ? "micro" : "compact",
+            density: "normal",
           });
 
           setStackCards([...nextStack]);
@@ -127,7 +127,7 @@ function FinaleNarratorCards({ cards }: { cards: FinaleCard[] }) {
 
   return (
     <SmartBarFlashCardRail className="pointer-events-none !fixed inset-x-0 !top-[34%] z-[10130]">
-      <SmartBarFlashCardStack cards={stackCards} mode={stackCards.length >= 4 ? "flurry" : "standard"} />
+      <SmartBarFlashCardStack cards={stackCards} mode="standard" />
       <SmartBarFlashCardLane active={activeLane === "a"}>
         <SmartBarFlashCard notice={noticeA} />
       </SmartBarFlashCardLane>
@@ -141,7 +141,11 @@ function FinaleNarratorCards({ cards }: { cards: FinaleCard[] }) {
 export default function SmartBarMobileFinaleExperience({ autoPlay = true }: { autoPlay?: boolean }) {
   const [cards, setCards] = useState<FinaleCard[]>([]);
   const [finished, setFinished] = useState(!autoPlay);
+  const [returnStage, setReturnStage] = useState(0);
   const [isReturningToLobby, setIsReturningToLobby] = useState(false);
+  const [returnRibbonY, setReturnRibbonY] = useState(0);
+  const [returnRibbonHeight, setReturnRibbonHeight] = useState<number | null>(null);
+  const returnSectionRefs = useRef<Array<HTMLDivElement | null>>([]);
 
   const showCards = async (items: string[], holdMs: number) => {
     setCards(items.map((text, index) => ({ id: `${Date.now()}-${index}-${text}`, text })));
@@ -160,41 +164,32 @@ export default function SmartBarMobileFinaleExperience({ autoPlay = true }: { au
       await finaleWait(580);
       if (cancelled) return;
 
-      await showCards(["Booking is messy", "SmartBar keeps it moving"], 3400);
-      if (cancelled) return;
 
-      await showCards(["Dates", "Guests", "Budget"], 3400);
-      if (cancelled) return;
+await showCards(["Booking gets messy", "SmartBar keeps it moving"], 3400);
+if (cancelled) return;
 
-      await showCards(["Missing details?", "Use selectors"], 3200);
-      if (cancelled) return;
+await showCards(["Dates set", "Guests counted", "Budget respected"], 3400);
+if (cancelled) return;
 
-      await showCards(["Rooms compared", "Best fits surfaced"], 3200);
-      if (cancelled) return;
+await showCards(["Missing details?", "Selectors do the work"], 3200);
+if (cancelled) return;
 
-      await showCards(["Packages reviewed", "Estimate updated"], 3200);
-      if (cancelled) return;
+await showCards(["Rooms compared", "Best fits surfaced"], 3200);
+if (cancelled) return;
 
-      await showCards(["Green means ready", "Yellow means review", "Red means required"], 3800);
-      if (cancelled) return;
+await showCards(["No form digging", "No starting over"], 3000);
+if (cancelled) return;
 
-      await showCards(["From rough request", "To booking-ready summary"], 3400);
-      if (cancelled) return;
+await showCards(["Rough travel ask", "Clean stay summary"], 3400);
+if (cancelled) return;
 
-      await showCards(["No digging through forms"], 2400);
-      if (cancelled) return;
+await showCards(["SmartBar", "Booking assistance"], 2600);
+if (cancelled) return;
 
-      await showCards(["No starting over"], 2400);
-      if (cancelled) return;
+await showCards(["Travel intent in", "Stay path out"], 3800);
+if (cancelled) return;
 
-      await showCards(["The stay is assembled", "The handoff is clean"], 3400);
-      if (cancelled) return;
 
-      await showCards(["SmartBar for booking assistance"], 2600);
-      if (cancelled) return;
-
-      await showCards(["A search bar that turns travel intent into a stay."], 3800);
-      if (cancelled) return;
 
       setFinished(true);
     };
@@ -206,13 +201,54 @@ export default function SmartBarMobileFinaleExperience({ autoPlay = true }: { au
     };
   }, [autoPlay]);
 
+  useEffect(() => {
+    if (!finished) {
+      setReturnStage(0);
+      setIsReturningToLobby(false);
+      return;
+    }
+
+    setReturnStage(0);
+    const timeoutId = window.setTimeout(() => {
+      setReturnStage(1);
+    }, 180);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [finished]);
+
+  useLayoutEffect(() => {
+    if (!finished) return;
+
+    const active = returnSectionRefs.current[returnStage];
+    if (!active) return;
+
+    setReturnRibbonY(-active.offsetTop);
+    setReturnRibbonHeight(active.offsetHeight);
+  }, [finished, returnStage]);
+
+  useEffect(() => {
+    if (!finished) return;
+
+    const measureActiveReturnSection = () => {
+      const active = returnSectionRefs.current[returnStage];
+      if (!active) return;
+
+      setReturnRibbonY(-active.offsetTop);
+      setReturnRibbonHeight(active.offsetHeight);
+    };
+
+    window.addEventListener("resize", measureActiveReturnSection);
+    return () => window.removeEventListener("resize", measureActiveReturnSection);
+  }, [finished, returnStage]);
+
   const returnToDemoLobby = async () => {
     if (isReturningToLobby) return;
 
     domiFinaleEnsureLocalLobbyAccess();
     setIsReturningToLobby(true);
+    setReturnStage(2);
     await finaleWait(DOMI_FINALE_RIBBON_GLIDE_MS + 120);
-    window.location.assign("/");
+    window.location.assign("/?smartbarReturn=demos");
   };
 
   return (
@@ -223,118 +259,141 @@ export default function SmartBarMobileFinaleExperience({ autoPlay = true }: { au
       <FinaleNarratorCards cards={cards} />
 
       {finished ? (
-        <div className="fixed inset-x-0 top-[16%] z-[10100] px-4 text-center sm:top-[18%]">
-          <div
-            className="mx-auto max-w-[60rem] overflow-hidden rounded-[34px] bg-white/35 backdrop-blur-sm sm:rounded-[44px]"
-            style={{ height: "min(70svh, 26rem)" }}
-          >
-            <motion.div
-              animate={{ y: isReturningToLobby ? "-50%" : "0%" }}
-              initial={false}
-              transition={{
-                duration: DOMI_FINALE_RIBBON_GLIDE_MS / 1000,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              className="h-[200%]"
-            >
-              <section className="flex h-1/2 items-center">
-                <div className="w-full rounded-[34px] border border-white/76 bg-white/72 px-5 py-6 shadow-[0_28px_90px_rgba(15,23,42,0.10)] ring-1 ring-white/58 backdrop-blur-2xl sm:rounded-[44px] sm:px-10 sm:py-9">
-                  <div className="mx-auto flex max-w-[52rem] flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-center">
-                    <div
-                      className="flex-1 rounded-[28px] border border-sky-100/90 bg-white px-6 py-6 text-left text-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 sm:min-h-[12.5rem] sm:px-7 sm:py-7"
-                    >
-                      <div className="mb-7 inline-flex items-center gap-2 rounded-full bg-[#eaf3ff] px-3 py-2 ring-1 ring-[#bfdbfe]/80">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/78 text-[#012169] shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_4px_12px_rgba(1,33,105,0.10)] ring-1 ring-[#bfdbfe]/86">
-                          <span className="text-[13px] font-black leading-none tracking-[-0.04em]">S</span>
-                        </span>
-                        <span className="pr-1 text-[11px] font-black uppercase tracking-[0.22em] text-[#012169]">
-                          SmartBar
-                        </span>
-                      </div>
+        <div className="fixed inset-x-0 bottom-0 top-[42px] z-[10100] text-center sm:top-[68px]">
+          <section className="mx-auto grid h-full min-h-0 w-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+            <div className="h-[22px] shrink-0 sm:h-[24px]" aria-hidden="true" />
 
-                      <div className="text-2xl font-black leading-none tracking-[-0.045em] text-[#012169] sm:text-3xl">
-                        Booking assistance
-                      </div>
-                      <div className="mt-2 text-2xl font-black leading-none tracking-[-0.045em] text-slate-700 sm:text-3xl">
-                        without the maze.
-                      </div>
-
-                      <div className="mt-5 text-sm font-bold leading-6 text-slate-600/82 sm:text-[15px]">
-                        Rough request in. Clean stay summary out.
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={returnToDemoLobby}
-                        disabled={isReturningToLobby}
-                        className="mt-7 flex w-full items-center justify-between rounded-full bg-[#012169] px-5 py-3 text-sm font-black text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] active:translate-y-0 active:scale-[0.99] disabled:cursor-wait disabled:opacity-85"
-                      >
-                        <span>{isReturningToLobby ? "Returning to demos" : "Back to SmartBar demos"}</span>
-                        <span aria-hidden="true" className="text-xl leading-none">→</span>
-                      </button>
+            <div className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0">
+              <div
+                className="my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm transition-[height] duration-700 ease-out sm:my-0 sm:rounded-[36px]"
+                style={returnRibbonHeight ? { height: returnRibbonHeight } : undefined}
+              >
+                <motion.div
+                  animate={{ y: returnRibbonY }}
+                  initial={false}
+                  transition={{
+                    duration: DOMI_FINALE_RIBBON_GLIDE_MS / 1000,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                >
+                  <div
+                    ref={(node) => {
+                      returnSectionRefs.current[0] = node;
+                    }}
+                    aria-hidden="true"
+                  >
+                    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+                      <div className="mx-auto min-h-[13.75rem] max-w-2xl sm:min-h-[14.5rem]" />
                     </div>
                   </div>
-                </div>
-              </section>
 
-              <section className="flex h-1/2 items-center">
-                <div className="w-full rounded-[34px] border border-white/76 bg-white/80 px-5 py-6 shadow-[0_28px_90px_rgba(15,23,42,0.10)] ring-1 ring-white/58 backdrop-blur-2xl sm:rounded-[44px] sm:px-10 sm:py-9">
-                  <div className="mx-auto max-w-2xl text-left">
-                    <div className="mb-4 flex items-center gap-3 sm:mb-5">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
-                        <span className="text-sm font-black tracking-[-0.04em]">S</span>
-                      </div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-                        Choose a demo
-                      </div>
-                    </div>
-
-                    <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-                      See <span className="font-semibold text-slate-950">SmartBar</span> guide a visitor.
-                    </div>
-
-                    <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
-                      <div className="flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] sm:px-5 sm:py-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16">
-                          <span className="text-lg leading-none">☕</span>
+                  <div
+                    ref={(node) => {
+                      returnSectionRefs.current[1] = node;
+                    }}
+                  >
+                    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+                      <div className="mx-auto max-w-2xl text-left">
+                        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
+                            <span className="text-sm font-black tracking-[-0.04em]">S</span>
+                          </div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                            SmartBar
+                          </div>
                         </div>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/82">
-                            Ordering
-                          </span>
-                          <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
-                            FoodTrio
-                          </span>
-                          <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
-                            Food ordering demo
-                          </span>
-                        </span>
-                        <span aria-hidden="true" className="text-xl leading-none text-sky-100/82">→</span>
-                      </div>
 
-                      <div className="flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] sm:px-5 sm:py-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16">
-                          <span className="text-lg leading-none">⌂</span>
+                        <div className="max-w-2xl text-2xl font-black leading-tight tracking-[-0.045em] text-slate-950 sm:text-3xl">
+                          <span className="text-[#012169]">Booking assistance</span>
+                          <br />
+                          without the maze.
                         </div>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/82">
-                            Booking
-                          </span>
-                          <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
-                            Domi Coast
-                          </span>
-                          <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
-                            Hotel booking demo
-                          </span>
-                        </span>
-                        <span aria-hidden="true" className="text-xl leading-none text-sky-100/82">→</span>
+
+                        <div className="mt-5 max-w-xl text-sm font-bold leading-6 text-slate-600/82 sm:text-[15px]">
+                          Rough request in. Clean stay summary out.
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={returnToDemoLobby}
+                          disabled={isReturningToLobby || returnStage !== 1}
+                          className="mt-7 inline-flex w-full items-center justify-between rounded-full bg-[#012169] px-5 py-3 text-sm font-black text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] active:translate-y-0 active:scale-[0.99] disabled:cursor-wait disabled:opacity-85 sm:w-auto sm:min-w-[18rem]"
+                        >
+                          <span>{isReturningToLobby ? "Returning to demos" : "Back to SmartBar demos"}</span>
+                          <span aria-hidden="true" className="ml-8 text-xl leading-none">→</span>
+                        </button>
                       </div>
                     </div>
                   </div>
-                </div>
-              </section>
-            </motion.div>
-          </div>
+
+                  <div
+                    ref={(node) => {
+                      returnSectionRefs.current[2] = node;
+                    }}
+                  >
+                    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+                      <div className="mx-auto max-w-2xl text-left">
+                        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
+                            <span className="text-sm font-black tracking-[-0.04em]">S</span>
+                          </div>
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                            Choose a demo
+                          </div>
+                        </div>
+
+                        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+                          See <span className="font-semibold text-slate-950">SmartBar</span> guide a visitor.
+                        </div>
+
+                        <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4" aria-hidden="true">
+                          <div className="flex cursor-default items-center gap-3 rounded-[22px] bg-slate-100/88 px-4 py-3 text-left text-slate-500 shadow-none ring-1 ring-slate-200/78 sm:px-5 sm:py-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-200/70 text-slate-400 ring-1 ring-slate-300/50">
+                              <span className="text-lg leading-none">☕</span>
+                            </div>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                Ordering
+                              </span>
+                              <span className="mt-0.5 block text-base font-semibold tracking-tight text-slate-500 sm:text-lg">
+                                FoodTrio
+                              </span>
+                              <span className="mt-0.5 block text-[13px] leading-5 text-slate-400 sm:text-sm">
+                                Food ordering demo
+                              </span>
+                            </span>
+                            <span aria-hidden="true" className="text-xl leading-none text-slate-300">→</span>
+                          </div>
+
+                          <div className="flex cursor-default items-center gap-3 rounded-[22px] bg-slate-100/88 px-4 py-3 text-left text-slate-500 shadow-none ring-1 ring-slate-200/78 sm:px-5 sm:py-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-200/70 text-slate-400 ring-1 ring-slate-300/50">
+                              <span className="text-lg leading-none">⌂</span>
+                            </div>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                Booking
+                              </span>
+                              <span className="mt-0.5 block text-base font-semibold tracking-tight text-slate-500 sm:text-lg">
+                                Domi Coast
+                              </span>
+                              <span className="mt-0.5 block text-[13px] leading-5 text-slate-400 sm:text-sm">
+                                Hotel booking demo
+                              </span>
+                            </span>
+                            <span aria-hidden="true" className="text-xl leading-none text-slate-300">→</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+
+            <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0" aria-hidden="true">
+              <div className="h-[34px] sm:h-[42px]" />
+            </div>
+          </section>
         </div>
       ) : null}
     </main>
