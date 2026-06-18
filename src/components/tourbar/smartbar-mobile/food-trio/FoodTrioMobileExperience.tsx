@@ -862,15 +862,15 @@ const FOOD_TRIO_STORYBOARD: FoodTrioStoryboardBeat[] = [
     cards: ["Staff enters them\nlike phone orders."],
     holdMs: 3800,
   },
-  {
-    kind: "cards",
-    cards: ["No platform tax."],
-    holdMs: 3200,
-  },
-  {
+    {
     kind: "cards",
     cards: ["Customers pay\nlike normal."],
     holdMs: 4200,
+  },
+  {
+    kind: "cards",
+    cards: ["Ready-ticket automation.", "Counter-sale cost."],
+    holdMs: 4400,
   },
 ];
 
