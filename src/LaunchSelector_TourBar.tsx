@@ -808,7 +808,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
     label: "Choose a demo",
     message: "See **SmartBar** guide a visitor.",
     icon: PlayCircle,
-    iconClass: "bg-slate-950 text-white ring-slate-950/10",
+    iconClass: "bg-[#012169] text-white ring-[#012169]/10",
     demoButtons: true,
   },
 ];
@@ -990,7 +990,7 @@ function SmartBarRootProgressDots({ step, count }: { step: number; count: number
           className={
             "h-1.5 rounded-full transition-all sm:h-2 " +
             (index === step
-              ? "w-7 bg-slate-950 shadow-[0_4px_12px_rgba(15,23,42,0.20)] sm:w-8"
+              ? "w-7 bg-[#012169] shadow-[0_4px_12px_rgba(1,33,105,0.20)] sm:w-8"
               : "w-1.5 bg-slate-300 sm:w-2")
           }
         />
@@ -1015,23 +1015,23 @@ function SmartBarRootDemoLaunchButton({
   return (
     <a
       href={href}
-      className="group flex items-center gap-3 rounded-[22px] bg-slate-950 px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(15,23,42,0.20)] transition hover:-translate-y-0.5 hover:bg-slate-800 sm:px-5 sm:py-4"
+      className="group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition group-hover:bg-white/15">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
         <Icon className="h-5 w-5" />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/82">
           {eyebrow}
         </span>
         <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
           {title}
         </span>
-        <span className="mt-0.5 block text-[13px] leading-5 text-slate-200 sm:text-sm sm:text-slate-300">
+        <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
           {description}
         </span>
       </span>
-      <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-white" />
+      <ArrowRight className="h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
     </a>
   );
 }
@@ -1150,7 +1150,7 @@ function SmartBarRootPasscodeChallenge({
     <div className="w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white ring-1 ring-slate-950/10 sm:h-11 sm:w-11">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
             <KeyRound className="h-5 w-5" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
@@ -1169,7 +1169,7 @@ function SmartBarRootPasscodeChallenge({
             const boxClassName =
               "flex h-12 w-10 items-center justify-center rounded-2xl border text-center text-lg font-bold uppercase tracking-tight shadow-sm outline-none transition sm:h-14 sm:w-12 sm:text-xl " +
               (isFilled
-                ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+                ? "border-[#012169] bg-[#012169] text-white shadow-[0_10px_24px_rgba(1,33,105,0.18)]"
                 : "border-slate-200 bg-white text-slate-400 placeholder:text-slate-300 focus:border-slate-400 focus:text-slate-950 focus:ring-4 focus:ring-slate-200/70");
 
             if (isChecking) {
@@ -1506,7 +1506,7 @@ function SmartBarRootDemoSelector() {
       <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
               <Search className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div>
@@ -1617,7 +1617,7 @@ function SmartBarRootDemoSelector() {
               type="button"
               onClick={goNext}
               disabled={isWaving || (!hasAccess && isSessionChecking)}
-              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+              className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
             >
               {nextLabel}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -1697,7 +1697,7 @@ function LaunchSlip({
         disabled={isChecking}
         aria-label="Submit SmartBar passcode"
         title="Submit SmartBar passcode"
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-950 text-white shadow-lg shadow-slate-950/12 transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:pointer-events-none disabled:opacity-70 sm:h-12 sm:w-auto sm:px-5 sm:text-xs sm:font-black sm:uppercase sm:tracking-[0.14em]"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#012169] text-white shadow-lg shadow-[rgba(1,33,105,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:pointer-events-none disabled:opacity-70 sm:h-12 sm:w-auto sm:px-5 sm:text-xs sm:font-black sm:uppercase sm:tracking-[0.14em]"
       >
         <ArrowRight className="h-4 w-4 sm:hidden" aria-hidden="true" />
         <span className="hidden sm:inline">Go</span>
