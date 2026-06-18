@@ -1170,8 +1170,17 @@ function LaunchSelectorTourBarInner({
       if (cancelled) return;
 
       if (sessionResult.accepted) {
-        // Session restore only unlocks the current URL. Fresh passcode login is
-        // the only place demoPath is allowed to steer visitors between demos.
+        const restoredDemoPath = sessionResult.demoPath || getStoredTourBotDemoPath();
+        const restoredCleanPath = normalizeTourBotDemoPath(restoredDemoPath);
+
+        // Dedicated Domi passcodes should land on the Domi demo even when an
+        // existing valid session skips the passcode form on the root page.
+        if (currentTourBotDemoPath() === "/" && tourBotDemoPathIsDomiDedicatedDemo(restoredCleanPath)) {
+          if (redirectToTourBotDemoPath(restoredCleanPath, { allowFoodRouteSteering: true })) return;
+        }
+
+        // Other restored sessions only unlock the current URL. Fresh passcode
+        // login remains the main place demoPath can steer visitors between demos.
         const runId = runIdRef.current + 1;
         runIdRef.current = runId;
         await startAcceptedFlow(runId, { showAccessGranted: false });
@@ -1237,7 +1246,19 @@ function LaunchSelectorTourBarInner({
         return;
       }
 
-      if (redirectToTourBotDemoPath(loginResult.demoPath, { allowFoodRouteSteering: true })) return;
+      let nextDemoPath = loginResult.demoPath || getStoredTourBotDemoPath();
+
+      // Some auth deployments may attach demoPath to the session response but
+      // not the login response. Re-check once after a successful login before
+      // falling back to the root intro flow.
+      if (!normalizeTourBotDemoPath(nextDemoPath)) {
+        const sessionAfterLogin = await checkTourBotDemoSession();
+        if (sessionAfterLogin.accepted) {
+          nextDemoPath = sessionAfterLogin.demoPath || getStoredTourBotDemoPath();
+        }
+      }
+
+      if (redirectToTourBotDemoPath(nextDemoPath, { allowFoodRouteSteering: true })) return;
 
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
