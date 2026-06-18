@@ -1070,7 +1070,7 @@ function SmartBarRootLaunchMessage({
               icon={ShoppingCart}
               eyebrow="Ordering"
               title="FoodTrio"
-              description="Restaurant ordering demo"
+              description="Food ordering demo"
             />
             <SmartBarRootDemoLaunchButton
               href="/domi-play-demo"
