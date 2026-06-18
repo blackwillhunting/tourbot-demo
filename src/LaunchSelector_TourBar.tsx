@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarCheck, KeyRound, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -127,6 +127,7 @@ function tourBotDemoPathIsFoodRoute(cleanPath: string) {
     cleanPath === "/burger-rush-play" ||
     cleanPath === "/smartbar-burgerrush" ||
     cleanPath === "/direct-ordering" ||
+    cleanPath === "/foodtrio" ||
     cleanPath === "/food-trio" ||
     cleanPath === "/food-trio-mobile" ||
     cleanPath === "/food-trio-desktop"
@@ -788,6 +789,846 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
+
+type SmartBarRootDemoMessage = {
+  label: string;
+  message: string;
+  icon: ComponentType<{ className?: string }>;
+  iconClass: string;
+  demoButtons?: boolean;
+};
+
+type SmartBarRootStageItem =
+  | { kind: "passcode" }
+  | { kind: "failure" }
+  | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number };
+
+const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
+  {
+    label: "Choose a demo",
+    message: "See **SmartBar** guide a visitor.",
+    icon: PlayCircle,
+    iconClass: "bg-slate-950 text-white ring-slate-950/10",
+    demoButtons: true,
+  },
+];
+
+const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
+const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
+const SMARTBAR_ROOT_MESSAGE_WAVE_MS = 1360;
+const SMARTBAR_ROOT_RIBBON_GLIDE_MS = 720;
+const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
+const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_DURATION = 1.18;
+
+function normalizeSmartBarRootPasscode(value: string) {
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, REQUIRED_PASSCODE_LENGTH);
+}
+
+function hasOptimisticSmartBarRootAccess() {
+  if (shouldResetAccessFromUrl()) return false;
+  return Boolean(getStoredTourBotDemoToken());
+}
+
+function getSafeSmartBarRootReturnTo() {
+  if (typeof window === "undefined") return "";
+
+  const rawReturnTo = new URLSearchParams(window.location.search).get("returnTo");
+  if (!rawReturnTo) return "";
+
+  try {
+    const target = new URL(rawReturnTo, window.location.origin);
+    if (target.origin !== window.location.origin) return "";
+
+    const targetPath = normalizeTourBotDemoPath(target.pathname);
+    const allowedPaths = new Set([
+      "/foodtrio",
+      "/food-trio",
+      "/food-trio-mobile",
+      "/food-trio-desktop",
+      "/domi-play-demo",
+      "/domi-play",
+      "/smartbar-speed",
+      "/smartbar-burgerrush",
+      "/burger-rush",
+      "/burger-rush-play",
+      "/direct-ordering",
+      "/carryout",
+      "/transactional",
+      "/tourbar-transactional",
+      "/informational",
+      "/nexapath-play",
+      "/local-smartbar-finale",
+    ]);
+
+    if (!allowedPaths.has(targetPath)) return "";
+
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return "";
+  }
+}
+
+function redirectToSafeSmartBarRootReturnTo() {
+  const returnTo = getSafeSmartBarRootReturnTo();
+  if (!returnTo) return false;
+
+  window.location.href = returnTo;
+  return true;
+}
+
+type SmartBarRootMarkdownSegment = {
+  kind: "text" | "strong" | "em";
+  text: string;
+};
+
+function parseSmartBarRootInlineMarkdown(body: string): SmartBarRootMarkdownSegment[] {
+  return body
+    .split(/(\*\*[^*]+\*\*|_[^_]+_)/g)
+    .filter(Boolean)
+    .map((part) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return { kind: "strong", text: part.slice(2, -2) };
+      }
+
+      if (part.startsWith("_") && part.endsWith("_")) {
+        return { kind: "em", text: part.slice(1, -1) };
+      }
+
+      return { kind: "text", text: part };
+    });
+}
+
+function smartBarRootMarkdownSegmentClass(kind: SmartBarRootMarkdownSegment["kind"]) {
+  if (kind === "strong") return "font-semibold text-slate-950";
+  if (kind === "em") return "italic text-slate-600";
+  return "";
+}
+
+function SmartBarRootMarkdownText({ body }: { body: string }) {
+  const segments = parseSmartBarRootInlineMarkdown(body);
+
+  return (
+    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
+      {segments.map((segment, index) => {
+        const className = smartBarRootMarkdownSegmentClass(segment.kind);
+        if (!className) return <span key={`${segment.text}-${index}`}>{segment.text}</span>;
+        return (
+          <span key={`${segment.text}-${index}`} className={className}>
+            {segment.text}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function SmartBarRootThinkingText({ body }: { body: string }) {
+  const segments = parseSmartBarRootInlineMarkdown(body);
+  let characterIndex = 0;
+
+  return (
+    <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
+      {segments.map((segment, segmentIndex) => {
+        const segmentClass = smartBarRootMarkdownSegmentClass(segment.kind);
+        const tokens = segment.text.match(/\S+|\s+/g) || [];
+
+        return tokens.map((token, tokenIndex) => {
+          const key = `${segmentIndex}-${tokenIndex}-${token}`;
+
+          if (/^\s+$/.test(token)) {
+            characterIndex += token.length;
+            return token.includes("\n") ? (
+              <span key={`space-${key}`}>{token}</span>
+            ) : (
+              <span key={`space-${key}`}> </span>
+            );
+          }
+
+          const startIndex = characterIndex;
+          characterIndex += token.length;
+
+          return (
+            <span
+              key={key}
+              className={`inline-block whitespace-nowrap align-baseline ${segmentClass}`.trim()}
+            >
+              {token.split("").map((char, index) => (
+                <motion.span
+                  key={`${char}-${key}-${index}`}
+                  className="inline-block"
+                  animate={{
+                    y: [0, -2.75, 0, 1.65, 0],
+                    opacity: [0.58, 1, 0.76, 1, 0.58],
+                  }}
+                  transition={{
+                    duration: SMARTBAR_ROOT_THINKING_WIGGLE_DURATION,
+                    repeat: Infinity,
+                    delay: (startIndex + index) * SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER,
+                    ease: "easeInOut",
+                  }}
+                >
+                  {char}
+                </motion.span>
+              ))}
+            </span>
+          );
+        });
+      })}
+    </span>
+  );
+}
+
+function SmartBarRootProgressDots({ step, count }: { step: number; count: number }) {
+  return (
+    <div
+      className="flex items-center justify-center gap-1.5 sm:gap-2"
+      aria-label={`Step ${step + 1} of ${count}`}
+    >
+      {Array.from({ length: count }).map((_, index) => (
+        <span
+          key={index}
+          className={
+            "h-1.5 rounded-full transition-all sm:h-2 " +
+            (index === step
+              ? "w-7 bg-slate-950 shadow-[0_4px_12px_rgba(15,23,42,0.20)] sm:w-8"
+              : "w-1.5 bg-slate-300 sm:w-2")
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function SmartBarRootDemoLaunchButton({
+  href,
+  icon: Icon,
+  eyebrow,
+  title,
+  description,
+}: {
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  eyebrow: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <a
+      href={href}
+      className="group flex items-center gap-3 rounded-[22px] bg-slate-950 px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(15,23,42,0.20)] transition hover:-translate-y-0.5 hover:bg-slate-800 sm:px-5 sm:py-4"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-white ring-1 ring-white/10 transition group-hover:bg-white/15">
+        <Icon className="h-5 w-5" />
+      </div>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-300">
+          {eyebrow}
+        </span>
+        <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-5 text-slate-200 sm:text-sm sm:text-slate-300">
+          {description}
+        </span>
+      </span>
+      <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-white" />
+    </a>
+  );
+}
+
+function SmartBarRootLaunchMessage({
+  message,
+  step,
+  isWaving,
+}: {
+  message: SmartBarRootDemoMessage;
+  step: number;
+  isWaving: boolean;
+}) {
+  const Icon = message.icon;
+
+  return (
+    <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${message.iconClass} sm:h-11 sm:w-11`}>
+            <Icon className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            {message.label}
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          {isWaving ? <SmartBarRootThinkingText body={message.message} /> : <SmartBarRootMarkdownText body={message.message} />}
+        </div>
+
+        {message.demoButtons && (
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+            <SmartBarRootDemoLaunchButton
+              href="/foodtrio"
+              icon={ShoppingCart}
+              eyebrow="Ordering"
+              title="FoodTrio"
+              description="Restaurant ordering demo"
+            />
+            <SmartBarRootDemoLaunchButton
+              href="/domi-play-demo"
+              icon={CalendarCheck}
+              eyebrow="Booking"
+              title="Domi Coast"
+              description="Hotel booking demo"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SmartBarRootPasscodeChallenge({
+  code,
+  isChecking,
+  onChange,
+  onSubmit,
+}: {
+  code: string;
+  isChecking: boolean;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+}) {
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const boxes = Array.from({ length: REQUIRED_PASSCODE_LENGTH });
+
+  useEffect(() => {
+    inputRefs.current[0]?.focus();
+  }, []);
+
+  const focusBox = (index: number) => {
+    window.setTimeout(() => {
+      inputRefs.current[Math.max(0, Math.min(REQUIRED_PASSCODE_LENGTH - 1, index))]?.focus();
+    }, 0);
+  };
+
+  const updateFromIndex = (index: number, rawValue: string) => {
+    const cleaned = normalizeSmartBarRootPasscode(rawValue);
+    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+
+    if (!cleaned) {
+      nextCharacters[index] = "";
+      onChange(nextCharacters.join(""));
+      return;
+    }
+
+    cleaned.split("").forEach((character, offset) => {
+      const targetIndex = index + offset;
+      if (targetIndex < REQUIRED_PASSCODE_LENGTH) nextCharacters[targetIndex] = character;
+    });
+
+    onChange(nextCharacters.join(""));
+    focusBox(index + cleaned.length);
+  };
+
+  const clearFromIndex = (index: number) => {
+    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+
+    if (nextCharacters[index]) {
+      nextCharacters[index] = "";
+      onChange(nextCharacters.join(""));
+      focusBox(index);
+      return;
+    }
+
+    if (index > 0) {
+      nextCharacters[index - 1] = "";
+      onChange(nextCharacters.join(""));
+      focusBox(index - 1);
+    }
+  };
+
+  return (
+    <div className="w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white ring-1 ring-slate-950/10 sm:h-11 sm:w-11">
+            <KeyRound className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            Private demo access
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          Enter passcode.
+        </div>
+
+        <div className="mt-7 flex items-center justify-center gap-2 sm:mt-8 sm:justify-start sm:gap-3">
+          {boxes.map((_, index) => {
+            const character = code[index] || "";
+            const isFilled = Boolean(character);
+            const boxClassName =
+              "flex h-12 w-10 items-center justify-center rounded-2xl border text-center text-lg font-bold uppercase tracking-tight shadow-sm outline-none transition sm:h-14 sm:w-12 sm:text-xl " +
+              (isFilled
+                ? "border-slate-950 bg-slate-950 text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)]"
+                : "border-slate-200 bg-white text-slate-400 placeholder:text-slate-300 focus:border-slate-400 focus:text-slate-950 focus:ring-4 focus:ring-slate-200/70");
+
+            if (isChecking) {
+              return (
+                <motion.div
+                  key={`smartbar-root-passcode-box-${index}`}
+                  animate={{
+                    y: [0, -6.5, 0, 3.75, 0],
+                    rotate: [0, -3.4, 2.65, -1.85, 0],
+                    scale: [1, 1.055, 1, 1.032, 1],
+                  }}
+                  className={boxClassName}
+                  transition={{
+                    duration: SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_DURATION,
+                    repeat: Infinity,
+                    delay: index * SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_STAGGER,
+                    ease: "easeInOut",
+                  }}
+                >
+                  {character || "•"}
+                </motion.div>
+              );
+            }
+
+            return (
+              <input
+                key={`smartbar-root-passcode-box-${index}`}
+                ref={(node) => {
+                  inputRefs.current[index] = node;
+                }}
+                aria-label={`SmartBar demo passcode character ${index + 1}`}
+                autoCapitalize="characters"
+                autoComplete={index === 0 ? "one-time-code" : "off"}
+                className={boxClassName}
+                disabled={isChecking}
+                inputMode="text"
+                maxLength={1}
+                onChange={(event) => updateFromIndex(index, event.target.value)}
+                onFocus={(event) => event.target.select()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onSubmit();
+                    return;
+                  }
+
+                  if (event.key === "Backspace") {
+                    event.preventDefault();
+                    clearFromIndex(index);
+                    return;
+                  }
+
+                  if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    focusBox(index - 1);
+                    return;
+                  }
+
+                  if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    focusBox(index + 1);
+                  }
+                }}
+                onPaste={(event) => {
+                  event.preventDefault();
+                  updateFromIndex(index, event.clipboardData.getData("text"));
+                }}
+                placeholder="—"
+                type="text"
+                value={character}
+              />
+            );
+          })}
+        </div>
+
+        <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
+          <ShieldCheck className="h-4 w-4" />
+          Access gated to control live AI usage.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving: boolean }) {
+  return (
+    <div className="w-full bg-rose-50/90 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 ring-1 ring-rose-200/80 sm:h-11 sm:w-11">
+            <XCircle className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-rose-600 sm:text-xs sm:tracking-[0.16em]">
+            Access not opened
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          {isWaving ? <SmartBarRootThinkingText body={body} /> : <SmartBarRootMarkdownText body={body} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SmartBarRootDemoSelector() {
+  const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
+  const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
+  const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
+  const [passcode, setPasscode] = useState("");
+  const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
+  const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
+  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
+  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const [ribbonY, setRibbonY] = useState(0);
+  const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
+  const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const stageScrollRef = useRef<HTMLDivElement | null>(null);
+
+  const stageItems = useMemo<SmartBarRootStageItem[]>(() => {
+    const messageItems = SMARTBAR_ROOT_MESSAGES.map((message, sourceIndex) => ({
+      kind: "message" as const,
+      message,
+      sourceIndex,
+    }));
+
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems];
+    if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
+    return [{ kind: "passcode" }];
+  }, [gateView, hasAccess]);
+
+  const current = stageItems[step];
+  const currentMessage = current?.kind === "message" ? current.message : null;
+  const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
+  const isWaving = wavingIndex !== null;
+  const stageHeightTransitionClass =
+    !hasAccess && gateView === "challenge" && step === 0
+      ? "transition-none"
+      : "transition-[height] duration-700 ease-out";
+
+  const stepLabel = !hasAccess
+    ? isSessionChecking
+      ? "Checking access"
+      : "Private access"
+    : "Choose a demo";
+
+  useLayoutEffect(() => {
+    const active = segmentRefs.current[step];
+    if (!active) return;
+
+    setRibbonY(-active.offsetTop);
+    setRibbonHeight(active.offsetHeight);
+  }, [stageItems.length, step]);
+
+  useEffect(() => {
+    const measureActiveSegment = () => {
+      const active = segmentRefs.current[step];
+      if (!active) return;
+      setRibbonY(-active.offsetTop);
+      setRibbonHeight(active.offsetHeight);
+    };
+
+    window.addEventListener("resize", measureActiveSegment);
+    return () => window.removeEventListener("resize", measureActiveSegment);
+  }, [step]);
+
+  useEffect(() => {
+    if (hasAccess) {
+      setStep((value) => Math.min(Math.max(1, value), SMARTBAR_ROOT_MESSAGES.length));
+      return;
+    }
+
+    setStep((value) => Math.min(value, Math.max(0, stageItems.length - 1)));
+  }, [hasAccess, stageItems.length]);
+
+  useEffect(() => {
+    stageScrollRef.current?.scrollTo({ top: 0 });
+  }, [step]);
+
+  const resetAccess = useCallback(() => {
+    clearStoredTourBotDemoToken();
+    cleanupResetAccessUrl();
+    setIsSessionChecking(false);
+    setHasAccess(false);
+    setPasscode("");
+    setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+    setGateView("challenge");
+    setStep(0);
+    setWavingIndex(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let isCancelled = false;
+
+    const loadSession = async () => {
+      if (shouldResetAccessFromUrl()) {
+        clearStoredTourBotDemoToken();
+        if (isCancelled) return;
+        cleanupResetAccessUrl();
+        setHasAccess(false);
+        setPasscode("");
+        setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+        setGateView("challenge");
+        setStep(0);
+        setWavingIndex(null);
+        setIsSessionChecking(false);
+        return;
+      }
+
+      const hasStoredToken = Boolean(getStoredTourBotDemoToken());
+      if (!hasStoredToken) {
+        setHasAccess(false);
+        setStep(0);
+        setIsSessionChecking(false);
+        return;
+      }
+
+      setIsSessionChecking(true);
+      const result = await checkTourBotDemoSession();
+      if (isCancelled) return;
+
+      if (result.accepted) {
+        if (redirectToSafeSmartBarRootReturnTo()) return;
+
+        cleanupResetAccessUrl();
+        setHasAccess(true);
+        setGateView("challenge");
+        setStep(1);
+      } else {
+        setHasAccess(false);
+        setStep(0);
+      }
+
+      setIsSessionChecking(false);
+    };
+
+    void loadSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      resetAccess();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [resetAccess]);
+
+  const retryPasscode = async () => {
+    if (isWaving) return;
+
+    setWavingIndex(step);
+    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    setStep(0);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setPasscode("");
+    setGateView("challenge");
+    setWavingIndex(null);
+  };
+
+  const submitPasscode = async () => {
+    if (isWaving) return;
+
+    if (gateView === "failure") {
+      await retryPasscode();
+      return;
+    }
+
+    setWavingIndex(step);
+    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+
+    if (passcode.length < REQUIRED_PASSCODE_LENGTH) {
+      setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+      setGateView("failure");
+      setStep(1);
+      await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      setWavingIndex(null);
+      return;
+    }
+
+    const loginResult = await loginToTourBotDemo(passcode);
+    if (!loginResult.accepted) {
+      setFailureMessage("That code could not be verified. Check the passcode and try again.");
+      setGateView("failure");
+      setStep(1);
+      await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      setWavingIndex(null);
+      return;
+    }
+
+    if (redirectToSafeSmartBarRootReturnTo()) return;
+
+    cleanupResetAccessUrl();
+    setHasAccess(true);
+    setGateView("challenge");
+    setStep(1);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setWavingIndex(null);
+  };
+
+  const goBack = () => {
+    if (isWaving || !hasAccess) return;
+    if (step <= 1) return;
+    setStep((value) => Math.max(1, value - 1));
+  };
+
+  const goNext = async () => {
+    if (isWaving) return;
+
+    if (!hasAccess) {
+      await submitPasscode();
+      return;
+    }
+  };
+
+  const showNextButton = !hasAccess || !currentMessage?.demoButtons;
+  const nextLabel = !hasAccess
+    ? isSessionChecking
+      ? "Checking"
+      : gateView === "failure"
+        ? "Try again"
+        : "Submit"
+    : "Next";
+
+  return (
+    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+      <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-slate-950 text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
+              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
+                SmartBar
+              </div>
+              <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
+                A search bar that does
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasAccess && (
+              <button
+                type="button"
+                onClick={resetAccess}
+                className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
+              >
+                Reset access
+              </button>
+            )}
+
+            <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+              <Sparkles className="h-4 w-4 text-slate-500" />
+              {stepLabel}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+        <div className="shrink-0">
+          {hasAccess ? (
+            <SmartBarRootProgressDots step={currentMessageStep} count={SMARTBAR_ROOT_MESSAGES.length} />
+          ) : (
+            <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
+              <KeyRound className="h-3.5 w-3.5" />
+              Access required
+            </div>
+          )}
+        </div>
+
+        <div
+          ref={stageScrollRef}
+          className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
+        >
+          <div
+            className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
+            style={ribbonHeight ? { height: ribbonHeight } : undefined}
+          >
+            <motion.div
+              animate={{ y: ribbonY }}
+              initial={false}
+              transition={{
+                duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              {stageItems.map((item, index) => (
+                <div
+                  key={
+                    item.kind === "message"
+                      ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
+                      : `smartbar-root-${item.kind}`
+                  }
+                  ref={(node) => {
+                    segmentRefs.current[index] = node;
+                  }}
+                >
+                  {item.kind === "passcode" && (
+                    <SmartBarRootPasscodeChallenge
+                      code={passcode}
+                      isChecking={wavingIndex === index}
+                      onChange={setPasscode}
+                      onSubmit={submitPasscode}
+                    />
+                  )}
+
+                  {item.kind === "failure" && <SmartBarRootAccessFailure body={failureMessage} isWaving={wavingIndex === index} />}
+
+                  {item.kind === "message" && (
+                    <SmartBarRootLaunchMessage
+                      message={item.message}
+                      step={item.sourceIndex}
+                      isWaving={wavingIndex === index}
+                    />
+                  )}
+                </div>
+              ))}
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={!hasAccess || currentMessageStep === 0}
+            className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </button>
+
+          {showNextButton && (
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={isWaving || (!hasAccess && isSessionChecking)}
+              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-[0_16px_34px_rgba(15,23,42,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+            >
+              {nextLabel}
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function ThinkingCode({ value }: { value: string }) {
   const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "•").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
 
@@ -1343,6 +2184,10 @@ function LaunchSelectorTourBarInner({
 
 export default function LaunchSelectorTourBar(props: { variant?: SmartBarSpeedDemoVariant }) {
   const currentDemoPath = currentTourBotDemoPath();
+
+  if (currentDemoPath === "/") {
+    return <SmartBarRootDemoSelector />;
+  }
 
   if (tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath)) {
     return <DomiMobileExperience demoFixtureMode autoPlay />;

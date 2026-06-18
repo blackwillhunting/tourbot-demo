@@ -287,7 +287,7 @@ function Router() {
     );
   }
 
-  if (path === "/food-trio") {
+  if (path === "/foodtrio" || path === "/food-trio") {
     return (
       <ProtectedDemoRoute>
         <FoodTrioMobileExperience />
