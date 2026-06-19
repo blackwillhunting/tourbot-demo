@@ -207,6 +207,13 @@ function shouldResetAccessFromUrl() {
   return params.get("logout") === "1" || params.get("resetAccess") === "1";
 }
 
+function shouldOpenSmartBarRootDemoLobbyFromReturn() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("smartbarReturn") === "demos";
+}
+
 function shouldSkipFitsAnywhereAnimationOnPhone() {
   if (typeof window === "undefined") return false;
 
@@ -270,11 +277,17 @@ function cleanupResetAccessUrl() {
   if (typeof window === "undefined") return;
 
   const params = new URLSearchParams(window.location.search);
-  const changed = params.has("logout") || params.has("resetAccess") || params.has("returnTo") || params.has("smartbarLogin");
+  const changed =
+    params.has("logout") ||
+    params.has("resetAccess") ||
+    params.has("returnTo") ||
+    params.has("smartbarLogin") ||
+    params.has("smartbarReturn");
   params.delete("logout");
   params.delete("resetAccess");
   params.delete("returnTo");
   params.delete("smartbarLogin");
+  params.delete("smartbarReturn");
   if (!changed) return;
 
   const nextSearch = params.toString();
@@ -805,6 +818,13 @@ type SmartBarRootStageItem =
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
+    label: "SmartBar overview",
+    message:
+      "**SmartBar** looks like search, feels like chat, and returns action.\n\nPlain-language requests become carts, bookings, choices, and handoffs.",
+    icon: Search,
+    iconClass: "bg-[#012169] text-white ring-[#012169]/10",
+  },
+  {
     label: "Choose a demo",
     message: "See **SmartBar** guide a visitor.",
     icon: PlayCircle,
@@ -1314,7 +1334,7 @@ function SmartBarRootDemoSelector() {
     ? isSessionChecking
       ? "Checking access"
       : "Private access"
-    : "Choose a demo";
+    : currentMessage?.label || "SmartBar";
 
   useLayoutEffect(() => {
     const active = segmentRefs.current[step];
@@ -1385,6 +1405,16 @@ function SmartBarRootDemoSelector() {
       if (!hasStoredToken) {
         setHasAccess(false);
         setStep(0);
+        setIsSessionChecking(false);
+        return;
+      }
+
+      if (shouldOpenSmartBarRootDemoLobbyFromReturn()) {
+        cleanupResetAccessUrl();
+        setHasAccess(true);
+        setGateView("challenge");
+        setStep(SMARTBAR_ROOT_MESSAGES.length);
+        setWavingIndex(null);
         setIsSessionChecking(false);
         return;
       }
@@ -1490,6 +1520,10 @@ function SmartBarRootDemoSelector() {
       await submitPasscode();
       return;
     }
+
+    if (currentMessage?.demoButtons) return;
+
+    setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
   const showNextButton = !hasAccess || !currentMessage?.demoButtons;
@@ -1499,7 +1533,9 @@ function SmartBarRootDemoSelector() {
       : gateView === "failure"
         ? "Try again"
         : "Submit"
-    : "Next";
+    : currentMessageStep === 0
+      ? "See demos"
+      : "Next";
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
