@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarCheck, KeyRound, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -821,7 +821,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
     label: "SmartBar overview",
     message:
       "**SmartBar** looks like search, feels like chat, and returns action.\n\nPlain-language requests become carts, bookings, choices, and handoffs.",
-    icon: Search,
+    icon: Compass,
     iconClass: "bg-[#012169] text-white ring-[#012169]/10",
   },
   {
@@ -1543,7 +1543,7 @@ function SmartBarRootDemoSelector() {
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
-              <Search className="h-4 w-4 sm:h-5 sm:w-5" />
+              <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
             </div>
             <div>
               <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
