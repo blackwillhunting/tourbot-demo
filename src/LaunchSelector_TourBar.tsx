@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PhoneCall, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
-import { SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
+import { SmartBarSocialSetupLinePrototype, SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
@@ -827,6 +827,8 @@ type SmartBarRootStageItem =
   | { kind: "failure" }
   | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number };
 
+type SmartBarRootInlineFlow = "launch" | "restaurant-walkthrough" | "private-sandbox";
+
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "SmartBar overview",
@@ -1035,22 +1037,22 @@ function SmartBarRootProgressDots({ step, count }: { step: number; count: number
 
 function SmartBarRootDemoLaunchButton({
   href,
+  onClick,
   icon: Icon,
   eyebrow,
   title,
   description,
 }: {
-  href: string;
+  href?: string;
+  onClick?: () => void;
   icon: ComponentType<{ className?: string }>;
   eyebrow: string;
   title: string;
   description: string;
 }) {
-  return (
-    <a
-      href={href}
-      className="group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
-    >
+  const className = "group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
+  const content = (
+    <>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
         <Icon className="h-5 w-5" />
       </div>
@@ -1066,7 +1068,21 @@ function SmartBarRootDemoLaunchButton({
         </span>
       </span>
       <ArrowRight className="h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
-    </a>
+    </>
+  );
+
+  if (href) {
+    return (
+      <a href={href} className={className}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={className}>
+      {content}
+    </button>
   );
 }
 
@@ -1074,10 +1090,12 @@ function SmartBarRootLaunchMessage({
   message,
   step,
   isWaving,
+  onSelectRestaurantWalkthrough,
 }: {
   message: SmartBarRootDemoMessage;
   step: number;
   isWaving: boolean;
+  onSelectRestaurantWalkthrough?: () => void;
 }) {
   const Icon = message.icon;
 
@@ -1100,10 +1118,10 @@ function SmartBarRootLaunchMessage({
         {message.demoButtons && (
           <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
             <SmartBarRootDemoLaunchButton
-              href="/restaurant-walkthrough"
+              onClick={onSelectRestaurantWalkthrough}
               icon={PhoneCall}
               eyebrow="Restaurant"
-              title="Phone Orders"
+              title="Restaurant Workflow"
               description="Phone orders become clean tickets"
             />
             <SmartBarRootDemoLaunchButton
@@ -1318,6 +1336,7 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
+  const [inlineFlow, setInlineFlow] = useState<SmartBarRootInlineFlow>("launch");
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -1476,6 +1495,20 @@ function SmartBarRootDemoSelector() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [resetAccess]);
 
+  const openRestaurantWalkthrough = useCallback(() => {
+    setInlineFlow("restaurant-walkthrough");
+  }, []);
+
+  const returnToDemoSelector = useCallback(() => {
+    setInlineFlow("launch");
+    setStep(SMARTBAR_ROOT_MESSAGES.length);
+    setWavingIndex(null);
+  }, []);
+
+  const openPrivateSandboxFlow = useCallback(() => {
+    setInlineFlow("private-sandbox");
+  }, []);
+
   const retryPasscode = async () => {
     if (isWaving) return;
 
@@ -1558,8 +1591,50 @@ function SmartBarRootDemoSelector() {
       ? "See demos"
       : "Next";
 
+  const inlineStageTransition = {
+    duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
+    ease: [0.22, 1, 0.36, 1] as const,
+  };
+
   return (
-    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+    <AnimatePresence mode="wait" initial={false}>
+      {inlineFlow === "restaurant-walkthrough" ? (
+        <motion.div
+          key="smartbar-root-restaurant-walkthrough"
+          className="fixed inset-0 z-[20000] bg-slate-50"
+          initial={{ opacity: 0, y: 30, rotateX: -7, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -26, rotateX: 7, scale: 0.985 }}
+          transition={inlineStageTransition}
+          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
+        >
+          <RestaurantWalkthrough
+            onFinish={returnToDemoSelector}
+            onRequestPrivateSandbox={openPrivateSandboxFlow}
+          />
+        </motion.div>
+      ) : inlineFlow === "private-sandbox" ? (
+        <motion.div
+          key="smartbar-root-private-sandbox"
+          className="fixed inset-0 z-[20000] bg-slate-50"
+          initial={{ opacity: 0, y: 30, rotateX: -7, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -26, rotateX: 7, scale: 0.985 }}
+          transition={inlineStageTransition}
+          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
+        >
+          <SmartBarSocialSetupLinePrototype />
+        </motion.div>
+      ) : (
+        <motion.main
+          key="smartbar-root-launch-selector"
+          className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen"
+          initial={{ opacity: 0, y: -20, rotateX: 6, scale: 0.988 }}
+          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 24, rotateX: -6, scale: 0.988 }}
+          transition={inlineStageTransition}
+          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
+        >
       <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
@@ -1650,6 +1725,7 @@ function SmartBarRootDemoSelector() {
                       message={item.message}
                       step={item.sourceIndex}
                       isWaving={wavingIndex === index}
+                      onSelectRestaurantWalkthrough={openRestaurantWalkthrough}
                     />
                   )}
                 </div>
@@ -1682,7 +1758,9 @@ function SmartBarRootDemoSelector() {
           )}
         </div>
       </section>
-    </main>
+        </motion.main>
+      )}
+    </AnimatePresence>
   );
 }
 

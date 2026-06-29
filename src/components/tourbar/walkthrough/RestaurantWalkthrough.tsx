@@ -1349,7 +1349,15 @@ function CustomerFlowScene({
   );
 }
 
-export default function RestaurantWalkthrough() {
+type RestaurantWalkthroughProps = {
+  onFinish?: () => void;
+  onRequestPrivateSandbox?: () => void;
+};
+
+export default function RestaurantWalkthrough({
+  onFinish,
+  onRequestPrivateSandbox,
+}: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
     useState<RestaurantWalkthroughSceneNumber>(1);
   const [customerStep, setCustomerStep] = useState<CustomerFlowStep>(1);
@@ -1492,10 +1500,20 @@ export default function RestaurantWalkthrough() {
   };
 
   const finishWalkthrough = () => {
+    if (onFinish) {
+      onFinish();
+      return;
+    }
+
     window.location.assign("/");
   };
 
   const requestPrivateSandbox = () => {
+    if (onRequestPrivateSandbox) {
+      onRequestPrivateSandbox();
+      return;
+    }
+
     window.location.assign("/social/smartbar-setup-line");
   };
 
