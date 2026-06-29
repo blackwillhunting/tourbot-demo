@@ -1,14 +1,48 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type FormEvent,
+} from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PhoneCall, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
-import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
-import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
-import { SmartBarSocialSetupLinePrototype, SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
-import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CalendarCheck,
+  Compass,
+  KeyRound,
+  PhoneCall,
+  PlayCircle,
+  Search,
+  ShieldCheck,
+  ShoppingCart,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
+import SmartBarSpeedDemo, {
+  type SmartBarSpeedDemoVariant,
+} from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
+import SmartBarFitsAnywhereAnimation, {
+  FITS_ANYWHERE_ANIMATION_MS,
+} from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import {
+  SmartBarSocialSetupLinePrototype,
+  SmartBarSocialTeaserReel,
+} from "./components/tourbar/social/SmartBarSocialIntroReel";
+import FoodTrioDesktopIntroAnimation, {
+  FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS,
+} from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
-import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
+import {
+  SmartBarFlashCardStack,
+  type SmartBarFlashCardStackItem,
+} from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
   SmartBarFlashCardLane,
@@ -83,7 +117,13 @@ function normalizeTourBotDemoPath(value?: string | null) {
   const path = String(value || "").trim();
   if (!path) return "";
   if (path === "/") return "/";
-  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("://")) return "";
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    path.includes("://")
+  )
+    return "";
 
   const cleanPath = path.split("?")[0].split("#")[0].replace(/\/+$/, "");
   return cleanPath || "/";
@@ -91,7 +131,9 @@ function normalizeTourBotDemoPath(value?: string | null) {
 
 function getStoredTourBotDemoPath() {
   if (typeof window === "undefined") return "";
-  return normalizeTourBotDemoPath(window.localStorage.getItem(TOURBOT_AUTH_DEMO_PATH_KEY));
+  return normalizeTourBotDemoPath(
+    window.localStorage.getItem(TOURBOT_AUTH_DEMO_PATH_KEY),
+  );
 }
 
 function saveStoredTourBotDemoPath(demoPath?: string | null) {
@@ -171,12 +213,19 @@ function redirectToTourBotDemoPath(
   return true;
 }
 
-function saveStoredTourBotDemoToken(token: string, expiresAt?: number, demoPath?: string) {
+function saveStoredTourBotDemoToken(
+  token: string,
+  expiresAt?: number,
+  demoPath?: string,
+) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
   if (typeof expiresAt === "number" && Number.isFinite(expiresAt)) {
-    window.localStorage.setItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY, String(expiresAt));
+    window.localStorage.setItem(
+      TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY,
+      String(expiresAt),
+    );
   } else {
     window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
   }
@@ -198,12 +247,18 @@ function getStoredTourBotDemoToken() {
   if (typeof window === "undefined") return "";
 
   const token = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_KEY) || "";
-  const expiresAtRaw = window.localStorage.getItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
+  const expiresAtRaw = window.localStorage.getItem(
+    TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY,
+  );
   const expiresAt = expiresAtRaw ? Number(expiresAtRaw) : 0;
 
   if (!token) return "";
 
-  if (expiresAt && Number.isFinite(expiresAt) && expiresAt * 1000 <= Date.now()) {
+  if (
+    expiresAt &&
+    Number.isFinite(expiresAt) &&
+    expiresAt * 1000 <= Date.now()
+  ) {
     clearStoredTourBotDemoToken();
     return "";
   }
@@ -267,10 +322,16 @@ function persistSmartBarMobileGeneralShortcut() {
   if (!shortcut) return false;
 
   if (shortcut.start) {
-    window.sessionStorage.setItem(SMARTBAR_MOBILE_GENERAL_START_KEY, shortcut.start);
+    window.sessionStorage.setItem(
+      SMARTBAR_MOBILE_GENERAL_START_KEY,
+      shortcut.start,
+    );
   }
 
-  window.sessionStorage.setItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY, shortcut.fast ? "1" : "0");
+  window.sessionStorage.setItem(
+    SMARTBAR_MOBILE_GENERAL_FAST_KEY,
+    shortcut.fast ? "1" : "0",
+  );
   return true;
 }
 
@@ -279,8 +340,8 @@ function hasSmartBarMobileGeneralShortcut() {
 
   return Boolean(
     smartBarMobileGeneralShortcutParams() ||
-      window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_START_KEY) ||
-      window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY) === "1",
+    window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_START_KEY) ||
+    window.sessionStorage.getItem(SMARTBAR_MOBILE_GENERAL_FAST_KEY) === "1",
   );
 }
 
@@ -333,25 +394,36 @@ async function checkTourBotDemoSession(): Promise<TourBotAuthResult> {
       return { accepted: false };
     }
 
-    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    const body = (await response
+      .json()
+      .catch(() => ({}))) as TourBotAuthResponse;
     if (body.ok !== true) {
       clearStoredTourBotDemoToken();
       return { accepted: false };
     }
 
     if (typeof body.expiresAt === "number") {
-      saveStoredTourBotDemoToken(token, body.expiresAt, body.demoPath || getStoredTourBotDemoPath());
+      saveStoredTourBotDemoToken(
+        token,
+        body.expiresAt,
+        body.demoPath || getStoredTourBotDemoPath(),
+      );
     } else if (body.demoPath) {
       saveStoredTourBotDemoPath(body.demoPath);
     }
 
-    return { accepted: true, demoPath: body.demoPath || getStoredTourBotDemoPath() };
+    return {
+      accepted: true,
+      demoPath: body.demoPath || getStoredTourBotDemoPath(),
+    };
   } catch {
     return { accepted: false };
   }
 }
 
-async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> {
+async function loginToTourBotDemo(
+  passcode: string,
+): Promise<TourBotAuthResult> {
   if (isLocalDemoAuthBypassEnabled()) {
     ensureLocalDemoAuthToken();
     return { accepted: true };
@@ -373,7 +445,9 @@ async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> 
       return { accepted: false };
     }
 
-    const body = (await response.json().catch(() => ({}))) as TourBotAuthResponse;
+    const body = (await response
+      .json()
+      .catch(() => ({}))) as TourBotAuthResponse;
     if (body.ok !== true || !body.token) {
       clearStoredTourBotDemoToken();
       return { accepted: false };
@@ -387,11 +461,10 @@ async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> 
   }
 }
 
-
 type PreludeSlip = SmartBarTutorCard;
 
 const PRELUDE_SLIPS: PreludeSlip[] = [
-    {
+  {
     title: "What is **SmartBar**?",
     cascadeGroup: "stage-0",
     cascadeMode: "standard",
@@ -405,7 +478,7 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     density: "normal",
     holdMs: 1000,
   },
-    {
+  {
     title: "feels like chat",
     cascadeGroup: "stage-1",
     cascadeMode: "standard",
@@ -442,7 +515,7 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
   //   holdMs: 2000,
   //   clearCascade: true,
   // },
-    {
+  {
     title: "Like having Alexa",
     cascadeGroup: "smartbar-thesis",
     cascadeMode: "standard",
@@ -471,28 +544,28 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     density: "normal",
     holdMs: 800,
   },
-    {
+  {
     title: "a choice",
     cascadeGroup: "next-step",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 700,
   },
-    {
+  {
     title: "a completed form",
     cascadeGroup: "next-step",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 700,
   },
-    {
+  {
     title: "a cart",
     cascadeGroup: "next-step",
     cascadeMode: "standard",
     density: "normal",
     holdMs: 700,
   },
-    {
+  {
     title: "a booking path",
     cascadeGroup: "next-step",
     cascadeMode: "standard",
@@ -500,13 +573,13 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     holdMs: 700,
   },
   //    {
-   // title: "a proof sheet",
-   // cascadeGroup: "next-step",
-   // cascadeMode: "standard",
-    //density: "normal",
-    //holdMs: 700,
- // },
-      {
+  // title: "a proof sheet",
+  // cascadeGroup: "next-step",
+  // cascadeMode: "standard",
+  //density: "normal",
+  //holdMs: 700,
+  // },
+  {
     title: "or a handoff",
     cascadeGroup: "next-step",
     cascadeMode: "standard",
@@ -521,7 +594,7 @@ const PRELUDE_SLIPS: PreludeSlip[] = [
     holdMs: 2500,
     clearCascade: true,
   },
-    {
+  {
     title: "It's screen-aware",
     cascadeGroup: "intro-mobile",
     cascadeMode: "standard",
@@ -807,12 +880,9 @@ const FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS: PreludeSlip[] = [
   },
 ];
 
-
-
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
-
 
 type SmartBarRootDemoMessage = {
   label: string;
@@ -828,7 +898,8 @@ type SmartBarRootStageItem =
   | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
   | { kind: "workflow-handoff" };
 
-type SmartBarRootInlineFlow = "launch" | "restaurant-walkthrough" | "private-sandbox";
+type SmartBarRootInlineFlow =
+  "launch" | "restaurant-walkthrough" | "private-sandbox";
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
@@ -857,7 +928,10 @@ const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
 const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_DURATION = 1.18;
 
 function normalizeSmartBarRootPasscode(value: string) {
-  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, REQUIRED_PASSCODE_LENGTH);
+  return value
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toUpperCase()
+    .slice(0, REQUIRED_PASSCODE_LENGTH);
 }
 
 function hasOptimisticSmartBarRootAccess() {
@@ -868,7 +942,9 @@ function hasOptimisticSmartBarRootAccess() {
 function getSafeSmartBarRootReturnTo() {
   if (typeof window === "undefined") return "";
 
-  const rawReturnTo = new URLSearchParams(window.location.search).get("returnTo");
+  const rawReturnTo = new URLSearchParams(window.location.search).get(
+    "returnTo",
+  );
   if (!rawReturnTo) return "";
 
   try {
@@ -920,7 +996,9 @@ type SmartBarRootMarkdownSegment = {
   text: string;
 };
 
-function parseSmartBarRootInlineMarkdown(body: string): SmartBarRootMarkdownSegment[] {
+function parseSmartBarRootInlineMarkdown(
+  body: string,
+): SmartBarRootMarkdownSegment[] {
   return body
     .split(/(\*\*[^*]+\*\*|_[^_]+_)/g)
     .filter(Boolean)
@@ -937,7 +1015,9 @@ function parseSmartBarRootInlineMarkdown(body: string): SmartBarRootMarkdownSegm
     });
 }
 
-function smartBarRootMarkdownSegmentClass(kind: SmartBarRootMarkdownSegment["kind"]) {
+function smartBarRootMarkdownSegmentClass(
+  kind: SmartBarRootMarkdownSegment["kind"],
+) {
   if (kind === "strong") return "font-semibold text-slate-950";
   if (kind === "em") return "italic text-slate-600";
   return "";
@@ -950,7 +1030,8 @@ function SmartBarRootMarkdownText({ body }: { body: string }) {
     <span className="whitespace-pre-wrap break-normal [overflow-wrap:normal] [word-break:normal]">
       {segments.map((segment, index) => {
         const className = smartBarRootMarkdownSegmentClass(segment.kind);
-        if (!className) return <span key={`${segment.text}-${index}`}>{segment.text}</span>;
+        if (!className)
+          return <span key={`${segment.text}-${index}`}>{segment.text}</span>;
         return (
           <span key={`${segment.text}-${index}`} className={className}>
             {segment.text}
@@ -1002,7 +1083,9 @@ function SmartBarRootThinkingText({ body }: { body: string }) {
                   transition={{
                     duration: SMARTBAR_ROOT_THINKING_WIGGLE_DURATION,
                     repeat: Infinity,
-                    delay: (startIndex + index) * SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER,
+                    delay:
+                      (startIndex + index) *
+                      SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER,
                     ease: "easeInOut",
                   }}
                 >
@@ -1017,7 +1100,13 @@ function SmartBarRootThinkingText({ body }: { body: string }) {
   );
 }
 
-function SmartBarRootProgressDots({ step, count }: { step: number; count: number }) {
+function SmartBarRootProgressDots({
+  step,
+  count,
+}: {
+  step: number;
+  count: number;
+}) {
   return (
     <div
       className="flex items-center justify-center gap-1.5 sm:gap-2"
@@ -1053,7 +1142,8 @@ function SmartBarRootDemoLaunchButton({
   title: string;
   description: string;
 }) {
-  const className = "group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
+  const className =
+    "group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
   const content = (
     <>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
@@ -1103,10 +1193,14 @@ function SmartBarRootLaunchMessage({
   const Icon = message.icon;
 
   return (
-    <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
+    <div
+      className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}
+    >
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${message.iconClass} sm:h-11 sm:w-11`}>
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${message.iconClass} sm:h-11 sm:w-11`}
+          >
             <Icon className="h-5 w-5" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
@@ -1115,7 +1209,11 @@ function SmartBarRootLaunchMessage({
         </div>
 
         <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          {isWaving ? <SmartBarRootThinkingText body={message.message} /> : <SmartBarRootMarkdownText body={message.message} />}
+          {isWaving ? (
+            <SmartBarRootThinkingText body={message.message} />
+          ) : (
+            <SmartBarRootMarkdownText body={message.message} />
+          )}
         </div>
 
         {message.demoButtons && (
@@ -1168,13 +1266,17 @@ function SmartBarRootPasscodeChallenge({
 
   const focusBox = (index: number) => {
     window.setTimeout(() => {
-      inputRefs.current[Math.max(0, Math.min(REQUIRED_PASSCODE_LENGTH - 1, index))]?.focus();
+      inputRefs.current[
+        Math.max(0, Math.min(REQUIRED_PASSCODE_LENGTH - 1, index))
+      ]?.focus();
     }, 0);
   };
 
   const updateFromIndex = (index: number, rawValue: string) => {
     const cleaned = normalizeSmartBarRootPasscode(rawValue);
-    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+    const nextCharacters = boxes.map(
+      (_, characterIndex) => code[characterIndex] || "",
+    );
 
     if (!cleaned) {
       nextCharacters[index] = "";
@@ -1184,7 +1286,8 @@ function SmartBarRootPasscodeChallenge({
 
     cleaned.split("").forEach((character, offset) => {
       const targetIndex = index + offset;
-      if (targetIndex < REQUIRED_PASSCODE_LENGTH) nextCharacters[targetIndex] = character;
+      if (targetIndex < REQUIRED_PASSCODE_LENGTH)
+        nextCharacters[targetIndex] = character;
     });
 
     onChange(nextCharacters.join(""));
@@ -1192,7 +1295,9 @@ function SmartBarRootPasscodeChallenge({
   };
 
   const clearFromIndex = (index: number) => {
-    const nextCharacters = boxes.map((_, characterIndex) => code[characterIndex] || "");
+    const nextCharacters = boxes.map(
+      (_, characterIndex) => code[characterIndex] || "",
+    );
 
     if (nextCharacters[index]) {
       nextCharacters[index] = "";
@@ -1316,7 +1421,13 @@ function SmartBarRootPasscodeChallenge({
   );
 }
 
-function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving: boolean }) {
+function SmartBarRootAccessFailure({
+  body,
+  isWaving,
+}: {
+  body: string;
+  isWaving: boolean;
+}) {
   return (
     <div className="w-full bg-rose-50/90 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
@@ -1330,7 +1441,11 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
         </div>
 
         <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          {isWaving ? <SmartBarRootThinkingText body={body} /> : <SmartBarRootMarkdownText body={body} />}
+          {isWaving ? (
+            <SmartBarRootThinkingText body={body} />
+          ) : (
+            <SmartBarRootMarkdownText body={body} />
+          )}
         </div>
       </div>
     </div>
@@ -1346,10 +1461,22 @@ function SmartBarRootWorkflowHandoff({
   onFinish: () => void;
   onRequestPrivateSandbox: () => void;
 }) {
+  const shellClassName =
+    "relative rounded-[28px] bg-slate-950 shadow-[0_24px_64px_rgba(15,23,42,0.20)] ring-1 ring-white/80 sm:rounded-[32px] " +
+    (isExpanding ? "z-50 overflow-visible" : "overflow-hidden");
+
+  const viewSpaceClassName =
+    "relative h-[255px] bg-[radial-gradient(circle_at_28%_22%,_rgba(59,130,246,0.32),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eaf3ff_48%,_#f8fafc_100%)] sm:h-[310px] " +
+    (isExpanding ? "overflow-visible" : "overflow-hidden");
+
   return (
     <div className="w-full bg-sky-50/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
-        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+        <motion.div
+          className="mb-4 flex items-center gap-3 sm:mb-5"
+          animate={{ opacity: isExpanding ? 0.16 : 1, y: isExpanding ? -6 : 0 }}
+          transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
             <PhoneCall className="h-5 w-5" />
           </div>
@@ -1361,14 +1488,28 @@ function SmartBarRootWorkflowHandoff({
               Phone orders become AI-generated tickets.
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <motion.div
-          className="relative overflow-hidden rounded-[28px] bg-slate-950 shadow-[0_24px_64px_rgba(15,23,42,0.20)] ring-1 ring-white/80 sm:rounded-[32px]"
-          animate={{ scale: isExpanding ? 1.006 : 1 }}
-          transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+          className={shellClassName}
+          animate={{
+            scale: isExpanding ? 1.012 : 1,
+            boxShadow: isExpanding
+              ? "0 34px 90px rgba(15,23,42,0.18)"
+              : "0 24px 64px rgba(15,23,42,0.20)",
+          }}
+          transition={{ duration: 0.46, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex items-center justify-between border-b border-white/10 bg-white/8 px-4 py-3 text-white sm:px-5">
+          <motion.div
+            className="flex items-center justify-between border-b border-white/10 bg-white/8 px-4 py-3 text-white sm:px-5"
+            animate={{
+              opacity: isExpanding ? 0 : 1,
+              height: isExpanding ? 0 : "auto",
+              paddingTop: isExpanding ? 0 : undefined,
+              paddingBottom: isExpanding ? 0 : undefined,
+            }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          >
             <div className="flex items-center gap-2">
               <span className="h-2.5 w-2.5 rounded-full bg-rose-300" />
               <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
@@ -1377,65 +1518,32 @@ function SmartBarRootWorkflowHandoff({
             <div className="text-[10px] font-black uppercase tracking-[0.18em] text-white/68">
               Workflow view-space
             </div>
-          </div>
+          </motion.div>
 
-          <div className="relative h-[255px] overflow-hidden bg-[radial-gradient(circle_at_28%_22%,_rgba(59,130,246,0.32),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eaf3ff_48%,_#f8fafc_100%)] sm:h-[310px]">
-            <AnimatePresence mode="wait" initial={false}>
-              {!isExpanding ? (
-                <motion.div
-                  key="smartbar-workflow-static-preview"
-                  className="absolute inset-0 p-4 sm:p-5"
-                  initial={{ opacity: 1 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.985 }}
-                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <div className="absolute left-5 top-5 rounded-2xl bg-white/90 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.12)] ring-1 ring-white/70">
-                    <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Customer says order</div>
-                    <div className="mt-1 text-sm font-semibold text-slate-900">Large pepperoni, Caesar, knots...</div>
-                  </div>
-
-                  <div className="absolute bottom-5 right-5 w-[58%] rounded-[22px] bg-white/94 p-4 shadow-[0_22px_56px_rgba(15,23,42,0.16)] ring-1 ring-white/80">
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Ticket S-184</div>
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Ready</span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-2.5 rounded-full bg-slate-200" />
-                      <div className="h-2.5 w-11/12 rounded-full bg-slate-200" />
-                      <div className="h-2.5 w-8/12 rounded-full bg-slate-200" />
-                    </div>
-                  </div>
-
-                  <div className="absolute bottom-6 left-5 rounded-full bg-[#012169] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_14px_34px_rgba(1,33,105,0.24)]">
-                    SmartBar workflow
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="smartbar-workflow-scaled-into-card"
-                  className="absolute inset-0 overflow-hidden bg-slate-50"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                >
-                  <motion.div
-                    className="absolute left-1/2 top-1/2 [--workflow-card-scale:0.25] sm:[--workflow-card-scale:0.34] lg:[--workflow-card-scale:0.38]"
-                    initial={{ opacity: 0.24, scale: 0.9, y: 18 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: SMARTBAR_ROOT_WORKFLOW_EXPAND_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
-                  >
-                    <div className="h-[820px] w-[1280px] origin-center [transform:translate(-50%,-50%)_scale(var(--workflow-card-scale))]">
-                      <RestaurantWalkthrough
-                        onFinish={onFinish}
-                        onRequestPrivateSandbox={onRequestPrivateSandbox}
-                      />
-                    </div>
-                  </motion.div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+          <div className={viewSpaceClassName}>
+            <motion.div
+              className="absolute left-1/2 top-1/2 z-30 [--workflow-card-scale:0.25] sm:[--workflow-card-scale:0.34] lg:[--workflow-card-scale:0.38]"
+              initial={false}
+              animate={{
+                opacity: 1,
+                scale: isExpanding ? 2.08 : 1,
+                y: isExpanding ? -8 : 0,
+                filter: isExpanding
+                  ? "drop-shadow(0 28px 70px rgba(15,23,42,0.18))"
+                  : "drop-shadow(0 12px 26px rgba(15,23,42,0.08))",
+              }}
+              transition={{
+                duration: SMARTBAR_ROOT_WORKFLOW_EXPAND_MS / 1000,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <div className="h-[820px] w-[1280px] origin-center [transform:translate(-50%,-50%)_scale(var(--workflow-card-scale))]">
+                <RestaurantWalkthrough
+                  onFinish={onFinish}
+                  onRequestPrivateSandbox={onRequestPrivateSandbox}
+                />
+              </div>
+            </motion.div>
           </div>
         </motion.div>
       </div>
@@ -1444,15 +1552,25 @@ function SmartBarRootWorkflowHandoff({
 }
 
 function SmartBarRootDemoSelector() {
-  const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
-  const [inlineFlow, setInlineFlow] = useState<SmartBarRootInlineFlow>("launch");
+  const hasInitialStoredAccess = useMemo(
+    () => hasOptimisticSmartBarRootAccess(),
+    [],
+  );
+  const [inlineFlow, setInlineFlow] =
+    useState<SmartBarRootInlineFlow>("launch");
   const [isWorkflowExpanding, setIsWorkflowExpanding] = useState(false);
   const workflowTransitionRunIdRef = useRef(0);
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
-  const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
+  const [isSessionChecking, setIsSessionChecking] = useState(
+    () => hasInitialStoredAccess,
+  );
   const [passcode, setPasscode] = useState("");
-  const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
-  const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
+  const [failureMessage, setFailureMessage] = useState(
+    "That code is incomplete. Enter the full demo passcode and try again.",
+  );
+  const [gateView, setGateView] = useState<"challenge" | "failure">(
+    "challenge",
+  );
   const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
@@ -1467,16 +1585,26 @@ function SmartBarRootDemoSelector() {
       sourceIndex,
     }));
 
-    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, { kind: "workflow-handoff" }];
-    if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
+    if (hasAccess)
+      return [
+        { kind: "passcode" },
+        ...messageItems,
+        { kind: "workflow-handoff" },
+      ];
+    if (gateView === "failure")
+      return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
 
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
-  const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
+  const currentMessageStep =
+    current?.kind === "message" ? current.sourceIndex : 0;
   const isWorkflowHandoffStep = current?.kind === "workflow-handoff";
-  const rootProgressStep = current?.kind === "message" ? current.sourceIndex : SMARTBAR_ROOT_MESSAGES.length - 1;
+  const rootProgressStep =
+    current?.kind === "message"
+      ? current.sourceIndex
+      : SMARTBAR_ROOT_MESSAGES.length - 1;
   const demoSelectorStep = SMARTBAR_ROOT_MESSAGES.length;
   const workflowHandoffStep = SMARTBAR_ROOT_MESSAGES.length + 1;
   const isWaving = wavingIndex !== null;
@@ -1517,7 +1645,9 @@ function SmartBarRootDemoSelector() {
 
   useEffect(() => {
     if (hasAccess) {
-      setStep((value) => Math.min(Math.max(1, value), Math.max(1, stageItems.length - 1)));
+      setStep((value) =>
+        Math.min(Math.max(1, value), Math.max(1, stageItems.length - 1)),
+      );
       return;
     }
 
@@ -1536,7 +1666,9 @@ function SmartBarRootDemoSelector() {
     setIsSessionChecking(false);
     setHasAccess(false);
     setPasscode("");
-    setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+    setFailureMessage(
+      "That code is incomplete. Enter the full demo passcode and try again.",
+    );
     setGateView("challenge");
     setInlineFlow("launch");
     setIsWorkflowExpanding(false);
@@ -1556,7 +1688,9 @@ function SmartBarRootDemoSelector() {
         cleanupResetAccessUrl();
         setHasAccess(false);
         setPasscode("");
-        setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+        setFailureMessage(
+          "That code is incomplete. Enter the full demo passcode and try again.",
+        );
         setGateView("challenge");
         setIsWorkflowExpanding(false);
         setStep(0);
@@ -1631,7 +1765,9 @@ function SmartBarRootDemoSelector() {
     setIsWorkflowExpanding(false);
     setStep(workflowHandoffStep);
 
-    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS + SMARTBAR_ROOT_WORKFLOW_EXPAND_DELAY_MS);
+    await wait(
+      SMARTBAR_ROOT_RIBBON_GLIDE_MS + SMARTBAR_ROOT_WORKFLOW_EXPAND_DELAY_MS,
+    );
     if (workflowTransitionRunIdRef.current !== runId) return;
 
     setIsWorkflowExpanding(true);
@@ -1676,7 +1812,9 @@ function SmartBarRootDemoSelector() {
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
 
     if (passcode.length < REQUIRED_PASSCODE_LENGTH) {
-      setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
+      setFailureMessage(
+        "That code is incomplete. Enter the full demo passcode and try again.",
+      );
       setGateView("failure");
       setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
@@ -1686,7 +1824,9 @@ function SmartBarRootDemoSelector() {
 
     const loginResult = await loginToTourBotDemo(passcode);
     if (!loginResult.accepted) {
-      setFailureMessage("That code could not be verified. Check the passcode and try again.");
+      setFailureMessage(
+        "That code could not be verified. Check the passcode and try again.",
+      );
       setGateView("failure");
       setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
@@ -1727,7 +1867,8 @@ function SmartBarRootDemoSelector() {
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isWorkflowHandoffStep);
+  const showNextButton =
+    !hasAccess || (!currentMessage?.demoButtons && !isWorkflowHandoffStep);
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -1778,143 +1919,180 @@ function SmartBarRootDemoSelector() {
   return (
     <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 [perspective:1200px] sm:h-screen">
       <section className="flex h-[100svh] flex-col overflow-hidden sm:h-screen">
-          <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
-                  <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
-                    SmartBar
-                  </div>
-                  <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
-                    A search bar that shops
-                  </div>
-                </div>
+        <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
+                <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
-
-              <div className="flex items-center gap-2">
-                {hasAccess && (
-                  <button
-                    type="button"
-                    onClick={resetAccess}
-                    className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
-                  >
-                    Reset access
-                  </button>
-                )}
-
-                <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-                  <Sparkles className="h-4 w-4 text-slate-500" />
-                  {stepLabel}
+              <div>
+                <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
+                  SmartBar
+                </div>
+                <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
+                  A search bar that shops
                 </div>
               </div>
             </div>
-          </header>
 
-          <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
-            <div className="shrink-0">
-              {hasAccess ? (
-                <SmartBarRootProgressDots step={rootProgressStep} count={SMARTBAR_ROOT_MESSAGES.length} />
-              ) : (
-                <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
-                  <KeyRound className="h-3.5 w-3.5" />
-                  Access required
-                </div>
-              )}
-            </div>
-
-            <div
-              ref={stageScrollRef}
-              className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
-            >
-              <div
-                className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
-                style={ribbonHeight ? { height: ribbonHeight } : undefined}
-              >
-                <motion.div
-                  animate={{ y: ribbonY }}
-                  initial={false}
-                  transition={{
-                    duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
-                    ease: [0.22, 1, 0.36, 1],
-                  }}
+            <div className="flex items-center gap-2">
+              {hasAccess && (
+                <button
+                  type="button"
+                  onClick={resetAccess}
+                  className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
                 >
-                  {stageItems.map((item, index) => (
-                    <div
-                      key={
-                        item.kind === "message"
-                          ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
-                          : `smartbar-root-${item.kind}`
-                      }
-                      ref={(node) => {
-                        segmentRefs.current[index] = node;
-                      }}
-                    >
-                      {item.kind === "passcode" && (
-                        <SmartBarRootPasscodeChallenge
-                          code={passcode}
-                          isChecking={wavingIndex === index}
-                          onChange={setPasscode}
-                          onSubmit={submitPasscode}
-                        />
-                      )}
+                  Reset access
+                </button>
+              )}
 
-                      {item.kind === "failure" && <SmartBarRootAccessFailure body={failureMessage} isWaving={wavingIndex === index} />}
+              <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+                <Sparkles className="h-4 w-4 text-slate-500" />
+                {stepLabel}
+              </div>
+            </div>
+          </div>
+        </header>
 
-                      {item.kind === "message" && (
-                        <SmartBarRootLaunchMessage
-                          message={item.message}
-                          step={item.sourceIndex}
-                          isWaving={wavingIndex === index}
-                          onSelectRestaurantWalkthrough={openRestaurantWalkthrough}
-                        />
-                      )}
+        <section
+          className={
+            "mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:px-6 sm:py-5 " +
+            (isWorkflowHandoffStep
+              ? "overflow-visible"
+              : "overflow-hidden sm:overflow-visible")
+          }
+        >
+          <div className="shrink-0">
+            {hasAccess ? (
+              <SmartBarRootProgressDots
+                step={rootProgressStep}
+                count={SMARTBAR_ROOT_MESSAGES.length}
+              />
+            ) : (
+              <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
+                <KeyRound className="h-3.5 w-3.5" />
+                Access required
+              </div>
+            )}
+          </div>
 
-                      {item.kind === "workflow-handoff" && <SmartBarRootWorkflowHandoff
+          <div
+            ref={stageScrollRef}
+            className={
+              "relative mt-3 flex min-h-0 w-full max-w-3xl overscroll-contain py-4 sm:mt-6 sm:block sm:py-0 " +
+              (isWorkflowHandoffStep
+                ? "overflow-visible"
+                : "overflow-y-auto sm:overflow-visible")
+            }
+          >
+            <div
+              className={
+                `my-auto w-full rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass} ` +
+                (isWorkflowHandoffStep ? "overflow-visible" : "overflow-hidden")
+              }
+              style={ribbonHeight ? { height: ribbonHeight } : undefined}
+            >
+              <motion.div
+                animate={{ y: ribbonY }}
+                initial={false}
+                transition={{
+                  duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+              >
+                {stageItems.map((item, index) => (
+                  <div
+                    key={
+                      item.kind === "message"
+                        ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
+                        : `smartbar-root-${item.kind}`
+                    }
+                    ref={(node) => {
+                      segmentRefs.current[index] = node;
+                    }}
+                  >
+                    {item.kind === "passcode" && (
+                      <SmartBarRootPasscodeChallenge
+                        code={passcode}
+                        isChecking={wavingIndex === index}
+                        onChange={setPasscode}
+                        onSubmit={submitPasscode}
+                      />
+                    )}
+
+                    {item.kind === "failure" && (
+                      <SmartBarRootAccessFailure
+                        body={failureMessage}
+                        isWaving={wavingIndex === index}
+                      />
+                    )}
+
+                    {item.kind === "message" && (
+                      <SmartBarRootLaunchMessage
+                        message={item.message}
+                        step={item.sourceIndex}
+                        isWaving={wavingIndex === index}
+                        onSelectRestaurantWalkthrough={
+                          openRestaurantWalkthrough
+                        }
+                      />
+                    )}
+
+                    {item.kind === "workflow-handoff" && (
+                      <SmartBarRootWorkflowHandoff
                         isExpanding={isWorkflowExpanding}
                         onFinish={returnToDemoSelector}
                         onRequestPrivateSandbox={openPrivateSandboxFlow}
-                      />}
-                    </div>
-                  ))}
-                </motion.div>
-              </div>
+                      />
+                    )}
+                  </div>
+                ))}
+              </motion.div>
             </div>
+          </div>
 
-            <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+          <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={
+                !hasAccess ||
+                (!isWorkflowHandoffStep && currentMessageStep === 0)
+              }
+              className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {isWorkflowHandoffStep ? "Back to demos" : "Back"}
+            </button>
+
+            {showNextButton && (
               <button
                 type="button"
-                onClick={goBack}
-                disabled={!hasAccess || (!isWorkflowHandoffStep && currentMessageStep === 0)}
-                className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+                onClick={goNext}
+                disabled={
+                  isWaving ||
+                  isWorkflowExpanding ||
+                  (!hasAccess && isSessionChecking)
+                }
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {isWorkflowHandoffStep ? "Back to demos" : "Back"}
+                {nextLabel}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </button>
-
-              {showNextButton && (
-                <button
-                  type="button"
-                  onClick={goNext}
-                  disabled={isWaving || isWorkflowExpanding || (!hasAccess && isSessionChecking)}
-                  className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
-                >
-                  {nextLabel}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </button>
-              )}
-            </div>
-          </section>
+            )}
+          </div>
         </section>
-
+      </section>
     </div>
   );
 }
 
 function ThinkingCode({ value }: { value: string }) {
-  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "•").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
+  const characters = value
+    .trim()
+    .padEnd(REQUIRED_PASSCODE_LENGTH, "•")
+    .slice(0, REQUIRED_PASSCODE_LENGTH)
+    .split("");
 
   return (
     <div
@@ -1925,7 +2103,12 @@ function ThinkingCode({ value }: { value: string }) {
         <motion.span
           key={`${char}-${index}`}
           animate={{ y: [0, -4, 0], opacity: [0.62, 1, 0.62] }}
-          transition={{ duration: 0.72, repeat: Infinity, delay: index * 0.08, ease: [0.42, 0, 0.58, 1] }}
+          transition={{
+            duration: 0.72,
+            repeat: Infinity,
+            delay: index * 0.08,
+            ease: [0.42, 0, 0.58, 1],
+          }}
           className="inline-block min-w-[0.72em]"
         >
           {char}
@@ -1956,8 +2139,12 @@ function LaunchSlip({
       </span>
 
       <div className="hidden min-w-0 flex-1 sm:block">
-        <div className="truncate text-base font-black tracking-tight text-slate-950">Enter SmartBar passcode</div>
-        <div className="truncate text-xs font-semibold text-slate-600">Unlock the speed demo.</div>
+        <div className="truncate text-base font-black tracking-tight text-slate-950">
+          Enter SmartBar passcode
+        </div>
+        <div className="truncate text-xs font-semibold text-slate-600">
+          Unlock the speed demo.
+        </div>
       </div>
 
       {isChecking ? (
@@ -1965,7 +2152,11 @@ function LaunchSlip({
       ) : (
         <input
           value={passcode}
-          onChange={(event) => onPasscodeChange(event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH))}
+          onChange={(event) =>
+            onPasscodeChange(
+              event.target.value.slice(0, REQUIRED_PASSCODE_LENGTH),
+            )
+          }
           aria-label="SmartBar demo passcode"
           placeholder="6 chars"
           inputMode="text"
@@ -2008,13 +2199,18 @@ function LaunchSelectorTourBarInner({
   const [launchVisible, setLaunchVisible] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [passcode, setPasscode] = useState("");
-  const [activeNoticeLane, setActiveNoticeLane] = useState<SmartBarFlashCardLaneName | null>(null);
+  const [activeNoticeLane, setActiveNoticeLane] =
+    useState<SmartBarFlashCardLaneName | null>(null);
   const [noticeA, setNoticeA] = useState<SmartBarFlashCardNotice | null>(null);
   const [noticeB, setNoticeB] = useState<SmartBarFlashCardNotice | null>(null);
-  const [activePreludeStackMode, setActivePreludeStackMode] = useState<SmartBarFlashCardCascadeMode>("standard");
-  const [preludeStackCards, setPreludeStackCards] = useState<SmartBarFlashCardStackItem[]>([]);
+  const [activePreludeStackMode, setActivePreludeStackMode] =
+    useState<SmartBarFlashCardCascadeMode>("standard");
+  const [preludeStackCards, setPreludeStackCards] = useState<
+    SmartBarFlashCardStackItem[]
+  >([]);
   const [fitsAnimationVisible, setFitsAnimationVisible] = useState(false);
-  const [foodTrioIntroAnimationVisible, setFoodTrioIntroAnimationVisible] = useState(false);
+  const [foodTrioIntroAnimationVisible, setFoodTrioIntroAnimationVisible] =
+    useState(false);
   const [demoVisible, setDemoVisible] = useState(false);
   const [demoAutoPlay, setDemoAutoPlay] = useState(false);
   const runIdRef = useRef(0);
@@ -2022,27 +2218,35 @@ function LaunchSelectorTourBarInner({
   const foodTrioIntroCompleteResolverRef = useRef<(() => void) | null>(null);
   const currentDemoPath = currentTourBotDemoPath();
   const isNexaPathMobilePlayground = currentDemoPath === "/nexapath-play";
-  const isDomiMobilePlayground = tourBotDemoPathIsDomiMobilePlayground(currentDemoPath);
-  const isDomiDedicatedDemo = tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath);
+  const isDomiMobilePlayground =
+    tourBotDemoPathIsDomiMobilePlayground(currentDemoPath);
+  const isDomiDedicatedDemo =
+    tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath);
 
-  const setActiveNoticeLaneState = useCallback((lane: SmartBarFlashCardLaneName | null) => {
-    activeNoticeLaneRef.current = lane;
-    setActiveNoticeLane(lane);
-  }, []);
+  const setActiveNoticeLaneState = useCallback(
+    (lane: SmartBarFlashCardLaneName | null) => {
+      activeNoticeLaneRef.current = lane;
+      setActiveNoticeLane(lane);
+    },
+    [],
+  );
 
   const getNextNoticeLane = useCallback((): SmartBarFlashCardLaneName => {
     return activeNoticeLaneRef.current === "a" ? "b" : "a";
   }, []);
 
-  const clearNoticeLanes = useCallback(async (runId: number) => {
-    setActiveNoticeLaneState(null);
-    await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
-    if (runIdRef.current !== runId) return false;
+  const clearNoticeLanes = useCallback(
+    async (runId: number) => {
+      setActiveNoticeLaneState(null);
+      await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS);
+      if (runIdRef.current !== runId) return false;
 
-    setNoticeA(null);
-    setNoticeB(null);
-    return true;
-  }, [setActiveNoticeLaneState]);
+      setNoticeA(null);
+      setNoticeB(null);
+      return true;
+    },
+    [setActiveNoticeLaneState],
+  );
 
   const startAcceptedFlow = useCallback(
     async (runId: number, options: { showAccessGranted?: boolean } = {}) => {
@@ -2052,7 +2256,9 @@ function LaunchSelectorTourBarInner({
       setFoodTrioIntroAnimationVisible(false);
 
       const hasMobileGeneralTestShortcut =
-        variant === "full" && (persistSmartBarMobileGeneralShortcut() || hasSmartBarMobileGeneralShortcut());
+        variant === "full" &&
+        (persistSmartBarMobileGeneralShortcut() ||
+          hasSmartBarMobileGeneralShortcut());
 
       if (hasMobileGeneralTestShortcut) {
         cleanupResetAccessUrl();
@@ -2154,7 +2360,10 @@ function LaunchSelectorTourBarInner({
         else setNoticeB(preludeNotice);
 
         setActiveNoticeLaneState(nextLane);
-        await wait(SMARTBAR_FLASH_CARD_TRANSITION_MS + (slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS));
+        await wait(
+          SMARTBAR_FLASH_CARD_TRANSITION_MS +
+            (slip.holdMs ?? DEFAULT_PRELUDE_HOLD_MS),
+        );
         if (runIdRef.current !== runId) return;
       }
 
@@ -2182,7 +2391,10 @@ function LaunchSelectorTourBarInner({
       // FOODTRIO_PUBLIC_ROUTE_DESKTOP_INTRO_V1:
       // /food-trio can now route desktop users into the desktop variant, so it
       // should receive the same FoodTrio intro animation as /food-trio-desktop.
-      if (currentTourBotDemoPath() === "/food-trio-desktop" || currentTourBotDemoPath() === "/food-trio") {
+      if (
+        currentTourBotDemoPath() === "/food-trio-desktop" ||
+        currentTourBotDemoPath() === "/food-trio"
+      ) {
         const postFitsNotice = FOOD_TRIO_DESKTOP_POST_FITS_SLIPS[0];
 
         setPreludeStackCards([
@@ -2212,7 +2424,10 @@ function LaunchSelectorTourBarInner({
             foodTrioIntroCompleteResolverRef.current = null;
             resolve();
           };
-          const timeoutId = window.setTimeout(finishIntro, FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS);
+          const timeoutId = window.setTimeout(
+            finishIntro,
+            FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS,
+          );
           foodTrioIntroCompleteResolverRef.current = finishIntro;
         });
         if (runIdRef.current !== runId) return;
@@ -2222,11 +2437,18 @@ function LaunchSelectorTourBarInner({
         if (runIdRef.current !== runId) return;
 
         let foodTrioPostIntroCascadeGroup: string | null = null;
-        for (let index = 0; index < FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS.length; index += 1) {
+        for (
+          let index = 0;
+          index < FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS.length;
+          index += 1
+        ) {
           const slip = FOOD_TRIO_DESKTOP_POST_INTRO_SLIPS[index];
           const mode = slip.cascadeMode || "standard";
 
-          if (foodTrioPostIntroCascadeGroup && foodTrioPostIntroCascadeGroup !== slip.cascadeGroup) {
+          if (
+            foodTrioPostIntroCascadeGroup &&
+            foodTrioPostIntroCascadeGroup !== slip.cascadeGroup
+          ) {
             setPreludeStackCards([]);
             await wait(SMARTBAR_FLASH_CARD_CROSSOVER_MS);
             if (runIdRef.current !== runId) return;
@@ -2277,7 +2499,11 @@ function LaunchSelectorTourBarInner({
     const loadAccessState = async () => {
       persistSmartBarMobileGeneralShortcut();
 
-      if (isNexaPathMobilePlayground || isDomiMobilePlayground || isDomiDedicatedDemo) {
+      if (
+        isNexaPathMobilePlayground ||
+        isDomiMobilePlayground ||
+        isDomiDedicatedDemo
+      ) {
         setLaunchVisible(false);
         setDemoVisible(true);
         return;
@@ -2295,13 +2521,22 @@ function LaunchSelectorTourBarInner({
       if (cancelled) return;
 
       if (sessionResult.accepted) {
-        const restoredDemoPath = sessionResult.demoPath || getStoredTourBotDemoPath();
+        const restoredDemoPath =
+          sessionResult.demoPath || getStoredTourBotDemoPath();
         const restoredCleanPath = normalizeTourBotDemoPath(restoredDemoPath);
 
         // Dedicated Domi passcodes should land on the Domi demo even when an
         // existing valid session skips the passcode form on the root page.
-        if (currentTourBotDemoPath() === "/" && tourBotDemoPathIsDomiDedicatedDemo(restoredCleanPath)) {
-          if (redirectToTourBotDemoPath(restoredCleanPath, { allowFoodRouteSteering: true })) return;
+        if (
+          currentTourBotDemoPath() === "/" &&
+          tourBotDemoPathIsDomiDedicatedDemo(restoredCleanPath)
+        ) {
+          if (
+            redirectToTourBotDemoPath(restoredCleanPath, {
+              allowFoodRouteSteering: true,
+            })
+          )
+            return;
         }
 
         // Other restored sessions only unlock the current URL. Fresh passcode
@@ -2321,7 +2556,12 @@ function LaunchSelectorTourBarInner({
       cancelled = true;
       runIdRef.current += 1;
     };
-  }, [isDomiDedicatedDemo, isDomiMobilePlayground, isNexaPathMobilePlayground, startAcceptedFlow]);
+  }, [
+    isDomiDedicatedDemo,
+    isDomiMobilePlayground,
+    isNexaPathMobilePlayground,
+    startAcceptedFlow,
+  ]);
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -2379,22 +2619,38 @@ function LaunchSelectorTourBarInner({
       if (!normalizeTourBotDemoPath(nextDemoPath)) {
         const sessionAfterLogin = await checkTourBotDemoSession();
         if (sessionAfterLogin.accepted) {
-          nextDemoPath = sessionAfterLogin.demoPath || getStoredTourBotDemoPath();
+          nextDemoPath =
+            sessionAfterLogin.demoPath || getStoredTourBotDemoPath();
         }
       }
 
-      if (redirectToTourBotDemoPath(nextDemoPath, { allowFoodRouteSteering: true })) return;
+      if (
+        redirectToTourBotDemoPath(nextDemoPath, {
+          allowFoodRouteSteering: true,
+        })
+      )
+        return;
 
       await startAcceptedFlow(runId, { showAccessGranted: true });
     },
-    [clearNoticeLanes, getNextNoticeLane, isChecking, launchVisible, passcode, setActiveNoticeLaneState, startAcceptedFlow],
+    [
+      clearNoticeLanes,
+      getNextNoticeLane,
+      isChecking,
+      launchVisible,
+      passcode,
+      setActiveNoticeLaneState,
+      startAcceptedFlow,
+    ],
   );
 
   const allowMobileDemoPageScroll =
-    demoVisible && (shouldSkipFitsAnywhereAnimationOnPhone() || variant === "full");
+    demoVisible &&
+    (shouldSkipFitsAnywhereAnimationOnPhone() || variant === "full");
 
   const useCenteredFoodTrioDesktopCards =
-    currentDemoPath === "/food-trio" || currentDemoPath === "/food-trio-desktop";
+    currentDemoPath === "/food-trio" ||
+    currentDemoPath === "/food-trio-desktop";
 
   if (isNexaPathMobilePlayground) {
     return <NexaPathMobileExperience />;
@@ -2420,8 +2676,12 @@ function LaunchSelectorTourBarInner({
           : "relative h-[100dvh] min-h-[100dvh] overflow-hidden"
       }
     >
-      {demoVisible ? <SmartBarSpeedDemo autoPlay={demoAutoPlay} variant={variant} /> : <LaunchBackground />}
-<SmartBarFlashCardRail
+      {demoVisible ? (
+        <SmartBarSpeedDemo autoPlay={demoAutoPlay} variant={variant} />
+      ) : (
+        <LaunchBackground />
+      )}
+      <SmartBarFlashCardRail
         className={
           useCenteredFoodTrioDesktopCards
             ? "pointer-events-none !fixed !left-0 !right-0 !top-[32%] z-[10120] !w-full lg:!top-[31%]"
@@ -2434,25 +2694,35 @@ function LaunchSelectorTourBarInner({
           align={useCenteredFoodTrioDesktopCards ? "center" : "end"}
         />
 
-        <SmartBarFlashCardLane active={launchVisible} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
+        <SmartBarFlashCardLane
+          active={launchVisible}
+          align={useCenteredFoodTrioDesktopCards ? "center" : "end"}
+        >
           <LaunchSlip
-              passcode={passcode}
-              isChecking={isChecking}
-              onPasscodeChange={setPasscode}
-              onSubmit={handleSubmit}
-            />
-          
+            passcode={passcode}
+            isChecking={isChecking}
+            onPasscodeChange={setPasscode}
+            onSubmit={handleSubmit}
+          />
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "a" && Boolean(noticeA)} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
+        <SmartBarFlashCardLane
+          active={activeNoticeLane === "a" && Boolean(noticeA)}
+          align={useCenteredFoodTrioDesktopCards ? "center" : "end"}
+        >
           {noticeA ? <SmartBarFlashCard notice={noticeA} /> : null}
         </SmartBarFlashCardLane>
 
-        <SmartBarFlashCardLane active={activeNoticeLane === "b" && Boolean(noticeB)} align={useCenteredFoodTrioDesktopCards ? "center" : "end"}>
+        <SmartBarFlashCardLane
+          active={activeNoticeLane === "b" && Boolean(noticeB)}
+          align={useCenteredFoodTrioDesktopCards ? "center" : "end"}
+        >
           {noticeB ? <SmartBarFlashCard notice={noticeB} /> : null}
         </SmartBarFlashCardLane>
       </SmartBarFlashCardRail>
-      <AnimatePresence>{fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}</AnimatePresence>
+      <AnimatePresence>
+        {fitsAnimationVisible ? <SmartBarFitsAnywhereAnimation /> : null}
+      </AnimatePresence>
       <AnimatePresence>
         {foodTrioIntroAnimationVisible ? (
           <FoodTrioDesktopIntroAnimation
@@ -2466,7 +2736,9 @@ function LaunchSelectorTourBarInner({
   );
 }
 
-export default function LaunchSelectorTourBar(props: { variant?: SmartBarSpeedDemoVariant }) {
+export default function LaunchSelectorTourBar(props: {
+  variant?: SmartBarSpeedDemoVariant;
+}) {
   const currentDemoPath = currentTourBotDemoPath();
 
   if (
