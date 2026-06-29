@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowRight,
@@ -8,6 +8,7 @@ import {
   ChevronUp,
   Compass,
   ListOrdered,
+  Package,
   Sparkles,
   Trash2,
   X,
@@ -110,6 +111,11 @@ export type SmartBarMobileSubmitMeta = {
   replaceLineTitle?: string;
 };
 
+export type SmartBarMobileDemoTypingStep =
+  | { action: "type"; text: string; delayMs?: number }
+  | { action: "pause"; ms: number }
+  | { action: "backspace"; count: number; delayMs?: number };
+
 export type SmartBarMobileDemoSubmission = {
   id: number;
   query: string;
@@ -118,6 +124,8 @@ export type SmartBarMobileDemoSubmission = {
   typing?: boolean;
   /** Demo-only typing cadence in milliseconds per character. */
   typeDelayMs?: number;
+  /** Demo-only: optional scripted typing with pauses and visible corrections. */
+  typingScript?: SmartBarMobileDemoTypingStep[];
   /** Demo-only pause after typing before submit. */
   submitDelayMs?: number;
   /** Demo-only: type the query and wait for an external scripted click to submit. */
@@ -166,6 +174,1085 @@ const demoLines: SmartBarMobileOrderLine[] = [
     retryPrompt: "Re-enter the item so SmartBar can match it.",
   },
 ];
+
+const smartBarMobileSocialMontageLines: SmartBarMobileOrderLine[] = [
+  {
+    id: "social-montage-burger",
+    title: "Classic burger combo",
+    status: "ready",
+    helper: "Matched and ready",
+    price: "$11.99",
+    details: ["Cheese", "Lettuce", "House sauce"],
+    options: ["No onion", "Extra cheese", "Add bacon"],
+  },
+  {
+    id: "social-montage-requirement",
+    title: "Fries",
+    status: "pending",
+    helper: "Choose a size",
+    price: "$4.49",
+    details: ["Size needed"],
+    options: ["Small", "Medium", "Large"],
+    optionSelectionMode: "single",
+  },
+  {
+    id: "social-montage-extras",
+    title: "Chocolate shake",
+    status: "options",
+    helper: "Optional extras available",
+    price: "$5.99",
+    details: ["Chocolate", "Medium"],
+    options: ["Whipped cream", "Extra chocolate", "Cherry"],
+    optionSelectionMode: "multi",
+  },
+  {
+    id: "social-montage-correction",
+    title: "cho c snd",
+    status: "unknown",
+    helper: "Could not match item",
+    price: "—",
+    details: [],
+    retryPrompt: "Clarify or replace this item.",
+  },
+];
+
+const smartBarMobileWalkthroughPizzaLines: SmartBarMobileOrderLine[] = [
+  {
+    id: "walkthrough-pizza-ready",
+    title: "Medium Pepperoni Pizza",
+    demoDisplayTitle: "Medium Pepperoni Pizza",
+    status: "ready",
+    helper: "Ready",
+    price: "$14.99",
+    details: ["Medium", "Pepperoni"],
+    options: ["Extra cheese", "Well done", "Light sauce"],
+  },
+  {
+    id: "walkthrough-pizza-wings",
+    title: "Hot Buffalo Wings",
+    demoDisplayTitle: "Hot Buffalo Wings",
+    status: "pending",
+    helper: "Must choose",
+    price: "$9.99",
+    details: ["Blue cheese or ranch"],
+    options: ["Blue cheese", "Ranch"],
+    optionSelectionMode: "single",
+  },
+  {
+    id: "walkthrough-pizza-spaghetti",
+    title: "Spaghetti",
+    demoDisplayTitle: "Spaghetti",
+    status: "options",
+    helper: "Add-ons",
+    price: "$10.99",
+    details: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+    options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+    optionSelectionMode: "multi",
+  },
+  {
+    id: "walkthrough-pizza-garstix",
+    title: "gar-stix",
+    demoDisplayTitle: "gar-stix",
+    status: "unknown",
+    helper: "Garlic knots or breadsticks?",
+    price: "—",
+    details: [],
+    retryPrompt: "Clarify as garlic knots or breadsticks.",
+  },
+];
+
+
+
+function smartBarMobileWalkthroughPizzaLinesForState(
+  resolvedState?: SmartBarMobileSocialMontageResolvedState | null,
+): SmartBarMobileOrderLine[] {
+  if (!resolvedState) return smartBarMobileWalkthroughPizzaLines;
+
+  return smartBarMobileWalkthroughPizzaLines.map((line) => {
+    if (line.id === "walkthrough-pizza-wings") {
+      return {
+        ...line,
+        status: "ready" as const,
+        helper: "Choice selected",
+        details: ["Ranch"],
+      };
+    }
+
+    if ((resolvedState === "extras" || resolvedState === "correction") && line.id === "walkthrough-pizza-spaghetti") {
+      return {
+        ...line,
+        status: "ready" as const,
+        helper: "Extras accepted",
+        details: ["Meatballs"],
+      };
+    }
+
+    if (resolvedState === "correction" && line.id === "walkthrough-pizza-garstix") {
+      return {
+        ...line,
+        title: "Garlic Breadsticks",
+        demoDisplayTitle: "Garlic Breadsticks",
+        status: "ready" as const,
+        helper: "Matched and ready",
+        price: "$5.99",
+        details: ["Garlic breadsticks"],
+        retryPrompt: undefined,
+      };
+    }
+
+    return line;
+  });
+}
+
+const smartBarMobileSocialMontageReadyLines: SmartBarMobileOrderLine[] = [
+  {
+    id: "social-montage-ready-burger",
+    title: "Classic burger combo",
+    status: "ready",
+    helper: "Ready for checkout",
+    price: "$11.99",
+    details: ["Cheese", "Lettuce", "House sauce"],
+    options: ["No onion", "Extra cheese", "Add bacon"],
+  },
+  {
+    id: "social-montage-ready-fries",
+    title: "Medium fries",
+    status: "ready",
+    helper: "Ready for checkout",
+    price: "$4.49",
+    details: ["Medium"],
+    options: ["Small", "Medium", "Large"],
+  },
+  {
+    id: "social-montage-ready-shake",
+    title: "Chocolate shake",
+    status: "ready",
+    helper: "Ready for checkout",
+    price: "$5.99",
+    details: ["Chocolate", "Whipped cream"],
+    options: ["Whipped cream", "Extra chocolate", "Cherry"],
+  },
+  {
+    id: "social-montage-ready-sundae",
+    title: "Chocolate sundae",
+    status: "ready",
+    helper: "Ready for checkout",
+    price: "$4.99",
+    details: ["Chocolate", "Sundae"],
+    options: ["Hot fudge", "Whipped cream", "Cherry"],
+  },
+];
+
+const smartBarMobileSocialMontageSubtotal = "$27.46";
+const smartBarMobileSocialMontageTax = "$2.27";
+const smartBarMobileSocialMontageTotal = "$29.73";
+
+type SmartBarMobileSocialMontageResolvedState = "requirement" | "extras" | "correction";
+
+function smartBarMobileSocialMontageLinesForState(
+  resolvedState?: SmartBarMobileSocialMontageResolvedState | null,
+): SmartBarMobileOrderLine[] {
+  if (!resolvedState) return smartBarMobileSocialMontageLines;
+
+  return smartBarMobileSocialMontageLines.map((line) => {
+    if (line.id === "social-montage-requirement") {
+      return {
+        ...line,
+        title: "Medium fries",
+        status: "ready" as const,
+        helper: "Size selected",
+        details: ["Medium"],
+      };
+    }
+
+    if ((resolvedState === "extras" || resolvedState === "correction") && line.id === "social-montage-extras") {
+      return {
+        ...line,
+        title: "Chocolate shake",
+        status: "ready" as const,
+        helper: "Extras accepted",
+        details: ["Chocolate", "Medium", "Whipped cream", "Cherry"],
+      };
+    }
+
+    if (resolvedState === "correction" && line.id === "social-montage-correction") {
+      return {
+        ...line,
+        title: "Chocolate sundae",
+        status: "ready" as const,
+        helper: "Matched and ready",
+        price: "$4.99",
+        details: ["Chocolate", "Sundae"],
+        retryPrompt: undefined,
+      };
+    }
+
+    return line;
+  });
+}
+
+
+function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMontageStage): SmartBarMobileGenericResult {
+  type SmartBarSocialBookingStayBlockTone = "ready" | "pending" | "optional" | "neutral" | "accounting" | "choice" | "empty";
+
+  type SmartBarSocialBookingStayBlock = {
+    id: string;
+    label: string;
+    value: string;
+    helper?: string;
+    tone: SmartBarSocialBookingStayBlockTone;
+    actionId?: string;
+    actionLabel?: string;
+    actionVariant?: "primary" | "secondary";
+    removeActionId?: string;
+    removeActionLabel?: string;
+    trailingIcon?: "trash";
+    valueIcon?: "package";
+  };
+
+  type SmartBarSocialBookingStayCartProps = {
+    responseBody?: string;
+    essentials: SmartBarSocialBookingStayBlock[];
+    room: SmartBarSocialBookingStayBlock;
+    packages: SmartBarSocialBookingStayBlock[];
+    estimate: SmartBarSocialBookingStayBlock;
+    packagePanelOpen?: boolean;
+    packageOptions?: SmartBarSocialBookingStayBlock[];
+    summary?: boolean;
+    spotlightBlockIds?: string[];
+    spotlightKey?: string;
+  };
+
+  const renderSmartBarSocialBookingFormattedText = (text: string) => {
+    const lines = text.split("\n").filter((line) => line.trim().length > 0);
+
+    return (
+      <div className="space-y-1.5">
+        {lines.map((line, index) => {
+          const trimmed = line.trim();
+          const isBullet = trimmed.startsWith("- ");
+          const clean = trimmed
+            .replace(/^-\s*/, "")
+            .replace(/^\*\*/, "")
+            .replace(/\*\*$/, "");
+
+          return (
+            <div
+              key={`${clean}-${index}`}
+              className={isBullet ? "flex gap-2 text-[12px] font-semibold leading-4 text-white/74" : "text-[14px] font-black leading-5 text-white"}
+            >
+              {isBullet ? <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-sky-200/78" /> : null}
+              <span>{clean}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const smartBarSocialBookingStayBlockClass = (tone: SmartBarSocialBookingStayBlockTone) => {
+    if (tone === "empty") {
+      return "border-transparent bg-transparent text-transparent shadow-none ring-transparent";
+    }
+
+    if (tone === "pending") {
+      return "border-red-200/70 bg-red-500/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_10px_22px_rgba(127,29,29,0.24)] ring-red-100/28";
+    }
+
+    if (tone === "ready") {
+      return "border-emerald-100/55 bg-emerald-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40),0_10px_22px_rgba(16,185,129,0.18)] ring-emerald-100/30";
+    }
+
+    if (tone === "optional") {
+      return "border-amber-100/58 bg-amber-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_22px_rgba(180,83,9,0.18)] ring-amber-100/30";
+    }
+
+    if (tone === "accounting") {
+      return "border-blue-300/52 bg-blue-800/96 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_10px_22px_rgba(30,64,175,0.26)] ring-blue-100/24";
+    }
+
+    if (tone === "choice") {
+      return "border-slate-200/70 bg-white/94 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.70),0_10px_22px_rgba(15,23,42,0.16)] ring-white/46";
+    }
+
+    return "border-white/18 bg-slate-950/80 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_22px_rgba(2,6,23,0.18)] ring-white/12";
+  };
+
+  const SmartBarSocialBookingStayBlockTile = ({
+    block,
+    compact = false,
+    spotlighted = false,
+    dimmed = false,
+    spotlightKey = "booking-spotlight",
+  }: {
+    block: SmartBarSocialBookingStayBlock;
+    compact?: boolean;
+    spotlighted?: boolean;
+    dimmed?: boolean;
+    spotlightKey?: string;
+  }) => {
+    if (block.tone === "empty") {
+      return (
+        <div
+          className="min-h-[76px] rounded-[18px] border border-transparent bg-transparent"
+          aria-hidden="true"
+        />
+      );
+    }
+
+    const className = [
+      "relative min-w-0 overflow-hidden rounded-[18px] border text-left ring-1 transition active:scale-[0.985]",
+      block.removeActionId ? "p-0" : "px-2.5 py-2",
+      block.actionId ? "cursor-pointer hover:brightness-[1.04]" : "cursor-default",
+      smartBarSocialBookingStayBlockClass(block.tone),
+      spotlighted
+        ? "z-[80]"
+        : dimmed
+          ? ""
+          : "",
+    ].join(" ");
+
+    const tileContent = (
+      <>
+        {spotlighted ? (
+          <>
+            <motion.div
+              key={`booking-nav-focus-fog-${block.id}-${spotlightKey}`}
+              aria-hidden="true"
+              initial={{ opacity: 0.98, scale: 1.018, backdropFilter: "blur(18px)" }}
+              animate={{ opacity: [0.98, 0.84, 0], scale: [1.018, 1.006, 1], backdropFilter: ["blur(18px)", "blur(10px)", "blur(0px)"] }}
+              transition={{ duration: 1.12, times: [0, 0.34, 1], ease: "easeOut" }}
+              className="pointer-events-none absolute -inset-1 z-30 rounded-[20px] bg-slate-100/75 shadow-[inset_0_0_46px_rgba(255,255,255,0.96)] ring-1 ring-white/80 backdrop-blur-xl [transform:translateZ(0)] [will-change:opacity,transform,backdrop-filter]"
+            />
+            <motion.div
+              key={`booking-nav-focus-glow-${block.id}-${spotlightKey}`}
+              aria-hidden="true"
+              initial={{ opacity: 0.86, scale: 0.992 }}
+              animate={{ opacity: [0.86, 0.62, 0.18], scale: [1, 1.006, 1] }}
+              transition={{ duration: 3.4, times: [0, 0.35, 1], ease: "easeOut" }}
+              className="pointer-events-none absolute -inset-2 z-20 rounded-[22px] ring-2 ring-cyan-300/65 shadow-[0_0_0_10px_rgba(34,211,238,0.12),0_24px_80px_rgba(34,211,238,0.34)] [transform:translateZ(0)] [will-change:opacity,transform]"
+            />
+          </>
+        ) : null}
+        <span className="relative z-10 block truncate text-[9px] font-black uppercase tracking-[0.11em] opacity-70">
+          {block.label}
+        </span>
+        <span className={`${compact ? "text-[14px]" : "text-[15px]"} relative z-10 mt-0.5 flex min-w-0 items-center gap-1.5 font-black leading-4 tracking-[-0.02em]`}>
+          {block.valueIcon === "package" ? <Package className="h-4 w-4 shrink-0" /> : null}
+          <span className="truncate">{block.value}</span>
+        </span>
+        {block.helper ? (
+          <span className="relative z-10 mt-0.5 block truncate text-[10px] font-bold leading-3 opacity-68">
+            {block.helper}
+          </span>
+        ) : null}
+      </>
+    );
+
+    if (block.removeActionId) {
+      return (
+        <div className={className}>
+          <button
+            type="button"
+            data-smartbar-mobile-content-action={block.actionId || "booking-focus-room"}
+            data-smartbar-mobile-content-action-label={block.actionLabel || block.label}
+            data-smartbar-mobile-content-action-variant={block.actionVariant || "secondary"}
+            className="block w-full px-2.5 py-2 pr-12 text-left"
+          >
+            {tileContent}
+          </button>
+          <button
+            type="button"
+            data-smartbar-mobile-content-action={block.removeActionId}
+            data-smartbar-mobile-content-action-label={block.removeActionLabel || "Remove"}
+            data-smartbar-mobile-content-action-variant="secondary"
+            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-slate-950/96 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_16px_rgba(2,6,23,0.28)] ring-1 ring-white/14 transition active:scale-[0.96]"
+            aria-label={block.removeActionLabel || "Remove"}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      );
+    }
+
+    if (!block.actionId) {
+      return <div className={className}>{tileContent}</div>;
+    }
+
+    return (
+      <button
+        type="button"
+        data-smartbar-mobile-content-action={block.actionId}
+        data-smartbar-mobile-content-action-label={block.actionLabel || block.label}
+        data-smartbar-mobile-content-action-variant={block.actionVariant || "primary"}
+        className={className}
+      >
+        {tileContent}
+      </button>
+    );
+  };
+
+  const SmartBarSocialBookingStayCart = ({
+    responseBody,
+    essentials,
+    room,
+    packages,
+    estimate,
+    packagePanelOpen = false,
+    packageOptions = [],
+    summary = false,
+    spotlightBlockIds = [],
+    spotlightKey = "booking-spotlight",
+  }: SmartBarSocialBookingStayCartProps) => {
+    const isSpotlighted = (block: SmartBarSocialBookingStayBlock) => spotlightBlockIds.includes(block.id);
+    const isDimmed = (_block: SmartBarSocialBookingStayBlock) => false;
+    if (summary) {
+      const checkIn = essentials.find((block) => block.id === "stay-check-in")?.value || "Missing";
+      const checkOut = essentials.find((block) => block.id === "stay-checkout")?.value || "Missing";
+      const guests = (essentials.find((block) => block.id === "stay-guests")?.value || "Missing").replace(/\s*·\s*/g, ", ");
+      const selectedPackages = packages.filter((block) => block.tone !== "empty" && block.tone === "ready");
+      const addOns = selectedPackages.length && !/reviewed/i.test(selectedPackages[0]?.value || "")
+        ? selectedPackages.map((block) => block.valueIcon === "package" ? block.helper || block.value : block.value).join(", ")
+        : "No package selected";
+      const dates = checkIn !== "Missing" && checkOut !== "Missing" ? `${checkIn} to ${checkOut}, 2026` : "Dates needed";
+      const summaryRows = [
+        ["Room", room.value || "Selected room"],
+        ["Add-ons", addOns],
+        ["Dates", dates],
+        ["Guests", guests],
+        ["Estimate", estimate.value || "Rate ready"],
+      ];
+
+      return (
+        <div className="rounded-[28px] border border-white/18 bg-slate-950/74 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+          <div className="mb-2 rounded-[22px] border border-white/16 bg-slate-950/88 px-4 py-3 text-[13px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/10">
+            Booking summary
+          </div>
+          <div className="overflow-hidden rounded-[24px] border border-white/14 bg-slate-950/84 text-[14px] font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/10">
+            {summaryRows.map(([label, value]) => {
+              const editActionId = label === "Dates" ? "booking-edit-dates" : label === "Guests" ? "booking-edit-guests" : "";
+              const rowClass = "flex w-full items-center justify-between gap-3 border-b border-white/12 px-4 py-3 text-left last:border-b-0";
+              const labelNode = (
+                <span className="flex items-center gap-1.5 text-white/72">
+                  {label}
+                  {editActionId ? (
+                    <span className="rounded-full bg-sky-200/18 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-sky-100/86 ring-1 ring-sky-100/14">Edit</span>
+                  ) : null}
+                </span>
+              );
+              const valueNode = <strong className="max-w-[62%] text-right text-white [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">{value}</strong>;
+
+              if (editActionId) {
+                return (
+                  <button
+                    key={label}
+                    type="button"
+                    data-smartbar-mobile-content-action={editActionId}
+                    data-smartbar-mobile-content-action-label={`Edit ${label.toLowerCase()}`}
+                    className={`${rowClass} transition hover:bg-white/[0.04] active:bg-white/[0.07]`}
+                  >
+                    {labelNode}
+                    {valueNode}
+                  </button>
+                );
+              }
+
+              return <div key={label} className={rowClass}>{labelNode}{valueNode}</div>;
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (packagePanelOpen) {
+      return (
+        <div className="rounded-[26px] border border-white/18 bg-slate-950/82 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-100/78">Packages</div>
+              <div className="mt-0.5 text-[14px] font-black leading-4 text-white">Review available add-ons</div>
+            </div>
+            <div className="rounded-full bg-amber-300/95 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-950">Multi-select</div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {packageOptions.map((block) => (
+              <SmartBarSocialBookingStayBlockTile
+                key={block.id}
+                block={block}
+                spotlighted={isSpotlighted(block)}
+                dimmed={isDimmed(block)}
+                spotlightKey={spotlightKey}
+              />
+            ))}
+          </div>
+          <div className="mt-3 rounded-[18px] border border-white/14 bg-white/[0.08] px-3 py-2 text-[12px] font-semibold leading-4 text-white/72 ring-1 ring-white/8">
+            Leave selected packages on. Use the footer when done.
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2.5">
+        {responseBody ? (
+          <div className="rounded-[24px] border border-white/22 bg-slate-950/88 px-4 py-3 text-[14px] font-normal leading-6 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_28px_rgba(2,6,23,0.26)] ring-1 ring-white/14 [text-shadow:0_1px_1px_rgba(0,0,0,0.38)]">
+            {renderSmartBarSocialBookingFormattedText(responseBody)}
+          </div>
+        ) : null}
+
+        <div className="rounded-[26px] border border-white/18 bg-slate-950/72 p-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/12">
+          <div className="mb-2">
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-sky-100/74">Stay cart</div>
+          </div>
+
+          <div className="grid grid-cols-[0.72fr_0.72fr_1.34fr] gap-1.5">
+            {essentials.map((block) => (
+              <SmartBarSocialBookingStayBlockTile
+                key={block.id}
+                block={block}
+                compact
+                spotlighted={isSpotlighted(block)}
+                dimmed={isDimmed(block)}
+                spotlightKey={spotlightKey}
+              />
+            ))}
+          </div>
+
+          <div className="mt-2 grid grid-cols-1 gap-1.5">
+            <SmartBarSocialBookingStayBlockTile
+              block={room}
+              spotlighted={isSpotlighted(room)}
+              dimmed={isDimmed(room)}
+              spotlightKey={spotlightKey}
+            />
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
+            {packages.map((block) => (
+              <SmartBarSocialBookingStayBlockTile
+                key={block.id}
+                block={block}
+                spotlighted={isSpotlighted(block)}
+                dimmed={isDimmed(block)}
+                spotlightKey={spotlightKey}
+              />
+            ))}
+            <SmartBarSocialBookingStayBlockTile
+              block={estimate}
+              spotlighted={isSpotlighted(estimate)}
+              dimmed={isDimmed(estimate)}
+              spotlightKey={spotlightKey}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const roomPreviews = [
+    {
+      roomLabel: "Matching room 1 of 3",
+      roomValue: "Garden Terrace King",
+      roomHelper: "Preview",
+      estimate: "$289/night",
+      footer: "Previewing 1 of 3",
+      body: "**Garden Terrace King** is the value-fit option.\n- Keeps the stay in a better-value band.\n- Still matches the requested view.\n- Breakfast can be added without moving into premium pricing.",
+    },
+    {
+      roomLabel: "Matching room 2 of 3",
+      roomValue: "Ocean View Suite",
+      roomHelper: "Preview",
+      estimate: "$379/night",
+      footer: "Previewing 2 of 3",
+      body: "**Ocean View Suite** is the balanced upgrade.\n- Stronger view and comfort than the value room.\n- Breakfast compatibility stays intact.\n- Avoids the Coastal Villa price jump.",
+    },
+    {
+      roomLabel: "Matching room 3 of 3",
+      roomValue: "Coastal Villa Suite",
+      roomHelper: "Preview",
+      estimate: "$429/night",
+      footer: "Previewing 3 of 3",
+      body: "**Coastal Villa Suite** is the premium option.\n- Best view and most space.\n- Highest nightly rate in this set.\n- Useful for comparison, not the value recommendation.",
+    },
+  ];
+
+  const roomIndex = stage.id.includes("two") ? 1 : stage.id.includes("three") ? 2 : 0;
+  const activePreview = roomPreviews[roomIndex];
+
+  const essentialsReady: SmartBarSocialBookingStayBlock[] = [
+    {
+      id: "stay-check-in",
+      label: "In",
+      value: "Aug 4",
+      helper: "Required",
+      tone: "ready",
+      actionId: "booking-edit-dates",
+      actionLabel: "Edit dates",
+    },
+    {
+      id: "stay-checkout",
+      label: "Out",
+      value: "Aug 9",
+      helper: "Required",
+      tone: "ready",
+      actionId: "booking-edit-dates",
+      actionLabel: "Edit dates",
+    },
+    {
+      id: "stay-guests",
+      label: "Guests",
+      value: "1 adult · 0 kids",
+      helper: "Required",
+      tone: "ready",
+      actionId: "booking-edit-guests",
+      actionLabel: "Edit guests",
+    },
+  ];
+
+  const emptyRoom: SmartBarSocialBookingStayBlock = {
+    id: "stay-room",
+    label: "Room",
+    value: "Not selected",
+    helper: "Required",
+    tone: "pending",
+    actionId: "booking-nav-next",
+    actionLabel: "Choose room",
+  };
+
+  const emptyPackage: SmartBarSocialBookingStayBlock = {
+    id: "stay-package-placeholder",
+    label: "",
+    value: "",
+    helper: "",
+    tone: "empty",
+  };
+
+  const liveEstimate = (value: string, helper = "Live estimate"): SmartBarSocialBookingStayBlock => ({
+    id: "stay-estimate",
+    label: "Estimate",
+    value,
+    helper,
+    tone: "accounting",
+  });
+
+  const roomPreviewBlock = (preview = activePreview): SmartBarSocialBookingStayBlock => ({
+    id: "stay-room",
+    label: preview.roomLabel,
+    value: preview.roomValue,
+    helper: preview.roomHelper,
+    tone: "optional",
+    actionId: "booking-focus-room-preview",
+    actionLabel: "Preview room",
+    actionVariant: "primary",
+  });
+
+  const selectedRoomBlock: SmartBarSocialBookingStayBlock = {
+    id: "stay-room",
+    label: "Room",
+    value: "Ocean View Suite",
+    helper: "$379/night",
+    tone: "ready",
+    actionId: "booking-focus-room",
+    actionLabel: "Focus room",
+    actionVariant: "secondary",
+    removeActionId: "booking-remove-room",
+    removeActionLabel: "Remove room",
+    trailingIcon: "trash",
+  };
+
+  const selectedPackageBlock: SmartBarSocialBookingStayBlock = {
+    id: "stay-packages-selected",
+    label: "Packages",
+    value: "Breakfast Flex Plan",
+    helper: "+$32/night",
+    tone: "ready",
+    valueIcon: "package",
+    actionId: "booking-review-packages",
+    actionLabel: "Review packages",
+    actionVariant: "secondary",
+  };
+
+  const packageOptions: SmartBarSocialBookingStayBlock[] = [
+    {
+      id: "package-option-breakfast",
+      label: "Breakfast",
+      value: "Breakfast Flex Plan",
+      helper: "+$32/night",
+      tone: "ready",
+      valueIcon: "package",
+      actionId: "booking-focus-package-breakfast",
+      actionLabel: "Focus Breakfast Flex Plan",
+    },
+    {
+      id: "package-option-parking",
+      label: "Package",
+      value: "Valet Parking",
+      helper: "+$24/night",
+      tone: "choice",
+      valueIcon: "package",
+      actionId: "booking-package-toggle-parking",
+      actionLabel: "Toggle Valet Parking on",
+    },
+    {
+      id: "package-option-spa",
+      label: "Package",
+      value: "Spa Credit",
+      helper: "+$45/night",
+      tone: "choice",
+      valueIcon: "package",
+      actionId: "booking-package-toggle-spa",
+      actionLabel: "Toggle Spa Credit on",
+    },
+  ];
+
+  const roomPreviewActions: SmartBarMobileGenericAction[] = [
+    { id: "booking-nav-back", label: "Back", variant: "back" },
+    { id: "booking-add-room", label: "Add room", helper: "Select preview", variant: "primary" },
+    { id: "booking-edit-room-search", label: "Edit", helper: "Search", variant: "secondary" },
+    { id: "booking-nav-next", label: "Next", variant: "next" },
+  ];
+
+  const packageActions: SmartBarMobileGenericAction[] = [
+    { id: "booking-nav-back", label: "Back", variant: "back" },
+    { id: "booking-review-packages", label: "Review packages", helper: "Add or skip", variant: "primary" },
+    { id: "booking-edit-room-search", label: "Edit", helper: "Search", variant: "secondary" },
+    { id: "booking-nav-next", label: "Next", variant: "next" },
+  ];
+
+  const renderCalendar = () => {
+    const cells = [
+      "", "", "", "", "", "", "2026-08-01",
+      "2026-08-02", "2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06", "2026-08-07", "2026-08-08",
+      "2026-08-09", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14", "2026-08-15",
+      "2026-08-16", "2026-08-17", "2026-08-18", "2026-08-19", "2026-08-20", "2026-08-21", "2026-08-22",
+      "2026-08-23", "2026-08-24", "2026-08-25", "2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29",
+      "2026-08-30", "2026-08-31", "", "", "", "", "",
+    ];
+
+    const dateDraft = {
+      checkInDate: "2026-08-04",
+      checkOutDate: "2026-08-09",
+    };
+    const datesComplete = true;
+
+    const dateState = (value: string) => {
+      if (value === dateDraft.checkInDate || value === dateDraft.checkOutDate) return "selected";
+      if (dateDraft.checkInDate && dateDraft.checkOutDate && value > dateDraft.checkInDate && value < dateDraft.checkOutDate) return "range";
+      return "default";
+    };
+
+    return (
+      <div className="space-y-1.5 pb-5">
+        <div className="rounded-[18px] border border-white/20 bg-slate-950/86 px-3.5 py-2 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_22px_rgba(2,6,23,0.20)] ring-1 ring-white/14">
+          <div className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-100/82">
+            Trip details needed
+          </div>
+        </div>
+
+        <div className="rounded-[22px] border border-white/18 bg-slate-950/80 px-2.5 pb-4 pt-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
+              aria-label="Previous month"
+            >
+              ‹
+            </button>
+            <div className="text-center">
+              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
+                {datesComplete ? "Select check-out" : "Select check-in"}
+              </div>
+              <div className="mt-0.5 text-[14px] font-black leading-4 text-white">
+                August 2026
+              </div>
+            </div>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
+              aria-label="Next month"
+            >
+              ›
+            </button>
+          </div>
+
+          <div className="mb-1.5 grid grid-cols-2 gap-2">
+            <div className="rounded-[16px] bg-sky-200/92 px-3 py-1.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-sky-100/34">
+              <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-in</div>
+              <div className="mt-0.5 text-[13px] font-black leading-4">Aug 4</div>
+            </div>
+            <div className="rounded-[16px] bg-sky-200/70 px-3 py-1.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.30)] ring-1 ring-sky-100/24">
+              <div className="text-[10px] font-black uppercase tracking-[0.12em] opacity-70">Check-out</div>
+              <div className="mt-0.5 text-[13px] font-black leading-4">Aug 9</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-black uppercase tracking-[0.06em] text-white/44">
+            {["S", "M", "T", "W", "T", "F", "S"].map((day, index) => (
+              <div key={`${day}-${index}`} className="py-0.5">{day}</div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((value, index) => {
+              if (!value) return <div key={`empty-${index}`} className="h-7" />;
+
+              const state = dateState(value);
+              const className =
+                state === "selected"
+                  ? "h-7 rounded-full bg-sky-200 text-[12px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),0_6px_14px_rgba(14,165,233,0.20)] ring-1 ring-sky-100/40"
+                  : state === "range"
+                    ? "h-7 rounded-full bg-sky-200/34 text-[12px] font-black text-white ring-1 ring-sky-100/16"
+                    : "h-7 rounded-full bg-white/[0.07] text-[12px] font-black text-white ring-1 ring-white/8";
+
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className={className}
+                  aria-label={`Select ${value}`}
+                  data-tourbar-calendar-date={value}
+                >
+                  {String(Number(value.slice(-2)))}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGuestCounterRow = (label: string, helper: string, value: number, min: number, max: number) => {
+    const buttonClass =
+      "flex h-10 w-10 items-center justify-center rounded-full bg-white/12 text-xl font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/12 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-35";
+
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-[22px] border border-white/14 bg-white/[0.08] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/8">
+        <div className="min-w-0">
+          <div className="text-[13px] font-black leading-4 text-white">{label}</div>
+          <div className="mt-0.5 text-[11px] font-semibold leading-4 text-white/58">{helper}</div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            data-tourbar-guest-control={`${label.toLowerCase().startsWith("adult") ? "adults" : "children"}-decrement`}
+            disabled={value <= min}
+            className={buttonClass}
+            aria-label={`Decrease ${label.toLowerCase()}`}
+          >
+            −
+          </button>
+          <div className="flex h-10 min-w-[46px] items-center justify-center rounded-full bg-emerald-300/92 px-3 text-[16px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-emerald-100/34">
+            {value}
+          </div>
+          <button
+            type="button"
+            data-tourbar-guest-control={`${label.toLowerCase().startsWith("adult") ? "adults" : "children"}-increment`}
+            disabled={value >= max}
+            className={buttonClass}
+            aria-label={`Increase ${label.toLowerCase()}`}
+          >
+            +
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGuests = () => (
+    <div className="rounded-[24px] border border-white/18 bg-slate-950/80 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_24px_rgba(2,6,23,0.18)] ring-1 ring-white/12">
+      <button
+        type="button"
+        className="mb-3 flex w-full items-center justify-between rounded-[20px] border border-sky-100/16 bg-sky-200/16 px-3 py-2 text-left text-xs font-black text-sky-100 ring-1 ring-white/8"
+      >
+        <span>Aug 4–Aug 9</span>
+        <span>Edit</span>
+      </button>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-black uppercase tracking-[0.14em] text-white/62">Guests</div>
+          <div className="mt-0.5 text-[15px] font-black leading-5 text-white">1 adult, 0 kids</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {renderGuestCounterRow("Adults", "Age 18+", 1, 1, 6)}
+        {renderGuestCounterRow("Kids", "Children", 0, 0, 6)}
+      </div>
+    </div>
+  );
+
+  if (stage.surface === "booking_details") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Dates confirmed",
+      statusLabel: "Details captured",
+      height: 330,
+      content: (
+        <SmartBarSocialBookingStayCart
+          essentials={essentialsReady}
+          room={emptyRoom}
+          packages={[emptyPackage]}
+          estimate={liveEstimate("Pending", "Needs room")}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  if (stage.surface === "booking_room_preview") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Room previewed",
+      statusLabel: "Previewing 1 of 3",
+      height: 560,
+      actions: roomPreviewActions,
+      content: (
+        <SmartBarSocialBookingStayCart
+          responseBody={roomPreviews[0].body}
+          essentials={essentialsReady}
+          room={roomPreviewBlock(roomPreviews[0])}
+          packages={[emptyPackage]}
+          estimate={liveEstimate(roomPreviews[0].estimate)}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  if (stage.surface === "booking_rooms") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Rooms compared",
+      statusLabel: activePreview.footer,
+      height: 560,
+      actions: roomPreviewActions,
+      content: (
+        <SmartBarSocialBookingStayCart
+          responseBody={activePreview.body}
+          essentials={essentialsReady}
+          room={roomPreviewBlock(activePreview)}
+          packages={[emptyPackage]}
+          estimate={liveEstimate(activePreview.estimate)}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  if (stage.surface === "booking_room_chosen") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Room selected",
+      statusLabel: "Room set",
+      height: 360,
+      content: (
+        <SmartBarSocialBookingStayCart
+          essentials={essentialsReady}
+          room={selectedRoomBlock}
+          packages={[emptyPackage]}
+          estimate={liveEstimate("$1,895", "Room selected")}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  if (stage.surface === "booking_packages") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Packages reviewed",
+      statusLabel: "Tap when done",
+      height: 390,
+      actions: packageActions,
+      content: (
+        <SmartBarSocialBookingStayCart
+          essentials={essentialsReady}
+          room={selectedRoomBlock}
+          packages={[selectedPackageBlock]}
+          estimate={liveEstimate("$1,895", "Room + breakfast")}
+          packagePanelOpen
+          packageOptions={packageOptions}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  if (stage.surface === "booking_dates") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Dates gathered",
+      statusLabel: "Dates selected",
+      height: 548,
+      content: renderCalendar(),
+    };
+  }
+
+  if (stage.surface === "booking_guests") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Guests set",
+      statusLabel: "Guests selected",
+      height: 340,
+      content: renderGuests(),
+    };
+  }
+
+  if (stage.surface === "booking_finalized") {
+    return {
+      surfaceKind: "booking_tour",
+      eyebrow: "Hotel booking",
+      title: "Booking finalized",
+      statusLabel: "Ready to summarize",
+      height: 382,
+      content: (
+        <SmartBarSocialBookingStayCart
+          essentials={essentialsReady}
+          room={selectedRoomBlock}
+          packages={[selectedPackageBlock]}
+          estimate={liveEstimate("$1,895", "Ready")}
+          spotlightBlockIds={stage.spotlightBlockIds}
+          spotlightKey={stage.id}
+        />
+      ),
+    };
+  }
+
+  return {
+    surfaceKind: "booking_summary",
+    eyebrow: "Hotel booking",
+    title: "Booking summary",
+    statusLabel: "Tap for booking",
+    height: 352,
+    actions: [
+      { id: "booking-summary", label: "Tap for booking", helper: "Review handoff", variant: "primary" },
+    ],
+    content: (
+      <SmartBarSocialBookingStayCart
+        essentials={essentialsReady}
+        room={selectedRoomBlock}
+        packages={[selectedPackageBlock]}
+        estimate={liveEstimate("$1,895", "Ready")}
+        summary
+        spotlightBlockIds={stage.spotlightBlockIds}
+      />
+    ),
+  };
+}
 
 const estimatedTotal = "$19.46";
 
@@ -657,6 +1744,20 @@ function statusLabel(status: SmartBarMobileOrderStatus) {
   return "Unknown";
 }
 
+function smartBarMobileCompactRowHelper(line: SmartBarMobileOrderLine) {
+  if (line.id.startsWith("walkthrough-pizza")) {
+    if (line.status === "ready") return "Ready";
+    if (line.status === "pending") return "Missing requirement";
+    if (line.status === "options") return "Extras available";
+    return "No matching item";
+  }
+
+  if (line.status === "ready") return "Ready";
+  if (line.status === "pending") return "Size needed";
+  if (line.status === "options") return "Extras";
+  return "Unknown";
+}
+
 function smartBarMobileCartRowPrimaryTextClass(status: SmartBarMobileOrderStatus, handoffLocked = false) {
   if (handoffLocked) return "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.42)]";
   if (status === "pending") return "text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.42)]";
@@ -808,6 +1909,8 @@ function smartBarMobileShortLabel(value: string) {
     "diet coke": "Diet Coke",
     "root beer": "Root Beer",
     "honey mustard": "Honey Must",
+    "whipped cream": "Whip cream",
+    "extra whipped cream": "X whip cream",
     "no onions": "No onion",
     "no pickles": "No pickle",
     "extra cheese": "X cheese",
@@ -852,6 +1955,10 @@ function smartBarMobileShortTitle(value: string) {
     "medium fries": "Med Fries",
     "large fries": "Lrg Fries",
     "small fries": "Sm Fries",
+    "chocolate shake": "Choc Shake",
+    "chocolate sundae": "Choc Sundae",
+    "choc sunday": "Choc Sundae",
+    "choc sundae": "Choc Sundae",
     "medium diet coke": "Med Diet Coke",
     "large diet coke": "Lrg Diet Coke",
     "medium sprite": "Med Sprite",
@@ -985,6 +2092,51 @@ type SmartBarMobileIntroCallout = {
   eyebrow?: string;
   title: string;
   body?: string;
+  /** Demo-only: override the typing cadence for scripted callouts. */
+  typeDelayMs?: number;
+  /** Demo-only: override the delay before typing starts. */
+  startDelayMs?: number;
+};
+
+type SmartBarMobileRestCompanion = {
+  label?: string;
+  showLogo?: boolean;
+  blank?: boolean;
+};
+
+type SmartBarMobileDemoMontageSurface =
+  | "carts"
+  | "requirements"
+  | "extras"
+  | "corrections"
+  | "checkout"
+  | "confirmation"
+  | "booking_details"
+  | "booking_room_preview"
+  | "booking_room_chosen"
+  | "booking_rooms"
+  | "booking_packages"
+  | "booking_dates"
+  | "booking_guests"
+  | "booking_finalized"
+  | "booking_summary";
+
+export type SmartBarMobileDemoMontageStage = {
+  id: string;
+  label: string;
+  surface: SmartBarMobileDemoMontageSurface;
+  open: boolean;
+  status?: SmartBarMobileOrderStatus | null;
+  /** Demo-only: preselect option pills so the focus panel visibly resolves. */
+  selectedOptions?: string[];
+  /** Demo-only: prefill gray retry text. */
+  retryDraft?: string;
+  /** Demo-only: apply the navigation-gloss spotlight to a cart row before opening the related focus panel. */
+  shakeLineId?: string;
+  /** Demo-only: show the cart after one or more color-coded issues have resolved. */
+  resolvedState?: "requirement" | "extras" | "correction";
+  /** Demo-only: spotlight booking tracker tiles without changing the surface. */
+  spotlightBlockIds?: string[];
 };
 
 export type SmartBarMobileApplyChoiceMeta = {
@@ -999,12 +2151,34 @@ type SmartBarMobileShellProps = {
   demoTransitionShield?: boolean;
   /** Optional first-load callout shown above the footer launcher while SmartBar is at rest. */
   introCallout?: SmartBarMobileIntroCallout | null;
+  /** Demo-only: render an element-owned cue directly on the rest-state SmartBar launcher capsule. */
+  demoLauncherCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
+  /** Demo-only: render an element-owned cue directly on the active companion/submit capsule. */
+  demoCompanionCue?: { active: boolean; runKey?: string | number } | null;
+  /** Demo-only: render a pulse cue directly on one selected option pill inside a focus panel. */
+  demoOptionCue?: { active: boolean; value: string; runKey?: string | number } | null;
+  /** Demo-only: preload the entry composer with a draft before a scripted submit/open-cart step. */
+  demoPresetEntryDraft?: { draft: string; runKey?: string | number } | null;
+  /** Demo-only override for the rest-state center launcher pill content. */
+  demoRestCompanion?: SmartBarMobileRestCompanion | null;
   /** Label shown in the companion pill when the entry box is empty. */
   entryModeLabel?: string;
   /** Label shown in the companion pill while the shared surface is being prepared. */
   buildingLabel?: string;
   /** Demo-only command hook for scripted mobile replays. Omit in normal use. */
   demoSubmission?: SmartBarMobileDemoSubmission | null;
+  /** Demo-only: open/type the entry composer without moving browser focus, avoiding a mobile keyboard pop. */
+  demoSuppressEntryFocus?: boolean;
+  /** Demo-only staged surface hook for social reels. Omit in normal use. */
+  demoMontageStage?: SmartBarMobileDemoMontageStage | null;
+  /** Demo-only: hide the collapsed upper surface while keeping the footer controls alive. */
+  demoHideCollapsedSurface?: boolean;
+  /** Demo-only: force dense one-line cart rows outside the social montage state machine. */
+  compactCartRows?: boolean;
+  /** Demo-only: trimmed pizza cart for the restaurant walkthrough color explanation. */
+  demoWalkthroughCartMode?: boolean;
+  /** Demo-only reset hook for social reels that need to return the shell to rest. */
+  demoResetToRestKey?: string | null;
   /** Confirmation number shown after a ready cart is sent as a SmartBar ticket. */
   sendOrderNumber?: string;
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
@@ -1020,9 +2194,20 @@ export default function SmartBarMobileShell({
   mode = "lab",
   demoTransitionShield = false,
   introCallout = null,
+  demoLauncherCue = null,
+  demoCompanionCue = null,
+  demoOptionCue = null,
+  demoPresetEntryDraft = null,
+  demoRestCompanion = null,
   entryModeLabel = "Type order",
   buildingLabel = "Building cart...",
   demoSubmission = null,
+  demoSuppressEntryFocus = false,
+  demoMontageStage = null,
+  demoHideCollapsedSurface = false,
+  compactCartRows = false,
+  demoWalkthroughCartMode = false,
+  demoResetToRestKey = null,
   sendOrderNumber = "S-184",
   onSubmitPrompt,
   onApplyLineChoice,
@@ -1191,6 +2376,9 @@ export default function SmartBarMobileShell({
     let intervalId: number | null = null;
     setIntroTypedTitle("");
 
+    const typeDelayMs = introCallout?.typeDelayMs ?? 36;
+    const startDelayMs = introCallout?.startDelayMs ?? 260;
+
     const delayId = window.setTimeout(() => {
       intervalId = window.setInterval(() => {
         index += 1;
@@ -1200,14 +2388,14 @@ export default function SmartBarMobileShell({
           window.clearInterval(intervalId);
           intervalId = null;
         }
-      }, 36);
-    }, 260);
+      }, typeDelayMs);
+    }, startDelayMs);
 
     return () => {
       window.clearTimeout(delayId);
       if (intervalId !== null) window.clearInterval(intervalId);
     };
-  }, [introCallout?.title, phase]);
+  }, [introCallout?.title, introCallout?.typeDelayMs, introCallout?.startDelayMs, phase]);
 
   const mobileShellSideInset = 36;
   const isBookingGenericSurface =
@@ -1260,7 +2448,8 @@ export default function SmartBarMobileShell({
   const buildPanelRadius = buildPanelHeight > realComposerHeight + 18 ? 30 : 999;
   const collapsedCartPanelHeight = 90;
   const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
-  const maxGenericPanelHeight = Math.max(320, Math.floor(stableViewportHeight * (isDesktopBookingGenericSurface ? 0.88 : 0.75)));
+  const isDemoConfirmationPanel = demoMontageStage?.surface === "confirmation";
+  const maxGenericPanelHeight = Math.max(320, Math.floor(stableViewportHeight * (isDesktopBookingGenericSurface ? 0.88 : isDemoConfirmationPanel ? 0.88 : 0.75)));
 
   const lines = useMemo(() => {
     return orderLines.map((line) => {
@@ -1298,6 +2487,10 @@ export default function SmartBarMobileShell({
           ? "options"
           : null
     : null;
+  const walkthroughGuidanceStatusOverride: SmartBarMobileOrderStatus | null =
+    demoWalkthroughCartMode && demoMontageStage?.status ? demoMontageStage.status : null;
+  const effectiveCartGuidanceStatus: SmartBarMobileOrderStatus | null =
+    walkthroughGuidanceStatusOverride ?? cartGuidanceStatus;
   const unresolvedReviewCount = blockingIssueCount + unknownCount + optionCount;
   const visibleCartLines = cartStatusFilter
     ? lines.filter((line) => line.status === cartStatusFilter)
@@ -1336,6 +2529,12 @@ export default function SmartBarMobileShell({
             : bookingPanelMeasuredHeight ?? Math.min(maxGenericPanelHeight, Math.max(280, (genericResult.height ?? 388) + 18))
     : 0;
 
+  const genericMeasurementContentDependency =
+    genericResult &&
+    (genericResult.surfaceKind === "booking_tour" || genericResult.surfaceKind === "booking_summary")
+      ? null
+      : genericResult?.content;
+
   useEffect(() => {
     if (!genericResult) {
       setMeasuredGenericPanelHeight(null);
@@ -1345,7 +2544,7 @@ export default function SmartBarMobileShell({
     const node = genericContentMeasureRef.current;
     const isChat = genericResult.surfaceKind === "chat";
     const fallbackHeight = Math.min(maxGenericPanelHeight, Math.max(isChat ? 200 : 280, genericResult.height ?? (isChat ? 200 : 360)));
-    setMeasuredGenericPanelHeight(fallbackHeight);
+    setMeasuredGenericPanelHeight((current) => current === fallbackHeight ? current : fallbackHeight);
 
     let frame = 0;
     const measureSurface = () => {
@@ -1395,13 +2594,52 @@ export default function SmartBarMobileShell({
       observer?.disconnect();
       window.removeEventListener("smartbar-mobile-chat-height", handleChatHeight as EventListener);
     };
-  }, [genericResult?.surfaceKind, genericResult?.title, genericResult?.content, genericResult?.height, maxGenericPanelHeight]);
+  }, [genericResult?.surfaceKind, genericResult?.title, genericMeasurementContentDependency, genericResult?.height, maxGenericPanelHeight]);
 
+  const demoWalkthroughCleanCartSurface = Boolean(
+    demoWalkthroughCartMode &&
+      demoMontageStage &&
+      !genericResult &&
+      !selectedLine &&
+      (demoMontageStage.surface === "carts" ||
+        demoMontageStage.surface === "checkout" ||
+        demoMontageStage.surface === "confirmation"),
+  );
+  const demoWalkthroughDecisionPanelSwap = Boolean(
+    demoWalkthroughCartMode &&
+      demoMontageStage?.id?.includes("restaurant-walkthrough-decisions"),
+  );
+  const demoWalkthroughHideCartChrome = Boolean(
+    demoWalkthroughCleanCartSurface || demoWalkthroughDecisionPanelSwap,
+  );
+  const demoCompactCartRows = Boolean(
+    compactCartRows ||
+      demoWalkthroughHideCartChrome ||
+      (demoMontageStage &&
+        !genericResult &&
+        !selectedLine &&
+        (demoMontageStage.surface === "carts" ||
+          demoMontageStage.surface === "checkout" ||
+          demoMontageStage.surface === "confirmation")),
+  );
+  const demoCollapsedSurfaceHidden = Boolean(
+    demoHideCollapsedSurface &&
+      demoMontageStage &&
+      !demoMontageStage.open &&
+      phase === "cart" &&
+      !cartExpanded &&
+      !selectedLine &&
+      handoffState === "idle",
+  );
   const cartSummaryHeight = genericResult
     ? genericPanelHeight
     : Math.min(
         maxCartPanelHeight,
-        Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
+        demoWalkthroughHideCartChrome
+          ? Math.max(292, 66 + lines.length * 50 + Math.max(0, lines.length - 1) * 6)
+          : demoCompactCartRows
+            ? Math.max(342, 228 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
+            : Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
       );
   const selectedOptionCount = selectedLine?.options?.length || 0;
   const selectedOptionRows = Math.ceil(selectedOptionCount / 2);
@@ -1444,7 +2682,9 @@ export default function SmartBarMobileShell({
           ease: [0.16, 1, 0.3, 1],
         },
       }
-    : { duration: 0.26, ease: [0.22, 1, 0.36, 1] };
+    : demoWalkthroughDecisionPanelSwap
+      ? { duration: 0 }
+      : { duration: 0.26, ease: [0.22, 1, 0.36, 1] };
 
   const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
     setOrderEstimatedSubtotal(result.estimatedSubtotal);
@@ -1508,6 +2748,64 @@ export default function SmartBarMobileShell({
       setBuildingStatusLabel(buildingLabel);
     }
   }, [buildingLabel, phase]);
+  useEffect(() => {
+    if (!demoResetToRestKey) return;
+
+    // SmartBar social finale reset: clear staged panels so the native introCallout
+    // can type above the bottom rail again.
+    clearBuildTimer();
+    clearHandoffTimers();
+    disarmClose();
+    resetAdaptiveRailToCenter();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
+    setSubmittedPromptPreview("");
+    setEntryDraft("");
+    setRetryDraft("");
+    setEntryFocused(false);
+    setHasEditedEntryDraft(false);
+    setGenericResult(null);
+    setMeasuredGenericPanelHeight(null);
+    setSelectedLineId(null);
+    setCartStatusFilter(null);
+    setLineOverrides({});
+    setReviewedOptionLineKeys({});
+    setHasCart(false);
+    setCartExpanded(false);
+    setHandoffState("idle");
+    setPhase("rest");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoResetToRestKey]);
+
+  useEffect(() => {
+    if (!demoPresetEntryDraft) return;
+
+    clearBuildTimer();
+    clearHandoffTimers();
+    disarmClose();
+    resetAdaptiveRailToCenter();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
+    setSubmittedPromptPreview("");
+    setRetryDraft("");
+    setEntryFocused(false);
+    setHasEditedEntryDraft(true);
+    setGenericResult(null);
+    setMeasuredGenericPanelHeight(null);
+    setSelectedLineId(null);
+    setCartStatusFilter(null);
+    setLineOverrides({});
+    setReviewedOptionLineKeys({});
+    setHasCart(false);
+    setCartExpanded(false);
+    setHandoffState("idle");
+    setEntryDraft(demoPresetEntryDraft.draft);
+    setPhase("entry");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoPresetEntryDraft?.runKey]);
+
 
   useEffect(() => {
     return () => {
@@ -1689,13 +2987,59 @@ export default function SmartBarMobileShell({
       await waitFor(180);
       if (cancelled) return;
 
-      entryTextareaRef.current?.focus({ preventScroll: true });
-      setEntryFocused(document.activeElement === entryTextareaRef.current);
+      if (demoSuppressEntryFocus) {
+        setEntryFocused(false);
+      } else {
+        entryTextareaRef.current?.focus({ preventScroll: true });
+        setEntryFocused(document.activeElement === entryTextareaRef.current);
+      }
 
-      for (let index = 1; index <= query.length; index += 1) {
-        if (cancelled) return;
-        setEntryDraft(query.slice(0, index));
-        await waitFor(typeDelayMs);
+      const typingScript = demoSubmission.typingScript ?? [];
+
+      if (typingScript.length > 0) {
+        let scriptedDraft = "";
+
+        for (const step of typingScript) {
+          if (cancelled) return;
+
+          if (step.action === "pause") {
+            await waitFor(step.ms);
+            continue;
+          }
+
+          if (step.action === "backspace") {
+            const count = Math.max(0, step.count);
+            const stepDelayMs = step.delayMs ?? typeDelayMs;
+
+            for (let index = 0; index < count; index += 1) {
+              if (cancelled) return;
+              scriptedDraft = scriptedDraft.slice(0, -1);
+              setEntryDraft(scriptedDraft);
+              await waitFor(stepDelayMs);
+            }
+
+            continue;
+          }
+
+          const stepDelayMs = step.delayMs ?? typeDelayMs;
+
+          for (const char of step.text) {
+            if (cancelled) return;
+            scriptedDraft += char;
+            setEntryDraft(scriptedDraft);
+            await waitFor(stepDelayMs);
+          }
+        }
+
+        if (!cancelled && scriptedDraft !== query) {
+          setEntryDraft(query);
+        }
+      } else {
+        for (let index = 1; index <= query.length; index += 1) {
+          if (cancelled) return;
+          setEntryDraft(query.slice(0, index));
+          await waitFor(typeDelayMs);
+        }
       }
 
       if (demoSubmission.manualSubmit) return;
@@ -1714,6 +3058,227 @@ export default function SmartBarMobileShell({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoSubmission?.id]);
+
+  useLayoutEffect(() => {
+    if (!demoMontageStage) return;
+
+    clearBuildTimer();
+    clearHandoffTimers();
+    disarmClose();
+    choiceLockedLineIdRef.current = null;
+    setSelectedChoice(null);
+    setRetryCheckingLineId(null);
+    setSubmittedPromptPreview("");
+    setEntryDraft("");
+    setEntryFocused(false);
+    setHasEditedEntryDraft(true);
+    setHasCart(true);
+    setHandoffState("idle");
+    setReviewedOptionLineKeys({});
+    setLineOverrides({});
+
+    if (!demoMontageStage.open) {
+      setPhase("cart");
+      setCartExpanded(false);
+      return;
+    }
+
+    setPhase("cart");
+    setCartExpanded(true);
+
+    if (demoMontageStage.surface.startsWith("booking_")) {
+      setSelectedLineId(null);
+      setCartStatusFilter(null);
+      setOrderLines([]);
+      setOrderEstimatedSubtotal(undefined);
+      setOrderEstimatedTax(undefined);
+      setOrderEstimatedTotal("$1,684");
+      setGenericResult(smartBarMobileSocialBookingMontageResult(demoMontageStage));
+      return;
+    }
+
+    if (demoMontageStage.surface === "confirmation") {
+      const isWalkthroughConfirmation = demoWalkthroughCartMode;
+      setSelectedLineId(null);
+      setCartStatusFilter(null);
+      if (isWalkthroughConfirmation) {
+        setOrderLines(smartBarMobileWalkthroughPizzaLinesForState("correction"));
+        setOrderEstimatedSubtotal("$41.96");
+        setOrderEstimatedTax("$3.46");
+        setOrderEstimatedTotal("$45.42");
+      } else {
+        setOrderLines(smartBarMobileSocialMontageReadyLines);
+        setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
+        setOrderEstimatedTax(smartBarMobileSocialMontageTax);
+        setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
+      }
+      setGenericResult({
+        surfaceKind: "info",
+        eyebrow: isWalkthroughConfirmation ? "Pickup ticket" : "Order sent",
+        title: `SmartBar Order ${sendOrderNumber}`,
+        statusLabel: isWalkthroughConfirmation ? "Pickup ticket" : "Confirmation",
+        height: 268,
+        content: (
+          <div
+            data-smartbar-mobile-social-montage-stage="confirmation"
+            className="rounded-[28px] border border-white/18 bg-slate-950/72 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_28px_rgba(2,6,23,0.20)] ring-1 ring-white/12"
+          >
+            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200/88">
+              {isWalkthroughConfirmation ? "Pickup ticket generated" : "Order sent"}
+            </div>
+            <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{sendOrderNumber}</div>
+            <div className="mx-auto mt-3 max-w-[240px] rounded-full bg-white/92 px-4 py-2 text-sm font-black text-slate-950 shadow-sm">
+              Show this number at pickup.
+            </div>
+            <div className="mx-auto mt-3 max-w-[260px] text-sm font-semibold leading-5 text-white/72">
+              {isWalkthroughConfirmation
+                ? "SmartBar generates a pickup ticket from the confirmed cart."
+                : "Your order was sent to the restaurant as a SmartBar ticket."}
+            </div>
+          </div>
+        ),
+      });
+      return;
+    }
+
+    setGenericResult(null);
+
+    if (demoMontageStage.surface === "carts") {
+      if (demoWalkthroughCartMode) {
+        setOrderLines(smartBarMobileWalkthroughPizzaLinesForState(demoMontageStage.resolvedState));
+        setOrderEstimatedSubtotal(demoMontageStage.resolvedState === "correction" ? "$41.96" : "$35.97");
+        setOrderEstimatedTax(demoMontageStage.resolvedState === "correction" ? "$3.46" : "$2.97");
+        setOrderEstimatedTotal(demoMontageStage.resolvedState === "correction" ? "$45.42" : "$38.94");
+      } else {
+        setOrderLines(smartBarMobileSocialMontageLinesForState(demoMontageStage.resolvedState));
+        setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
+        setOrderEstimatedTax(smartBarMobileSocialMontageTax);
+        setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
+      }
+      setSelectedLineId(null);
+      setCartStatusFilter(null);
+      return;
+    }
+
+    if (demoMontageStage.surface === "checkout") {
+      if (demoWalkthroughCartMode) {
+        setOrderLines(smartBarMobileWalkthroughPizzaLinesForState("correction"));
+        setOrderEstimatedSubtotal("$41.96");
+        setOrderEstimatedTax("$3.46");
+        setOrderEstimatedTotal("$45.42");
+      } else {
+        setOrderLines(smartBarMobileSocialMontageReadyLines);
+        setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
+        setOrderEstimatedTax(smartBarMobileSocialMontageTax);
+        setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
+      }
+      setSelectedLineId(null);
+      setCartStatusFilter(null);
+      setHandoffState("handing_off");
+      return;
+    }
+
+    if (demoWalkthroughCartMode) {
+      const walkthroughBaseState =
+        demoMontageStage.surface === "extras"
+          ? "requirement"
+          : demoMontageStage.surface === "corrections"
+            ? "extras"
+            : null;
+      setOrderLines(smartBarMobileWalkthroughPizzaLinesForState(walkthroughBaseState));
+      setOrderEstimatedSubtotal(walkthroughBaseState === "extras" ? "$35.97" : "$35.97");
+      setOrderEstimatedTax(walkthroughBaseState === "extras" ? "$2.97" : "$2.97");
+      setOrderEstimatedTotal(walkthroughBaseState === "extras" ? "$38.94" : "$38.94");
+    } else {
+      setOrderLines(smartBarMobileSocialMontageLines);
+      setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
+      setOrderEstimatedTax(smartBarMobileSocialMontageTax);
+      setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
+    }
+
+    if (demoMontageStage.surface === "requirements") {
+      const selectedOptions = demoMontageStage.selectedOptions || [];
+      if (demoWalkthroughCartMode) {
+        if (selectedOptions.length) {
+          setLineOverrides({
+            "walkthrough-pizza-wings": {
+              status: "ready",
+              helper: "Choice selected",
+              details: selectedOptions,
+              options: ["Blue cheese", "Ranch"],
+              optionSelectionMode: "single",
+            },
+          });
+        }
+        setSelectedLineId("walkthrough-pizza-wings");
+      } else {
+        if (selectedOptions.length) {
+          setLineOverrides({
+            "social-montage-requirement": {
+              status: "ready",
+              helper: "Required choice set",
+              details: selectedOptions,
+              options: ["Small", "Medium", "Large"],
+              optionSelectionMode: "single",
+            },
+          });
+        }
+        setSelectedLineId("social-montage-requirement");
+      }
+      setCartStatusFilter(null);
+      return;
+    }
+
+    if (demoMontageStage.surface === "extras") {
+      const selectedOptions = demoMontageStage.selectedOptions || [];
+      if (demoWalkthroughCartMode) {
+        setLineOverrides({
+          "walkthrough-pizza-spaghetti": selectedOptions.length
+            ? {
+                status: "ready",
+                helper: "Extras accepted",
+                details: selectedOptions,
+                options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+                optionSelectionMode: "multi",
+              }
+            : {
+                status: "options",
+                helper: "Add-ons",
+                details: [],
+                options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+                optionSelectionMode: "multi",
+              },
+        });
+        setSelectedLineId("walkthrough-pizza-spaghetti");
+      } else {
+        if (selectedOptions.length) {
+          setLineOverrides({
+            "social-montage-extras": {
+              status: "ready",
+              helper: "Extras accepted",
+              details: Array.from(new Set(["Chocolate", "Medium", ...selectedOptions])),
+              options: ["Whipped cream", "Extra chocolate", "Cherry"],
+              optionSelectionMode: "multi",
+            },
+          });
+        }
+        setSelectedLineId("social-montage-extras");
+      }
+      setCartStatusFilter(null);
+      return;
+    }
+
+    if (demoMontageStage.surface === "corrections") {
+      setSelectedLineId(demoWalkthroughCartMode ? "walkthrough-pizza-garstix" : "social-montage-correction");
+      setCartStatusFilter(null);
+      setRetryDraft(demoMontageStage.retryDraft || "");
+      return;
+    }
+
+    setSelectedLineId(null);
+    setCartStatusFilter(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoMontageStage?.id, demoMontageStage?.open, demoMontageStage?.surface, demoWalkthroughCartMode, sendOrderNumber]);
 
   const selectLine = (line: SmartBarMobileOrderLine) => {
     if (handoffLocked) return;
@@ -2110,7 +3675,11 @@ export default function SmartBarMobileShell({
     : "border border-slate-400/35 bg-slate-800 text-slate-50 shadow-sm";
 
   const companionLabel = (() => {
-    if (phase === "rest") return "SmartBar";
+    if (demoMontageStage?.label && phase !== "rest" && !demoWalkthroughCartMode) return demoMontageStage.label;
+    if (phase === "rest") {
+      if (demoRestCompanion?.blank) return "";
+      return demoRestCompanion?.label || "SmartBar";
+    }
     if (closeArmed) return "Tap again...";
     if (handoffState === "handing_off") return "Sending...";
     if (handoffState === "complete") return "Sent";
@@ -2121,6 +3690,7 @@ export default function SmartBarMobileShell({
         : hasCart ? "Updating..." : buildingStatusLabel;
     }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
+    if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLine.id
         ? "Checking..."
@@ -2128,13 +3698,20 @@ export default function SmartBarMobileShell({
     }
     if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
     if (phase === "cart" && selectedLine) return "Back to cart";
-    if (phase === "cart" && cartGuidanceStatus === "pending") return "Tap red entries";
-    if (phase === "cart" && cartGuidanceStatus === "unknown") return "Retry gray entries";
-    if (phase === "cart" && cartGuidanceStatus === "options") return "Review yellow entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Retry gray entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Review yellow entries";
     if (phase === "cart") return "Send order";
     if (checkoutReady) return `Ready to send · ${cartTotals.totalLabel}`;
     return `${unresolvedReviewCount} need attention · ${cartTotals.totalLabel}`;
   })();
+
+  const demoRestCompanionIsBlank = phase === "rest" && Boolean(demoRestCompanion?.blank);
+  const demoRestCompanionShowLogo = phase === "rest"
+    ? demoRestCompanion
+      ? Boolean(demoRestCompanion.showLogo) && !demoRestCompanion.blank
+      : true
+    : false;
 
   const handleCompanionClick = () => {
     if (closeArmed) disarmClose();
@@ -2216,10 +3793,10 @@ export default function SmartBarMobileShell({
       return;
     }
 
-    if (phase === "cart" && cartGuidanceStatus) {
+    if (phase === "cart" && effectiveCartGuidanceStatus) {
       setSelectedLineId(null);
       setCartExpanded(true);
-      setCartStatusFilter(cartGuidanceStatus);
+      setCartStatusFilter(effectiveCartGuidanceStatus);
       return;
     }
 
@@ -2578,15 +4155,17 @@ export default function SmartBarMobileShell({
       ? "options"
       : null
     : null;
-  const companionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
-    ? genericCompanionPolicyStatus
-    : phase === "cart"
-      ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
-        ? selectedLine.status
-        : !selectedLine
-          ? cartGuidanceStatus
-          : null
-      : null;
+  const companionPolicyStatus: SmartBarMobileOrderStatus | null = demoMontageStage
+    ? demoMontageStage.status ?? null
+    : phase === "cart" && genericResult
+      ? genericCompanionPolicyStatus
+      : phase === "cart"
+        ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
+          ? selectedLine.status
+          : !selectedLine
+            ? effectiveCartGuidanceStatus
+            : null
+        : null;
   const companionPillStyle = smartBarMobileFooterPolicyStyle(companionPolicyStatus);
   const companionTextClass = smartBarMobileFooterPolicyTextClass(companionPolicyStatus);
   const {
@@ -2884,7 +4463,7 @@ export default function SmartBarMobileShell({
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
-        {(phase === "building_cart" || phase === "cart") && (
+        {(phase === "building_cart" || (phase === "cart" && !demoCollapsedSurfaceHidden)) && (
           <motion.section
             key="fake-cart-surface"
             initial={{ opacity: 0 }}
@@ -2939,10 +4518,10 @@ export default function SmartBarMobileShell({
                 {phase === "cart" && cartExpanded && selectedLine && (
                   <motion.div
                     key={`fake-item-detail-${selectedLine.id}`}
-                    initial={{ opacity: 0 }}
+                    initial={demoWalkthroughDecisionPanelSwap ? { opacity: 1 } : { opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    exit={demoWalkthroughDecisionPanelSwap ? { opacity: 0 } : { opacity: 0 }}
+                    transition={demoWalkthroughDecisionPanelSwap ? { duration: 0 } : { duration: 0.16, ease: "easeOut" }}
                     className="flex h-full min-h-0 flex-col p-3"
                   >
                     <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
@@ -3006,7 +4585,7 @@ export default function SmartBarMobileShell({
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
                                     disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
-                                    className={`min-w-0 rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
+                                    className={`relative min-w-0 overflow-visible rounded-[22px] px-3 py-3 text-sm font-black shadow-lg transition ${
                                       isSelected
                                         ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
                                           ? "bg-emerald-300/98 text-slate-950 ring-2 ring-emerald-50/54"
@@ -3020,6 +4599,18 @@ export default function SmartBarMobileShell({
                                             : "bg-white/88 text-slate-950"
                                     }`}
                                   >
+                                    {demoOptionCue?.active && demoOptionCue.value.trim().toLowerCase() === option.trim().toLowerCase() ? (
+                                      <motion.span
+                                        key={`smartbar-demo-option-cue-${selectedLine.id}-${smartBarMobileDemoKey(option)}-${demoOptionCue.runKey ?? "cue"}`}
+                                        aria-hidden="true"
+                                        className="pointer-events-none absolute -right-1 -top-1 z-20 h-8 w-8 rounded-full border-2 border-[#012169] bg-white/72 shadow-[0_12px_24px_rgba(1,33,105,0.20)] ring-4 ring-white/70"
+                                        initial={{ opacity: 0, scale: 0.72 }}
+                                        animate={{ opacity: [0, 1, 0.9, 0], scale: [0.72, 1.05, 1.2, 1.5] }}
+                                        transition={{ duration: 1.02, times: [0, 0.16, 0.58, 1], ease: "easeOut" }}
+                                      >
+                                        <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169]" />
+                                      </motion.span>
+                                    ) : null}
                                     <span className="inline-flex min-w-0 max-w-full items-center justify-center gap-1.5">
                                       {isSelected && <Check className="h-3.5 w-3.5 shrink-0" />}
                                       <span className="min-w-0 truncate">{smartBarMobileShortLabel(option)}</span>
@@ -3039,10 +4630,10 @@ export default function SmartBarMobileShell({
                   <motion.div
                     key={`fake-generic-content-${genericResult.surfaceKind}`}
                     data-smartbar-mobile-generic-surface={genericResult.surfaceKind}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={demoWalkthroughDecisionPanelSwap ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    exit={demoWalkthroughDecisionPanelSwap ? { opacity: 0, y: 0 } : { opacity: 0, y: -8 }}
+                    transition={demoWalkthroughDecisionPanelSwap ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
                     ref={genericContentMeasureRef}
                     className={genericResult?.surfaceKind === "info" ? "flex min-h-0 flex-col px-3 pb-3 pt-2" : genericResult?.surfaceKind === "chat" ? "flex min-h-0 flex-col px-2 pb-2 pt-2" : "flex min-h-0 flex-col px-4 pb-2 pt-3"}
                   >
@@ -3188,11 +4779,11 @@ export default function SmartBarMobileShell({
                 {phase === "cart" && cartExpanded && !selectedLine && !genericResult && (
                   <motion.div
                     key="fake-cart-content"
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={demoWalkthroughDecisionPanelSwap ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="relative flex h-full min-h-0 flex-col p-4"
+                    exit={demoWalkthroughDecisionPanelSwap ? { opacity: 0, y: 0 } : { opacity: 0, y: -8 }}
+                    transition={demoWalkthroughDecisionPanelSwap ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
+                    className={`relative flex h-full min-h-0 flex-col ${demoWalkthroughHideCartChrome ? "px-3 pb-0 pt-3" : demoCompactCartRows ? "p-3" : "p-4"}`}
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -3201,18 +4792,21 @@ export default function SmartBarMobileShell({
                         </div>
                       </div>
 
-                      <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${issuePillClass}`}>
-                        {checkoutReady ? (
-                          <>
-                            <Check className="h-3.5 w-3.5" />
-                            Complete
-                          </>
-                        ) : `${unresolvedReviewCount} open`}
-                      </div>
+                      {!demoWalkthroughHideCartChrome && (
+                        <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${issuePillClass}`}>
+                          {checkoutReady ? (
+                            <>
+                              <Check className="h-3.5 w-3.5" />
+                              Complete
+                            </>
+                          ) : `${unresolvedReviewCount} open`}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="mt-3 grid shrink-0 grid-cols-5 gap-1.5">
-                      <button
+                    {!demoWalkthroughHideCartChrome && (
+                      <div className="mt-3 grid shrink-0 grid-cols-5 gap-1.5">
+                        <button
                         type="button"
                         data-smartbar-mobile-cart-view="default"
                         onClick={clearCartStatusFilter}
@@ -3266,12 +4860,13 @@ export default function SmartBarMobileShell({
                       >
                         {unknownCount}
                       </button>
-                    </div>
+                      </div>
+                    )}
 
                     <div
                       ref={cartScrollRef}
                       data-smartbar-mobile-cart-scroll="true"
-                      className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1 pb-2 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      className={`${demoWalkthroughHideCartChrome ? "mt-3 space-y-1.5 pb-0" : demoCompactCartRows ? "mt-2 space-y-1.5 pb-1" : "mt-3 space-y-2 pb-2"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {visibleCartLines.map((line) => (
@@ -3283,8 +4878,18 @@ export default function SmartBarMobileShell({
                           data-smartbar-mobile-line-title-key={smartBarMobileDemoKey(line.title)}
                           data-smartbar-mobile-line-status={line.status}
                           data-smartbar-mobile-line-target={line.targetId || line.sourceItemId || undefined}
-                          animate={handoffLocked ? { x: 0, scale: 1 } : smartBarMobileRowAnimate(line.status)}
-                          transition={handoffLocked ? { type: "spring", stiffness: 520, damping: 36 } : smartBarMobileRowTransition(line.status)}
+                          animate={
+                            handoffLocked || demoMontageStage?.shakeLineId
+                              ? { x: 0, y: 0, scale: 1, opacity: 1 }
+                              : smartBarMobileRowAnimate(line.status)
+                          }
+                          transition={
+                            handoffLocked
+                              ? { type: "spring", stiffness: 520, damping: 36 }
+                              : demoMontageStage?.shakeLineId
+                                ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                                : smartBarMobileRowTransition(line.status)
+                          }
                           onClick={() => {
                             if (!handoffLocked) selectLine(line);
                           }}
@@ -3294,30 +4899,58 @@ export default function SmartBarMobileShell({
                               if (!handoffLocked) selectLine(line);
                             }
                           }}
-                          className={`${lineButtonClass} ${line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
-                          style={{ touchAction: "pan-y" }}
+                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
+                            demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
+                          } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
+                          style={{ touchAction: "pan-y", transformOrigin: "center center" }}
                         >
-                          <div className={`flex justify-between gap-3 ${line.demoHideMeta ? "min-h-[1.35rem] items-center" : "items-start"}`}>
-                            <div className={`min-w-0 ${line.demoHideMeta ? "flex min-h-[1.35rem] flex-1 items-center" : ""}`}>
+                          {demoMontageStage?.shakeLineId === line.id ? (
+                            <>
+                              <motion.div
+                                key={`food-nav-focus-fog-${line.id}-${demoMontageStage.id}`}
+                                aria-hidden="true"
+                                initial={{ opacity: 0.98, scale: 1.018, backdropFilter: "blur(18px)" }}
+                                animate={{ opacity: [0.98, 0.84, 0], scale: [1.018, 1.006, 1], backdropFilter: ["blur(18px)", "blur(10px)", "blur(0px)"] }}
+                                transition={{ duration: 1.12, times: [0, 0.34, 1], ease: "easeOut" }}
+                                className="pointer-events-none absolute -inset-1 z-30 rounded-[1.6rem] bg-slate-100/75 shadow-[inset_0_0_46px_rgba(255,255,255,0.96)] ring-1 ring-white/80 backdrop-blur-xl [transform:translateZ(0)] [will-change:opacity,transform,backdrop-filter]"
+                              />
+                              <motion.div
+                                key={`food-nav-focus-glow-${line.id}-${demoMontageStage.id}`}
+                                aria-hidden="true"
+                                initial={{ opacity: 0.86, scale: 0.992 }}
+                                animate={{ opacity: [0.86, 0.62, 0.18], scale: [1, 1.006, 1] }}
+                                transition={{ duration: 3.4, times: [0, 0.35, 1], ease: "easeOut" }}
+                                className="pointer-events-none absolute -inset-2 z-20 rounded-[1.75rem] ring-2 ring-cyan-300/65 shadow-[0_0_0_10px_rgba(34,211,238,0.12),0_24px_80px_rgba(34,211,238,0.34)] [transform:translateZ(0)] [will-change:opacity,transform]"
+                              />
+                            </>
+                          ) : null}
+                          <div className={`relative z-10 flex justify-between gap-2.5 ${demoCompactCartRows || line.demoHideMeta ? "min-h-[1.35rem] items-center" : "items-start"}`}>
+                            <div className={`min-w-0 ${demoCompactCartRows ? "flex min-h-[1.35rem] flex-1 items-baseline gap-1.5" : line.demoHideMeta ? "flex min-h-[1.35rem] flex-1 items-center" : ""}`}>
                               <div
                                 className={[
                                   "truncate font-black",
-                                  line.demoHideMeta
-                                    ? `text-[15px] leading-tight tracking-[-0.025em] ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`
-                                    : `text-base ${handoffLocked ? handoffTitleClass : smartBarMobileCartRowPrimaryTextClass(line.status, false)}`,
+                                  demoCompactCartRows
+                                    ? `text-[15px] leading-tight tracking-[-0.03em] ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`
+                                    : line.demoHideMeta
+                                      ? `text-[15px] leading-tight tracking-[-0.025em] ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`
+                                      : `text-base ${handoffLocked ? handoffTitleClass : smartBarMobileCartRowPrimaryTextClass(line.status, false)}`,
                                 ].join(" ")}
                               >
                                 {line.demoDisplayTitle !== undefined ? line.demoDisplayTitle : smartBarMobileShortTitle(line.title)}
                               </div>
-                              {!line.demoHideMeta ? (
+                              {demoCompactCartRows && !demoWalkthroughHideCartChrome && !line.demoHideMeta ? (
+                                <div className={`min-w-[3.4rem] shrink-0 truncate text-[11px] font-black leading-none ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
+                                  · {smartBarMobileCompactRowHelper(line)}
+                                </div>
+                              ) : !demoCompactCartRows && !line.demoHideMeta ? (
                                 <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
                                   {line.helper}
                                 </div>
                               ) : null}
                             </div>
-                            <div className="flex shrink-0 flex-col items-end gap-2 text-right">
-                              {!line.demoHideMeta ? <div className={`text-sm font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
-                              {!handoffLocked && !line.demoHideMeta && (
+                            <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
+                              {!line.demoHideMeta ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
+                              {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && (
                                 <button
                                   type="button"
                                   data-smartbar-mobile-remove-line="true"
@@ -3375,20 +5008,22 @@ export default function SmartBarMobileShell({
                       />
                     </div>
 
-                    <div className={totalsBoxClass}>
-                      <div className="flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                        <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Subtotal</span>
-                        <span className="tabular-nums">{cartTotals.subtotalLabel}</span>
+                    {!demoWalkthroughHideCartChrome && (
+                      <div className={`${totalsBoxClass} ${demoCompactCartRows ? "!mt-2 !rounded-[22px] !px-4 !py-2.5" : ""}`}>
+                        <div className="flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
+                          <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Subtotal</span>
+                          <span className="tabular-nums">{cartTotals.subtotalLabel}</span>
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
+                          <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Est. tax</span>
+                          <span className="tabular-nums">{cartTotals.taxLabel}</span>
+                        </div>
+                        <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/24" : "border-white/20"}`}>
+                          <span>Total</span>
+                          <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
+                        </div>
                       </div>
-                      <div className="mt-1 flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                        <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Est. tax</span>
-                        <span className="tabular-nums">{cartTotals.taxLabel}</span>
-                      </div>
-                      <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/24" : "border-white/20"}`}>
-                        <span>Total</span>
-                        <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
-                      </div>
-                    </div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -3444,6 +5079,7 @@ export default function SmartBarMobileShell({
                 )}
               </div>
 
+
               <div className="absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border-b border-r border-white/18 bg-slate-900/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]" />
             </div>
           </motion.div>
@@ -3488,7 +5124,7 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-submit={phase === "entry" && entryDraft.trim() ? "true" : undefined}
             data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-send-order={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
-            data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && cartGuidanceStatus ? cartGuidanceStatus : undefined}
+            data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && effectiveCartGuidanceStatus ? effectiveCartGuidanceStatus : undefined}
             data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             onClick={handleCompanionClick}
@@ -3497,9 +5133,11 @@ export default function SmartBarMobileShell({
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <span className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}>
-                <Compass className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.25} />
-                <span>{companionLabel}</span>
+              <span className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap ${demoRestCompanionIsBlank ? "px-0" : "px-4"} text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}>
+                {demoRestCompanionShowLogo ? (
+                  <Compass className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.25} />
+                ) : null}
+                {companionLabel ? <span>{companionLabel}</span> : null}
               </span>
             ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
               <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
@@ -3511,6 +5149,85 @@ export default function SmartBarMobileShell({
               </span>
             )}
           </button>
+
+          {demoLauncherCue?.active && phase === "rest" && (
+            <motion.div
+              key={`smartbar-launcher-owned-cue-${demoLauncherCue.runKey ?? companionLabel}`}
+              className="pointer-events-none absolute top-1/2 z-20"
+              style={{ left: launcherPillLeft + 12 }}
+              initial={{ opacity: 0, scale: 0.96, x: -2, y: "-50%" }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0.96, 1, 1, 0.98],
+                x: [-2, 0, 0, 0],
+                y: "-50%",
+              }}
+              transition={{
+                duration: 1.48,
+                times: [0, 0.14, 0.72, 1],
+                ease: "easeOut",
+              }}
+            >
+              <div className="relative h-11 w-11 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+                <motion.span
+                  className="absolute inset-[-8px] rounded-full border-2 border-[#012169]/34"
+                  initial={{ opacity: 0, scale: 0.62 }}
+                  animate={{ opacity: [0, 0, 0.72, 0], scale: [0.62, 0.62, 1.55, 2.05] }}
+                  transition={{
+                    duration: 1.48,
+                    times: [0, 0.44, 0.58, 0.9],
+                    ease: "easeOut",
+                  }}
+                />
+                <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+              </div>
+
+              {demoLauncherCue.showTooltip !== false && (
+                <motion.div
+                  className="absolute left-7 top-[-18px] whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
+                  initial={{ opacity: 0, x: -5, scale: 0.96 }}
+                  animate={{ opacity: [0, 1, 1, 0], x: [-5, 0, 0, 4], scale: [0.96, 1, 1, 0.98] }}
+                  transition={{ duration: 1.48, times: [0, 0.16, 0.78, 1], ease: "easeOut" }}
+                >
+                  {demoLauncherCue.label || "Tap to open"}
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {demoCompanionCue?.active && (phase === "entry" || (phase === "cart" && (Boolean(selectedLine) || (!genericResult && !selectedLine && checkoutReady)))) && (
+            <motion.div
+              key={`smartbar-companion-owned-cue-${demoCompanionCue.runKey ?? companionLabel}`}
+              className="pointer-events-none absolute top-1/2 z-20"
+              style={{ left: launcherPillLeft + 12 }}
+              initial={{ opacity: 0, scale: 0.96, x: -2, y: "-50%" }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0.96, 1, 1, 0.98],
+                x: [-2, 0, 0, 0],
+                y: "-50%",
+              }}
+              transition={{
+                duration: 1.48,
+                times: [0, 0.14, 0.72, 1],
+                ease: "easeOut",
+              }}
+            >
+              <div className="relative h-11 w-11 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+                <motion.span
+                  className="absolute inset-[-8px] rounded-full border-2 border-[#012169]/34"
+                  initial={{ opacity: 0, scale: 0.62 }}
+                  animate={{ opacity: [0, 0, 0.72, 0], scale: [0.62, 0.62, 1.55, 2.05] }}
+                  transition={{
+                    duration: 1.48,
+                    times: [0, 0.44, 0.58, 0.9],
+                    ease: "easeOut",
+                  }}
+                />
+                <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+              </div>
+            </motion.div>
+          )}
 
           <AnimatePresence initial={false}>
             {showCartToggle && (

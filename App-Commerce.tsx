@@ -22,7 +22,7 @@ import GuideShellStatic, {
 } from "./components/GuideShellStatic";
 import TourBarBooking, { type TourBarBookingSiteAdapter } from "./components/tourbar/TourBarBooking";
 import SmartBarBookingAdapter from "./components/tourbar/smartbar-mobile/adapters/SmartBarBookingAdapter";
-import { SmartBarSocialBookingReel, SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
+import { SmartBarSocialBookingReel, SmartBarSocialSetupLinePrototype, SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
 import DemoController, { type DemoStatus } from "./demo/DemoController";
 import {
   guidedCommerceRichIntentDemo,
@@ -2196,20 +2196,25 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
   };
 
   const smartBarSocialPath =
-    typeof window !== "undefined" ? window.location.pathname : "";
-  const isSmartBarSocialTeaserRoute =
-    smartBarSocialPath === "/social/smartbar-teaser" ||
-    smartBarSocialPath === "/local-social-smartbar-teaser";
-  const isSmartBarSocialBookingRoute =
-    smartBarSocialPath === "/social/smartbar-booking" ||
-    smartBarSocialPath === "/local-social-smartbar-booking";
+    typeof window !== "undefined" ? window.location.pathname.replace(/\/$/, "") || "/" : "";
+  const isSmartBarSocialRoute =
+    smartBarSocialPath.startsWith("/social/smartbar-") ||
+    smartBarSocialPath.startsWith("/local-social-smartbar-");
 
-  if (isSmartBarSocialTeaserRoute) {
-    return <SmartBarSocialTeaserReel />;
-  }
+  if (isSmartBarSocialRoute) {
+    if (smartBarSocialPath.endsWith("/smartbar-teaser")) {
+      return <SmartBarSocialTeaserReel />;
+    }
 
-  if (isSmartBarSocialBookingRoute) {
-    return <SmartBarSocialBookingReel />;
+    if (smartBarSocialPath.endsWith("/smartbar-booking")) {
+      return <SmartBarSocialBookingReel />;
+    }
+
+    if (smartBarSocialPath.endsWith("/smartbar-setup-line")) {
+      return <SmartBarSocialSetupLinePrototype />;
+    }
+
+    return null;
   }
 
   return (

@@ -6,8 +6,28 @@ type SmartBarOrderBoardItemStatus = "new" | "entered";
 
 type SmartBarOrderBoardMockProps = {
   demoMode?: boolean;
+  /** Social reel portrait mode: large 2x2 board and big readable ticket. */
+  demoSocialPortrait?: boolean;
+  /** Walkthrough board mode: tighter portrait grid so six tiles fit without clipping. */
+  demoCompactBoard?: boolean;
   demoRevealOrderId?: string;
   demoRevealDelayMs?: number;
+  demoAutoOpenOrderId?: string;
+  demoAutoOpenKey?: string;
+  demoAutoOpenDelayMs?: number;
+  /** Walkthrough mode: show the standard owned tap cue on a tile before auto-opening it. */
+  demoShowAutoOpenCue?: boolean;
+  /** Walkthrough mode: keep the sheet inside the board scene instead of the full viewport. */
+  demoContainedSheet?: boolean;
+  /** Walkthrough mode: start with a ticket already open, preserving the prior slide final state. */
+  demoInitialOpenOrderId?: string;
+  /** Walkthrough mode: show the standard tap cue on the handled action before auto-marking. */
+  demoShowAutoMarkEnteredCue?: boolean;
+  /** Walkthrough mode: override the visible staff action label. */
+  demoMarkEnteredLabel?: string;
+  demoAutoMarkEnteredOrderId?: string;
+  demoAutoMarkEnteredKey?: string;
+  demoAutoMarkEnteredDelayMs?: number;
   demoOrders?: SmartBarOrderBoardItem[];
   className?: string;
   onDemoEntered?: (orderId: string) => void;
@@ -60,36 +80,25 @@ const INITIAL_ORDERS: SmartBarOrderBoardItem[] = [
     id: "S-184",
     minutesAgo: 2,
     status: "new",
-    customer: "Chris",
-    phone: "202-555-0148",
+    customer: "SmartBar",
+    phone: "202-555-0184",
     pickup: "ASAP",
-    itemCount: 6,
+    itemCount: 4,
     groups: [
       {
-        title: "Sandwiches",
-        items: [
-          {
-            quantity: 2,
-            name: "Half-smoke",
-            details: ["1 no onions", "1 extra chili"],
-          },
-          {
-            quantity: 1,
-            name: "Jerk chicken sandwich",
-            details: ["Mild sauce"],
-          },
-        ],
+        title: "Mains",
+        items: [{ quantity: 1, name: "Classic burger combo", details: ["Diet Coke"] }],
       },
       {
         title: "Sides",
-        items: [
-          { quantity: 1, name: "Chili cheese fries" },
-          { quantity: 1, name: "Regular fries" },
-        ],
+        items: [{ quantity: 1, name: "Medium fries" }],
       },
       {
-        title: "Drinks",
-        items: [{ quantity: 1, name: "Half & Half" }],
+        title: "Dessert",
+        items: [
+          { quantity: 1, name: "Chocolate shake", details: ["Whipped cream", "Cherry"] },
+          { quantity: 1, name: "Chocolate sundae" },
+        ],
       },
     ],
     notes: "Customer will pay at pickup.",
@@ -215,9 +224,15 @@ function smartBarOrderBoardOrderNumber(orderId: string) {
 function SmartBarOrderTile({
   order,
   onOpen,
+  demoSocialPortrait = false,
+  demoCompactBoard = false,
+  demoTapCue = false,
 }: {
   order: SmartBarOrderBoardItem;
   onOpen: (order: SmartBarOrderBoardItem) => void;
+  demoSocialPortrait?: boolean;
+  demoCompactBoard?: boolean;
+  demoTapCue?: boolean;
 }) {
   const isNew = order.status === "new";
 
@@ -228,7 +243,11 @@ function SmartBarOrderTile({
       data-smartbar-order-board-tile={order.id}
       data-smartbar-order-board-status={order.status}
       className={[
-        "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
+        demoSocialPortrait
+          ? demoCompactBoard
+            ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
+            : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
+          : "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
         isNew
           ? "bg-white text-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.12)] ring-1 ring-white/80 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.16)]"
           : "bg-transparent text-slate-400 shadow-none ring-0",
@@ -236,16 +255,34 @@ function SmartBarOrderTile({
       aria-label={`Open SmartBar order ${order.id}`}
     >
       <span className="flex h-full flex-col items-center justify-center">
-        <span className="text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight">{order.id}</span>
-        <span className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+        <span className={demoSocialPortrait ? demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
+        <span className={demoSocialPortrait ? demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
           {isNew ? timeLabel(order.minutesAgo) : "entered"}
         </span>
         {isNew ? (
-          <span className="mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+          <span className={demoSocialPortrait ? demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
             {order.itemCount} items
           </span>
         ) : null}
       </span>
+      {demoTapCue ? (
+        <motion.span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm"
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          <motion.span
+            className="absolute inset-[-9px] rounded-full border-2 border-[#012169]/70"
+            initial={{ opacity: 0, scale: 0.72 }}
+            animate={{ opacity: [0, 0.72, 0], scale: [0.72, 1.18, 1.52] }}
+            transition={{ duration: 0.72, ease: "easeOut", times: [0, 0.32, 1] }}
+          />
+          <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+        </motion.span>
+      ) : null}
     </button>
   );
 }
@@ -254,10 +291,18 @@ function SmartBarOrderSheet({
   order,
   onClose,
   onMarkEntered,
+  demoSocialPortrait = false,
+  demoContainedSheet = false,
+  demoMarkEnteredLabel = "Entered",
+  demoMarkEnteredCue = false,
 }: {
   order: SmartBarOrderBoardItem;
   onClose: () => void;
   onMarkEntered: (orderId: string) => void;
+  demoSocialPortrait?: boolean;
+  demoContainedSheet?: boolean;
+  demoMarkEnteredLabel?: string;
+  demoMarkEnteredCue?: boolean;
 }) {
   const [isSwipingDone, setIsSwipingDone] = useState(false);
   const isNew = order.status === "new";
@@ -265,7 +310,13 @@ function SmartBarOrderSheet({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/20 px-3 pb-3 backdrop-blur-[2px]"
+        className={demoContainedSheet
+          ? "absolute inset-0 z-50 flex items-center justify-center bg-slate-950/14 px-3 py-3 backdrop-blur-[2px]"
+          : demoSocialPortrait
+            ? "fixed z-50 flex items-center justify-center bg-slate-950/18 px-2 py-2 backdrop-blur-[2px]"
+            : "fixed inset-0 z-50 flex items-end justify-center bg-slate-950/20 px-3 pb-3 backdrop-blur-[2px]"
+        }
+        style={!demoContainedSheet && demoSocialPortrait ? { left: -10, right: -10, top: -72, bottom: -126 } : undefined}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -277,13 +328,19 @@ function SmartBarOrderSheet({
           aria-label={`SmartBar order ${order.id}`}
           data-smartbar-order-board-sheet="true"
           className={[
-            "relative w-full max-w-3xl overflow-hidden rounded-[34px] border border-white/70",
+            demoContainedSheet
+              ? "relative h-full max-h-full w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/70"
+              : demoSocialPortrait
+                ? "relative h-[92%] max-h-[620px] w-full max-w-none overflow-hidden rounded-[32px] border border-white/70"
+                : "relative w-full max-w-3xl overflow-hidden rounded-[34px] border border-white/70",
             "shadow-[0_30px_90px_rgba(15,23,42,0.28)] ring-1 ring-slate-950/5",
             isSwipingDone ? "bg-slate-200" : "bg-white",
           ].join(" ")}
-          initial={{ y: "110%" }}
-          animate={{ y: isSwipingDone ? -96 : 0, scale: isSwipingDone ? 0.985 : 1 }}
-          exit={{ y: "110%" }}
+          initial={demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.88 : 0.70 } : { y: "110%" }}
+          animate={demoContainedSheet || demoSocialPortrait
+            ? { opacity: 1, y: isSwipingDone ? -18 : 0, scale: isSwipingDone ? 0.96 : 1 }
+            : { y: isSwipingDone ? -96 : 0, scale: isSwipingDone ? 0.985 : 1 }}
+          exit={demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.9 : 0.72 } : { y: "110%" }}
           drag={isNew ? "y" : false}
           dragConstraints={{ top: -150, bottom: 130 }}
           dragElastic={{ top: 0.18, bottom: 0.22 }}
@@ -318,12 +375,12 @@ function SmartBarOrderSheet({
 
           <div className="mx-auto mt-3 h-1.5 w-14 rounded-full bg-slate-300" />
 
-          <div className="flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-7">
-            <div>
+          <div className={demoContainedSheet ? "flex items-start justify-between gap-3 px-4 pb-2 pt-3" : demoSocialPortrait ? "flex items-start justify-between gap-3 px-4 pb-3 pt-4" : "flex items-start justify-between gap-4 px-5 pb-4 pt-5 sm:px-7"}>
+            <div className="min-w-0 flex-1">
               <div className="text-xs font-black uppercase tracking-[0.26em] text-sky-600">SmartBar Order</div>
-              <div className="mt-1 flex items-baseline gap-3">
-                <h1 className="text-4xl font-black tracking-tight text-slate-950">{order.id}</h1>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              <div className={demoSocialPortrait ? "mt-1 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1" : "mt-1 flex items-baseline gap-3"}>
+                <h1 className={demoContainedSheet ? "shrink-0 whitespace-nowrap text-[2.2rem] font-black leading-none tracking-[-0.055em] text-slate-950" : demoSocialPortrait ? "shrink-0 whitespace-nowrap text-[3.05rem] font-black leading-none tracking-[-0.06em] text-slate-950" : "text-4xl font-black tracking-tight text-slate-950"}>{order.id}</h1>
+                <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                   {order.status === "new" ? "New ticket" : "Entered"}
                 </span>
               </div>
@@ -335,20 +392,23 @@ function SmartBarOrderSheet({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full bg-slate-100 p-3 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+              className={demoSocialPortrait ? "shrink-0 rounded-full bg-slate-100 p-2.5 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900" : "rounded-full bg-slate-100 p-3 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"}
               aria-label="Close order ticket"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="max-h-[70svh] overflow-y-auto px-5 pb-3 sm:px-7">
+          <div className={demoContainedSheet ? "max-h-[calc(100%-108px)] overflow-y-auto px-4 pb-3" : demoSocialPortrait ? "max-h-[calc(100%-124px)] overflow-y-auto px-4 pb-3" : "max-h-[70svh] overflow-y-auto px-5 pb-3 sm:px-7"}>
             <div className="flex flex-wrap content-start gap-2">
               {order.groups.flatMap((group) =>
                 group.items.map((item, index) => (
                   <section
                     key={`${group.title}-${item.name}-${index}`}
-                    className="w-fit max-w-full rounded-[18px] bg-white px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
+                    className={demoSocialPortrait
+                      ? "w-full max-w-full rounded-[18px] bg-white px-3.5 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
+                      : "w-fit max-w-full rounded-[18px] bg-white px-3 py-2 shadow-[0_8px_22px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80"
+                    }
                   >
                     <div className="flex max-w-full flex-wrap items-baseline gap-x-2 gap-y-1 leading-tight">
                       <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">
@@ -371,7 +431,7 @@ function SmartBarOrderSheet({
               )}
             </div>
 
-            <div data-smartbar-order-board-swipe-zone="true" className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-[22px] bg-slate-50/80 px-4 py-4 text-slate-500 ring-1 ring-slate-100">
+            <div data-smartbar-order-board-swipe-zone="true" className={demoSocialPortrait ? "mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[20px] bg-slate-50/80 px-3 py-3 text-slate-500 ring-1 ring-slate-100" : "mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-[22px] bg-slate-50/80 px-4 py-4 text-slate-500 ring-1 ring-slate-100"}>
               <button
                 type="button"
                 data-smartbar-order-board-entered="true"
@@ -380,10 +440,28 @@ function SmartBarOrderSheet({
                   window.setTimeout(() => onMarkEntered(order.id), 260);
                 }}
                 disabled={!isNew}
-                className="flex flex-col items-center justify-center gap-1 rounded-[18px] py-2 text-sky-700 transition enabled:hover:bg-white disabled:text-slate-400"
+                className="relative flex flex-col items-center justify-center gap-1 rounded-[18px] py-2 text-sky-700 transition enabled:hover:bg-white disabled:text-slate-400"
               >
+                {demoMarkEnteredCue ? (
+                  <motion.span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm"
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                  >
+                    <motion.span
+                      className="absolute inset-[-9px] rounded-full border-2 border-[#012169]/70"
+                      initial={{ opacity: 0, scale: 0.72 }}
+                      animate={{ opacity: [0, 0.72, 0], scale: [0.72, 1.18, 1.52] }}
+                      transition={{ duration: 0.72, ease: "easeOut", times: [0, 0.32, 1] }}
+                    />
+                    <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+                  </motion.span>
+                ) : null}
                 <ArrowUp className="h-8 w-8" strokeWidth={2.4} />
-                <span className="text-xs font-black uppercase tracking-[0.18em]">Entered</span>
+                <span className="text-xs font-black uppercase tracking-[0.18em]">{demoMarkEnteredLabel}</span>
               </button>
               <div className="text-center text-xs font-black uppercase tracking-[0.32em] text-slate-400">Swipe</div>
               <button
@@ -404,8 +482,21 @@ function SmartBarOrderSheet({
 
 export default function SmartBarOrderBoardMock({
   demoMode = false,
+  demoSocialPortrait = false,
+  demoCompactBoard = false,
   demoRevealOrderId,
-  demoRevealDelayMs = 1600,
+  demoRevealDelayMs = 1760,
+  demoAutoOpenOrderId,
+  demoAutoOpenKey,
+  demoAutoOpenDelayMs = 310,
+  demoShowAutoOpenCue = false,
+  demoContainedSheet = false,
+  demoInitialOpenOrderId,
+  demoShowAutoMarkEnteredCue = false,
+  demoMarkEnteredLabel = "Entered",
+  demoAutoMarkEnteredOrderId,
+  demoAutoMarkEnteredKey,
+  demoAutoMarkEnteredDelayMs = 790,
   demoOrders,
   className = "",
   onDemoEntered,
@@ -422,14 +513,20 @@ export default function SmartBarOrderBoardMock({
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [revealSlotVisible, setRevealSlotVisible] = useState(false);
   const [recentlyRevealedOrderId, setRecentlyRevealedOrderId] = useState<string | null>(null);
+  const [recentlyEnteredOrderId, setRecentlyEnteredOrderId] = useState<string | null>(null);
+  const [tapCueOrderId, setTapCueOrderId] = useState<string | null>(null);
+  const [markEnteredCueOrderId, setMarkEnteredCueOrderId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setOrders(initialVisibleOrders);
-    setActiveOrderId(null);
+    setActiveOrderId(demoInitialOpenOrderId ?? null);
     setRevealSlotVisible(false);
     setRecentlyRevealedOrderId(null);
+    setRecentlyEnteredOrderId(null);
+    setTapCueOrderId(null);
+    setMarkEnteredCueOrderId(null);
 
     if (!demoMode || !demoRevealOrderId) return undefined;
 
@@ -445,18 +542,18 @@ export default function SmartBarOrderBoardMock({
       setOrders(sourceOrders);
       setRecentlyRevealedOrderId(demoRevealOrderId);
       setRevealSlotVisible(false);
-    }, demoRevealDelayMs + 950);
+    }, demoRevealDelayMs + 1050);
 
     const clearRevealTimer = window.setTimeout(() => {
       setRecentlyRevealedOrderId(null);
-    }, demoRevealDelayMs + 2750);
+    }, demoRevealDelayMs + 3030);
 
     return () => {
       window.clearTimeout(openSlotTimer);
       window.clearTimeout(revealTimer);
       window.clearTimeout(clearRevealTimer);
     };
-  }, [demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
+  }, [demoInitialOpenOrderId, demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
 
   const sortedOrders = useMemo(
     () =>
@@ -475,28 +572,88 @@ export default function SmartBarOrderBoardMock({
   const activeOrder = activeOrderId ? orders.find((order) => order.id === activeOrderId) || null : null;
 
   const markEntered = (orderId: string) => {
+    setMarkEnteredCueOrderId(null);
+    setRecentlyEnteredOrderId(orderId);
     setOrders((current) => current.map((order) => (order.id === orderId ? { ...order, status: "entered" } : order)));
     setActiveOrderId(null);
     onDemoEntered?.(orderId);
   };
 
+  useEffect(() => {
+    if (!demoMode || !demoAutoOpenOrderId || !demoAutoOpenKey) return undefined;
+
+    setTapCueOrderId(null);
+
+    if (!demoShowAutoOpenCue) {
+      const timer = window.setTimeout(() => {
+        setActiveOrderId(demoAutoOpenOrderId);
+      }, demoAutoOpenDelayMs);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    const cueTimer = window.setTimeout(() => {
+      setTapCueOrderId(demoAutoOpenOrderId);
+    }, demoAutoOpenDelayMs);
+
+    const openTimer = window.setTimeout(() => {
+      setTapCueOrderId(null);
+      setActiveOrderId(demoAutoOpenOrderId);
+    }, demoAutoOpenDelayMs + 820);
+
+    return () => {
+      window.clearTimeout(cueTimer);
+      window.clearTimeout(openTimer);
+    };
+  }, [demoMode, demoAutoOpenOrderId, demoAutoOpenKey, demoAutoOpenDelayMs, demoShowAutoOpenCue]);
+
+  useEffect(() => {
+    if (!demoMode || !demoAutoMarkEnteredOrderId || !demoAutoMarkEnteredKey) return undefined;
+
+    setMarkEnteredCueOrderId(null);
+
+    if (!demoShowAutoMarkEnteredCue) {
+      const timer = window.setTimeout(() => {
+        markEntered(demoAutoMarkEnteredOrderId);
+      }, demoAutoMarkEnteredDelayMs);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    const cueTimer = window.setTimeout(() => {
+      setMarkEnteredCueOrderId(demoAutoMarkEnteredOrderId);
+    }, demoAutoMarkEnteredDelayMs);
+
+    const markTimer = window.setTimeout(() => {
+      markEntered(demoAutoMarkEnteredOrderId);
+    }, demoAutoMarkEnteredDelayMs + 980);
+
+    return () => {
+      window.clearTimeout(cueTimer);
+      window.clearTimeout(markTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoMode, demoAutoMarkEnteredOrderId, demoAutoMarkEnteredKey, demoAutoMarkEnteredDelayMs, demoShowAutoMarkEnteredCue]);
+
   return (
     <main
       className={[
-        "min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.20),_transparent_32%),linear-gradient(135deg,_#f8fbff_0%,_#e9f6ff_48%,_#f8fbff_100%)] px-4 py-5 text-slate-950 sm:px-6 sm:py-8",
+        "relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.20),_transparent_32%),linear-gradient(135deg,_#f8fbff_0%,_#e9f6ff_48%,_#f8fbff_100%)] px-4 py-5 text-slate-950 sm:px-6 sm:py-8",
         className,
       ].filter(Boolean).join(" ")}
     >
-      <div className="mx-auto max-w-6xl">
-        <header className="mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between">
+      <div className={demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
+        <header className={demoSocialPortrait ? demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
           <div>
             <div className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">SmartBar</div>
             <h1 className="mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl">
               Order Board
             </h1>
-            <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600 sm:text-base">
-              Tap SmartBar tickets, enter into the register, swipe away.
-            </p>
+            {!demoSocialPortrait ? (
+              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600 sm:text-base">
+                Tap SmartBar tickets, enter into the register, swipe away.
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center justify-end">
             <div
@@ -526,39 +683,66 @@ export default function SmartBarOrderBoardMock({
           </div>
         </header>
 
-        <section>
-          <div className="grid w-fit grid-cols-[repeat(2,11.75rem)] gap-3 sm:grid-cols-[repeat(3,11.75rem)] sm:gap-3 lg:grid-cols-[repeat(4,11.75rem)] max-[430px]:grid-cols-[repeat(2,10.25rem)] max-[430px]:gap-2">
+        <section className={demoSocialPortrait ? "min-h-0 flex-1" : undefined}>
+          <div className={demoSocialPortrait
+            ? demoCompactBoard
+              ? "grid w-full grid-cols-2 gap-2"
+              : "grid w-full grid-cols-2 gap-2.5"
+            : "grid w-fit grid-cols-[repeat(2,11.75rem)] gap-3 sm:grid-cols-[repeat(3,11.75rem)] sm:gap-3 lg:grid-cols-[repeat(4,11.75rem)] max-[430px]:grid-cols-[repeat(2,10.25rem)] max-[430px]:gap-2"
+          }>
             {showRevealSlot ? (
               <motion.div
                 layout
-                className="h-[11.75rem] w-[11.75rem] rounded-[28px] border border-dashed border-white/70 bg-white/20 max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]"
+                className={demoSocialPortrait
+                  ? demoCompactBoard
+                    ? "h-[7.85rem] w-full rounded-[24px] border border-dashed border-white/70 bg-white/26"
+                    : "h-[9.3rem] w-full rounded-[28px] border border-dashed border-white/70 bg-white/26"
+                  : "h-[11.75rem] w-[11.75rem] rounded-[28px] border border-dashed border-white/70 bg-white/20 max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]"
+                }
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.42, ease: "easeOut" }}
                 aria-hidden="true"
               />
             ) : null}
-            {sortedOrders.map((order) => (
-              <motion.div
-                key={order.id}
-                layout
-                initial={order.id === recentlyRevealedOrderId ? { opacity: 0, scale: 0.28 } : false}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: order.id === recentlyRevealedOrderId ? 1.05 : 0.38, ease: "easeOut" }}
-              >
-                <SmartBarOrderTile order={order} onOpen={(nextOrder) => setActiveOrderId(nextOrder.id)} />
-              </motion.div>
-            ))}
+            {sortedOrders.map((order) => {
+              const isRecentlyEntered = order.id === recentlyEnteredOrderId;
+
+              return (
+                <motion.div
+                  key={order.id}
+                  layout
+                  initial={order.id === recentlyRevealedOrderId ? { opacity: 0, scale: 0.28 } : false}
+                  animate={isRecentlyEntered
+                    ? { opacity: 0.50, scale: 0.90, rotateX: 18, y: 34 }
+                    : { opacity: 1, scale: 1, rotateX: 0, y: 0 }}
+                  transition={{ duration: order.id === recentlyRevealedOrderId ? 1.05 : 0.46, ease: "easeOut" }}
+                  style={{ transformPerspective: 820, transformOrigin: "center bottom" }}
+                >
+                  <SmartBarOrderTile order={order} onOpen={(nextOrder) => setActiveOrderId(nextOrder.id)} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoTapCue={order.id === tapCueOrderId} />
+                </motion.div>
+              );
+            })}
           </div>
         </section>
 
-        <footer className="mt-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-          White = needs entry · Blue = entered in POS
-        </footer>
+        {!demoSocialPortrait ? (
+          <footer className="mt-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+            White = needs entry · Blue = entered in POS
+          </footer>
+        ) : null}
       </div>
 
       {activeOrder ? (
-        <SmartBarOrderSheet order={activeOrder} onClose={() => setActiveOrderId(null)} onMarkEntered={markEntered} />
+        <SmartBarOrderSheet
+          order={activeOrder}
+          onClose={() => setActiveOrderId(null)}
+          onMarkEntered={markEntered}
+          demoSocialPortrait={demoSocialPortrait}
+          demoContainedSheet={demoContainedSheet}
+          demoMarkEnteredLabel={demoMarkEnteredLabel}
+          demoMarkEnteredCue={activeOrder.id === markEnteredCueOrderId}
+        />
       ) : null}
     </main>
   );

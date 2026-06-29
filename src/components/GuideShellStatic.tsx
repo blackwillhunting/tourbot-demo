@@ -49,6 +49,13 @@ const mobileBaseMotion = {
   transition: { duration: 0.66, ease: "easeInOut" as const },
 };
 
+const embeddedBaseMotion = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: 12 },
+  transition: { duration: 0.42, ease: "easeOut" as const },
+};
+
 const toastPosition = {
   position: "fixed" as const,
   right: "16px",
@@ -133,6 +140,7 @@ function scheduleSpotlightTimer(callback: () => void, delay: number) {
 }
 
 type ShellState = "welcome" | "panel" | "launcher";
+type ShellPlacement = "floating" | "embedded" | "teamsViewport";
 
 export type GuideShellDemoCommand = {
   id: number;
@@ -195,6 +203,30 @@ function guideModeCopy(guideConfig?: GuideConfig): {
   placeholder: string;
   quickStarts: GuideQuickStart[];
 } {
+  if (guideConfig?.catalogMode === "ci_command") {
+    return {
+      statusLabel: "ServiceNow work agent ready",
+      greeting:
+        "Hi — I’m Apex. Ask me to create ServiceNow records, list your records, update a record, or summarize what needs attention.",
+      placeholder:
+        "Create an incident, list my records, update INC001024, or summarize my active work...",
+      quickStarts: [
+        {
+          label: "Create incident",
+          prompt:
+            "Create an incident for VPN login failures affecting the finance team.",
+        },
+        {
+          label: "My records",
+          prompt: "Show my open ServiceNow records.",
+        },
+        {
+          label: "Summarize updates",
+          prompt: "Summarize updates on my active records.",
+        },
+      ],
+    };
+  }
   if (guideConfig?.mode === "hidden_cart") {
     return {
       statusLabel: "Guided service discovery ready",
@@ -2679,6 +2711,7 @@ export function GuideShellStatic({
   suppressWelcomeCard = false,
   demoStatus = "idle",
   demoInteractionLocked = false,
+  shellPlacement = "floating",
 }: {
   demoCommand?: GuideShellDemoCommand | null;
   guideConfig?: GuideConfig;
@@ -2686,8 +2719,12 @@ export function GuideShellStatic({
   suppressWelcomeCard?: boolean;
   demoStatus?: "idle" | "running" | "paused";
   demoInteractionLocked?: boolean;
+  shellPlacement?: ShellPlacement;
 } = {}) {
   const isCarryoutOrdering = guideConfig?.catalogMode === "carryout_ordering";
+  const isTeamsViewportShell = shellPlacement === "teamsViewport";
+  const isEmbeddedShell = shellPlacement === "embedded" || isTeamsViewportShell;
+  const showShellWindowControls = !isTeamsViewportShell;
 
   const restoredShellRef = useRef(
     initialShellState === "welcome" ? readShellSession() : null,
@@ -2782,6 +2819,7 @@ export function GuideShellStatic({
     lastPlannerIntent: null,
   });
   const modeCopy = guideModeCopy(guideConfig);
+  const shellLabel = guideConfig?.label || "TourBot";
   const [visualViewportHeight, setVisualViewportHeight] = useState(() => {
     if (typeof window === "undefined") return 760;
     return Math.round(
@@ -2795,6 +2833,11 @@ export function GuideShellStatic({
   const [keyboardCompressed, setKeyboardCompressed] = useState(false);
 
   const coarsePointer = isCoarsePointer();
+  const shellMotion = isEmbeddedShell
+    ? embeddedBaseMotion
+    : coarsePointer
+      ? mobileBaseMotion
+      : baseMotion;
   const useMobileCommerceReceipt = coarsePointer && guideConfig?.mode === "commerce";
   const isMobileBookingUpsell = coarsePointer && activeCompletionWidget === "upsell";
   const isMobileSavedTrip = coarsePointer && activeCompletionWidget === "saved-trip";
@@ -2843,8 +2886,17 @@ export function GuideShellStatic({
     : coarsePointer
       ? `${useMobileCommerceReceipt ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
       : `min(760px, ${Math.max(360, constrainedViewportHeight - 32)}px)`;
-  const panelToastStyle = keyboardCompressed
+  const panelToastStyle = isEmbeddedShell
     ? {
+        position: "relative" as const,
+        inset: "auto",
+        width: "100%",
+        height: "100%",
+        minHeight: 0,
+        zIndex: "auto",
+      }
+    : keyboardCompressed
+      ? {
         position: "fixed" as const,
         left: "12px",
         right: "12px",
@@ -6387,14 +6439,25 @@ if (!best) {
       {!suppressWelcomeCard && shellState === "welcome" && showWelcome && (
         <motion.div
           key="welcome"
-          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
-          style={{
-            ...toastPosition,
-            width: "min(calc(100vw - 32px), 380px)",
-            maxHeight: floatingCardMaxHeight,
-            overflowY: "auto",
-            WebkitOverflowScrolling: "touch",
-          }}
+          {...shellMotion}
+          style={
+            isEmbeddedShell
+              ? {
+                  position: "relative" as const,
+                  width: "100%",
+                  height: "100%",
+                  maxHeight: "none",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }
+              : {
+                  ...toastPosition,
+                  width: "min(calc(100vw - 32px), 380px)",
+                  maxHeight: floatingCardMaxHeight,
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                }
+          }
         >
           <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-2xl sm:rounded-[28px]">
             <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 px-5 pb-5 pt-5 text-white sm:px-6 sm:pb-7 sm:pt-6">
@@ -6455,24 +6518,30 @@ if (!best) {
       {shellState === "panel" && (
         <motion.div
           key="panel"
-          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
+          {...shellMotion}
           style={panelToastStyle}
           onMouseEnter={clearMinimizeTimer}
           onMouseLeave={() => {
-            if (!isCoarsePointer()) startMinimizeTimer();
+            if (!isEmbeddedShell && !isCoarsePointer()) startMinimizeTimer();
           }}
         >
           <div
             data-demo-target="guide-shell"
             data-demo-surface={useMobileCommerceReceipt ? (isCarryoutOrdering ? "mobile-carryout-shell" : "mobile-commerce-shell") : undefined}
-            className={`relative overflow-hidden border border-slate-300 bg-white shadow-[0_18px_70px_rgba(15,23,42,0.24)] ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`}
+            className={
+              isTeamsViewportShell
+                ? "relative h-full overflow-hidden bg-white"
+                : `relative overflow-hidden border border-slate-300 bg-white shadow-[0_18px_70px_rgba(15,23,42,0.24)] ${keyboardCompressed ? "rounded-[20px]" : "rounded-[24px] sm:rounded-[30px]"}`
+            }
             style={{
-              height: panelHeight,
-              maxHeight: keyboardCompressed
-                ? `${keyboardPanelMaxHeight}px`
-                : coarsePointer
-                  ? `${isCarryoutOrdering ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
-                  : floatingCardMaxHeight,
+              height: isEmbeddedShell ? "100%" : panelHeight,
+              maxHeight: isEmbeddedShell
+                ? "none"
+                : keyboardCompressed
+                  ? `${keyboardPanelMaxHeight}px`
+                  : coarsePointer
+                    ? `${isCarryoutOrdering ? mobileCarryoutPanelMaxHeight : mobilePanelMaxHeight}px`
+                    : floatingCardMaxHeight,
             }}
           >
             {demoInteractionLocked && (
@@ -6527,36 +6596,38 @@ if (!best) {
                       )}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1">
-                      {isCarryoutOrdering && (
-                        <span className="hidden text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-400 min-[390px]:inline">
-                          Swipe up
-                        </span>
-                      )}
-                      <button
-                        data-demo-target="guide-minimize"
-                        type="button"
-                        aria-label="Hide TourBot"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          minimizeMobileCarryoutShellFromHeader();
-                        }}
-                        className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <Minus className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Reset TourBot"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          resetShellToWelcome();
-                        }}
-                        className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    {showShellWindowControls && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        {isCarryoutOrdering && (
+                          <span className="hidden text-[10px] font-semibold uppercase tracking-[0.10em] text-slate-400 min-[390px]:inline">
+                            Swipe up
+                          </span>
+                        )}
+                        <button
+                          data-demo-target="guide-minimize"
+                          type="button"
+                          aria-label="Hide TourBot"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            minimizeMobileCarryoutShellFromHeader();
+                          }}
+                          className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="Reset TourBot"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            resetShellToWelcome();
+                          }}
+                          className="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               ) : (
@@ -6570,7 +6641,7 @@ if (!best) {
 
                     <div>
                       <div className="text-sm font-semibold text-slate-950">
-                        TourBot
+                        {shellLabel}
                       </div>
                       <div className="text-[11px] leading-4 text-slate-500 sm:text-xs">
                         {modeCopy.statusLabel}
@@ -6578,30 +6649,32 @@ if (!best) {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      data-demo-target="guide-minimize"
-                      onClick={() => {
-                        textareaRef.current?.blur();
-                        setKeyboardCompressed(false);
-                        textareaRef.current?.blur();
-                        setKeyboardCompressed(false);
-                        autoMinimizeDisabledRef.current = false;
-                        forceWelcomeVisibleRef.current = false;
-                        setShellState("launcher");
-                      }}
-                      className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </button>
+                  {showShellWindowControls && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        data-demo-target="guide-minimize"
+                        onClick={() => {
+                          textareaRef.current?.blur();
+                          setKeyboardCompressed(false);
+                          textareaRef.current?.blur();
+                          setKeyboardCompressed(false);
+                          autoMinimizeDisabledRef.current = false;
+                          forceWelcomeVisibleRef.current = false;
+                          setShellState("launcher");
+                        }}
+                        className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
 
-                    <button
-                      onClick={resetShellToWelcome}
-                      className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+                      <button
+                        onClick={resetShellToWelcome}
+                        className="rounded-xl p-2 text-slate-500 transition hover:bg-slate-100"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -7854,19 +7927,25 @@ if (!best) {
       {shellState === "launcher" && (
         <motion.div
           key="launcher"
-          {...(coarsePointer ? mobileBaseMotion : baseMotion)}
+          {...shellMotion}
           style={
-            coarsePointer
+            isEmbeddedShell
               ? {
-                  position: "fixed" as const,
-                  left: "12px",
-                  right: "12px",
-                  bottom: "16px",
-                  zIndex: 9999,
+                  position: "relative" as const,
+                  width: "100%",
+                  zIndex: "auto",
                 }
-              : toastPosition
+              : coarsePointer
+                ? {
+                    position: "fixed" as const,
+                    left: "12px",
+                    right: "12px",
+                    bottom: "16px",
+                    zIndex: 9999,
+                  }
+                : toastPosition
           }
-          className="relative flex max-w-[calc(100vw-24px)] items-center justify-end gap-2"
+          className={`relative flex items-center gap-2 ${isEmbeddedShell ? "h-full max-w-none justify-center" : "max-w-[calc(100vw-24px)] justify-end"}`}
         >
           {demoInteractionLocked && (
             <div
@@ -8005,7 +8084,7 @@ if (!best) {
               <Compass className="h-4 w-4" />
             </span>
             <span className="hidden text-sm font-medium text-slate-900 sm:inline">
-              TourBot
+              {shellLabel}
             </span>
           </button>
         </motion.div>

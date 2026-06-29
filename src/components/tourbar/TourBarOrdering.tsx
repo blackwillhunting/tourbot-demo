@@ -1813,10 +1813,9 @@ export function OrderReview({
   const estimatedTax = money(order?.totals?.estimatedTax);
   const isLocked = checkoutIsLocked(response, order);
   const canCheckoutMatchedItems = items.length > 0 && !hasPendingItems;
-  const blueGlassVisibleLineCount = readyItems.length + displayPendingItems.length + optionalItems.length + cannotMatchItems.length;
-  // Blue/glass cart uses full mobile-style tiles while four or fewer rows fit.
-  // Once the list needs a vertical scrollbar, hide selection pills and compress rows to one line.
-  const blueGlassCompactScrollMode = blueGlassSurface && blueGlassVisibleLineCount > 4;
+  // FoodTrio social/demo cut: always use the compressed one-line blue/glass
+  // cart entries so the cart stays readable inside a phone-recorded Highlight.
+  const blueGlassCompactScrollMode = blueGlassSurface;
   const speedDemoReadyPillLabel =
     !isLocked && !hasPendingItems && !hasOptionalItems && !hasCannotMatchItems
       ? String((response as { __speedDemo?: { readyPillLabel?: string } }).__speedDemo?.readyPillLabel || "")
@@ -2112,7 +2111,7 @@ export function OrderReview({
             <span className={`${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass(state, isLocked) : cartLinePriceClass(state, isLocked, appearance)}`}>
               {formatLinePrice(entry.line)}
             </span>
-            {!isLocked && (
+            {!isLocked && !blueGlassCompactScrollMode && (
               <button
                 type="button"
                 onClick={(event) => {

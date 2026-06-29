@@ -16,7 +16,6 @@ import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/Domi
 import SmartBarMobileFinaleExperience from "./components/tourbar/smartbar-mobile/finale/SmartBarMobileFinaleExperience";
 import SmartBarLiveMobileRuntime from "./components/tourbar/smartbar-mobile/SmartBarLiveMobileRuntime";
 import SmartBarOrderBoardMock from "./components/tourbar/order-board/SmartBarOrderBoardMock";
-import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import CITeamsPoc from "./components/ci/CITeamsPoc";
 import SmartBarSocialIntroReel, { SmartBarSocialBookingReel, SmartBarSocialFaqReel, SmartBarSocialFeesReel, SmartBarSocialTeaserReel, SmartBarSocialSetupLinePrototype } from "./components/tourbar/social/SmartBarSocialIntroReel";
 import SmartBarSocialPizzaReel from "./components/tourbar/social/SmartBarSocialPizzaReel";
@@ -238,18 +237,6 @@ function Router() {
 
   if (path === "/smartbar-order-board" || path === "/order-board" || path === "/local-order-board") {
     return <SmartBarOrderBoardMock />;
-  }
-
-  if (path === "/restaurant-walkthrough-dev" || path === "/local-restaurant-walkthrough") {
-    return <RestaurantWalkthrough />;
-  }
-
-  if (path === "/restaurant-walkthrough" || path === "/smartbar-restaurant-walkthrough" || path === "/phone-orders") {
-    return (
-      <ProtectedDemoRoute>
-        <RestaurantWalkthrough />
-      </ProtectedDemoRoute>
-    );
   }
 
   if (path === "/ci-teams-poc" || path === "/ci-apex-shell" || path === "/local-ci-teams-poc") {

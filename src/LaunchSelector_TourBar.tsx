@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PhoneCall, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
+import { SmartBarSocialTeaserReel } from "./components/tourbar/social/SmartBarSocialIntroReel";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
+import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -121,8 +123,17 @@ function tourBotDemoPathIsDomiDedicatedDemo(cleanPath: string) {
   );
 }
 
+function tourBotDemoPathIsRestaurantWalkthrough(cleanPath: string) {
+  return (
+    cleanPath === "/restaurant-walkthrough" ||
+    cleanPath === "/smartbar-restaurant-walkthrough" ||
+    cleanPath === "/phone-orders"
+  );
+}
+
 function tourBotDemoPathIsFoodRoute(cleanPath: string) {
   return (
+    tourBotDemoPathIsRestaurantWalkthrough(cleanPath) ||
     cleanPath === "/burger-rush" ||
     cleanPath === "/burger-rush-play" ||
     cleanPath === "/smartbar-burgerrush" ||
@@ -865,6 +876,9 @@ function getSafeSmartBarRootReturnTo() {
       "/food-trio",
       "/food-trio-mobile",
       "/food-trio-desktop",
+      "/restaurant-walkthrough",
+      "/smartbar-restaurant-walkthrough",
+      "/phone-orders",
       "/domi-play-demo",
       "/domi-play",
       "/smartbar-speed",
@@ -1084,7 +1098,14 @@ function SmartBarRootLaunchMessage({
         </div>
 
         {message.demoButtons && (
-          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+            <SmartBarRootDemoLaunchButton
+              href="/restaurant-walkthrough"
+              icon={PhoneCall}
+              eyebrow="Restaurant"
+              title="Phone Orders"
+              description="Phone orders become clean tickets"
+            />
             <SmartBarRootDemoLaunchButton
               href="/foodtrio"
               icon={ShoppingCart}
@@ -1550,7 +1571,7 @@ function SmartBarRootDemoSelector() {
                 SmartBar
               </div>
               <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
-                A search bar that does
+                A search bar that shops
               </div>
             </div>
           </div>
@@ -2221,8 +2242,19 @@ function LaunchSelectorTourBarInner({
 export default function LaunchSelectorTourBar(props: { variant?: SmartBarSpeedDemoVariant }) {
   const currentDemoPath = currentTourBotDemoPath();
 
+  if (
+    currentDemoPath === "/social/smartbar-teaser" ||
+    currentDemoPath === "/local-social-smartbar-teaser"
+  ) {
+    return <SmartBarSocialTeaserReel />;
+  }
+
   if (currentDemoPath === "/") {
     return <SmartBarRootDemoSelector />;
+  }
+
+  if (tourBotDemoPathIsRestaurantWalkthrough(currentDemoPath)) {
+    return <RestaurantWalkthrough />;
   }
 
   if (tourBotDemoPathIsDomiDedicatedDemo(currentDemoPath)) {

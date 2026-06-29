@@ -1525,29 +1525,29 @@ const DOMI_SECTIONS: DomiSection[] = [
     kind: "package",
   },
   {
-    id: "package-relaxation-weekend",
+    id: "package-spa-credit",
     pageId: "packages",
-    eyebrow: "Leisure upgrade",
-    title: "Relaxation Weekend Package",
-    price: "+$95/stay",
+    eyebrow: "Spa privilege",
+    title: "Spa Credit",
+    price: "+$45/night",
     body:
-      "Includes spa credit, welcome drinks, breakfast for two, and guaranteed late checkout. Best for romantic weekends or premium leisure stays.",
-    details: ["Spa credit", "Welcome drinks", "Breakfast for two", "Late checkout"],
-    tags: ["Romantic", "Spa", "Weekend"],
+      "A flexible resort spa credit for massage, recovery, pool, and wellness services during the stay.",
+    details: ["Spa credit", "Wellness", "Pool", "Flexible use"],
+    tags: ["Spa", "Wellness", "Relaxation"],
     Icon: Coffee,
     tone: "from-violet-900 via-indigo-800 to-slate-800",
     kind: "package",
   },
   {
-    id: "package-family-comfort",
+    id: "package-resort-parking",
     pageId: "packages",
-    eyebrow: "Family upgrade",
-    title: "Family Comfort Bundle",
-    price: "+$55/stay",
+    eyebrow: "Arrival add-on",
+    title: "Valet Parking",
+    price: "+$24/night",
     body:
-      "Adds parking, snack credit, extra towels, pool wristbands, and flexible check-in support. Best for families arriving with children or extra luggage.",
-    details: ["Parking", "Snack credit", "Pool wristbands", "Flexible arrival"],
-    tags: ["Family", "Parking", "Convenience"],
+      "Convenient resort parking with daily in/out access, valet support, and smoother arrival for guests with a car.",
+    details: ["Valet", "Daily in/out", "Arrival", "Convenience"],
+    tags: ["Parking", "Valet", "Convenience"],
     Icon: CreditCard,
     tone: "from-cyan-900 via-sky-800 to-slate-700",
     kind: "package",
@@ -1575,6 +1575,8 @@ const DOMI_MOBILE_THEATER_TARGET_IDS = new Set([
   "room-coastal-villa",
   "room-family-double",
   "package-breakfast-flex",
+  "package-spa-credit",
+  "package-resort-parking",
 ]);
 
 function DomiSectionCard({ section, index }: { section: DomiSection; index: number }) {
@@ -1585,8 +1587,9 @@ function DomiSectionCard({ section, index }: { section: DomiSection; index: numb
   const tags = section.tags || [];
   const details = section.details || [];
   const isRecommended = section.id === "room-garden-terrace" || section.id === "room-ocean-view-suite";
+  const mobileTheaterCardInsetClass = section.id === "package-resort-parking" ? "ml-10 mr-4" : "mx-3";
   const mobileTheaterCardClass = isMobileTheaterTarget
-    ? "mx-3 border-slate-700/70 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white shadow-2xl shadow-slate-950/36 ring-slate-900/35 sm:mx-0"
+    ? `${mobileTheaterCardInsetClass} border-slate-700/70 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white shadow-2xl shadow-slate-950/36 ring-slate-900/35 sm:mx-0`
     : "";
 
   return (

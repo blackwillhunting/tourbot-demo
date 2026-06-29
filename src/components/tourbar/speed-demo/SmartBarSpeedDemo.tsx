@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCcw, Users } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Compass, RefreshCcw, Users } from "lucide-react";
 import { clearSmartBarFocusOverlay, smartbarFocusTarget } from "../smartbarFocusController";
 import TourBarShell, {
   type TourBarShellActions,
@@ -2578,7 +2578,50 @@ function renderSpeedExtras(
   return null;
 }
 
-function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
+function SmartBarDemoFoodOrdersEndScreen() {
+  return (
+    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
+      <div className="pointer-events-none absolute inset-0 opacity-[0.16] [background-image:linear-gradient(rgba(15,23,42,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.08)_1px,transparent_1px)] [background-size:44px_44px]" />
+      <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-sky-300/22 blur-3xl" />
+      <div className="pointer-events-none absolute -left-24 bottom-10 h-72 w-72 rounded-full bg-blue-300/20 blur-3xl" />
+
+      <motion.div
+        aria-hidden="true"
+        initial={{ opacity: 0, scale: 0.92, rotate: -4 }}
+        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+        className="pointer-events-none absolute inset-0 z-[4] flex items-center justify-center"
+      >
+        <Compass className="h-[56svh] max-h-[540px] w-[56svh] max-w-[540px] text-sky-500/12" strokeWidth={1.28} />
+      </motion.div>
+
+      <motion.div
+        initial={{ y: 24, opacity: 0, scale: 0.985 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        transition={{ duration: 0.58, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        className="absolute left-6 right-6 top-[38svh] z-[20] rounded-[28px] border border-white/82 bg-white/88 px-5 py-3.5 text-center text-[22px] font-black leading-[1.04] tracking-[-0.05em] text-slate-950 shadow-[0_18px_54px_rgba(15,23,42,0.13)] backdrop-blur-xl"
+      >
+        Turning words into orders
+      </motion.div>
+
+      <motion.div
+        initial={{ y: "20svh", opacity: 0, scale: 0.98 }}
+        animate={{ y: ["20svh", "0svh", "0svh"], opacity: [0, 1, 1], scale: [0.98, 1, 1] }}
+        transition={{ duration: 1.72, delay: 1.0, times: [0, 0.62, 1], ease: [0.22, 1, 0.36, 1] }}
+        className="absolute inset-x-0 top-[calc(64svh-58px)] z-[30] flex items-center justify-center"
+      >
+        <div className="relative flex h-[46px] w-[260px] shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-[linear-gradient(180deg,_rgba(20,34,92,0.96)_0%,_rgba(17,29,82,0.98)_52%,_rgba(13,23,68,0.99)_100%)] px-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.26),inset_0_-1px_0_rgba(2,6,23,0.48),0_16px_38px_rgba(2,6,23,0.30),0_5px_14px_rgba(2,6,23,0.18)] backdrop-blur-[18px]">
+          <span className="inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap px-4 text-[18px] font-semibold tracking-[-0.025em] text-white">
+            <Compass className="h-[18px] w-[18px] shrink-0 text-white" strokeWidth={2.25} />
+            <span>SmartBar</span>
+          </span>
+        </div>
+      </motion.div>
+    </main>
+  );
+}
+
+function SmartBarDemoReplayScreen({ onReplay, mode = "replay" }: { onReplay: () => void; mode?: "replay" | "foodOrdersEnd" }) {
   const replayRequestedRef = useRef(false);
   const requestReplay = useCallback(() => {
     if (replayRequestedRef.current) return;
@@ -2586,6 +2629,8 @@ function SmartBarDemoReplayScreen({ onReplay }: { onReplay: () => void }) {
     replayRequestedRef.current = true;
     onReplay();
   }, [onReplay]);
+
+  if (mode === "foodOrdersEnd") return <SmartBarDemoFoodOrdersEndScreen />;
 
   return (
     <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,189,248,0.22),_transparent_34%),radial-gradient(circle_at_88%_78%,_rgba(59,130,246,0.18),_transparent_32%),linear-gradient(135deg,_#eff8ff_0%,_#dff0ff_48%,_#f8fbff_100%)] text-slate-950">
@@ -3893,7 +3938,7 @@ export default function SmartBarSpeedDemo({
     // branch used by narrow phone view. Do not mount SmartBarMobileGeneralExperience
     // directly here; that creates a second demo/content driver.
     if (replayVisible) {
-      return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+      return <SmartBarDemoReplayScreen onReplay={restartDemo} mode="replay" />;
     }
 
     if (!mobileNexaIntroReady) {
@@ -3961,7 +4006,7 @@ export default function SmartBarSpeedDemo({
 
   if (mobileBurgerRushShell) {
     if (replayVisible) {
-      return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+      return <SmartBarDemoReplayScreen onReplay={restartDemo} mode="replay" />;
     }
 
     const mobileCards = (
@@ -3997,7 +4042,7 @@ export default function SmartBarSpeedDemo({
   }
 
   if (replayVisible) {
-    return <SmartBarDemoReplayScreen onReplay={restartDemo} />;
+    return <SmartBarDemoReplayScreen onReplay={restartDemo} mode={variant === "foodTrioDesktop" ? "foodOrdersEnd" : "replay"} />;
   }
 
   return (
