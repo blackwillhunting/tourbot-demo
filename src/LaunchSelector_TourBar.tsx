@@ -1595,172 +1595,159 @@ function SmartBarRootDemoSelector() {
     duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
     ease: [0.22, 1, 0.36, 1] as const,
   };
+  const inlineFlowIndex =
+    inlineFlow === "restaurant-walkthrough" ? 1 : inlineFlow === "private-sandbox" ? 2 : 0;
+  const inlineRibbonY = inlineFlowIndex === 0 ? "0svh" : `-${inlineFlowIndex * 100}svh`;
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      {inlineFlow === "restaurant-walkthrough" ? (
-        <motion.div
-          key="smartbar-root-restaurant-walkthrough"
-          className="fixed inset-0 z-[20000] bg-slate-50"
-          initial={{ opacity: 0, y: 30, rotateX: -7, scale: 0.985 }}
-          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -26, rotateX: 7, scale: 0.985 }}
-          transition={inlineStageTransition}
-          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
-        >
-          <RestaurantWalkthrough
-            onFinish={returnToDemoSelector}
-            onRequestPrivateSandbox={openPrivateSandboxFlow}
-          />
-        </motion.div>
-      ) : inlineFlow === "private-sandbox" ? (
-        <motion.div
-          key="smartbar-root-private-sandbox"
-          className="fixed inset-0 z-[20000] bg-slate-50"
-          initial={{ opacity: 0, y: 30, rotateX: -7, scale: 0.985 }}
-          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -26, rotateX: 7, scale: 0.985 }}
-          transition={inlineStageTransition}
-          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
-        >
-          <SmartBarSocialSetupLinePrototype />
-        </motion.div>
-      ) : (
-        <motion.main
-          key="smartbar-root-launch-selector"
-          className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen"
-          initial={{ opacity: 0, y: -20, rotateX: 6, scale: 0.988 }}
-          animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, rotateX: -6, scale: 0.988 }}
-          transition={inlineStageTransition}
-          style={{ transformPerspective: 1200, transformOrigin: "center center" }}
-        >
-      <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
-              <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
-                SmartBar
+    <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 [perspective:1200px] sm:h-screen">
+      <motion.div
+        className="h-[300svh]"
+        animate={{ y: inlineRibbonY }}
+        initial={false}
+        transition={inlineStageTransition}
+        style={{ transformPerspective: 1200, transformOrigin: "center center" }}
+      >
+        <section className="flex h-[100svh] flex-col overflow-hidden sm:h-screen">
+          <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
+                  <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
+                    SmartBar
+                  </div>
+                  <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
+                    A search bar that shops
+                  </div>
+                </div>
               </div>
-              <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
-                A search bar that shops
+
+              <div className="flex items-center gap-2">
+                {hasAccess && (
+                  <button
+                    type="button"
+                    onClick={resetAccess}
+                    className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
+                  >
+                    Reset access
+                  </button>
+                )}
+
+                <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+                  <Sparkles className="h-4 w-4 text-slate-500" />
+                  {stepLabel}
+                </div>
               </div>
             </div>
-          </div>
+          </header>
 
-          <div className="flex items-center gap-2">
-            {hasAccess && (
-              <button
-                type="button"
-                onClick={resetAccess}
-                className="rounded-full bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                Reset access
-              </button>
-            )}
-
-            <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-              <Sparkles className="h-4 w-4 text-slate-500" />
-              {stepLabel}
+          <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+            <div className="shrink-0">
+              {hasAccess ? (
+                <SmartBarRootProgressDots step={currentMessageStep} count={SMARTBAR_ROOT_MESSAGES.length} />
+              ) : (
+                <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Access required
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      </header>
 
-      <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
-        <div className="shrink-0">
-          {hasAccess ? (
-            <SmartBarRootProgressDots step={currentMessageStep} count={SMARTBAR_ROOT_MESSAGES.length} />
-          ) : (
-            <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
-              <KeyRound className="h-3.5 w-3.5" />
-              Access required
-            </div>
-          )}
-        </div>
-
-        <div
-          ref={stageScrollRef}
-          className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
-        >
-          <div
-            className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
-            style={ribbonHeight ? { height: ribbonHeight } : undefined}
-          >
-            <motion.div
-              animate={{ y: ribbonY }}
-              initial={false}
-              transition={{
-                duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
-                ease: [0.22, 1, 0.36, 1],
-              }}
+            <div
+              ref={stageScrollRef}
+              className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
             >
-              {stageItems.map((item, index) => (
-                <div
-                  key={
-                    item.kind === "message"
-                      ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
-                      : `smartbar-root-${item.kind}`
-                  }
-                  ref={(node) => {
-                    segmentRefs.current[index] = node;
+              <div
+                className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
+                style={ribbonHeight ? { height: ribbonHeight } : undefined}
+              >
+                <motion.div
+                  animate={{ y: ribbonY }}
+                  initial={false}
+                  transition={{
+                    duration: SMARTBAR_ROOT_RIBBON_GLIDE_MS / 1000,
+                    ease: [0.22, 1, 0.36, 1],
                   }}
                 >
-                  {item.kind === "passcode" && (
-                    <SmartBarRootPasscodeChallenge
-                      code={passcode}
-                      isChecking={wavingIndex === index}
-                      onChange={setPasscode}
-                      onSubmit={submitPasscode}
-                    />
-                  )}
+                  {stageItems.map((item, index) => (
+                    <div
+                      key={
+                        item.kind === "message"
+                          ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
+                          : `smartbar-root-${item.kind}`
+                      }
+                      ref={(node) => {
+                        segmentRefs.current[index] = node;
+                      }}
+                    >
+                      {item.kind === "passcode" && (
+                        <SmartBarRootPasscodeChallenge
+                          code={passcode}
+                          isChecking={wavingIndex === index}
+                          onChange={setPasscode}
+                          onSubmit={submitPasscode}
+                        />
+                      )}
 
-                  {item.kind === "failure" && <SmartBarRootAccessFailure body={failureMessage} isWaving={wavingIndex === index} />}
+                      {item.kind === "failure" && <SmartBarRootAccessFailure body={failureMessage} isWaving={wavingIndex === index} />}
 
-                  {item.kind === "message" && (
-                    <SmartBarRootLaunchMessage
-                      message={item.message}
-                      step={item.sourceIndex}
-                      isWaving={wavingIndex === index}
-                      onSelectRestaurantWalkthrough={openRestaurantWalkthrough}
-                    />
-                  )}
-                </div>
-              ))}
-            </motion.div>
-          </div>
-        </div>
+                      {item.kind === "message" && (
+                        <SmartBarRootLaunchMessage
+                          message={item.message}
+                          step={item.sourceIndex}
+                          isWaving={wavingIndex === index}
+                          onSelectRestaurantWalkthrough={openRestaurantWalkthrough}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </motion.div>
+              </div>
+            </div>
 
-        <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={!hasAccess || currentMessageStep === 0}
-            className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </button>
+            <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={!hasAccess || currentMessageStep === 0}
+                className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </button>
 
-          {showNextButton && (
-            <button
-              type="button"
-              onClick={goNext}
-              disabled={isWaving || (!hasAccess && isSessionChecking)}
-              className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
-            >
-              {nextLabel}
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </section>
-        </motion.main>
-      )}
-    </AnimatePresence>
+              {showNextButton && (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  disabled={isWaving || (!hasAccess && isSessionChecking)}
+                  className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+                >
+                  {nextLabel}
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </section>
+        </section>
+
+        <section className="h-[100svh] overflow-hidden bg-slate-50 sm:h-screen">
+          {inlineFlow !== "launch" ? (
+            <RestaurantWalkthrough
+              onFinish={returnToDemoSelector}
+              onRequestPrivateSandbox={openPrivateSandboxFlow}
+            />
+          ) : null}
+        </section>
+
+        <section className="h-[100svh] overflow-hidden bg-slate-50 sm:h-screen">
+          {inlineFlow === "private-sandbox" ? <SmartBarSocialSetupLinePrototype /> : null}
+        </section>
+      </motion.div>
+    </div>
   );
 }
 
