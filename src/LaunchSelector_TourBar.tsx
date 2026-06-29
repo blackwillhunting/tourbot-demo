@@ -1338,6 +1338,9 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [inlineFlow, setInlineFlow] = useState<SmartBarRootInlineFlow>("launch");
+  const [isWorkflowMorphing, setIsWorkflowMorphing] = useState(false);
+  const [showWorkflowBackButton, setShowWorkflowBackButton] = useState(false);
+  const workflowMorphTimeoutRef = useRef<number | null>(null);
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -1417,6 +1420,11 @@ function SmartBarRootDemoSelector() {
   }, [step]);
 
   const resetAccess = useCallback(() => {
+    if (workflowMorphTimeoutRef.current !== null) {
+      window.clearTimeout(workflowMorphTimeoutRef.current);
+      workflowMorphTimeoutRef.current = null;
+    }
+
     clearStoredTourBotDemoToken();
     cleanupResetAccessUrl();
     setIsSessionChecking(false);
@@ -1425,8 +1433,19 @@ function SmartBarRootDemoSelector() {
     setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
     setInlineFlow("launch");
+    setIsWorkflowMorphing(false);
+    setShowWorkflowBackButton(false);
     setStep(0);
     setWavingIndex(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (workflowMorphTimeoutRef.current !== null) {
+        window.clearTimeout(workflowMorphTimeoutRef.current);
+        workflowMorphTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -1443,6 +1462,9 @@ function SmartBarRootDemoSelector() {
         setPasscode("");
         setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
         setGateView("challenge");
+        setInlineFlow("launch");
+        setIsWorkflowMorphing(false);
+        setShowWorkflowBackButton(false);
         setStep(0);
         setWavingIndex(null);
         setIsSessionChecking(false);
@@ -1452,6 +1474,9 @@ function SmartBarRootDemoSelector() {
       const hasStoredToken = Boolean(getStoredTourBotDemoToken());
       if (!hasStoredToken) {
         setHasAccess(false);
+        setInlineFlow("launch");
+        setIsWorkflowMorphing(false);
+        setShowWorkflowBackButton(false);
         setStep(0);
         setIsSessionChecking(false);
         return;
@@ -1506,18 +1531,45 @@ function SmartBarRootDemoSelector() {
   const openRestaurantWalkthrough = useCallback(() => {
     if (isWaving) return;
 
+    if (workflowMorphTimeoutRef.current !== null) {
+      window.clearTimeout(workflowMorphTimeoutRef.current);
+      workflowMorphTimeoutRef.current = null;
+    }
+
+    setShowWorkflowBackButton(false);
+    setIsWorkflowMorphing(true);
     setInlineFlow("restaurant-walkthrough");
     setWavingIndex(null);
+
+    workflowMorphTimeoutRef.current = window.setTimeout(() => {
+      setIsWorkflowMorphing(false);
+      setShowWorkflowBackButton(true);
+      workflowMorphTimeoutRef.current = null;
+    }, SMARTBAR_ROOT_RIBBON_GLIDE_MS + 260);
   }, [isWaving]);
 
   const returnToDemoSelector = useCallback(() => {
+    if (workflowMorphTimeoutRef.current !== null) {
+      window.clearTimeout(workflowMorphTimeoutRef.current);
+      workflowMorphTimeoutRef.current = null;
+    }
+
     setInlineFlow("launch");
+    setIsWorkflowMorphing(false);
+    setShowWorkflowBackButton(false);
     setStep(demoSelectorStep);
     setWavingIndex(null);
   }, [demoSelectorStep]);
 
   const openPrivateSandboxFlow = useCallback(() => {
+    if (workflowMorphTimeoutRef.current !== null) {
+      window.clearTimeout(workflowMorphTimeoutRef.current);
+      workflowMorphTimeoutRef.current = null;
+    }
+
     setInlineFlow("private-sandbox");
+    setIsWorkflowMorphing(false);
+    setShowWorkflowBackButton(false);
     setWavingIndex(null);
   }, []);
 
@@ -1605,20 +1657,64 @@ function SmartBarRootDemoSelector() {
 
   if (inlineFlow === "restaurant-walkthrough") {
     return (
-      <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-slate-50 text-slate-950 sm:h-screen">
-        <button
-          type="button"
-          onClick={returnToDemoSelector}
-          className="fixed bottom-4 left-4 z-[12000] inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_12px_30px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:bottom-6 sm:left-6"
+      <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center overflow-hidden p-3 sm:p-6"
+          initial={false}
+          animate={{ padding: isWorkflowMorphing ? 24 : 0 }}
+          transition={{ duration: (SMARTBAR_ROOT_RIBBON_GLIDE_MS + 260) / 1000, ease: [0.22, 1, 0.36, 1] }}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to demos
-        </button>
+          <motion.div
+            className="relative overflow-hidden bg-slate-50 shadow-[0_26px_80px_rgba(15,23,42,0.22)] ring-1 ring-white/70"
+            initial={
+              isWorkflowMorphing
+                ? {
+                    width: "min(48rem, calc(100vw - 2rem))",
+                    height: "min(31rem, calc(100svh - 7rem))",
+                    borderRadius: 36,
+                    scale: 0.96,
+                  }
+                : false
+            }
+            animate={{
+              width: "100vw",
+              height: "100svh",
+              borderRadius: 0,
+              scale: 1,
+            }}
+            transition={{ duration: (SMARTBAR_ROOT_RIBBON_GLIDE_MS + 260) / 1000, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <motion.div
+              className="h-full w-full origin-center"
+              initial={isWorkflowMorphing ? { opacity: 0.42, scale: 0.86, y: 18 } : false}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: (SMARTBAR_ROOT_RIBBON_GLIDE_MS + 360) / 1000, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <RestaurantWalkthrough
+                onFinish={returnToDemoSelector}
+                onRequestPrivateSandbox={openPrivateSandboxFlow}
+              />
+            </motion.div>
+          </motion.div>
+        </motion.div>
 
-        <RestaurantWalkthrough
-          onFinish={returnToDemoSelector}
-          onRequestPrivateSandbox={openPrivateSandboxFlow}
-        />
+        <AnimatePresence>
+          {showWorkflowBackButton && (
+            <motion.button
+              key="smartbar-restaurant-back-to-demos"
+              type="button"
+              onClick={returnToDemoSelector}
+              initial={{ opacity: 0, y: 10, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="fixed bottom-4 left-4 z-[12000] inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_12px_30px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:bottom-6 sm:left-6"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to demos
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
