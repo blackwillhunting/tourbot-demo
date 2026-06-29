@@ -826,8 +826,9 @@ type SmartBarRootStageItem =
   | { kind: "passcode" }
   | { kind: "failure" }
   | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
-  | { kind: "restaurant-walkthrough" }
-  | { kind: "private-sandbox" };
+  | { kind: "workflow-handoff" };
+
+type SmartBarRootInlineFlow = "launch" | "restaurant-walkthrough" | "private-sandbox";
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
@@ -1334,8 +1335,30 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
+function SmartBarRootWorkflowHandoff() {
+  return (
+    <div className="w-full bg-sky-50/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
+            <PhoneCall className="h-5 w-5" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            Restaurant Workflow
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          <SmartBarRootMarkdownText body={"Opening **Restaurant Workflow**.\n\nPhone orders become AI-generated tickets."} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
+  const [inlineFlow, setInlineFlow] = useState<SmartBarRootInlineFlow>("launch");
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -1355,14 +1378,7 @@ function SmartBarRootDemoSelector() {
       sourceIndex,
     }));
 
-    if (hasAccess) {
-      return [
-        { kind: "passcode" },
-        ...messageItems,
-        { kind: "restaurant-walkthrough" },
-        { kind: "private-sandbox" },
-      ];
-    }
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, { kind: "workflow-handoff" }];
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
@@ -1370,13 +1386,10 @@ function SmartBarRootDemoSelector() {
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
+  const isWorkflowHandoffStep = current?.kind === "workflow-handoff";
   const rootProgressStep = current?.kind === "message" ? current.sourceIndex : SMARTBAR_ROOT_MESSAGES.length - 1;
-  const isRestaurantWalkthroughStep = current?.kind === "restaurant-walkthrough";
-  const isPrivateSandboxStep = current?.kind === "private-sandbox";
-  const isEmbeddedFlowStep = isRestaurantWalkthroughStep || isPrivateSandboxStep;
   const demoSelectorStep = SMARTBAR_ROOT_MESSAGES.length;
-  const restaurantWalkthroughStep = SMARTBAR_ROOT_MESSAGES.length + 1;
-  const privateSandboxStep = SMARTBAR_ROOT_MESSAGES.length + 2;
+  const workflowHandoffStep = SMARTBAR_ROOT_MESSAGES.length + 1;
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -1387,9 +1400,9 @@ function SmartBarRootDemoSelector() {
     ? isSessionChecking
       ? "Checking access"
       : "Private access"
-    : isRestaurantWalkthroughStep
+    : inlineFlow === "restaurant-walkthrough" || isWorkflowHandoffStep
       ? "Restaurant Workflow"
-      : isPrivateSandboxStep
+      : inlineFlow === "private-sandbox"
         ? "Private Sandbox"
         : currentMessage?.label || "SmartBar";
 
@@ -1434,6 +1447,7 @@ function SmartBarRootDemoSelector() {
     setPasscode("");
     setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
+    setInlineFlow("launch");
     setStep(0);
     setWavingIndex(null);
   }, []);
@@ -1512,20 +1526,24 @@ function SmartBarRootDemoSelector() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [resetAccess]);
 
-  const openRestaurantWalkthrough = useCallback(() => {
+  const openRestaurantWalkthrough = useCallback(async () => {
     if (isWaving) return;
-    setStep(restaurantWalkthroughStep);
-  }, [isWaving, restaurantWalkthroughStep]);
+
+    setStep(workflowHandoffStep);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setInlineFlow("restaurant-walkthrough");
+  }, [isWaving, workflowHandoffStep]);
 
   const returnToDemoSelector = useCallback(() => {
+    setInlineFlow("launch");
     setStep(demoSelectorStep);
     setWavingIndex(null);
   }, [demoSelectorStep]);
 
   const openPrivateSandboxFlow = useCallback(() => {
-    if (isWaving) return;
-    setStep(privateSandboxStep);
-  }, [isWaving, privateSandboxStep]);
+    setInlineFlow("private-sandbox");
+    setWavingIndex(null);
+  }, []);
 
   const retryPasscode = async () => {
     if (isWaving) return;
@@ -1581,17 +1599,6 @@ function SmartBarRootDemoSelector() {
 
   const goBack = () => {
     if (isWaving || !hasAccess) return;
-
-    if (isRestaurantWalkthroughStep) {
-      setStep(demoSelectorStep);
-      return;
-    }
-
-    if (isPrivateSandboxStep) {
-      setStep(restaurantWalkthroughStep);
-      return;
-    }
-
     if (step <= 1) return;
     setStep((value) => Math.max(1, value - 1));
   };
@@ -1604,18 +1611,12 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
-    if (currentMessage?.demoButtons || isEmbeddedFlowStep) return;
+    if (currentMessage?.demoButtons || isWorkflowHandoffStep) return;
 
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const canGoBack = hasAccess && (isEmbeddedFlowStep || currentMessageStep > 0);
-  const backLabel = isRestaurantWalkthroughStep
-    ? "Back to demos"
-    : isPrivateSandboxStep
-      ? "Back to workflow"
-      : "Back";
-  const showNextButton = (!hasAccess || !currentMessage?.demoButtons) && !isEmbeddedFlowStep;
+  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isWorkflowHandoffStep);
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -1625,6 +1626,43 @@ function SmartBarRootDemoSelector() {
     : currentMessageStep === 0
       ? "See demos"
       : "Next";
+
+  if (inlineFlow === "restaurant-walkthrough") {
+    return (
+      <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-slate-50 text-slate-950 sm:h-screen">
+        <button
+          type="button"
+          onClick={returnToDemoSelector}
+          className="fixed bottom-4 left-4 z-[12000] inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_12px_30px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:bottom-6 sm:left-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to demos
+        </button>
+
+        <RestaurantWalkthrough
+          onFinish={returnToDemoSelector}
+          onRequestPrivateSandbox={openPrivateSandboxFlow}
+        />
+      </div>
+    );
+  }
+
+  if (inlineFlow === "private-sandbox") {
+    return (
+      <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-slate-50 text-slate-950 sm:h-screen">
+        <button
+          type="button"
+          onClick={returnToDemoSelector}
+          className="fixed bottom-4 left-4 z-[12000] inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_12px_30px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/80 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:bottom-6 sm:left-6"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to demos
+        </button>
+
+        <SmartBarSocialSetupLinePrototype />
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 [perspective:1200px] sm:h-screen">
@@ -1664,7 +1702,7 @@ function SmartBarRootDemoSelector() {
             </div>
           </header>
 
-          <section className="mx-auto grid min-h-0 w-full flex-1 max-w-7xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+          <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
             <div className="shrink-0">
               {hasAccess ? (
                 <SmartBarRootProgressDots step={rootProgressStep} count={SMARTBAR_ROOT_MESSAGES.length} />
@@ -1678,7 +1716,7 @@ function SmartBarRootDemoSelector() {
 
             <div
               ref={stageScrollRef}
-              className={`relative mt-3 flex min-h-0 w-full overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0 ${isEmbeddedFlowStep ? "max-w-7xl" : "max-w-3xl"}`}
+              className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
             >
               <div
                 className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
@@ -1723,35 +1761,22 @@ function SmartBarRootDemoSelector() {
                         />
                       )}
 
-                      {item.kind === "restaurant-walkthrough" && (
-                        <div className="h-[calc(100svh-9.5rem)] min-h-[620px] w-full overflow-hidden rounded-[30px] bg-slate-50 shadow-[0_18px_60px_rgba(15,23,42,0.12)] ring-1 ring-white/70 sm:h-[calc(100vh-11rem)] sm:rounded-[36px]">
-                          <RestaurantWalkthrough
-                            onFinish={returnToDemoSelector}
-                            onRequestPrivateSandbox={openPrivateSandboxFlow}
-                          />
-                        </div>
-                      )}
-
-                      {item.kind === "private-sandbox" && (
-                        <div className="h-[calc(100svh-9.5rem)] min-h-[620px] w-full overflow-hidden rounded-[30px] bg-slate-50 shadow-[0_18px_60px_rgba(15,23,42,0.12)] ring-1 ring-white/70 sm:h-[calc(100vh-11rem)] sm:rounded-[36px]">
-                          <SmartBarSocialSetupLinePrototype />
-                        </div>
-                      )}
+                      {item.kind === "workflow-handoff" && <SmartBarRootWorkflowHandoff />}
                     </div>
                   ))}
                 </motion.div>
               </div>
             </div>
 
-            <div className={`mt-2 flex w-full shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0 ${isEmbeddedFlowStep ? "max-w-7xl" : "max-w-3xl"}`}>
+            <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
               <button
                 type="button"
                 onClick={goBack}
-                disabled={!canGoBack}
+                disabled={!hasAccess || currentMessageStep === 0}
                 className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                {backLabel}
+                Back
               </button>
 
               {showNextButton && (
