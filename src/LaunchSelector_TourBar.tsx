@@ -1337,7 +1337,15 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
-function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: boolean }) {
+function SmartBarRootWorkflowHandoff({
+  isExpanding = false,
+  onFinish,
+  onRequestPrivateSandbox,
+}: {
+  isExpanding?: boolean;
+  onFinish: () => void;
+  onRequestPrivateSandbox: () => void;
+}) {
   return (
     <div className="w-full bg-sky-50/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
@@ -1357,8 +1365,8 @@ function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: bo
 
         <motion.div
           className="relative overflow-hidden rounded-[28px] bg-slate-950 shadow-[0_24px_64px_rgba(15,23,42,0.20)] ring-1 ring-white/80 sm:rounded-[32px]"
-          animate={{ opacity: isExpanding ? 0 : 1, scale: isExpanding ? 1.015 : 1 }}
-          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          animate={{ scale: isExpanding ? 1.006 : 1 }}
+          transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="flex items-center justify-between border-b border-white/10 bg-white/8 px-4 py-3 text-white sm:px-5">
             <div className="flex items-center gap-2">
@@ -1371,84 +1379,67 @@ function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: bo
             </div>
           </div>
 
-          <div className="relative h-[255px] bg-[radial-gradient(circle_at_28%_22%,_rgba(59,130,246,0.32),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eaf3ff_48%,_#f8fafc_100%)] p-4 sm:h-[310px] sm:p-5">
-            <div className="absolute left-5 top-5 rounded-2xl bg-white/90 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.12)] ring-1 ring-white/70">
-              <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Customer says order</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">Large pepperoni, Caesar, knots...</div>
-            </div>
+          <div className="relative h-[255px] overflow-hidden bg-[radial-gradient(circle_at_28%_22%,_rgba(59,130,246,0.32),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eaf3ff_48%,_#f8fafc_100%)] sm:h-[310px]">
+            <AnimatePresence mode="wait" initial={false}>
+              {!isExpanding ? (
+                <motion.div
+                  key="smartbar-workflow-static-preview"
+                  className="absolute inset-0 p-4 sm:p-5"
+                  initial={{ opacity: 1 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.985 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <div className="absolute left-5 top-5 rounded-2xl bg-white/90 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.12)] ring-1 ring-white/70">
+                    <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Customer says order</div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">Large pepperoni, Caesar, knots...</div>
+                  </div>
 
-            <div className="absolute bottom-5 right-5 w-[58%] rounded-[22px] bg-white/94 p-4 shadow-[0_22px_56px_rgba(15,23,42,0.16)] ring-1 ring-white/80">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Ticket S-184</div>
-                <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Ready</span>
-              </div>
-              <div className="space-y-2">
-                <div className="h-2.5 rounded-full bg-slate-200" />
-                <div className="h-2.5 w-11/12 rounded-full bg-slate-200" />
-                <div className="h-2.5 w-8/12 rounded-full bg-slate-200" />
-              </div>
-            </div>
+                  <div className="absolute bottom-5 right-5 w-[58%] rounded-[22px] bg-white/94 p-4 shadow-[0_22px_56px_rgba(15,23,42,0.16)] ring-1 ring-white/80">
+                    <div className="mb-3 flex items-center justify-between">
+                      <div className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Ticket S-184</div>
+                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">Ready</span>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-2.5 rounded-full bg-slate-200" />
+                      <div className="h-2.5 w-11/12 rounded-full bg-slate-200" />
+                      <div className="h-2.5 w-8/12 rounded-full bg-slate-200" />
+                    </div>
+                  </div>
 
-            <div className="absolute bottom-6 left-5 rounded-full bg-[#012169] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_14px_34px_rgba(1,33,105,0.24)]">
-              SmartBar workflow
-            </div>
+                  <div className="absolute bottom-6 left-5 rounded-full bg-[#012169] px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white shadow-[0_14px_34px_rgba(1,33,105,0.24)]">
+                    SmartBar workflow
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="smartbar-workflow-scaled-into-card"
+                  className="absolute inset-0 overflow-hidden bg-slate-50"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <motion.div
+                    className="absolute left-1/2 top-1/2 [--workflow-card-scale:0.25] sm:[--workflow-card-scale:0.34] lg:[--workflow-card-scale:0.38]"
+                    initial={{ opacity: 0.24, scale: 0.9, y: 18 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: SMARTBAR_ROOT_WORKFLOW_EXPAND_MS / 1000, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <div className="h-[820px] w-[1280px] origin-center [transform:translate(-50%,-50%)_scale(var(--workflow-card-scale))]">
+                      <RestaurantWalkthrough
+                        onFinish={onFinish}
+                        onRequestPrivateSandbox={onRequestPrivateSandbox}
+                      />
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </motion.div>
       </div>
     </div>
-  );
-}
-
-function SmartBarRootWorkflowExpandOverlay({
-  onFinish,
-  onRequestPrivateSandbox,
-}: {
-  onFinish: () => void;
-  onRequestPrivateSandbox: () => void;
-}) {
-  const transition = {
-    duration: SMARTBAR_ROOT_WORKFLOW_EXPAND_MS / 1000,
-    ease: [0.22, 1, 0.36, 1] as const,
-  };
-
-  return (
-    <motion.div
-      key="smartbar-workflow-expanding-view-space"
-      className="fixed inset-0 z-[11000] flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)]"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <motion.div
-        className="relative overflow-hidden bg-slate-50 shadow-[0_28px_90px_rgba(15,23,42,0.24)] ring-1 ring-white/80"
-        initial={{
-          width: "min(42rem, calc(100vw - 2rem))",
-          height: "min(27rem, calc(100svh - 7rem))",
-          borderRadius: 32,
-          scale: 0.985,
-        }}
-        animate={{
-          width: "100vw",
-          height: "100svh",
-          borderRadius: 0,
-          scale: 1,
-        }}
-        transition={transition}
-      >
-        <motion.div
-          className="h-full w-full origin-center"
-          initial={{ opacity: 0.22, scale: 0.78, y: 16 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: (SMARTBAR_ROOT_WORKFLOW_EXPAND_MS + 120) / 1000, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <RestaurantWalkthrough
-            onFinish={onFinish}
-            onRequestPrivateSandbox={onRequestPrivateSandbox}
-          />
-        </motion.div>
-      </motion.div>
-    </motion.div>
   );
 }
 
@@ -1644,12 +1635,6 @@ function SmartBarRootDemoSelector() {
     if (workflowTransitionRunIdRef.current !== runId) return;
 
     setIsWorkflowExpanding(true);
-
-    await wait(SMARTBAR_ROOT_WORKFLOW_EXPAND_MS);
-    if (workflowTransitionRunIdRef.current !== runId) return;
-
-    setInlineFlow("restaurant-walkthrough");
-    setIsWorkflowExpanding(false);
   }, [isWaving, isWorkflowExpanding, workflowHandoffStep]);
 
   const returnToDemoSelector = useCallback(() => {
@@ -1722,6 +1707,10 @@ function SmartBarRootDemoSelector() {
   const goBack = () => {
     if (isWaving || !hasAccess) return;
     if (step <= 1) return;
+
+    workflowTransitionRunIdRef.current += 1;
+    setInlineFlow("launch");
+    setIsWorkflowExpanding(false);
     setStep((value) => Math.max(1, value - 1));
   };
 
@@ -1883,7 +1872,11 @@ function SmartBarRootDemoSelector() {
                         />
                       )}
 
-                      {item.kind === "workflow-handoff" && <SmartBarRootWorkflowHandoff isExpanding={isWorkflowExpanding} />}
+                      {item.kind === "workflow-handoff" && <SmartBarRootWorkflowHandoff
+                        isExpanding={isWorkflowExpanding}
+                        onFinish={returnToDemoSelector}
+                        onRequestPrivateSandbox={openPrivateSandboxFlow}
+                      />}
                     </div>
                   ))}
                 </motion.div>
@@ -1894,11 +1887,11 @@ function SmartBarRootDemoSelector() {
               <button
                 type="button"
                 onClick={goBack}
-                disabled={!hasAccess || currentMessageStep === 0}
+                disabled={!hasAccess || (!isWorkflowHandoffStep && currentMessageStep === 0)}
                 className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                {isWorkflowHandoffStep ? "Back to demos" : "Back"}
               </button>
 
               {showNextButton && (
@@ -1916,14 +1909,6 @@ function SmartBarRootDemoSelector() {
           </section>
         </section>
 
-      <AnimatePresence>
-        {isWorkflowExpanding && (
-          <SmartBarRootWorkflowExpandOverlay
-            onFinish={returnToDemoSelector}
-            onRequestPrivateSandbox={openPrivateSandboxFlow}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
