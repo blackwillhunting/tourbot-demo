@@ -825,8 +825,7 @@ type SmartBarRootDemoMessage = {
 type SmartBarRootStageItem =
   | { kind: "passcode" }
   | { kind: "failure" }
-  | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
-  | { kind: "workflow-handoff" };
+  | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number };
 
 type SmartBarRootInlineFlow = "launch" | "restaurant-walkthrough" | "private-sandbox";
 
@@ -1335,26 +1334,6 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
-function SmartBarRootWorkflowHandoff() {
-  return (
-    <div className="w-full bg-sky-50/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
-            <PhoneCall className="h-5 w-5" />
-          </div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            Restaurant Workflow
-          </div>
-        </div>
-
-        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          <SmartBarRootMarkdownText body={"Opening **Restaurant Workflow**.\n\nPhone orders become AI-generated tickets."} />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
@@ -1378,7 +1357,7 @@ function SmartBarRootDemoSelector() {
       sourceIndex,
     }));
 
-    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, { kind: "workflow-handoff" }];
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems];
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
@@ -1386,10 +1365,8 @@ function SmartBarRootDemoSelector() {
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
-  const isWorkflowHandoffStep = current?.kind === "workflow-handoff";
   const rootProgressStep = current?.kind === "message" ? current.sourceIndex : SMARTBAR_ROOT_MESSAGES.length - 1;
   const demoSelectorStep = SMARTBAR_ROOT_MESSAGES.length;
-  const workflowHandoffStep = SMARTBAR_ROOT_MESSAGES.length + 1;
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -1400,7 +1377,7 @@ function SmartBarRootDemoSelector() {
     ? isSessionChecking
       ? "Checking access"
       : "Private access"
-    : inlineFlow === "restaurant-walkthrough" || isWorkflowHandoffStep
+    : inlineFlow === "restaurant-walkthrough"
       ? "Restaurant Workflow"
       : inlineFlow === "private-sandbox"
         ? "Private Sandbox"
@@ -1526,13 +1503,12 @@ function SmartBarRootDemoSelector() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [resetAccess]);
 
-  const openRestaurantWalkthrough = useCallback(async () => {
+  const openRestaurantWalkthrough = useCallback(() => {
     if (isWaving) return;
 
-    setStep(workflowHandoffStep);
-    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
     setInlineFlow("restaurant-walkthrough");
-  }, [isWaving, workflowHandoffStep]);
+    setWavingIndex(null);
+  }, [isWaving]);
 
   const returnToDemoSelector = useCallback(() => {
     setInlineFlow("launch");
@@ -1611,12 +1587,12 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
-    if (currentMessage?.demoButtons || isWorkflowHandoffStep) return;
+    if (currentMessage?.demoButtons) return;
 
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isWorkflowHandoffStep);
+  const showNextButton = !hasAccess || !currentMessage?.demoButtons;
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -1760,8 +1736,6 @@ function SmartBarRootDemoSelector() {
                           onSelectRestaurantWalkthrough={openRestaurantWalkthrough}
                         />
                       )}
-
-                      {item.kind === "workflow-handoff" && <SmartBarRootWorkflowHandoff />}
                     </div>
                   ))}
                 </motion.div>
