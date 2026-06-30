@@ -1317,7 +1317,12 @@ function SmartBarRootRestaurantPreview({
       }
     >
       <div
-        className="absolute left-1/2 top-0 z-[1] h-[252px] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-[30px] bg-white/88 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm sm:h-[278px] sm:rounded-[36px]"
+        className={
+          "absolute left-1/2 top-0 z-[1] h-[252px] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-[30px] sm:h-[278px] sm:rounded-[36px] " +
+          (isSettled
+            ? "bg-transparent shadow-none ring-0 backdrop-blur-0"
+            : "bg-white/88 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm")
+        }
         aria-hidden="true"
       />
 
@@ -1693,7 +1698,12 @@ function SmartBarRootDemoSelector() {
           className="relative mt-3 flex min-h-0 w-full max-w-[52rem] overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
         >
           <div
-            className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
+            className={
+              `my-auto w-full overflow-hidden rounded-[30px] sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass} ` +
+              (isRestaurantPreview
+                ? "bg-transparent backdrop-blur-0"
+                : "bg-white/35 backdrop-blur-sm")
+            }
             style={ribbonHeight ? { height: ribbonHeight } : undefined}
           >
             <motion.div
