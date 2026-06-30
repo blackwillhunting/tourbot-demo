@@ -332,7 +332,7 @@ function RestaurantWalkthroughNavigator({
     "inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4";
 
   return (
-    <div className="absolute inset-x-5 bottom-4 z-[13090] flex items-center justify-between gap-3 sm:inset-x-10 sm:bottom-6">
+    <div className="absolute inset-x-5 bottom-8 z-[13090] flex items-center justify-between gap-3 sm:inset-x-10 sm:bottom-10">
       {canGoBack ? (
         <button
           type="button"
@@ -1427,7 +1427,7 @@ export default function RestaurantWalkthrough({
     cardTop - (isCompact ? 26 : 42),
   );
   const shellViewportTop = isCompact ? 132 : 160;
-  const navReserveHeight = isCompact ? 54 : 64;
+  const navReserveHeight = isCompact ? 82 : 96;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =

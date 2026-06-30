@@ -1593,7 +1593,11 @@ function SmartBarRootDemoSelector() {
   const goBack = () => {
     if (isWaving || !hasAccess) return;
     if (step <= 1) return;
-    if (isRestaurantPreview) setRestaurantPreviewSettled(false);
+    if (isRestaurantPreview) {
+      finishRestaurantPreview();
+      return;
+    }
+
     setStep((value) => Math.max(1, value - 1));
   };
 
@@ -1640,6 +1644,17 @@ function SmartBarRootDemoSelector() {
           </div>
 
           <div className="flex items-center gap-2">
+            {hasAccess && isRestaurantPreview && (
+              <button
+                type="button"
+                onClick={finishRestaurantPreview}
+                className="inline-flex items-center justify-center rounded-full bg-white/86 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3.5 sm:py-2 sm:text-sm"
+              >
+                <ArrowLeft className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                Back to SmartBar
+              </button>
+            )}
+
             {hasAccess && (
               <button
                 type="button"
@@ -1732,7 +1747,7 @@ function SmartBarRootDemoSelector() {
           </div>
         </div>
 
-        <div className="mt-2 flex w-full max-w-[52rem] shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+        <div className="mt-2 flex w-full max-w-[52rem] shrink-0 items-center justify-between gap-3 pb-3 sm:mt-5 sm:pb-4">
           <button
             type="button"
             onClick={goBack}
@@ -1740,7 +1755,7 @@ function SmartBarRootDemoSelector() {
             className="mr-auto inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+            {isRestaurantPreview ? "Back to SmartBar" : "Back"}
           </button>
 
           {hasAccess && currentMessageStep === 0 && !isRestaurantPreview && (
