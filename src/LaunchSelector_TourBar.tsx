@@ -6,6 +6,7 @@ import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./com
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
+import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -1296,12 +1297,40 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
-function SmartBarRootRestaurantPreview({ isWaving }: { isWaving: boolean }) {
+function SmartBarRootRestaurantPreview({
+  isWaving,
+  isSettled,
+  onFinish,
+}: {
+  isWaving: boolean;
+  isSettled: boolean;
+  onFinish: () => void;
+}) {
+  const shouldMountWalkthrough = isSettled && !isWaving;
+
   return (
     <div
-      className={`min-h-[320px] w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10 ${isWaving ? "opacity-80" : ""}`}
+      className={
+        "relative w-full overflow-hidden bg-transparent text-slate-950 transition-[height] duration-700 ease-out " +
+        (isSettled ? "h-[620px] sm:h-[720px]" : "h-[252px] sm:h-[278px]") +
+        (isWaving ? " opacity-80" : "")
+      }
     >
-      <div className="h-[260px] w-full rounded-[28px] bg-white" aria-hidden="true" />
+      <div
+        className="absolute left-1/2 top-0 z-[1] h-[252px] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-[30px] bg-white/88 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm sm:h-[278px] sm:rounded-[36px]"
+        aria-hidden="true"
+      />
+
+      {shouldMountWalkthrough && (
+        <motion.div
+          className="absolute inset-0 z-[2]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          <RestaurantWalkthrough chrome="content" onFinish={onFinish} />
+        </motion.div>
+      )}
     </div>
   );
 }
@@ -1315,6 +1344,7 @@ function SmartBarRootDemoSelector() {
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
   const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -1357,7 +1387,7 @@ function SmartBarRootDemoSelector() {
 
     setRibbonY(-active.offsetTop);
     setRibbonHeight(active.offsetHeight);
-  }, [stageItems.length, step]);
+  }, [stageItems.length, step, isRestaurantPreviewSettled]);
 
   useEffect(() => {
     const measureActiveSegment = () => {
@@ -1525,16 +1555,24 @@ function SmartBarRootDemoSelector() {
   const goRestaurantPreview = async () => {
     if (isWaving || !hasAccess || restaurantPreviewStep < 0) return;
 
+    setRestaurantPreviewSettled(false);
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
     setStep(restaurantPreviewStep);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setRestaurantPreviewSettled(true);
     setWavingIndex(null);
+  };
+
+  const finishRestaurantPreview = () => {
+    setRestaurantPreviewSettled(false);
+    setStep(1);
   };
 
   const goBack = () => {
     if (isWaving || !hasAccess) return;
     if (step <= 1) return;
+    if (isRestaurantPreview) setRestaurantPreviewSettled(false);
     setStep((value) => Math.max(1, value - 1));
   };
 
@@ -1616,7 +1654,7 @@ function SmartBarRootDemoSelector() {
 
         <div
           ref={stageScrollRef}
-          className="relative mt-3 flex min-h-0 w-full max-w-3xl overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
+          className="relative mt-3 flex min-h-0 w-full max-w-[52rem] overflow-y-auto overscroll-contain py-4 sm:mt-6 sm:block sm:overflow-visible sm:py-0"
         >
           <div
             className={`my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass}`}
@@ -1661,7 +1699,11 @@ function SmartBarRootDemoSelector() {
                   )}
 
                   {item.kind === "restaurant-preview" && (
-                    <SmartBarRootRestaurantPreview isWaving={wavingIndex === index} />
+                    <SmartBarRootRestaurantPreview
+                      isWaving={wavingIndex === index}
+                      isSettled={isRestaurantPreviewSettled}
+                      onFinish={finishRestaurantPreview}
+                    />
                   )}
                 </div>
               ))}
@@ -1669,11 +1711,11 @@ function SmartBarRootDemoSelector() {
           </div>
         </div>
 
-        <div className="mt-2 flex w-full max-w-3xl shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
+        <div className="mt-2 flex w-full max-w-[52rem] shrink-0 items-center justify-between gap-3 pb-1 sm:mt-5 sm:pb-0">
           <button
             type="button"
             onClick={goBack}
-            disabled={!hasAccess || currentMessageStep === 0}
+            disabled={!hasAccess || (!isRestaurantPreview && currentMessageStep === 0)}
             className="mr-auto inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
