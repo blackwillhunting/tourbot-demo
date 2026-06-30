@@ -1399,7 +1399,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerStep, runId]);
 
-  const embeddedViewportHeight = isCompact ? 620 : 720;
+  const embeddedViewportHeight = isCompact ? 590 : 675;
   const cardTop = chrome === "content"
     ? 0
     : isCompact
@@ -1416,8 +1416,8 @@ export default function RestaurantWalkthrough({
     isCompact ? 72 : 104,
     cardTop - (isCompact ? 26 : 42),
   );
-  const shellViewportTop = isCompact ? 106 : 126;
-  const navReserveHeight = isCompact ? 82 : 96;
+  const shellViewportTop = isCompact ? 70 : 82;
+  const navReserveHeight = isCompact ? 92 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =

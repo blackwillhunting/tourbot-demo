@@ -1312,7 +1312,7 @@ function SmartBarRootRestaurantPreview({
     <div
       className={
         "relative w-full overflow-hidden bg-transparent text-slate-950 transition-[height] duration-700 ease-out " +
-        (isSettled ? "h-[680px] sm:h-[780px]" : "h-[252px] sm:h-[278px]") +
+        (isSettled ? "h-[630px] sm:h-[720px]" : "h-[252px] sm:h-[278px]") +
         (isWaving ? " opacity-80" : "")
       }
     >
