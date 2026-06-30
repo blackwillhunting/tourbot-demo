@@ -306,6 +306,72 @@ function CustomerFlowStepDots({
   );
 }
 
+
+function WalkthroughHandledBoardSnapshot({ isCompact }: { isCompact: boolean }) {
+  const visibleOrders = walkthroughOrderBoardOrders.slice(0, 4);
+
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-[40] overflow-hidden rounded-[28px] bg-[#e9f6ff] px-2 py-2 sm:px-4 sm:py-3"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+    >
+      <div className="mb-2 flex items-center justify-between px-1 text-[9px] font-black uppercase tracking-[0.16em] text-slate-500 sm:text-[10px]">
+        <span>Order Board</span>
+        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-700">Updated</span>
+      </div>
+
+      <div className="grid h-[calc(100%-1.75rem)] grid-cols-2 gap-2 sm:gap-3">
+        {visibleOrders.map((order, index) => {
+          const handled = index === 0;
+          const itemNames = order.groups.reduce<string[]>((names, group) => {
+            group.items.forEach((item) => names.push(item.name));
+            return names;
+          }, []);
+
+          return (
+            <div
+              key={`handled-snapshot-${order.id}`}
+              className={[
+                "min-h-0 rounded-[18px] border px-2.5 py-2 shadow-[0_10px_24px_rgba(15,23,42,0.08)] sm:rounded-[22px] sm:px-3 sm:py-2.5",
+                handled
+                  ? "border-blue-200 bg-blue-50/96 text-blue-950"
+                  : "border-slate-200/80 bg-white/94 text-slate-900",
+              ].join(" ")}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-black leading-none tracking-[-0.04em] sm:text-[15px]">{order.id}</div>
+                  <div className="mt-1 truncate text-[10px] font-bold leading-none text-slate-500 sm:text-[11px]">{order.customer}</div>
+                </div>
+                <span
+                  className={[
+                    "shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.10em] sm:text-[9px]",
+                    handled ? "bg-blue-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200",
+                  ].join(" ")}
+                >
+                  {handled ? "Handled" : "New"}
+                </span>
+              </div>
+
+              <div className="mt-2 line-clamp-2 text-[10px] font-semibold leading-[1.15] text-slate-600 sm:text-[11px]">
+                {itemNames.slice(0, isCompact ? 2 : 3).join(" · ")}
+              </div>
+
+              <div className="mt-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.11em] text-slate-400 sm:text-[10px]">
+                <span>{order.itemCount} items</span>
+                <span>{order.pickup}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 function RestaurantWalkthroughNavigator({
   canGoBack,
   canGoNext,
@@ -891,6 +957,19 @@ function CustomerFlowScene({
   const [sendStage, setSendStage] = useState<"ready" | "sending" | "ticket">(
     "ready",
   );
+  const [showHandledBoardSnapshot, setShowHandledBoardSnapshot] = useState(false);
+
+  useEffect(() => {
+    setShowHandledBoardSnapshot(false);
+
+    if (!isHandledStep || slidePhase !== "watch") return;
+
+    const timer = window.setTimeout(() => {
+      setShowHandledBoardSnapshot(true);
+    }, 3000);
+
+    return () => window.clearTimeout(timer);
+  }, [isHandledStep, slidePhase, runId]);
 
   useEffect(() => {
     setEntryCueComplete(false);
@@ -1292,6 +1371,9 @@ function CustomerFlowScene({
               isCompact && isTicketFlowStep ? "!overflow-visible" : "!overflow-hidden",
             ].join(" ")}
           />
+          {showHandledBoardSnapshot && isHandledStep && slidePhase === "watch" && (
+            <WalkthroughHandledBoardSnapshot isCompact={isCompact} />
+          )}
         </motion.div>
       )}
 
