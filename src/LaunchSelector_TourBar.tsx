@@ -1444,9 +1444,9 @@ function SmartBarRootAccessFailure({
 
 function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: boolean }) {
   return (
-    <div className="w-full bg-transparent px-0 py-0 text-slate-950">
+    <div className="flex h-full min-h-0 w-full items-center justify-center bg-transparent px-0 py-0 text-slate-950">
       <motion.div
-        className="relative mx-auto h-[min(74svh,720px)] w-full max-w-5xl overflow-visible bg-transparent"
+        className="relative h-full min-h-0 w-full max-w-5xl overflow-hidden bg-transparent"
         animate={{ scale: isExpanding ? 1.01 : 1, opacity: 1 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       >
@@ -1976,12 +1976,7 @@ function SmartBarRootDemoSelector() {
         </header>
 
         <section
-          className={
-            "mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:px-6 sm:py-5 " +
-            (isWorkflowHandoffStep
-              ? "overflow-visible"
-              : "overflow-hidden sm:overflow-visible")
-          }
+          className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:px-6 sm:py-5"
         >
           <div className="shrink-0">
             {hasAccess ? (
@@ -2000,20 +1995,27 @@ function SmartBarRootDemoSelector() {
           <div
             ref={stageScrollRef}
             className={
-              "relative mt-3 flex min-h-0 w-full overscroll-contain py-4 sm:mt-6 sm:block sm:py-0 " +
+              "relative mt-3 flex h-full min-h-0 w-full items-center overscroll-contain sm:mt-6 " +
               (isWorkflowHandoffStep
-                ? "max-w-6xl overflow-visible"
-                : "max-w-3xl overflow-y-auto sm:overflow-visible")
+                ? "max-w-5xl overflow-hidden py-0"
+                : "max-w-3xl overflow-y-auto py-4 sm:overflow-visible sm:py-0")
             }
           >
             <div
               className={
                 `my-auto w-full rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass} ` +
-                (isWorkflowHandoffStep ? "overflow-visible" : "overflow-hidden")
+                (isWorkflowHandoffStep ? "h-full overflow-hidden" : "overflow-hidden")
               }
-              style={ribbonHeight ? { height: ribbonHeight } : undefined}
+              style={
+                isWorkflowHandoffStep
+                  ? { height: "100%" }
+                  : ribbonHeight
+                    ? { height: ribbonHeight }
+                    : undefined
+              }
             >
               <motion.div
+                className={isWorkflowHandoffStep ? "h-full" : undefined}
                 animate={{ y: ribbonY }}
                 initial={false}
                 transition={{
@@ -2028,6 +2030,7 @@ function SmartBarRootDemoSelector() {
                         ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
                         : `smartbar-root-${item.kind}`
                     }
+                    className={item.kind === "workflow-handoff" ? "h-full min-h-0" : undefined}
                     ref={(node) => {
                       segmentRefs.current[index] = node;
                     }}
