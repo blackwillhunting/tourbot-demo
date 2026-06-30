@@ -773,7 +773,7 @@ function WalkthroughClosingSandboxCta({
 
   return (
     <motion.div
-      className="relative z-[5] mt-4 flex max-w-2xl flex-col items-start gap-3"
+      className="relative z-[5] mt-7 flex max-w-2xl flex-col items-start gap-4 sm:mt-8 sm:gap-5"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
@@ -791,7 +791,7 @@ function WalkthroughClosingSandboxCta({
       </motion.button>
 
       <motion.div
-        className="flex flex-wrap items-center justify-start gap-2.5 pt-1"
+        className="flex flex-wrap items-center justify-start gap-3 pt-2 sm:pt-3"
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.16, duration: 0.22, ease: "easeOut" }}
@@ -1145,7 +1145,10 @@ function CustomerFlowScene({
                 ? "restaurant-walkthrough-customer-copy-close"
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
-            className="relative z-[5] mt-3 max-w-2xl whitespace-pre-line text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:mt-4 sm:text-[1.42rem] sm:leading-[1.1]"
+            className={[
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
+              isCloseStep ? "mt-6 sm:mt-7" : "mt-3 sm:mt-4",
+            ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -5 }}
