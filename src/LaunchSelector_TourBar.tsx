@@ -1714,7 +1714,7 @@ function SmartBarRootDemoSelector() {
           </div>
         </header>
 
-        <section className="mx-auto grid min-h-0 w-full flex-1 max-w-6xl grid-rows-[auto_minmax(0,1fr)] justify-items-center overflow-hidden px-3 py-2 sm:px-6 sm:py-5">
+        <section className="mx-auto grid min-h-0 w-full flex-1 max-w-6xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:px-6 sm:py-5">
           <div className="shrink-0">
             {hasAccess ? (
               <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
@@ -1875,6 +1875,20 @@ function SmartBarRootDemoSelector() {
               </AnimatePresence>
             </div>
           </div>
+          {!hasAccess && gateView === "challenge" && (
+            <div className="mt-2 flex w-full max-w-5xl shrink-0 items-center justify-end gap-3 pb-1 sm:mt-5 sm:pb-0">
+              <button
+                type="button"
+                onClick={submitPasscode}
+                disabled={isCheckingCode || isSessionChecking}
+                aria-label="Submit SmartBar root passcode"
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+              >
+                {isCheckingCode || isSessionChecking ? "Checking" : "Submit"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            </div>
+          )}
         </section>
       </section>
     </div>
