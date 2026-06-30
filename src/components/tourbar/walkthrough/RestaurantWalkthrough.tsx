@@ -868,8 +868,11 @@ function CustomerFlowScene({
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
-  const boardViewportTop = shellViewportTop;
-  const boardViewportBottom = navReserveHeight;
+  const isTicketFlowStep = isTicketStep || isHandledStep;
+  const boardViewportTop =
+    isCompact && isTicketFlowStep ? Math.max(42, shellViewportTop - 28) : shellViewportTop;
+  const boardViewportBottom =
+    isCompact && isTicketFlowStep ? Math.max(48, navReserveHeight - 44) : navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1226,7 +1229,10 @@ function CustomerFlowScene({
       {shouldShowBoard && (
         <motion.div
           key={`restaurant-walkthrough-order-board-${isTicketStep || isHandledStep ? "ticket-flow" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
-          className="absolute inset-x-0 z-[4] overflow-hidden rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80"
+          className={[
+            "absolute inset-x-0 z-[4] rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80",
+            isCompact && isTicketFlowStep ? "overflow-visible" : "overflow-hidden",
+          ].join(" ")}
           style={{ top: boardViewportTop, bottom: boardViewportBottom }}
           initial={
             isTicketStep || isHandledStep || isCloseStep
@@ -1264,7 +1270,10 @@ function CustomerFlowScene({
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={visibleWalkthroughOrderBoardOrders}
-            className="!min-h-0 h-full !overflow-hidden !px-2 !py-2 sm:!px-4 sm:!py-3"
+            className={[
+              "!min-h-0 h-full !px-2 !py-2 sm:!px-4 sm:!py-3",
+              isCompact && isTicketFlowStep ? "!overflow-visible" : "!overflow-hidden",
+            ].join(" ")}
           />
         </motion.div>
       )}
