@@ -814,7 +814,8 @@ type SmartBarRootDemoMessage = {
 type SmartBarRootStageItem =
   | { kind: "passcode" }
   | { kind: "failure" }
-  | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number };
+  | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
+  | { kind: "restaurant-preview" };
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
@@ -1295,6 +1296,16 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
+function SmartBarRootRestaurantPreview({ isWaving }: { isWaving: boolean }) {
+  return (
+    <div
+      className={`min-h-[320px] w-full bg-white/85 px-5 py-7 text-slate-950 sm:px-10 sm:py-10 ${isWaving ? "opacity-80" : ""}`}
+    >
+      <div className="h-[260px] w-full rounded-[28px] bg-white" aria-hidden="true" />
+    </div>
+  );
+}
+
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
@@ -1316,7 +1327,7 @@ function SmartBarRootDemoSelector() {
       sourceIndex,
     }));
 
-    if (hasAccess) return [{ kind: "passcode" }, ...messageItems];
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, { kind: "restaurant-preview" }];
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
@@ -1324,6 +1335,8 @@ function SmartBarRootDemoSelector() {
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
+  const isRestaurantPreview = current?.kind === "restaurant-preview";
+  const restaurantPreviewStep = stageItems.findIndex((item) => item.kind === "restaurant-preview");
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -1334,7 +1347,9 @@ function SmartBarRootDemoSelector() {
     ? isSessionChecking
       ? "Checking access"
       : "Private access"
-    : currentMessage?.label || "SmartBar";
+    : isRestaurantPreview
+      ? "Restaurant walkthrough"
+      : currentMessage?.label || "SmartBar";
 
   useLayoutEffect(() => {
     const active = segmentRefs.current[step];
@@ -1358,7 +1373,7 @@ function SmartBarRootDemoSelector() {
 
   useEffect(() => {
     if (hasAccess) {
-      setStep((value) => Math.min(Math.max(1, value), SMARTBAR_ROOT_MESSAGES.length));
+      setStep((value) => Math.min(Math.max(1, value), stageItems.length - 1));
       return;
     }
 
@@ -1507,6 +1522,16 @@ function SmartBarRootDemoSelector() {
     setWavingIndex(null);
   };
 
+  const goRestaurantPreview = async () => {
+    if (isWaving || !hasAccess || restaurantPreviewStep < 0) return;
+
+    setWavingIndex(step);
+    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    setStep(restaurantPreviewStep);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setWavingIndex(null);
+  };
+
   const goBack = () => {
     if (isWaving || !hasAccess) return;
     if (step <= 1) return;
@@ -1521,12 +1546,12 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
-    if (currentMessage?.demoButtons) return;
+    if (currentMessage?.demoButtons || isRestaurantPreview) return;
 
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const showNextButton = !hasAccess || !currentMessage?.demoButtons;
+  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isRestaurantPreview);
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -1577,7 +1602,10 @@ function SmartBarRootDemoSelector() {
       <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-3 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div className="shrink-0">
           {hasAccess ? (
-            <SmartBarRootProgressDots step={currentMessageStep} count={SMARTBAR_ROOT_MESSAGES.length} />
+            <SmartBarRootProgressDots
+              step={isRestaurantPreview ? SMARTBAR_ROOT_MESSAGES.length : currentMessageStep}
+              count={SMARTBAR_ROOT_MESSAGES.length + 1}
+            />
           ) : (
             <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
               <KeyRound className="h-3.5 w-3.5" />
@@ -1631,6 +1659,10 @@ function SmartBarRootDemoSelector() {
                       isWaving={wavingIndex === index}
                     />
                   )}
+
+                  {item.kind === "restaurant-preview" && (
+                    <SmartBarRootRestaurantPreview isWaving={wavingIndex === index} />
+                  )}
                 </div>
               ))}
             </motion.div>
@@ -1642,11 +1674,23 @@ function SmartBarRootDemoSelector() {
             type="button"
             onClick={goBack}
             disabled={!hasAccess || currentMessageStep === 0}
-            className="inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
+            className="mr-auto inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </button>
+
+          {hasAccess && currentMessageStep === 0 && !isRestaurantPreview && (
+            <button
+              type="button"
+              onClick={goRestaurantPreview}
+              disabled={isWaving}
+              className="inline-flex items-center justify-center rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+            >
+              Restaurant Walkthrough
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </button>
+          )}
 
           {showNextButton && (
             <button
