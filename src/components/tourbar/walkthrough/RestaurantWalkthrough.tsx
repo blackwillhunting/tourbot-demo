@@ -1293,7 +1293,7 @@ function CustomerFlowScene({
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={
-              isCloseStep
+              isHandledStep || isCloseStep
                 ? visibleHandledOrderBoardOrders
                 : visibleWalkthroughOrderBoardOrders
             }
