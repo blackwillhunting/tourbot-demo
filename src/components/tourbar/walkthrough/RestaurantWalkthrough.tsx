@@ -1353,14 +1353,12 @@ type RestaurantWalkthroughProps = {
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
   chrome?: "full" | "content";
-  forceExpandedFirstFrame?: boolean;
 };
 
 export default function RestaurantWalkthrough({
   onFinish,
   onRequestPrivateSandbox,
   chrome = "full",
-  forceExpandedFirstFrame = false,
 }: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
     useState<RestaurantWalkthroughSceneNumber>(1);
@@ -1411,16 +1409,19 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerStep, runId]);
 
+  const embeddedViewportHeight = isCompact ? 620 : 720;
   const cardTop = chrome === "content"
     ? 0
     : isCompact
       ? Math.max(92, Math.round(viewportHeight * 0.12))
       : Math.max(198, Math.round(viewportHeight * 0.24));
   const initialCardHeight = isCompact ? 252 : 278;
-  const finalCardHeight = Math.max(
-    initialCardHeight,
-    viewportHeight - cardTop - (isCompact ? 12 : 36),
-  );
+  const finalCardHeight = chrome === "content"
+    ? embeddedViewportHeight
+    : Math.max(
+        initialCardHeight,
+        viewportHeight - cardTop - (isCompact ? 12 : 36),
+      );
   const progressTop = Math.max(
     isCompact ? 72 : 104,
     cardTop - (isCompact ? 26 : 42),
@@ -1430,10 +1431,7 @@ export default function RestaurantWalkthrough({
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
-    activeScene === 1 &&
-    customerStep === 1 &&
-    slidePhase === "read" &&
-    !forceExpandedFirstFrame;
+    activeScene === 1 && customerStep === 1 && slidePhase === "read";
   const closingCardHeight = initialCardHeight;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
@@ -1532,7 +1530,9 @@ export default function RestaurantWalkthrough({
   return (
     <main
       className={
-        "relative h-[100svh] min-h-[100svh] overflow-hidden text-slate-950 sm:h-screen " +
+        (isEmbeddedContent
+          ? "relative h-full min-h-0 overflow-hidden text-slate-950 "
+          : "relative h-[100svh] min-h-[100svh] overflow-hidden text-slate-950 sm:h-screen ") +
         (showChrome
           ? "bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)]"
           : "bg-transparent")
