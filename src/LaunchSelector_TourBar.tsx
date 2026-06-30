@@ -7,6 +7,7 @@ import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } f
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
+import SmartBarSetupWalkthrough, { SMARTBAR_SETUP_WALKTHROUGH_STEPS } from "./components/tourbar/setup/SmartBarSetupWalkthrough";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -816,6 +817,7 @@ type SmartBarRootStageItem =
   | { kind: "passcode" }
   | { kind: "failure" }
   | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
+  | { kind: "setup-step"; setupIndex: number }
   | { kind: "restaurant-preview" };
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
@@ -1361,8 +1363,12 @@ function SmartBarRootDemoSelector() {
       message,
       sourceIndex,
     }));
+    const setupItems = SMARTBAR_SETUP_WALKTHROUGH_STEPS.map((_setupStep, setupIndex) => ({
+      kind: "setup-step" as const,
+      setupIndex,
+    }));
 
-    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, { kind: "restaurant-preview" }];
+    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, ...setupItems, { kind: "restaurant-preview" }];
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
@@ -1371,6 +1377,10 @@ function SmartBarRootDemoSelector() {
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
   const isRestaurantPreview = current?.kind === "restaurant-preview";
+  const isSetupStep = current?.kind === "setup-step";
+  const currentSetupIndex = isSetupStep ? current.setupIndex : 0;
+  const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
+  const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
   const restaurantPreviewStep = stageItems.findIndex((item) => item.kind === "restaurant-preview");
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
@@ -1384,7 +1394,9 @@ function SmartBarRootDemoSelector() {
       : "Private access"
     : isRestaurantPreview
       ? "Understand it"
-      : currentMessage?.label || "SmartBar";
+      : isSetupStep
+        ? "Set it up"
+        : currentMessage?.label || "SmartBar";
 
   useLayoutEffect(() => {
     const active = segmentRefs.current[step];
@@ -1578,6 +1590,20 @@ function SmartBarRootDemoSelector() {
     setWavingIndex(null);
   };
 
+  const goSetupWalkthrough = async () => {
+    if (isWaving || !hasAccess || setupStartStep < 0) return;
+
+    setWavingIndex(step);
+    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    setStep(setupStartStep);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    setWavingIndex(null);
+  };
+
+  const finishSetupWalkthrough = () => {
+    setStep(1);
+  };
+
   const goRestaurantPreview = async () => {
     if (isWaving || !hasAccess || restaurantPreviewStep < 0) return;
 
@@ -1603,6 +1629,11 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
+    if (isSetupStep && currentSetupIndex === 0) {
+      finishSetupWalkthrough();
+      return;
+    }
+
     setStep((value) => Math.max(1, value - 1));
   };
 
@@ -1616,6 +1647,11 @@ function SmartBarRootDemoSelector() {
 
     if (currentMessage?.demoButtons || isRestaurantPreview) return;
 
+    if (isSetupStep && isLastSetupStep) {
+      finishSetupWalkthrough();
+      return;
+    }
+
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
@@ -1626,9 +1662,13 @@ function SmartBarRootDemoSelector() {
       : gateView === "failure"
         ? "Try again"
         : "Submit"
-    : currentMessageStep === 0
-      ? "Use it"
-      : "Next";
+    : isSetupStep
+      ? isLastSetupStep
+        ? "Finish"
+        : "Next"
+      : currentMessageStep === 0
+        ? "Use it"
+        : "Next";
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
@@ -1649,10 +1689,10 @@ function SmartBarRootDemoSelector() {
           </div>
 
           <div className="flex items-center gap-2">
-            {hasAccess && isRestaurantPreview && (
+            {hasAccess && (isRestaurantPreview || isSetupStep) && (
               <button
                 type="button"
-                onClick={finishRestaurantPreview}
+                onClick={isRestaurantPreview ? finishRestaurantPreview : finishSetupWalkthrough}
                 className="inline-flex items-center justify-center rounded-full bg-white/86 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3.5 sm:py-2 sm:text-sm"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1682,8 +1722,8 @@ function SmartBarRootDemoSelector() {
         <div className="shrink-0">
           {hasAccess ? (
             <SmartBarRootProgressDots
-              step={isRestaurantPreview ? SMARTBAR_ROOT_MESSAGES.length : currentMessageStep}
-              count={SMARTBAR_ROOT_MESSAGES.length + 1}
+              step={isSetupStep ? currentSetupIndex : isRestaurantPreview ? SMARTBAR_ROOT_MESSAGES.length : currentMessageStep}
+              count={isSetupStep ? SMARTBAR_SETUP_WALKTHROUGH_STEPS.length : SMARTBAR_ROOT_MESSAGES.length + 1}
             />
           ) : (
             <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
@@ -1719,7 +1759,9 @@ function SmartBarRootDemoSelector() {
                   key={
                     item.kind === "message"
                       ? `smartbar-root-${item.message.label}-${item.sourceIndex}`
-                      : `smartbar-root-${item.kind}`
+                      : item.kind === "setup-step"
+                        ? `smartbar-root-setup-${item.setupIndex}`
+                        : `smartbar-root-${item.kind}`
                   }
                   ref={(node) => {
                     segmentRefs.current[index] = node;
@@ -1740,6 +1782,14 @@ function SmartBarRootDemoSelector() {
                     <SmartBarRootLaunchMessage
                       message={item.message}
                       step={item.sourceIndex}
+                      isWaving={wavingIndex === index}
+                    />
+                  )}
+
+                  {item.kind === "setup-step" && (
+                    <SmartBarSetupWalkthrough
+                      stepIndex={item.setupIndex}
+                      isActive={step === index && wavingIndex !== index}
                       isWaving={wavingIndex === index}
                     />
                   )}
@@ -1766,7 +1816,7 @@ function SmartBarRootDemoSelector() {
             className="mr-auto inline-flex items-center justify-center rounded-full bg-white/85 px-3.5 py-1.5 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] disabled:pointer-events-none disabled:opacity-0 sm:px-4 sm:py-2"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {isRestaurantPreview ? "Back to SmartBar" : "Back"}
+            {isSetupStep && currentSetupIndex === 0 ? "Back to SmartBar" : isRestaurantPreview ? "Back to SmartBar" : "Back"}
           </button>
 
           {hasAccess && currentMessageStep === 0 && !isRestaurantPreview && (
@@ -1783,12 +1833,12 @@ function SmartBarRootDemoSelector() {
 
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                title="Launch setup walkthrough coming next"
-                className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-sky-50/82 px-4 py-2 text-sm font-semibold text-[#012169]/72 shadow-[0_8px_20px_rgba(1,33,105,0.08)] ring-1 ring-[#012169]/12 sm:px-5 sm:py-2.5"
+                onClick={goSetupWalkthrough}
+                disabled={isWaving}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
               >
                 Set it up
+                <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             </>
           )}
