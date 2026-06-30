@@ -1352,11 +1352,13 @@ function CustomerFlowScene({
 type RestaurantWalkthroughProps = {
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
+  chrome?: "full" | "content";
 };
 
 export default function RestaurantWalkthrough({
   onFinish,
   onRequestPrivateSandbox,
+  chrome = "full",
 }: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
     useState<RestaurantWalkthroughSceneNumber>(1);
@@ -1517,8 +1519,18 @@ export default function RestaurantWalkthrough({
     window.location.assign("/social/smartbar-setup-line");
   };
 
+  const showChrome = chrome === "full";
+
   return (
-    <main className="relative h-[100svh] min-h-[100svh] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+    <main
+      className={
+        "relative h-[100svh] min-h-[100svh] overflow-hidden text-slate-950 sm:h-screen " +
+        (showChrome
+          ? "bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)]"
+          : "bg-transparent")
+      }
+    >
+      {showChrome && (
       <header className="relative z-[13020] shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
           <div className="flex items-center gap-3">
@@ -1543,6 +1555,7 @@ export default function RestaurantWalkthrough({
           </div>
         </div>
       </header>
+      )}
 
       <div
         className="absolute inset-x-0 z-[13000]"

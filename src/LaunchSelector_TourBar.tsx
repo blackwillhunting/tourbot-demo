@@ -1444,10 +1444,10 @@ function SmartBarRootAccessFailure({
 
 function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: boolean }) {
   return (
-    <div className="w-full bg-sky-50/85 px-3 py-3 text-slate-950 sm:px-5 sm:py-5">
+    <div className="w-full bg-transparent px-0 py-0 text-slate-950">
       <motion.div
-        className="relative mx-auto h-[min(72svh,720px)] w-full max-w-6xl overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] shadow-[0_24px_70px_rgba(15,23,42,0.16)] ring-1 ring-white/80 sm:rounded-[36px]"
-        animate={{ scale: isExpanding ? 1.005 : 0.988, opacity: 1 }}
+        className="relative mx-auto h-[min(74svh,720px)] w-full max-w-5xl overflow-visible bg-transparent"
+        animate={{ scale: isExpanding ? 1.01 : 1, opacity: 1 }}
         transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       >
         <SmartBarRootWalkthroughStillFrame />
@@ -1458,32 +1458,14 @@ function SmartBarRootWorkflowHandoff({ isExpanding = false }: { isExpanding?: bo
 
 function SmartBarRootWalkthroughStillFrame() {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950">
-      <header className="relative z-20 border-b border-white/70 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
-              <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">SmartBar</div>
-              <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">A search bar that does</div>
-            </div>
-          </div>
-          <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-            <Sparkles className="h-4 w-4 text-slate-500" />
-            Restaurant walkthrough
-          </div>
-        </div>
-      </header>
-
-      <div className="absolute inset-x-0 top-[76px] z-10 flex items-center justify-center gap-2">
+    <div className="relative h-full w-full overflow-hidden bg-transparent text-slate-950">
+      <div className="absolute inset-x-0 top-2 z-10 flex items-center justify-center gap-2 sm:top-3">
         <span className="h-2 w-9 rounded-full bg-[#012169] shadow-[0_4px_12px_rgba(1,33,105,0.20)]" />
         <span className="h-2 w-2 rounded-full bg-slate-300" />
         <span className="h-2 w-2 rounded-full bg-slate-300" />
       </div>
 
-      <div className="absolute left-1/2 top-[118px] w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]">
+      <div className="absolute left-1/2 top-12 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:top-16 sm:rounded-[36px]">
         <div className="relative min-h-[420px] px-5 py-7 sm:min-h-[520px] sm:px-10 sm:py-10">
           <div className="relative z-[5] flex items-center gap-3 sm:gap-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
@@ -1500,8 +1482,8 @@ function SmartBarRootWalkthroughStillFrame() {
             </div>
           </div>
 
-          <div className="relative z-[5] mt-3 max-w-2xl whitespace-pre-line text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:mt-4 sm:text-[1.42rem] sm:leading-[1.1]">
-            SmartBar is a search bar.\nAt the bottom of your site.
+          <div className="relative z-[5] mt-3 max-w-2xl text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:mt-4 sm:text-[1.42rem] sm:leading-[1.1]">
+            SmartBar is a search bar.<br />At the bottom of your site.
           </div>
 
           <div className="absolute inset-x-0 bottom-20 z-[4] mx-auto flex h-[52%] max-w-[420px] items-end justify-center sm:max-w-[500px]">
@@ -1906,6 +1888,7 @@ function SmartBarRootDemoSelector() {
           style={{ transformOrigin: "center center" }}
         >
           <RestaurantWalkthrough
+            chrome="content"
             onFinish={returnToDemoSelector}
             onRequestPrivateSandbox={openPrivateSandboxFlow}
           />
