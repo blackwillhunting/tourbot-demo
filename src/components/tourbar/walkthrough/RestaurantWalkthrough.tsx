@@ -640,7 +640,7 @@ function WalkthroughColorPointer({
 
       <motion.div
         key={`restaurant-walkthrough-color-tooltip-${activeTarget.id}`}
-        className="absolute left-7 top-[-18px] whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
+        className="absolute left-7 top-[-18px] max-w-[min(13rem,calc(100vw-7rem))] whitespace-normal rounded-2xl bg-slate-950 px-3 py-2 text-center text-[11px] font-black uppercase leading-[1.05] tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:max-w-none sm:whitespace-nowrap sm:rounded-full sm:py-1.5 sm:text-xs"
         initial={{ opacity: 0, x: -5, scale: 0.96 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
         exit={{ opacity: 0, x: 4, scale: 0.98 }}
@@ -880,6 +880,18 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
+  const visibleWalkthroughOrderBoardOrders = isCompact
+    ? walkthroughOrderBoardOrders.slice(0, 4)
+    : walkthroughOrderBoardOrders;
+  const visibleHandledOrderBoardOrders = isCompact
+    ? walkthroughHandledOrderBoardOrders.slice(0, 4)
+    : walkthroughHandledOrderBoardOrders;
+  const boardViewportTop =
+    isCompact && (isTicketStep || isHandledStep)
+      ? Math.max(44, shellViewportTop - 18)
+      : shellViewportTop;
+  const boardViewportBottom =
+    isCompact && (isTicketStep || isHandledStep) ? 26 : navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1237,7 +1249,7 @@ function CustomerFlowScene({
         <motion.div
           key={`restaurant-walkthrough-order-board-${isTicketStep ? "ticket" : isHandledStep ? "handled" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
           className="absolute inset-x-0 z-[4] overflow-hidden rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80"
-          style={{ top: shellViewportTop, bottom: navReserveHeight }}
+          style={{ top: boardViewportTop, bottom: boardViewportBottom }}
           initial={
             isTicketStep || isHandledStep || isCloseStep
               ? false
@@ -1282,8 +1294,8 @@ function CustomerFlowScene({
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={
               isCloseStep
-                ? walkthroughHandledOrderBoardOrders
-                : walkthroughOrderBoardOrders
+                ? visibleHandledOrderBoardOrders
+                : visibleWalkthroughOrderBoardOrders
             }
             className="!min-h-0 h-full !overflow-hidden !px-4 !py-3"
           />
@@ -1425,7 +1437,7 @@ export default function RestaurantWalkthrough({
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
     activeScene === 1 && customerStep === 1 && slidePhase === "read";
-  const closingCardHeight = initialCardHeight;
+  const closingCardHeight = isCompact ? 340 : initialCardHeight;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
     ? initialCardHeight
