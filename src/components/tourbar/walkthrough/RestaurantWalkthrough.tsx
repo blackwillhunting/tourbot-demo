@@ -177,41 +177,6 @@ const walkthroughOrderBoardOrders = [
       },
     ],
   },
-  {
-    id: "S-180",
-    minutesAgo: 26,
-    status: "entered" as const,
-    customer: "Andre",
-    phone: "202-555-0189",
-    pickup: "12:20 PM",
-    itemCount: 5,
-    groups: [
-      {
-        title: "Sandwiches",
-        items: [{ quantity: 2, name: "Cheeseburger", details: ["No pickles"] }],
-      },
-      { title: "Sides", items: [{ quantity: 2, name: "Fries" }] },
-      { title: "Drinks", items: [{ quantity: 1, name: "Cola" }] },
-    ],
-  },
-  {
-    id: "S-179",
-    minutesAgo: 35,
-    status: "entered" as const,
-    customer: "Lee",
-    phone: "202-555-0130",
-    pickup: "12:05 PM",
-    itemCount: 2,
-    groups: [
-      {
-        title: "Mains",
-        items: [
-          { quantity: 1, name: "Chicken bowl", details: ["Extra sauce"] },
-        ],
-      },
-      { title: "Drinks", items: [{ quantity: 1, name: "Water" }] },
-    ],
-  },
 ];
 
 
@@ -1267,6 +1232,13 @@ function CustomerFlowScene({
             demoShowAutoOpenCue={isTicketStep}
             demoContainedSheet={isTicketStep || (isHandledStep && isSlideWatch)}
             demoInitialOpenOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
+            demoAutoMarkEnteredOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
+            demoAutoMarkEnteredKey={
+              isHandledStep && slidePhase === "watch"
+                ? `mark-handled-${runId}`
+                : undefined
+            }
+            demoAutoMarkEnteredDelayMs={2100}
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={visibleWalkthroughOrderBoardOrders}
