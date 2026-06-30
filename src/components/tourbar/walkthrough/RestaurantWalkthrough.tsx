@@ -878,10 +878,13 @@ function CustomerFlowScene({
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isTicketFlowStep = isTicketStep || isHandledStep;
+  const boardReadCaptionOffset =
+    isCompact && isSlideRead && (isBoardStep || isTicketStep || isHandledStep) ? 64 : 0;
   const boardViewportTop =
-    isCompact && isTicketFlowStep ? Math.max(42, shellViewportTop - 28) : shellViewportTop;
+    (isCompact && isTicketFlowStep ? Math.max(42, shellViewportTop - 28) : shellViewportTop) +
+    boardReadCaptionOffset;
   const boardViewportBottom =
-    isCompact && isTicketFlowStep ? Math.max(48, navReserveHeight - 44) : navReserveHeight;
+    isCompact && isTicketFlowStep && !isSlideRead ? Math.max(48, navReserveHeight - 44) : navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1430,7 +1433,7 @@ export default function RestaurantWalkthrough({
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
     activeScene === 1 && customerStep === 1 && slidePhase === "read";
-  const closingCardHeight = isCompact ? 340 : initialCardHeight;
+  const closingCardHeight = isCompact ? 245 : initialCardHeight;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
     ? initialCardHeight
