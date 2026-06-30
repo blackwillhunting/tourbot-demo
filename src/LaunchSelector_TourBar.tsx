@@ -1453,8 +1453,10 @@ function SmartBarRootWorkflowHandoff({
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
 }) {
+  const frameHeight = isExpanding ? "min(78svh, 620px)" : "min(36svh, 350px)";
+
   return (
-    <div className="flex h-full min-h-0 w-full items-center justify-center bg-transparent px-0 py-0 text-slate-950">
+    <div className="flex h-full min-h-0 w-full items-start justify-center bg-transparent px-0 py-0 text-slate-950">
       <motion.div
         className="relative h-full min-h-0 w-full max-w-5xl overflow-hidden bg-transparent"
         animate={{ opacity: 1 }}
@@ -1462,10 +1464,11 @@ function SmartBarRootWorkflowHandoff({
       >
         {isLive ? (
           <motion.div
-            className="absolute inset-0 overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
+            initial={{ opacity: 0, height: "min(36svh, 350px)" }}
+            animate={{ opacity: 1, height: frameHeight }}
+            transition={{ duration: isExpanding ? 0.72 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: "top center" }}
           >
             <RestaurantWalkthrough
               chrome="content"
@@ -1491,9 +1494,10 @@ function SmartBarRootWalkthroughStillFrame({ isExpanding = false }: { isExpandin
       </div>
 
       <motion.div
-        className="absolute left-1/2 top-8 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:top-10 sm:rounded-[36px]"
+        className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
         animate={{ height: isExpanding ? "min(78svh, 620px)" : "min(36svh, 350px)" }}
         transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
+        style={{ transformOrigin: "top center" }}
       >
         <div className="relative h-full px-5 py-7 sm:px-10 sm:py-10">
           <div className="relative z-[5] flex items-center gap-3 sm:gap-4">
@@ -2012,15 +2016,15 @@ function SmartBarRootDemoSelector() {
           <div
             ref={stageScrollRef}
             className={
-              "relative mt-3 flex h-full min-h-0 w-full items-center overscroll-contain sm:mt-6 " +
+              "relative mt-3 flex h-full min-h-0 w-full overscroll-contain sm:mt-6 " +
               (isWorkflowHandoffStep
-                ? "max-w-5xl overflow-hidden py-0"
-                : "max-w-3xl overflow-y-auto py-4 sm:overflow-visible sm:py-0")
+                ? "max-w-5xl items-start overflow-hidden py-0"
+                : "max-w-3xl items-center overflow-y-auto py-4 sm:overflow-visible sm:py-0")
             }
           >
             <div
               className={
-                `my-auto w-full rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px] ${stageHeightTransitionClass} ` +
+                `${isWorkflowHandoffStep ? "my-0" : "my-auto sm:my-0"} w-full rounded-[30px] bg-white/35 backdrop-blur-sm sm:rounded-[36px] ${stageHeightTransitionClass} ` +
                 (isWorkflowHandoffStep ? "h-full overflow-hidden" : "overflow-hidden")
               }
               style={
