@@ -25,6 +25,15 @@ const slideOneCaption = "Tap to say or type your order";
 const customerEntryPrompt = "Med pep pizza spagh wings gar-stix";
 const TUMBLER_GLIDE_MS = 720;
 
+const restaurantWalkthroughHiddenTailBoardTileCss = `
+.restaurant-walkthrough-four-tile-board *:has(> [data-smartbar-order-board-tile="S-180"]),
+.restaurant-walkthrough-four-tile-board *:has(> [data-smartbar-order-board-tile="S-179"]),
+.restaurant-walkthrough-four-tile-board [data-smartbar-order-board-tile="S-180"],
+.restaurant-walkthrough-four-tile-board [data-smartbar-order-board-tile="S-179"] {
+  display: none !important;
+}
+`;
+
 type RestaurantWalkthroughSceneNumber = 1 | 2 | 3;
 type CustomerFlowStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type WalkthroughSlidePhase = "read" | "watch" | "done";
@@ -175,6 +184,41 @@ const walkthroughOrderBoardOrders = [
           },
         ],
       },
+    ],
+  },
+  {
+    id: "S-180",
+    minutesAgo: 26,
+    status: "entered" as const,
+    customer: "Andre",
+    phone: "202-555-0189",
+    pickup: "12:20 PM",
+    itemCount: 5,
+    groups: [
+      {
+        title: "Sandwiches",
+        items: [{ quantity: 2, name: "Cheeseburger", details: ["No pickles"] }],
+      },
+      { title: "Sides", items: [{ quantity: 2, name: "Fries" }] },
+      { title: "Drinks", items: [{ quantity: 1, name: "Cola" }] },
+    ],
+  },
+  {
+    id: "S-179",
+    minutesAgo: 35,
+    status: "entered" as const,
+    customer: "Lee",
+    phone: "202-555-0130",
+    pickup: "12:05 PM",
+    itemCount: 2,
+    groups: [
+      {
+        title: "Mains",
+        items: [
+          { quantity: 1, name: "Chicken bowl", details: ["Extra sauce"] },
+        ],
+      },
+      { title: "Drinks", items: [{ quantity: 1, name: "Water" }] },
     ],
   },
 ];
@@ -1195,7 +1239,7 @@ function CustomerFlowScene({
         <motion.div
           key={`restaurant-walkthrough-order-board-${isTicketStep || isHandledStep ? "ticket-flow" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
           className={[
-            "absolute inset-x-0 z-[4] rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80",
+            "restaurant-walkthrough-four-tile-board absolute inset-x-0 z-[4] rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80",
             isCompact && isTicketFlowStep ? "overflow-visible" : "overflow-hidden",
           ].join(" ")}
           style={{ top: boardViewportTop, bottom: boardViewportBottom }}
@@ -1212,6 +1256,7 @@ function CustomerFlowScene({
             ease: [0.16, 1, 0.3, 1],
           }}
         >
+          <style>{restaurantWalkthroughHiddenTailBoardTileCss}</style>
           <SmartBarOrderBoardMock
             demoMode={
               isTicketStep || isHandledStep || isCloseStep
