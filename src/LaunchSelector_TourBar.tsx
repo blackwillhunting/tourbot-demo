@@ -1312,7 +1312,7 @@ function SmartBarRootRestaurantPreview({
     <div
       className={
         "relative w-full overflow-hidden bg-transparent text-slate-950 transition-[height] duration-700 ease-out " +
-        (isSettled ? "h-[620px] sm:h-[720px]" : "h-[252px] sm:h-[278px]") +
+        (isSettled ? "h-[680px] sm:h-[780px]" : "h-[252px] sm:h-[278px]") +
         (isWaving ? " opacity-80" : "")
       }
     >
@@ -1757,7 +1757,8 @@ function SmartBarRootDemoSelector() {
           </div>
         </div>
 
-        <div className="mt-2 flex w-full max-w-[52rem] shrink-0 items-center justify-between gap-3 pb-3 sm:mt-5 sm:pb-4">
+        {!isRestaurantPreview && (
+          <div className="mt-2 flex w-full max-w-[52rem] shrink-0 items-center justify-between gap-3 pb-3 sm:mt-5 sm:pb-4">
           <button
             type="button"
             onClick={goBack}
@@ -1791,7 +1792,8 @@ function SmartBarRootDemoSelector() {
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
           )}
-        </div>
+          </div>
+        )}
       </section>
     </main>
   );
