@@ -404,28 +404,28 @@ const colorPointerTargets: WalkthroughColorPointerTarget[] = [
   {
     id: "pizza",
     status: "ready",
-    label: "Green = Ready",
+    label: "Ready",
     fallbackTopPct: 37,
     fallbackXPct: 50,
   },
   {
     id: "wings",
     status: "pending",
-    label: "Red = Missing requirement",
+    label: "Missing requirement",
     fallbackTopPct: 48,
     fallbackXPct: 50,
   },
   {
     id: "spaghetti",
     status: "options",
-    label: "Yellow = Extras available",
+    label: "Extras available",
     fallbackTopPct: 59,
     fallbackXPct: 50,
   },
   {
     id: "breadsticks",
     status: "unknown",
-    label: "Gray = No matching item",
+    label: "No matching item",
     fallbackTopPct: 70,
     fallbackXPct: 50,
   },
@@ -1281,8 +1281,8 @@ function CustomerFlowScene({
             }
             demoAutoOpenDelayMs={860}
             demoShowAutoOpenCue={isTicketStep}
-            demoContainedSheet={isTicketStep || isHandledStep}
-            demoInitialOpenOrderId={isHandledStep ? "S-184" : undefined}
+            demoContainedSheet={isTicketStep || (isHandledStep && isSlideWatch)}
+            demoInitialOpenOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
             demoAutoMarkEnteredOrderId={isHandledStep ? "S-184" : undefined}
             demoAutoMarkEnteredKey={
               isHandledStep && slidePhase === "watch"
@@ -1293,7 +1293,7 @@ function CustomerFlowScene({
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={
-              isCloseStep
+              isHandledStep && isSlideDone || isCloseStep
                 ? visibleHandledOrderBoardOrders
                 : visibleWalkthroughOrderBoardOrders
             }
