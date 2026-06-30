@@ -1445,11 +1445,13 @@ function SmartBarRootAccessFailure({
 function SmartBarRootWorkflowHandoff({
   isExpanding = false,
   isLive = false,
+  isCoverVisible = true,
   onFinish,
   onRequestPrivateSandbox,
 }: {
   isExpanding?: boolean;
   isLive?: boolean;
+  isCoverVisible?: boolean;
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
 }) {
@@ -1474,6 +1476,7 @@ function SmartBarRootWorkflowHandoff({
           <div className="absolute inset-0 z-[1] overflow-hidden">
             <RestaurantWalkthrough
               chrome="content"
+              forceExpandedFirstFrame
               onFinish={onFinish}
               onRequestPrivateSandbox={onRequestPrivateSandbox}
             />
@@ -1483,8 +1486,8 @@ function SmartBarRootWorkflowHandoff({
         <motion.div
           className="pointer-events-none absolute inset-0 z-[2] bg-white/90"
           initial={false}
-          animate={{ opacity: isLive && isExpanding ? 0 : 1 }}
-          transition={{ duration: isLive && isExpanding ? 0.22 : 0, ease: "easeOut" }}
+          animate={{ opacity: isCoverVisible ? 1 : 0 }}
+          transition={{ duration: isCoverVisible ? 0 : 0.26, ease: "easeOut" }}
         >
           <SmartBarRootWalkthroughStillContent />
         </motion.div>
@@ -1546,6 +1549,7 @@ function SmartBarRootDemoSelector() {
     useState<SmartBarRootInlineFlow>("launch");
   const [isWorkflowExpanding, setIsWorkflowExpanding] = useState(false);
   const [isWorkflowLiveInStage, setIsWorkflowLiveInStage] = useState(false);
+  const [isWorkflowStillCoverVisible, setIsWorkflowStillCoverVisible] = useState(true);
   const [isWorkflowExiting, setIsWorkflowExiting] = useState(false);
   const workflowTransitionRunIdRef = useRef(0);
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
@@ -1649,6 +1653,7 @@ function SmartBarRootDemoSelector() {
     workflowTransitionRunIdRef.current += 1;
     setIsWorkflowExpanding(false);
     setIsWorkflowLiveInStage(false);
+    setIsWorkflowStillCoverVisible(true);
     setIsWorkflowExiting(false);
     clearStoredTourBotDemoToken();
     cleanupResetAccessUrl();
@@ -1684,6 +1689,7 @@ function SmartBarRootDemoSelector() {
         setGateView("challenge");
         setIsWorkflowExpanding(false);
         setIsWorkflowLiveInStage(false);
+        setIsWorkflowStillCoverVisible(true);
         setIsWorkflowExiting(false);
         setStep(0);
         setWavingIndex(null);
@@ -1696,6 +1702,7 @@ function SmartBarRootDemoSelector() {
         setHasAccess(false);
         setIsWorkflowExpanding(false);
         setIsWorkflowLiveInStage(false);
+        setIsWorkflowStillCoverVisible(true);
         setIsWorkflowExiting(false);
         setStep(0);
         setIsSessionChecking(false);
@@ -1727,6 +1734,7 @@ function SmartBarRootDemoSelector() {
         setHasAccess(false);
         setIsWorkflowExpanding(false);
         setIsWorkflowLiveInStage(false);
+        setIsWorkflowStillCoverVisible(true);
         setIsWorkflowExiting(false);
         setStep(0);
       }
@@ -1761,20 +1769,24 @@ function SmartBarRootDemoSelector() {
     setIsWorkflowExiting(false);
     setIsWorkflowExpanding(false);
     setIsWorkflowLiveInStage(false);
+    setIsWorkflowStillCoverVisible(true);
     setStep(workflowHandoffStep);
 
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS + 160);
     if (workflowTransitionRunIdRef.current !== runId) return;
 
-    // The tumbler has landed on the minimal first-frame still. Now mount the
-    // real walkthrough while it is still in that same minimal viewport, then
-    // let the walkthrough perform its own first-card expansion inside the
-    // established stage viewport.
-    setIsWorkflowLiveInStage(true);
-    await wait(120);
+    // The tumbler has landed on the minimal still frame. Expand the still frame
+    // first. The live walkthrough is not exposed until it has mounted and
+    // settled underneath the still-frame cover.
+    setIsWorkflowExpanding(true);
+    await wait(780);
     if (workflowTransitionRunIdRef.current !== runId) return;
 
-    setIsWorkflowExpanding(true);
+    setIsWorkflowLiveInStage(true);
+    await wait(980);
+    if (workflowTransitionRunIdRef.current !== runId) return;
+
+    setIsWorkflowStillCoverVisible(false);
   }, [isWaving, isWorkflowExpanding, isWorkflowExiting, workflowHandoffStep]);
 
   const returnToDemoSelector = useCallback(async () => {
@@ -1791,6 +1803,7 @@ function SmartBarRootDemoSelector() {
     setInlineFlow("launch");
     setIsWorkflowExpanding(false);
     setIsWorkflowLiveInStage(false);
+    setIsWorkflowStillCoverVisible(true);
     setIsWorkflowExiting(false);
     setStep(1);
     setWavingIndex(null);
@@ -1801,6 +1814,7 @@ function SmartBarRootDemoSelector() {
     setInlineFlow("private-sandbox");
     setIsWorkflowExpanding(false);
     setIsWorkflowLiveInStage(false);
+    setIsWorkflowStillCoverVisible(true);
     setIsWorkflowExiting(false);
     setWavingIndex(null);
   }, []);
@@ -1869,6 +1883,7 @@ function SmartBarRootDemoSelector() {
     setInlineFlow("launch");
     setIsWorkflowExpanding(false);
     setIsWorkflowLiveInStage(false);
+    setIsWorkflowStillCoverVisible(true);
     setStep((value) => Math.max(1, value - 1));
   };
 
@@ -2099,6 +2114,7 @@ function SmartBarRootDemoSelector() {
                       <SmartBarRootWorkflowHandoff
                         isExpanding={isWorkflowExpanding}
                         isLive={isWorkflowLiveInStage}
+                        isCoverVisible={isWorkflowStillCoverVisible}
                         onFinish={returnToDemoSelector}
                         onRequestPrivateSandbox={openPrivateSandboxFlow}
                       />

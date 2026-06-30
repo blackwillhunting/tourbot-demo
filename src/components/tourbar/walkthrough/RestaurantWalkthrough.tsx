@@ -1353,12 +1353,14 @@ type RestaurantWalkthroughProps = {
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
   chrome?: "full" | "content";
+  forceExpandedFirstFrame?: boolean;
 };
 
 export default function RestaurantWalkthrough({
   onFinish,
   onRequestPrivateSandbox,
   chrome = "full",
+  forceExpandedFirstFrame = false,
 }: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
     useState<RestaurantWalkthroughSceneNumber>(1);
@@ -1428,7 +1430,10 @@ export default function RestaurantWalkthrough({
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
-    activeScene === 1 && customerStep === 1 && slidePhase === "read";
+    activeScene === 1 &&
+    customerStep === 1 &&
+    slidePhase === "read" &&
+    !forceExpandedFirstFrame;
   const closingCardHeight = initialCardHeight;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
