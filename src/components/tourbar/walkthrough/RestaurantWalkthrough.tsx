@@ -867,15 +867,9 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
-  const visibleWalkthroughOrderBoardOrders = isCompact
-    ? walkthroughOrderBoardOrders.slice(0, 4)
-    : walkthroughOrderBoardOrders;
-  const boardViewportTop =
-    isCompact && (isTicketStep || isHandledStep)
-      ? Math.max(44, shellViewportTop - 18)
-      : shellViewportTop;
-  const boardViewportBottom =
-    isCompact && (isTicketStep || isHandledStep) ? 26 : navReserveHeight;
+  const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
+  const boardViewportTop = shellViewportTop;
+  const boardViewportBottom = navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1267,17 +1261,10 @@ function CustomerFlowScene({
             demoShowAutoOpenCue={isTicketStep}
             demoContainedSheet={isTicketStep || (isHandledStep && isSlideWatch)}
             demoInitialOpenOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
-            demoAutoMarkEnteredOrderId={isHandledStep ? "S-184" : undefined}
-            demoAutoMarkEnteredKey={
-              isHandledStep && slidePhase === "watch"
-                ? `mark-handled-${runId}`
-                : undefined
-            }
-            demoAutoMarkEnteredDelayMs={2100}
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={visibleWalkthroughOrderBoardOrders}
-            className="!min-h-0 h-full !overflow-hidden !px-4 !py-3"
+            className="!min-h-0 h-full !overflow-hidden !px-2 !py-2 sm:!px-4 sm:!py-3"
           />
         </motion.div>
       )}
