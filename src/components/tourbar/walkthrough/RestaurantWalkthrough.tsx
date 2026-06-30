@@ -214,10 +214,6 @@ const walkthroughOrderBoardOrders = [
   },
 ];
 
-const walkthroughHandledOrderBoardOrders = walkthroughOrderBoardOrders.map(
-  (order) =>
-    order.id === "S-184" ? { ...order, status: "entered" as const } : order,
-);
 
 function useViewportSize() {
   const [size, setSize] = useState(() => {
@@ -354,7 +350,7 @@ function RestaurantWalkthroughNavigator({
             className={secondaryButtonClass}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
-            Restart Walkthrough
+            Restart
           </button>
 
           <button
@@ -766,35 +762,26 @@ function WalkthroughClosingSandboxCta({
   onRestart: () => void;
   onFinish: () => void;
 }) {
+  void onRequestPrivateSandbox;
+
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)]";
+    "inline-flex items-center justify-center rounded-full bg-white/92 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-sm";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]";
+    "inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] sm:px-4 sm:text-sm";
 
   return (
     <motion.div
-      className="relative z-[5] mt-7 flex max-w-2xl flex-col items-start gap-4 sm:mt-8 sm:gap-5"
+      className="relative z-[5] mt-4 flex max-w-2xl flex-col items-start gap-3 sm:mt-5"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
     >
-      <motion.button
-        type="button"
-        onClick={onRequestPrivateSandbox}
-        className="inline-flex items-center justify-center rounded-full bg-[#012169] px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_12px_26px_rgba(1,33,105,0.2)] ring-1 ring-white/20 sm:px-6"
-        initial={{ opacity: 0, y: 5, scale: 0.99 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: 0.1, duration: 0.22, ease: "easeOut" }}
-      >
-        Request Private Sandbox
-      </motion.button>
-
       <motion.div
-        className="flex flex-wrap items-center justify-start gap-3 pt-2 sm:pt-3"
+        className="flex w-full flex-nowrap items-center justify-start gap-2 pt-0 sm:gap-3"
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.16, duration: 0.22, ease: "easeOut" }}
+        transition={{ delay: 0.08, duration: 0.22, ease: "easeOut" }}
       >
         <button type="button" onClick={onBack} className={secondaryButtonClass}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -807,7 +794,7 @@ function WalkthroughClosingSandboxCta({
           className={secondaryButtonClass}
         >
           <RotateCcw className="mr-2 h-4 w-4" />
-          Restart Walkthrough
+          Restart
         </button>
 
         <button type="button" onClick={onFinish} className={primaryButtonClass}>
@@ -883,9 +870,6 @@ function CustomerFlowScene({
   const visibleWalkthroughOrderBoardOrders = isCompact
     ? walkthroughOrderBoardOrders.slice(0, 4)
     : walkthroughOrderBoardOrders;
-  const visibleHandledOrderBoardOrders = isCompact
-    ? walkthroughHandledOrderBoardOrders.slice(0, 4)
-    : walkthroughHandledOrderBoardOrders;
   const boardViewportTop =
     isCompact && (isTicketStep || isHandledStep)
       ? Math.max(44, shellViewportTop - 18)
@@ -1159,7 +1143,7 @@ function CustomerFlowScene({
             }
             className={[
               "relative z-[5] max-w-2xl whitespace-pre-line text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
-              isCloseStep ? "mt-6 sm:mt-7" : "mt-3 sm:mt-4",
+              isCloseStep ? "mt-4 sm:mt-5" : "mt-3 sm:mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1247,7 +1231,7 @@ function CustomerFlowScene({
 
       {shouldShowBoard && (
         <motion.div
-          key={`restaurant-walkthrough-order-board-${isTicketStep ? "ticket" : isHandledStep ? "handled" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
+          key={`restaurant-walkthrough-order-board-${isTicketStep || isHandledStep ? "ticket-flow" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
           className="absolute inset-x-0 z-[4] overflow-hidden rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80"
           style={{ top: boardViewportTop, bottom: boardViewportBottom }}
           initial={
@@ -1292,11 +1276,7 @@ function CustomerFlowScene({
             demoAutoMarkEnteredDelayMs={2100}
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
-            demoOrders={
-              isHandledStep || isCloseStep
-                ? visibleHandledOrderBoardOrders
-                : visibleWalkthroughOrderBoardOrders
-            }
+            demoOrders={visibleWalkthroughOrderBoardOrders}
             className="!min-h-0 h-full !overflow-hidden !px-4 !py-3"
           />
         </motion.div>

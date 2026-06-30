@@ -1811,7 +1811,7 @@ function SmartBarRootDemoSelector() {
         </div>
 
         {!isRestaurantPreview && (
-          <div className="mt-2 flex w-full max-w-[calc(100vw-1rem)] shrink-0 flex-col items-stretch gap-2 pb-3 sm:mt-5 sm:max-w-[52rem] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pb-4">
+          <div className="mt-2 flex w-full max-w-[calc(100vw-1rem)] shrink-0 flex-row items-center justify-center gap-2 pb-3 sm:mt-5 sm:max-w-[52rem] sm:items-center sm:justify-between sm:gap-3 sm:pb-4">
           <button
             type="button"
             onClick={goBack}
@@ -1828,20 +1828,20 @@ function SmartBarRootDemoSelector() {
                 type="button"
                 onClick={goRestaurantPreview}
                 disabled={isWaving}
-                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#012169] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:w-auto sm:px-5 sm:py-2.5"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
               >
-                Understand it
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Walkthru
+                <ArrowRight className="ml-1.5 h-4 w-4 sm:ml-2" />
               </button>
 
               <button
                 type="button"
                 onClick={goSetupWalkthrough}
                 disabled={isWaving}
-                className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#012169] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:w-auto sm:px-5 sm:py-2.5"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
               >
-                Set it up
-                <ArrowRight className="ml-2 h-4 w-4" />
+                Setup
+                <ArrowRight className="ml-1.5 h-4 w-4 sm:ml-2" />
               </button>
             </>
           )}
@@ -1851,7 +1851,7 @@ function SmartBarRootDemoSelector() {
               type="button"
               onClick={goNext}
               disabled={isWaving || (!hasAccess && isSessionChecking)}
-              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-full bg-[#012169] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:w-auto sm:px-5 sm:py-2.5"
+              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
             >
               {nextLabel}
               <ArrowRight className="ml-2 h-4 w-4" />
