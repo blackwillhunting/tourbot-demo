@@ -1132,19 +1132,9 @@ function CustomerFlowScene({
       : null;
 
   return (
-    <div className="relative h-full px-5 py-7 sm:px-10 sm:py-10">
-      <div className="relative z-[5] flex items-center gap-3 sm:gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
-          <Compass className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">
-            {content.eyebrow}
-          </div>
-          <div className="mt-2">
-            <CustomerFlowStepDots activeStep={activeStep} />
-          </div>
-        </div>
+    <div className="relative h-full px-5 pt-4 pb-7 sm:px-10 sm:pt-5 sm:pb-10">
+      <div className="relative z-[5] flex items-center">
+        <CustomerFlowStepDots activeStep={activeStep} />
       </div>
 
       <AnimatePresence mode="wait">
@@ -1426,7 +1416,7 @@ export default function RestaurantWalkthrough({
     isCompact ? 72 : 104,
     cardTop - (isCompact ? 26 : 42),
   );
-  const shellViewportTop = isCompact ? 132 : 160;
+  const shellViewportTop = isCompact ? 106 : 126;
   const navReserveHeight = isCompact ? 82 : 96;
 
   const activeSegmentIndex = activeScene - 1;
