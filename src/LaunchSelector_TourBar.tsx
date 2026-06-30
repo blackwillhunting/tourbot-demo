@@ -827,8 +827,8 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
     iconClass: "bg-[#012169] text-white ring-[#012169]/10",
   },
   {
-    label: "Choose a demo",
-    message: "See **SmartBar** guide a visitor.",
+    label: "Use it",
+    message: "Open **SmartBar** demos and try the live flow.",
     icon: PlayCircle,
     iconClass: "bg-[#012169] text-white ring-[#012169]/10",
     demoButtons: true,
@@ -1383,7 +1383,7 @@ function SmartBarRootDemoSelector() {
       ? "Checking access"
       : "Private access"
     : isRestaurantPreview
-      ? "Restaurant walkthrough"
+      ? "Understand it"
       : currentMessage?.label || "SmartBar";
 
   useLayoutEffect(() => {
@@ -1627,7 +1627,7 @@ function SmartBarRootDemoSelector() {
         ? "Try again"
         : "Submit"
     : currentMessageStep === 0
-      ? "See demos"
+      ? "Use it"
       : "Next";
 
   return (
@@ -1770,15 +1770,27 @@ function SmartBarRootDemoSelector() {
           </button>
 
           {hasAccess && currentMessageStep === 0 && !isRestaurantPreview && (
-            <button
-              type="button"
-              onClick={goRestaurantPreview}
-              disabled={isWaving}
-              className="inline-flex items-center justify-center rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.10)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
-            >
-              Restaurant Walkthrough
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={goRestaurantPreview}
+                disabled={isWaving}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:px-5 sm:py-2.5"
+              >
+                Understand it
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Launch setup walkthrough coming next"
+                className="inline-flex cursor-not-allowed items-center justify-center rounded-full bg-sky-50/82 px-4 py-2 text-sm font-semibold text-[#012169]/72 shadow-[0_8px_20px_rgba(1,33,105,0.08)] ring-1 ring-[#012169]/12 sm:px-5 sm:py-2.5"
+              >
+                Set it up
+              </button>
+            </>
           )}
 
           {showNextButton && (
