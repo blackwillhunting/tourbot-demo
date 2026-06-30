@@ -1409,9 +1409,11 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerStep, runId]);
 
-  const cardTop = isCompact
-    ? Math.max(92, Math.round(viewportHeight * 0.12))
-    : Math.max(198, Math.round(viewportHeight * 0.24));
+  const cardTop = chrome === "content"
+    ? 0
+    : isCompact
+      ? Math.max(92, Math.round(viewportHeight * 0.12))
+      : Math.max(198, Math.round(viewportHeight * 0.24));
   const initialCardHeight = isCompact ? 252 : 278;
   const finalCardHeight = Math.max(
     initialCardHeight,
@@ -1520,6 +1522,7 @@ export default function RestaurantWalkthrough({
   };
 
   const showChrome = chrome === "full";
+  const isEmbeddedContent = chrome === "content";
 
   return (
     <main
@@ -1557,17 +1560,23 @@ export default function RestaurantWalkthrough({
       </header>
       )}
 
-      <div
-        className="absolute inset-x-0 z-[13000]"
-        style={{ top: progressTop }}
-      >
-        <RestaurantWalkthroughProgressDots activeScene={activeScene} />
-      </div>
+      {showChrome && (
+        <div
+          className="absolute inset-x-0 z-[13000]"
+          style={{ top: progressTop }}
+        >
+          <RestaurantWalkthroughProgressDots activeScene={activeScene} />
+        </div>
+      )}
 
       <motion.section
         className="absolute left-1/2 z-[12000] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
         style={{ top: cardTop, transformOrigin: "top center" }}
-        initial={{ height: initialCardHeight, opacity: 0, y: 12, scale: 0.985 }}
+        initial={
+          isEmbeddedContent
+            ? { height: initialCardHeight, opacity: 1, y: 0, scale: 1 }
+            : { height: initialCardHeight, opacity: 0, y: 12, scale: 0.985 }
+        }
         animate={{
           height: cardTargetHeight,
           opacity: 1,

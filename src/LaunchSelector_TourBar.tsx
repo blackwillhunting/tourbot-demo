@@ -1453,7 +1453,7 @@ function SmartBarRootWorkflowHandoff({
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
 }) {
-  const frameHeight = isExpanding ? "min(78svh, 620px)" : "min(36svh, 350px)";
+  const frameHeight = isExpanding ? "min(78svh, 620px)" : "350px";
 
   return (
     <div className="flex h-full min-h-0 w-full items-start justify-center bg-transparent px-0 py-0 text-slate-950">
@@ -1465,7 +1465,7 @@ function SmartBarRootWorkflowHandoff({
         {isLive ? (
           <motion.div
             className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
-            initial={{ opacity: 0, height: "min(36svh, 350px)" }}
+            initial={{ opacity: 1, height: "350px" }}
             animate={{ opacity: 1, height: frameHeight }}
             transition={{ duration: isExpanding ? 0.72 : 0.18, ease: [0.22, 1, 0.36, 1] }}
             style={{ transformOrigin: "top center" }}
@@ -1495,8 +1495,8 @@ function SmartBarRootWalkthroughStillFrame({ isExpanding = false }: { isExpandin
 
       <motion.div
         className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
-        animate={{ height: isExpanding ? "min(78svh, 620px)" : "min(36svh, 350px)" }}
-        transition={{ duration: 0.72, ease: [0.22, 1, 0.36, 1] }}
+        animate={{ height: isExpanding ? "min(78svh, 620px)" : "350px" }}
+        transition={{ duration: isExpanding ? 0.72 : 0, ease: [0.22, 1, 0.36, 1] }}
         style={{ transformOrigin: "top center" }}
       >
         <div className="relative h-full px-5 py-7 sm:px-10 sm:py-10">
