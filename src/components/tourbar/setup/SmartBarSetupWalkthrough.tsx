@@ -66,7 +66,7 @@ function AnimatedTile({
       initial={false}
       animate={isActive ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0.88, y: 8, scale: 0.985 }}
       transition={floatTransition}
-      className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[30px] border border-white/82 bg-sky-50/88 shadow-[0_18px_48px_rgba(1,33,105,0.10)] ring-1 ring-[#012169]/8 sm:h-32 sm:w-32 sm:rounded-[34px]"
+      className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[26px] border border-white/82 bg-sky-50/88 shadow-[0_18px_48px_rgba(1,33,105,0.10)] ring-1 ring-[#012169]/8 sm:h-32 sm:w-32 sm:rounded-[34px]"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_24%_18%,_rgba(56,189,248,0.18),_transparent_36%),linear-gradient(135deg,_rgba(255,255,255,0.72),_rgba(239,248,255,0.52))]" />
       {children}
@@ -277,12 +277,12 @@ export default function SmartBarSetupWalkthrough({
   return (
     <div
       className={[
-        "w-full bg-white/82 px-5 py-7 text-slate-950 sm:px-10 sm:py-10",
+        "w-full bg-white/82 px-4 py-5 text-center text-slate-950 sm:px-10 sm:py-10 sm:text-left",
         "min-h-[252px] sm:min-h-[278px]",
         isWaving ? "opacity-80" : "",
       ].join(" ")}
     >
-      <div className="mx-auto flex max-w-2xl flex-col gap-5 sm:flex-row sm:items-center sm:gap-7">
+      <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-7">
         <SetupIcon index={stepIndex} isActive={isActive} />
 
         <motion.div
@@ -295,11 +295,11 @@ export default function SmartBarSetupWalkthrough({
             {step.eyebrow}
           </div>
 
-          <h2 className="text-[28px] font-black leading-none tracking-[-0.07em] text-slate-950 sm:text-[34px]">
+          <h2 className="text-[25px] font-black leading-none tracking-[-0.07em] text-slate-950 sm:text-[34px]">
             {step.title}
           </h2>
 
-          <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-8">
+          <p className="mt-3 max-w-xl text-[15px] font-medium leading-6 text-slate-700 sm:mt-4 sm:text-xl sm:leading-8">
             {step.message}
           </p>
         </motion.div>
