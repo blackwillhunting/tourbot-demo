@@ -1456,69 +1456,42 @@ function SmartBarRootWorkflowHandoff({
   const frameHeight = isExpanding ? "min(78svh, 620px)" : "350px";
 
   return (
-    <div className="relative h-full min-h-0 w-full overflow-hidden bg-transparent text-slate-950">
-      <div className="absolute inset-x-0 top-2 z-10 flex items-center justify-center gap-2 sm:top-3">
-        <span className="h-2 w-9 rounded-full bg-[#012169] shadow-[0_4px_12px_rgba(1,33,105,0.20)]" />
-        <span className="h-2 w-2 rounded-full bg-slate-300" />
-        <span className="h-2 w-2 rounded-full bg-slate-300" />
-      </div>
-
+    <div className="flex h-full min-h-0 w-full items-start justify-center bg-transparent px-0 py-0 text-slate-950">
       <motion.div
-        className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
-        initial={false}
-        animate={{ height: frameHeight }}
-        transition={{ duration: isExpanding ? 0.72 : 0, ease: [0.22, 1, 0.36, 1] }}
-        style={{ transformOrigin: "top center" }}
+        className="relative h-full min-h-0 w-full max-w-5xl overflow-hidden bg-transparent"
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       >
         {isLive && (
-          <div className="absolute inset-0 z-[1] overflow-hidden">
+          <motion.div
+            className="absolute left-1/2 top-0 z-[5] w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
+            initial={{ opacity: 1, height: "350px" }}
+            animate={{ opacity: 1, height: frameHeight }}
+            transition={{ duration: isExpanding ? 0.72 : 0, ease: [0.22, 1, 0.36, 1] }}
+            style={{ transformOrigin: "top center" }}
+          >
             <RestaurantWalkthrough
               chrome="content"
               onFinish={onFinish}
               onRequestPrivateSandbox={onRequestPrivateSandbox}
             />
-          </div>
+          </motion.div>
         )}
 
         <motion.div
-          className="pointer-events-none absolute inset-0 z-[2] bg-white/90"
+          className="absolute inset-0 z-[10] pointer-events-none"
           initial={false}
           animate={{ opacity: isLive && isExpanding ? 0 : 1 }}
-          transition={{ duration: isLive && isExpanding ? 0.22 : 0, ease: "easeOut" }}
+          transition={{ duration: isLive && isExpanding ? 0.32 : 0, ease: [0.22, 1, 0.36, 1] }}
         >
-          <SmartBarRootWalkthroughStillContent />
+          <SmartBarRootWalkthroughStillFrame isExpanding={false} />
         </motion.div>
       </motion.div>
     </div>
   );
 }
 
-function SmartBarRootWalkthroughStillContent() {
-  return (
-    <div className="relative h-full px-5 py-7 sm:px-10 sm:py-10">
-      <div className="relative z-[5] flex items-center gap-3 sm:gap-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
-          <Compass className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">Customer flow</div>
-          <div className="mt-2 flex gap-1.5">
-            <span className="h-1.5 w-7 rounded-full bg-[#012169]" />
-            {Array.from({ length: 8 }).map((_, index) => (
-              <span key={index} className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="relative z-[5] mt-3 max-w-2xl text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:mt-4 sm:text-[1.42rem] sm:leading-[1.1]">
-        SmartBar is a search bar.<br />At the bottom of your site.
-      </div>
-    </div>
-  );
-}
-
-function SmartBarRootWalkthroughStillFrame() {
+function SmartBarRootWalkthroughStillFrame({ isExpanding = false }: { isExpanding?: boolean }) {
   return (
     <div className="relative h-full w-full overflow-hidden bg-transparent text-slate-950">
       <div className="absolute inset-x-0 top-2 z-10 flex items-center justify-center gap-2 sm:top-3">
@@ -1527,15 +1500,37 @@ function SmartBarRootWalkthroughStillFrame() {
         <span className="h-2 w-2 rounded-full bg-slate-300" />
       </div>
 
-      <div
-        className="absolute left-1/2 top-0 h-[350px] w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
+      <motion.div
+        className="absolute left-1/2 top-0 w-[min(52rem,calc(100%-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/90 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
+        animate={{ height: isExpanding ? "min(78svh, 620px)" : "350px" }}
+        transition={{ duration: isExpanding ? 0.72 : 0, ease: [0.22, 1, 0.36, 1] }}
         style={{ transformOrigin: "top center" }}
       >
-        <SmartBarRootWalkthroughStillContent />
-      </div>
+        <div className="relative h-full px-5 py-7 sm:px-10 sm:py-10">
+          <div className="relative z-[5] flex items-center gap-3 sm:gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
+              <Compass className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:text-xs sm:tracking-[0.2em]">Customer flow</div>
+              <div className="mt-2 flex gap-1.5">
+                <span className="h-1.5 w-7 rounded-full bg-[#012169]" />
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <span key={index} className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="relative z-[5] mt-3 max-w-2xl text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:mt-4 sm:text-[1.42rem] sm:leading-[1.1]">
+            SmartBar is a search bar.<br />At the bottom of your site.
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
+
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(
@@ -1771,7 +1766,10 @@ function SmartBarRootDemoSelector() {
     // let the walkthrough perform its own first-card expansion inside the
     // established stage viewport.
     setIsWorkflowLiveInStage(true);
-    await wait(120);
+    // Keep the still frame fully covering the live walkthrough while the
+    // walkthrough mounts and completes its own first-card layout/intro work.
+    // The only thing the user should see during this pause is the stable still.
+    await wait(1100);
     if (workflowTransitionRunIdRef.current !== runId) return;
 
     setIsWorkflowExpanding(true);
