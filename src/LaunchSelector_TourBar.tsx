@@ -1401,16 +1401,6 @@ function SmartBarRootPasscodeChallenge({
           })}
         </div>
 
-        <div className="mt-6 flex justify-center sm:justify-start">
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={isChecking || code.length < REQUIRED_PASSCODE_LENGTH}
-            className="inline-flex items-center justify-center rounded-full bg-[#012169] px-6 py-3 text-sm font-black uppercase tracking-[0.14em] text-white shadow-[0_14px_32px_rgba(1,33,105,0.22)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:pointer-events-none disabled:opacity-60"
-          >
-            {isChecking ? "Checking..." : "Submit"}
-          </button>
-        </div>
         <div className="mt-4 flex items-center gap-2 text-sm font-medium text-slate-500">
           <ShieldCheck className="h-4 w-4" />
           Access gated to control live AI usage.
