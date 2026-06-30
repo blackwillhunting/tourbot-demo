@@ -1390,16 +1390,37 @@ function SmartBarRootDemoSelector() {
   }, [stageItems.length, step, isRestaurantPreviewSettled]);
 
   useEffect(() => {
+    const active = segmentRefs.current[step];
+    if (!active) return;
+
+    let smartbarRootResizeFrame = 0;
+
     const measureActiveSegment = () => {
-      const active = segmentRefs.current[step];
-      if (!active) return;
-      setRibbonY(-active.offsetTop);
-      setRibbonHeight(active.offsetHeight);
+      window.cancelAnimationFrame(smartbarRootResizeFrame);
+      smartbarRootResizeFrame = window.requestAnimationFrame(() => {
+        const currentActive = segmentRefs.current[step];
+        if (!currentActive) return;
+        setRibbonY(-currentActive.offsetTop);
+        setRibbonHeight(currentActive.offsetHeight);
+      });
     };
 
+    measureActiveSegment();
+
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measureActiveSegment);
+
+    resizeObserver?.observe(active);
     window.addEventListener("resize", measureActiveSegment);
-    return () => window.removeEventListener("resize", measureActiveSegment);
-  }, [step]);
+
+    return () => {
+      window.cancelAnimationFrame(smartbarRootResizeFrame);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", measureActiveSegment);
+    };
+  }, [step, stageItems.length, isRestaurantPreviewSettled]);
 
   useEffect(() => {
     if (hasAccess) {
