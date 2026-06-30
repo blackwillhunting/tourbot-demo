@@ -521,7 +521,7 @@ export default function SmartBarOrderBoardMock({
 
   useEffect(() => {
     setOrders(initialVisibleOrders);
-    setActiveOrderId(demoInitialOpenOrderId ?? null);
+    setActiveOrderId(null);
     setRevealSlotVisible(false);
     setRecentlyRevealedOrderId(null);
     setRecentlyEnteredOrderId(null);
@@ -553,7 +553,16 @@ export default function SmartBarOrderBoardMock({
       window.clearTimeout(revealTimer);
       window.clearTimeout(clearRevealTimer);
     };
-  }, [demoInitialOpenOrderId, demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
+  }, [demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
+
+  // Keep demoInitialOpenOrderId from resetting the board state after a demo action.
+  // The walkthrough uses this prop to start the handled step with S-184 open.
+  // When the parent later moves from watch -> done, the prop clears; that must not
+  // reset orders back to the original fixture and undo the entered/handled state.
+  useEffect(() => {
+    if (!demoMode || !demoInitialOpenOrderId) return;
+    setActiveOrderId(demoInitialOpenOrderId);
+  }, [demoMode, demoInitialOpenOrderId]);
 
   const sortedOrders = useMemo(
     () =>
