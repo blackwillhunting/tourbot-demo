@@ -411,21 +411,21 @@ const colorPointerTargets: WalkthroughColorPointerTarget[] = [
   {
     id: "wings",
     status: "pending",
-    label: "Missing requirement",
+    label: "Needs choice",
     fallbackTopPct: 48,
     fallbackXPct: 50,
   },
   {
     id: "spaghetti",
     status: "options",
-    label: "Extras available",
+    label: "Extras",
     fallbackTopPct: 59,
     fallbackXPct: 50,
   },
   {
     id: "breadsticks",
     status: "unknown",
-    label: "No matching item",
+    label: "Unknown",
     fallbackTopPct: 70,
     fallbackXPct: 50,
   },
@@ -1293,7 +1293,7 @@ function CustomerFlowScene({
             demoShowAutoMarkEnteredCue={isHandledStep}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={
-              isHandledStep && isSlideDone || isCloseStep
+              isCloseStep
                 ? visibleHandledOrderBoardOrders
                 : visibleWalkthroughOrderBoardOrders
             }
