@@ -864,7 +864,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "SmartBar",
     message:
-      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar checks the order and sends your staff a ready ticket.",
+      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
     icon: SmartBarPhoneToTicketIcon,
     iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
     storyIcon: true,
