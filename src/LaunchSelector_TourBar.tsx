@@ -1074,6 +1074,7 @@ function SmartBarRootDemoLaunchButton({
   statusLabel,
   steps,
   note,
+  onSelect,
 }: {
   href: string;
   icon: ComponentType<{ className?: string }>;
@@ -1083,12 +1084,18 @@ function SmartBarRootDemoLaunchButton({
   statusLabel?: string;
   steps?: string[];
   note?: string;
+  onSelect?: () => void;
 }) {
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
 
   return (
     <a
       href={href}
+      onClick={(event) => {
+        if (!onSelect) return;
+        event.preventDefault();
+        onSelect();
+      }}
       className="group flex h-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
@@ -1142,6 +1149,104 @@ function SmartBarRootDemoLaunchButton({
   );
 }
 
+function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
+  const readinessSteps = [
+    "Request sandbox access",
+    "Load the restaurant menu",
+    "Run customer-style test orders",
+    "Review generated tickets",
+    "Score the results",
+    "Tune SmartBar before launch",
+  ];
+
+  return (
+    <div className="mt-7 rounded-[28px] bg-white/88 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/80 sm:mt-8 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-xl">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+            Sandbox Readiness
+          </div>
+          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Build a private test space first.
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
+            Use the sandbox to try customer-style orders, check the tickets SmartBar creates, and tune the menu model before customers see it.
+          </p>
+        </div>
+
+        <div className="shrink-0 rounded-2xl bg-[#012169] px-4 py-3 text-white shadow-[0_14px_32px_rgba(1,33,105,0.18)]">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-100/80">
+            Status
+          </div>
+          <div className="mt-1 rounded-full bg-amber-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[#012169]">
+            Not requested
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="rounded-[24px] bg-slate-50/90 p-4 ring-1 ring-slate-200/70 sm:p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-950">Readiness checklist</div>
+              <div className="text-xs text-slate-500">These steps unlock as the sandbox is set up.</div>
+            </div>
+            <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+              0 / 6
+            </div>
+          </div>
+
+          <div className="grid gap-2.5">
+            {readinessSteps.map((stepText, index) => (
+              <div key={stepText} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 ring-1 ring-slate-200/80">
+                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
+                  {index + 1}
+                </div>
+                <div className="min-w-0 flex-1 text-sm font-medium text-slate-700">{stepText}</div>
+                <div className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  Pending
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[24px] bg-[#f0f7ff] p-4 ring-1 ring-sky-100 sm:p-5">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#012169] shadow-sm ring-1 ring-sky-100">
+            <ShoppingCart className="h-5 w-5" />
+          </div>
+          <h4 className="mt-4 text-lg font-semibold tracking-tight text-slate-950">
+            Next step: request the sandbox.
+          </h4>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Once requested, SmartBar can load the restaurant menu and create a private test space for staff to run sample orders.
+          </p>
+          <div className="mt-5 grid gap-2">
+            <a
+              href="/direct-ordering?mode=sandbox"
+              className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(1,33,105,0.2)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
+            >
+              Request Sandbox
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to options
+            </button>
+          </div>
+          <div className="mt-4 rounded-2xl bg-white/70 px-3 py-2 text-xs leading-5 text-slate-600 ring-1 ring-white/80">
+            Every scored test order helps SmartBar get smarter before launch.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SmartBarRootLaunchMessage({
   message,
   step,
@@ -1153,10 +1258,11 @@ function SmartBarRootLaunchMessage({
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
+  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | null>(null);
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
-      <div className={`mx-auto ${message.demoButtons ? "max-w-3xl" : "max-w-2xl"}`}>
+      <div className={`mx-auto ${message.demoButtons ? "max-w-4xl" : "max-w-2xl"}`}>
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
           <div
             className={[
@@ -1177,37 +1283,34 @@ function SmartBarRootLaunchMessage({
         </div>
 
         {message.demoButtons && (
-          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
-            <SmartBarRootDemoLaunchButton
-              href="/direct-ordering?mode=sandbox"
-              icon={ShoppingCart}
-              eyebrow="Sandbox"
-              title="Request Sandbox"
-              description="Create a private SmartBar test space before customers see it."
-              statusLabel="Not requested"
-              steps={[
-                "Request sandbox access",
-                "Load the restaurant menu",
-                "Run customer-style test orders",
-                "Review and score generated tickets",
-              ]}
-              note="Every scored test order helps SmartBar get smarter before launch."
-            />
-            <SmartBarRootDemoLaunchButton
-              href="/direct-ordering?mode=website"
-              icon={ShieldCheck}
-              eyebrow="Website Mode"
-              title="Set Up Website Mode"
-              description="Start hidden in Ghost Mode, retest on the real site, then turn it live."
-            />
-            <SmartBarRootDemoLaunchButton
-              href="/direct-ordering?mode=board"
-              icon={ReceiptText}
-              eyebrow="Live Order Board"
-              title="Open Order Board"
-              description="Manage incoming orders, review tickets, and mark them handled."
-            />
-          </div>
+          activeUseItLane === "sandbox" ? (
+            <SmartBarRootSandboxReadiness onBack={() => setActiveUseItLane(null)} />
+          ) : (
+            <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
+              <SmartBarRootDemoLaunchButton
+                href="/direct-ordering?mode=sandbox"
+                icon={ShoppingCart}
+                eyebrow="Private Testing"
+                title="Sandbox"
+                description="Test orders privately before customers see them."
+                onSelect={() => setActiveUseItLane("sandbox")}
+              />
+              <SmartBarRootDemoLaunchButton
+                href="/direct-ordering?mode=website"
+                icon={ShieldCheck}
+                eyebrow="Website Mode"
+                title="Website Mode"
+                description="Connect SmartBar to your real site and control Ghost Mode."
+              />
+              <SmartBarRootDemoLaunchButton
+                href="/direct-ordering?mode=board"
+                icon={ReceiptText}
+                eyebrow="Live Orders"
+                title="Live Order Board"
+                description="Manage incoming SmartBar orders after launch."
+              />
+            </div>
+          )
         )}
       </div>
     </div>
