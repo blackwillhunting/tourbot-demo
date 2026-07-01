@@ -1071,17 +1071,25 @@ function SmartBarRootDemoLaunchButton({
   eyebrow,
   title,
   description,
+  statusLabel,
+  steps,
+  note,
 }: {
   href: string;
   icon: ComponentType<{ className?: string }>;
   eyebrow: string;
   title: string;
   description: string;
+  statusLabel?: string;
+  steps?: string[];
+  note?: string;
 }) {
+  const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
+
   return (
     <a
       href={href}
-      className="group flex items-center gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
+      className="group flex h-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
         <Icon className="h-5 w-5" />
@@ -1096,8 +1104,40 @@ function SmartBarRootDemoLaunchButton({
         <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
           {description}
         </span>
+
+        {hasStatusChecklist && (
+          <span className="mt-3 block rounded-[18px] bg-white/10 p-3 ring-1 ring-white/15">
+            {statusLabel && (
+              <span className="mb-2 flex items-center justify-between gap-3 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-50/80">
+                <span>Status</span>
+                <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] text-[#012169]">
+                  {statusLabel}
+                </span>
+              </span>
+            )}
+
+            {steps?.length ? (
+              <span className="grid gap-1.5">
+                {steps.map((stepText) => (
+                  <span key={stepText} className="flex items-start gap-2 text-[12px] leading-4 text-sky-50/90">
+                    <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/15 ring-1 ring-white/15">
+                      <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                    </span>
+                    <span>{stepText}</span>
+                  </span>
+                ))}
+              </span>
+            ) : null}
+
+            {note && (
+              <span className="mt-3 block rounded-2xl bg-sky-100/10 px-3 py-2 text-[11px] leading-4 text-sky-50/80">
+                {note}
+              </span>
+            )}
+          </span>
+        )}
       </span>
-      <ArrowRight className="h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+      <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
     </a>
   );
 }
@@ -1139,11 +1179,19 @@ function SmartBarRootLaunchMessage({
         {message.demoButtons && (
           <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
             <SmartBarRootDemoLaunchButton
-              href="/foodtrio"
+              href="/direct-ordering?mode=sandbox"
               icon={ShoppingCart}
               eyebrow="Sandbox"
-              title="Open Sandbox"
-              description="Build test orders, review tickets, and tune SmartBar."
+              title="Request Sandbox"
+              description="Create a private SmartBar test space before customers see it."
+              statusLabel="Not requested"
+              steps={[
+                "Request sandbox access",
+                "Load the restaurant menu",
+                "Run customer-style test orders",
+                "Review and score generated tickets",
+              ]}
+              note="Every scored test order helps SmartBar get smarter before launch."
             />
             <SmartBarRootDemoLaunchButton
               href="/direct-ordering?mode=website"
