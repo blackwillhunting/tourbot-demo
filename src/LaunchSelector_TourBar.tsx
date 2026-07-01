@@ -1152,6 +1152,11 @@ function SmartBarRootDemoLaunchButton({
 function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
   const [showTestInstructions, setShowTestInstructions] = useState(false);
+  const sandboxReadyOverride = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("sandboxReady") === "1";
+  }, []);
+  const sandboxIsRequested = sandboxReadyOverride || sandboxRequested;
 
   const rowBase = "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 ring-1";
   const activeRow = "bg-white text-slate-950 ring-slate-200/80";
@@ -1232,17 +1237,17 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
       number: 1,
       title: "Request access",
       detail: "Create private test space.",
-      status: sandboxRequested ? "Pending" : "Request",
+      status: sandboxReadyOverride ? "Ready" : sandboxIsRequested ? "Pending" : "Request",
       active: true,
-      action: !sandboxRequested,
+      action: !sandboxIsRequested,
       actionType: "request",
     },
     {
       number: 2,
       title: "Load menu",
       detail: "We set this up.",
-      status: sandboxRequested ? "Pending" : "Waiting",
-      active: sandboxRequested,
+      status: sandboxReadyOverride ? "Ready" : sandboxIsRequested ? "Pending" : "Waiting",
+      active: sandboxIsRequested,
       action: false,
       actionType: "status",
     },
@@ -1250,9 +1255,9 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
       number: 3,
       title: "Test orders",
       detail: "Run customer-style orders.",
-      status: sandboxRequested ? "Begin" : "Locked",
-      active: sandboxRequested,
-      action: sandboxRequested,
+      status: sandboxReadyOverride ? "Begin" : sandboxIsRequested ? "Waiting" : "Locked",
+      active: sandboxIsRequested,
+      action: sandboxReadyOverride,
       actionType: "begin",
     },
   ];
