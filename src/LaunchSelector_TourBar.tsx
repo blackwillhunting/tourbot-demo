@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarCheck, Check, Compass, KeyRound, PhoneCall, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, PhoneCall, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -871,7 +871,8 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   },
   {
     label: "Use it",
-    message: "Open **SmartBar** demos and try the live flow.",
+    message:
+      "Choose how you want to use SmartBar.\n\n**Sandbox** is for private test orders. **Website Mode** is for Ghost Mode, retesting, and live launch.",
     icon: PlayCircle,
     iconClass: "bg-[#012169] text-white ring-[#012169]/10",
     demoButtons: true,
@@ -1140,16 +1141,16 @@ function SmartBarRootLaunchMessage({
             <SmartBarRootDemoLaunchButton
               href="/foodtrio"
               icon={ShoppingCart}
-              eyebrow="Ordering"
-              title="FoodTrio"
-              description="Food ordering demo"
+              eyebrow="Sandbox"
+              title="Open Sandbox"
+              description="Test orders, review tickets, and tune SmartBar before launch."
             />
             <SmartBarRootDemoLaunchButton
-              href="/domi-play-demo"
-              icon={CalendarCheck}
-              eyebrow="Booking"
-              title="Domi Coast"
-              description="Hotel booking demo"
+              href="/direct-ordering"
+              icon={ShieldCheck}
+              eyebrow="Website Mode"
+              title="Set Up Website Mode"
+              description="Start hidden in Ghost Mode, test on the real site, then go live."
             />
           </div>
         )}
