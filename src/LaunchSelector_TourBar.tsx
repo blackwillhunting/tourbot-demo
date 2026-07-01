@@ -8,6 +8,7 @@ import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexap
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import SmartBarSetupWalkthrough, { SMARTBAR_SETUP_WALKTHROUGH_STEPS } from "./components/tourbar/setup/SmartBarSetupWalkthrough";
+import SmartBarSandboxWorkbench from "./components/tourbar/sandbox/SmartBarSandboxWorkbench";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
   SmartBarFlashCard,
@@ -1155,7 +1156,13 @@ function SmartBarRootDemoLaunchButton({
   );
 }
 
-function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
+function SmartBarRootSandboxReadiness({
+  onBack,
+  onBeginTesting,
+}: {
+  onBack: () => void;
+  onBeginTesting: () => void;
+}) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
   const [showTestInstructions, setShowTestInstructions] = useState(false);
   const sandboxReadyOverride = useMemo(() => {
@@ -1227,13 +1234,14 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
           ))}
         </div>
 
-        <a
-          href="/direct-ordering?mode=sandbox"
+        <button
+          type="button"
+          onClick={onBeginTesting}
           className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-[#012169] px-4 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
         >
           Begin Testing
           <ArrowRight className="ml-2 h-4 w-4" />
-        </a>
+        </button>
       </div>
     );
   }
@@ -1523,7 +1531,7 @@ function SmartBarRootLaunchMessage({
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
-  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | null>(null);
+  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "sandboxWorkbench" | "website" | "board" | null>(null);
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
@@ -1549,7 +1557,12 @@ function SmartBarRootLaunchMessage({
 
         {message.demoButtons && (
           activeUseItLane === "sandbox" ? (
-            <SmartBarRootSandboxReadiness onBack={() => setActiveUseItLane(null)} />
+            <SmartBarRootSandboxReadiness
+              onBack={() => setActiveUseItLane(null)}
+              onBeginTesting={() => setActiveUseItLane("sandboxWorkbench")}
+            />
+          ) : activeUseItLane === "sandboxWorkbench" ? (
+            <SmartBarSandboxWorkbench onBack={() => setActiveUseItLane("sandbox")} />
           ) : activeUseItLane === "website" ? (
             <SmartBarRootWebsiteModeReadiness onBack={() => setActiveUseItLane(null)} />
           ) : activeUseItLane === "board" ? (
