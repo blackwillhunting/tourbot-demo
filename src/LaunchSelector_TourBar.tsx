@@ -872,7 +872,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "Use it",
     message:
-      "Choose how you want to use SmartBar.\n\n**Sandbox** is for private test orders. **Website Mode** is for Ghost Mode, retesting, and live launch.",
+      "Test it, connect it, then run live orders.\n\n**Sandbox** is for testing. **Website Mode** is for setup. **Live Order Board** is for daily orders.",
     icon: PlayCircle,
     iconClass: "bg-[#012169] text-white ring-[#012169]/10",
     demoButtons: true,
@@ -1116,7 +1116,7 @@ function SmartBarRootLaunchMessage({
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
-      <div className="mx-auto max-w-2xl">
+      <div className={`mx-auto ${message.demoButtons ? "max-w-3xl" : "max-w-2xl"}`}>
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
           <div
             className={[
@@ -1137,20 +1137,27 @@ function SmartBarRootLaunchMessage({
         </div>
 
         {message.demoButtons && (
-          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
+          <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
             <SmartBarRootDemoLaunchButton
               href="/foodtrio"
               icon={ShoppingCart}
               eyebrow="Sandbox"
               title="Open Sandbox"
-              description="Test orders, review tickets, and tune SmartBar before launch."
+              description="Build test orders, review tickets, and tune SmartBar."
             />
             <SmartBarRootDemoLaunchButton
-              href="/direct-ordering"
+              href="/direct-ordering?mode=website"
               icon={ShieldCheck}
               eyebrow="Website Mode"
               title="Set Up Website Mode"
-              description="Start hidden in Ghost Mode, test on the real site, then go live."
+              description="Start hidden in Ghost Mode, retest on the real site, then turn it live."
+            />
+            <SmartBarRootDemoLaunchButton
+              href="/direct-ordering?mode=board"
+              icon={ReceiptText}
+              eyebrow="Live Order Board"
+              title="Open Order Board"
+              description="Manage incoming orders, review tickets, and mark them handled."
             />
           </div>
         )}
@@ -1227,7 +1234,7 @@ function SmartBarRootPasscodeChallenge({
             <KeyRound className="h-5 w-5" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            Private demo access
+            Live Product access
           </div>
         </div>
 
