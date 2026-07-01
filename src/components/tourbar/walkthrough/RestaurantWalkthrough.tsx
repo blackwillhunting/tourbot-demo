@@ -780,7 +780,7 @@ function WalkthroughClosingSandboxCta({
 
   return (
     <motion.div
-      className="relative z-[5] mt-4 flex max-w-2xl flex-col items-start gap-3 sm:mt-5"
+      className="relative z-[5] mt-3 flex max-w-2xl flex-col items-start gap-2 sm:mt-3"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
@@ -1433,7 +1433,7 @@ export default function RestaurantWalkthrough({
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
     activeScene === 1 && customerStep === 1 && slidePhase === "read";
-  const closingCardHeight = isCompact ? 245 : initialCardHeight;
+  const closingCardHeight = isCompact ? 164 : 188;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
     ? initialCardHeight

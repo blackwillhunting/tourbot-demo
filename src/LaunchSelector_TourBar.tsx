@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, CalendarCheck, Compass, KeyRound, PlayCircle, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarCheck, Check, Compass, KeyRound, PhoneCall, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -805,11 +805,51 @@ function wait(ms: number) {
 }
 
 
+
+function SmartBarPhoneToTicketIcon({ className = "" }: { className?: string }) {
+  return (
+    <span className={`relative block ${className}`} aria-hidden="true">
+      <motion.span
+        className="absolute left-0 top-[6px] grid h-[18px] w-[18px] place-items-center rounded-[8px] bg-white text-[#012169] shadow-[0_6px_14px_rgba(1,33,105,0.12)] ring-1 ring-sky-100"
+        animate={{ y: [0, -1.5, 0], rotate: [0, -3, 0] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <PhoneCall className="h-3.5 w-3.5" strokeWidth={2.35} />
+      </motion.span>
+
+      <motion.span
+        className="absolute left-[17px] top-[14px] h-2.5 w-2.5 rounded-full bg-[#012169] shadow-[0_0_0_5px_rgba(1,33,105,0.08)]"
+        animate={{ scale: [1, 1.22, 1], opacity: [0.88, 1, 0.88] }}
+        transition={{ duration: 1.45, repeat: Infinity, ease: "easeInOut" }}
+      />
+
+      <motion.span
+        className="absolute right-0 top-[2px] grid h-[24px] w-[19px] place-items-center rounded-[7px] bg-white text-[#012169] shadow-[0_8px_18px_rgba(15,23,42,0.13)] ring-1 ring-sky-100"
+        animate={{ x: [0, 1.5, 0] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.18 }}
+      >
+        <ReceiptText className="h-3.5 w-3.5" strokeWidth={2.35} />
+      </motion.span>
+
+      <motion.span
+        className="absolute right-[-3px] top-[-3px] grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-400 text-white shadow-[0_4px_10px_rgba(16,185,129,0.24)]"
+        initial={{ scale: 0.86, opacity: 0.9 }}
+        animate={{ scale: [0.9, 1.08, 0.9], opacity: [0.85, 1, 0.85] }}
+        transition={{ duration: 1.7, repeat: Infinity, ease: "easeInOut", delay: 0.32 }}
+      >
+        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+      </motion.span>
+    </span>
+  );
+}
+
+
 type SmartBarRootDemoMessage = {
   label: string;
   message: string;
   icon: ComponentType<{ className?: string }>;
   iconClass: string;
+  storyIcon?: boolean;
   demoButtons?: boolean;
 };
 
@@ -822,11 +862,12 @@ type SmartBarRootStageItem =
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
-    label: "SmartBar overview",
+    label: "SmartBar",
     message:
-      "**SmartBar** looks like search, feels like chat, and returns action.\n\nPlain-language requests become carts, bookings, choices, and handoffs.",
-    icon: Compass,
-    iconClass: "bg-[#012169] text-white ring-[#012169]/10",
+      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar checks the order and sends your staff a ready ticket.",
+    icon: SmartBarPhoneToTicketIcon,
+    iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
+    storyIcon: true,
   },
   {
     label: "Use it",
@@ -1070,13 +1111,20 @@ function SmartBarRootLaunchMessage({
   isWaving: boolean;
 }) {
   const Icon = message.icon;
+  const isStoryIcon = message.storyIcon === true;
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${message.iconClass} sm:h-11 sm:w-11`}>
-            <Icon className="h-5 w-5" />
+          <div
+            className={[
+              "flex shrink-0 items-center justify-center rounded-2xl ring-1",
+              isStoryIcon ? "h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10 sm:h-11 sm:w-11",
+              message.iconClass,
+            ].join(" ")}
+          >
+            <Icon className={isStoryIcon ? "h-8 w-8 sm:h-9 sm:w-9" : "h-5 w-5"} />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             {message.label}
