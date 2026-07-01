@@ -1383,10 +1383,11 @@ export default function RestaurantWalkthrough({
     }
 
     setSlidePhase("read");
-    const watchTimer = window.setTimeout(() => setSlidePhase("watch"), 2000);
+    const readDelay = customerStep === 1 ? 4000 : 2000;
+    const watchTimer = window.setTimeout(() => setSlidePhase("watch"), readDelay);
     const doneDelay =
       customerStep === 1
-        ? 5600
+        ? 7600
         : customerStep === 2
           ? 6500
           : customerStep === 3
