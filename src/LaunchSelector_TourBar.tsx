@@ -1150,98 +1150,97 @@ function SmartBarRootDemoLaunchButton({
 }
 
 function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
-  const readinessSteps = [
-    "Request sandbox access",
-    "Load the restaurant menu",
-    "Run customer-style test orders",
-    "Review generated tickets",
-    "Score the results",
-    "Tune SmartBar before launch",
+  const [sandboxRequested, setSandboxRequested] = useState(false);
+
+  const rowBase = "flex flex-col gap-3 rounded-2xl px-4 py-3 ring-1 sm:flex-row sm:items-center sm:justify-between";
+  const activeRow = "bg-white text-slate-950 ring-slate-200/80";
+  const mutedRow = "bg-slate-50/80 text-slate-500 ring-slate-200/70";
+
+  const statusClass = (status: string) =>
+    status === "Pending"
+      ? "bg-amber-200 text-[#012169]"
+      : status === "Ready"
+        ? "bg-emerald-100 text-emerald-700"
+        : "bg-slate-100 text-slate-500";
+
+  const steps = [
+    {
+      number: 1,
+      title: "Request access",
+      detail: "Create private test space.",
+      status: sandboxRequested ? "Pending" : "Request",
+      active: true,
+      action: !sandboxRequested,
+    },
+    {
+      number: 2,
+      title: "Load menu",
+      detail: "We set this up.",
+      status: sandboxRequested ? "Pending" : "Waiting",
+      active: sandboxRequested,
+      action: false,
+    },
+    {
+      number: 3,
+      title: "Test orders",
+      detail: "Run customer-style orders.",
+      status: sandboxRequested ? "Waiting" : "Locked",
+      active: sandboxRequested,
+      action: false,
+    },
   ];
 
   return (
     <div className="mt-7 rounded-[28px] bg-white/88 p-4 shadow-[0_18px_50px_rgba(15,23,42,0.08)] ring-1 ring-white/80 sm:mt-8 sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="max-w-xl">
+      <div className="flex items-start justify-between gap-4">
+        <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Sandbox Readiness
+            Sandbox
           </div>
-          <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-            Build a private test space first.
+          <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+            Readiness
           </h3>
-          <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
-            Use the sandbox to try customer-style orders, check the tickets SmartBar creates, and tune the menu model before customers see it.
-          </p>
         </div>
 
-        <div className="shrink-0 rounded-2xl bg-[#012169] px-4 py-3 text-white shadow-[0_14px_32px_rgba(1,33,105,0.18)]">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-100/80">
-            Status
-          </div>
-          <div className="mt-1 rounded-full bg-amber-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-[#012169]">
-            Not requested
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex shrink-0 items-center rounded-full bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+        >
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+          Back
+        </button>
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[24px] bg-slate-50/90 p-4 ring-1 ring-slate-200/70 sm:p-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-slate-950">Readiness checklist</div>
-              <div className="text-xs text-slate-500">These steps unlock as the sandbox is set up.</div>
-            </div>
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-              0 / 6
-            </div>
-          </div>
-
-          <div className="grid gap-2.5">
-            {readinessSteps.map((stepText, index) => (
-              <div key={stepText} className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5 ring-1 ring-slate-200/80">
-                <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 ring-1 ring-slate-200">
-                  {index + 1}
-                </div>
-                <div className="min-w-0 flex-1 text-sm font-medium text-slate-700">{stepText}</div>
-                <div className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                  Pending
-                </div>
+      <div className="mt-5 grid gap-3">
+        {steps.map((step) => (
+          <div key={step.title} className={`${rowBase} ${step.active ? activeRow : mutedRow}`}>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500 ring-1 ring-slate-200">
+                {step.number}
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="min-w-0">
+                <div className="text-base font-semibold tracking-tight">{step.title}</div>
+                <div className="text-sm leading-5 text-slate-500">{step.detail}</div>
+              </div>
+            </div>
 
-        <div className="rounded-[24px] bg-[#f0f7ff] p-4 ring-1 ring-sky-100 sm:p-5">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-[#012169] shadow-sm ring-1 ring-sky-100">
-            <ShoppingCart className="h-5 w-5" />
+            {step.action ? (
+              <button
+                type="button"
+                onClick={() => setSandboxRequested(true)}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
+              >
+                Request
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            ) : (
+              <div className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] ${statusClass(step.status)}`}>
+                {step.status}
+              </div>
+            )}
           </div>
-          <h4 className="mt-4 text-lg font-semibold tracking-tight text-slate-950">
-            Next step: request the sandbox.
-          </h4>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Once requested, SmartBar can load the restaurant menu and create a private test space for staff to run sample orders.
-          </p>
-          <div className="mt-5 grid gap-2">
-            <a
-              href="/direct-ordering?mode=sandbox"
-              className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(1,33,105,0.2)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
-            >
-              Request Sandbox
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
-            <button
-              type="button"
-              onClick={onBack}
-              className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to options
-            </button>
-          </div>
-          <div className="mt-4 rounded-2xl bg-white/70 px-3 py-2 text-xs leading-5 text-slate-600 ring-1 ring-white/80">
-            Every scored test order helps SmartBar get smarter before launch.
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
