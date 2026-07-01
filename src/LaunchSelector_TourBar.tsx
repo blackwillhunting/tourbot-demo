@@ -82,11 +82,15 @@ function clearStoredTourBotDemoToken() {
 function normalizeTourBotDemoPath(value?: string | null) {
   const path = String(value || "").trim();
   if (!path) return "";
-  if (path === "/") return "/";
   if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || path.includes("://")) return "";
 
-  const cleanPath = path.split("?")[0].split("#")[0].replace(/\/+$/, "");
-  return cleanPath || "/";
+  const [pathAndSearch, hashPart = ""] = path.split("#", 2);
+  const [pathnamePart, searchPart = ""] = pathAndSearch.split("?", 2);
+  const cleanPathname = pathnamePart.replace(/\/+$/, "") || "/";
+  const cleanSearch = searchPart ? `?${searchPart}` : "";
+  const cleanHash = hashPart ? `#${hashPart}` : "";
+
+  return `${cleanPathname}${cleanSearch}${cleanHash}`;
 }
 
 function getStoredTourBotDemoPath() {
@@ -148,11 +152,13 @@ function redirectToTourBotDemoPath(
   const currentPath = currentTourBotDemoPath();
   if (currentPath === cleanPath) return false;
 
+  const cleanPathname = cleanPath.split("?")[0].split("#")[0] || "/";
+
   // Food passcodes may steer only as a one-time fresh login from the root
   // launch page. Existing sessions must only unlock the current URL, otherwise
   // stale demoPath state can keep dragging general-demo visitors into BurgerRush.
   if (
-    tourBotDemoPathIsFoodRoute(cleanPath) &&
+    tourBotDemoPathIsFoodRoute(cleanPathname) &&
     !(options.allowFoodRouteSteering === true && currentPath === "/")
   ) {
     return false;
@@ -2054,6 +2060,7 @@ function SmartBarRootDemoSelector() {
     }
 
     if (redirectToSafeSmartBarRootReturnTo()) return;
+    if (redirectToTourBotDemoPath(loginResult.demoPath, { allowFoodRouteSteering: true })) return;
 
     cleanupResetAccessUrl();
     setHasAccess(true);
