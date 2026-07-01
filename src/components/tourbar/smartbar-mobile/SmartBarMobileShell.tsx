@@ -229,8 +229,8 @@ const smartBarMobileWalkthroughPizzaLines: SmartBarMobileOrderLine[] = [
   },
   {
     id: "walkthrough-pizza-wings",
-    title: "Hot Buffalo Wings",
-    demoDisplayTitle: "Hot Buffalo Wings",
+    title: "Buffalo Wings",
+    demoDisplayTitle: "Buffalo Wings",
     status: "pending",
     helper: "Must choose",
     price: "$9.99",
@@ -245,8 +245,8 @@ const smartBarMobileWalkthroughPizzaLines: SmartBarMobileOrderLine[] = [
     status: "options",
     helper: "Add-ons",
     price: "$10.99",
-    details: ["Meatballs", "Sausage", "Mushrooms/peppers"],
-    options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+    details: ["Meatballs", "Sausage", "Mush/peppers"],
+    options: ["Meatballs", "Sausage", "Mush/peppers"],
     optionSelectionMode: "multi",
   },
   {
@@ -3238,14 +3238,14 @@ export default function SmartBarMobileShell({
                 status: "ready",
                 helper: "Extras accepted",
                 details: selectedOptions,
-                options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+                options: ["Meatballs", "Sausage", "Mush/peppers"],
                 optionSelectionMode: "multi",
               }
             : {
                 status: "options",
                 helper: "Add-ons",
                 details: [],
-                options: ["Meatballs", "Sausage", "Mushrooms/peppers"],
+                options: ["Meatballs", "Sausage", "Mush/peppers"],
                 optionSelectionMode: "multi",
               },
         });

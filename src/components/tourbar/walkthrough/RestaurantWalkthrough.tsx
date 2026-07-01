@@ -103,7 +103,7 @@ const walkthroughOrderBoardOrders = [
       {
         title: "Sides",
         items: [
-          { quantity: 1, name: "Hot Buffalo Wings", details: ["Ranch"] },
+          { quantity: 1, name: "Buffalo Wings", details: ["Ranch"] },
           { quantity: 1, name: "Garlic Breadsticks" },
         ],
       },
