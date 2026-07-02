@@ -307,7 +307,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
   return (
     <div className="mx-auto mt-0 w-full max-w-[430px]">
-      <div className="mb-3 flex items-center justify-between gap-3 px-1">
+      <div className="mb-2 flex items-center px-1">
         <button
           type="button"
           onClick={onBack}
@@ -317,14 +317,6 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
           Back
         </button>
 
-        <div className="text-right">
-          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">
-            Sandbox
-          </div>
-          <div className="text-lg font-semibold tracking-tight text-slate-950">
-            SmartBar Playground
-          </div>
-        </div>
       </div>
 
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
@@ -370,6 +362,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             entryModeLabel="Say or type order"
             sendOrderNumber="T-184"
             compactCartRows
+            demoBottomLiftPx={32}
             demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}

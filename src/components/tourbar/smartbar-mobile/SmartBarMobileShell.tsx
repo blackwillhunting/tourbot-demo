@@ -2175,6 +2175,8 @@ type SmartBarMobileShellProps = {
   demoHideCollapsedSurface?: boolean;
   /** Demo-only: force dense one-line cart rows outside the social montage state machine. */
   compactCartRows?: boolean;
+  /** Demo-only: raise fixed overlay rails for contained playground/demo surfaces. */
+  demoBottomLiftPx?: number;
   /** Demo-only: trimmed pizza cart for the restaurant walkthrough color explanation. */
   demoWalkthroughCartMode?: boolean;
   /** Demo-only reset hook for social reels that need to return the shell to rest. */
@@ -2206,6 +2208,7 @@ export default function SmartBarMobileShell({
   demoMontageStage = null,
   demoHideCollapsedSurface = false,
   compactCartRows = false,
+  demoBottomLiftPx = 0,
   demoWalkthroughCartMode = false,
   demoResetToRestKey = null,
   sendOrderNumber = "S-184",
@@ -2218,6 +2221,7 @@ export default function SmartBarMobileShell({
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
+  const overlayBottomLiftPx = Number.isFinite(demoBottomLiftPx) ? demoBottomLiftPx : 0;
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const genericContentMeasureRef = useRef<HTMLDivElement | null>(null);
@@ -4397,7 +4401,7 @@ export default function SmartBarMobileShell({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
-            style={{ bottom: 76 + keyboardLift, ...smartBarAdaptiveRailStyle }}
+            style={{ bottom: 76 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <div
               data-smartbar-mobile-adaptive-surface="true"
@@ -4471,7 +4475,7 @@ export default function SmartBarMobileShell({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
             className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
-            style={{ bottom: 76 + keyboardLift, ...smartBarAdaptiveRailStyle }}
+            style={{ bottom: 76 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <motion.div
               data-smartbar-mobile-adaptive-surface="true"
@@ -5052,7 +5056,7 @@ export default function SmartBarMobileShell({
               }
             }}
             className="pointer-events-auto fixed inset-x-0 z-[10082] flex cursor-pointer justify-center px-0"
-            style={{ bottom: 68 + keyboardLift, ...smartBarAdaptiveRailStyle }}
+            style={{ bottom: 68 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <div
               className="relative flex h-[52px] items-center justify-center px-2 text-center text-white shadow-2xl"
@@ -5088,7 +5092,7 @@ export default function SmartBarMobileShell({
 
       <footer
         className="pointer-events-none fixed inset-x-0 z-[10084] flex justify-center px-0"
-        style={{ bottom: 12 + keyboardLift, ...smartBarAdaptiveRailStyle }}
+        style={{ bottom: 12 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
       >
         <div
           data-smartbar-mobile-adaptive-surface="true"
