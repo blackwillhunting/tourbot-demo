@@ -374,6 +374,15 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     )));
   }, []);
 
+  const handleBoardScore = useCallback((orderId: string, score: "ready" | "needs_fix", note = "") => {
+    setBoardOrders((current) => current.map((order) => (
+      order.id === orderId ? { ...order, score, scoreNote: note } : order
+    )));
+    setActiveBoardOrder((current) => (
+      current && current.id === orderId ? { ...current, score, scoreNote: note } : current
+    ));
+  }, []);
+
   const handleResetCart = useCallback(() => {
     carryoutOrderRef.current = null;
     orderLinesRef.current = [];
@@ -452,6 +461,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             order={activeBoardOrder}
             onClose={() => setActiveBoardOrder(null)}
             onMarkEntered={handleBoardEntered}
+            onScoreOrder={handleBoardScore}
             demoSocialPortrait
             demoPlaygroundSheet
           />

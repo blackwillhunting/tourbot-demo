@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, ArrowUp, Search, X } from "lucide-react";
 
 type SmartBarOrderBoardItemStatus = "new" | "entered";
+type SmartBarOrderBoardScore = "ready" | "needs_fix";
 
 export type SmartBarOrderBoardMockProps = {
   demoMode?: boolean;
@@ -59,6 +60,8 @@ export type SmartBarOrderBoardItem = {
     }[];
   }[];
   notes?: string;
+  score?: SmartBarOrderBoardScore;
+  scoreNote?: string;
 };
 
 const INITIAL_ORDERS: SmartBarOrderBoardItem[] = [
@@ -274,7 +277,7 @@ function SmartBarOrderTile({
         </span>
         {isNew ? (
           <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
-            {order.itemCount} items
+            {order.score ? (order.score === "ready" ? "Ready" : "Needs fix") : `${order.itemCount} items`}
           </span>
         ) : null}
       </span>
@@ -304,6 +307,7 @@ export function SmartBarOrderSheet({
   order,
   onClose,
   onMarkEntered,
+  onScoreOrder,
   demoSocialPortrait = false,
   demoContainedSheet = false,
   demoPlaygroundSheet = false,
@@ -313,6 +317,7 @@ export function SmartBarOrderSheet({
   order: SmartBarOrderBoardItem;
   onClose: () => void;
   onMarkEntered: (orderId: string) => void;
+  onScoreOrder?: (orderId: string, score: SmartBarOrderBoardScore, note?: string) => void;
   demoSocialPortrait?: boolean;
   demoContainedSheet?: boolean;
   demoPlaygroundSheet?: boolean;
@@ -320,7 +325,15 @@ export function SmartBarOrderSheet({
   demoMarkEnteredCue?: boolean;
 }) {
   const [isSwipingDone, setIsSwipingDone] = useState(false);
+  const [fixNote, setFixNote] = useState(order.scoreNote || "");
+  const [fixOpen, setFixOpen] = useState(order.score === "needs_fix");
   const isNew = order.status === "new";
+  const scoreLabel = order.score === "ready" ? "Ready" : order.score === "needs_fix" ? "Needs Fix" : null;
+
+  useEffect(() => {
+    setFixNote(order.scoreNote || "");
+    setFixOpen(order.score === "needs_fix");
+  }, [order.id, order.score, order.scoreNote]);
 
   return (
     <AnimatePresence>
@@ -408,6 +421,14 @@ export function SmartBarOrderSheet({
                 <span className="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                   {order.status === "new" ? "New ticket" : "Entered"}
                 </span>
+                {scoreLabel ? (
+                  <span className={[
+                    "shrink-0 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.12em]",
+                    order.score === "ready" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700",
+                  ].join(" ")}>
+                    {scoreLabel}
+                  </span>
+                ) : null}
               </div>
               <div className="mt-2 text-sm font-semibold text-slate-500">
                 {timeLabel(order.minutesAgo)} - {order.pickup} - Pay at counter
@@ -454,6 +475,65 @@ export function SmartBarOrderSheet({
                   </section>
                 )),
               )}
+            </div>
+
+            <div className={demoSocialPortrait ? "mt-3 rounded-[22px] bg-slate-50/88 px-3 py-3 ring-1 ring-slate-100" : "mt-4 rounded-[24px] bg-slate-50/88 px-4 py-4 ring-1 ring-slate-100"}>
+              <div className="text-[0.72rem] font-black uppercase tracking-[0.22em] text-slate-500">How did SmartBar do?</div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFixOpen(false);
+                    setFixNote("");
+                    onScoreOrder?.(order.id, "ready", "");
+                  }}
+                  className={[
+                    "rounded-full px-3 py-2 text-sm font-black transition",
+                    order.score === "ready"
+                      ? "bg-emerald-400 text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.20)]"
+                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-700",
+                  ].join(" ")}
+                >
+                  Ready
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFixOpen(true);
+                    onScoreOrder?.(order.id, "needs_fix", fixNote);
+                  }}
+                  className={[
+                    "rounded-full px-3 py-2 text-sm font-black transition",
+                    order.score === "needs_fix"
+                      ? "bg-rose-500 text-white shadow-[0_10px_24px_rgba(244,63,94,0.20)]"
+                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700",
+                  ].join(" ")}
+                >
+                  Needs Fix
+                </button>
+              </div>
+              {fixOpen ? (
+                <div className="mt-3">
+                  <textarea
+                    value={fixNote}
+                    onChange={(event) => setFixNote(event.target.value)}
+                    placeholder="What needs fixing?"
+                    className="min-h-[72px] w-full resize-none rounded-[18px] bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onScoreOrder?.(order.id, "needs_fix", fixNote)}
+                    className="mt-2 w-full rounded-full bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5"
+                  >
+                    Save note
+                  </button>
+                </div>
+              ) : null}
+              {order.score ? (
+                <div className="mt-2 text-xs font-bold text-slate-500">
+                  Saved: {order.score === "ready" ? "Ready" : "Needs Fix"}{order.scoreNote ? ` - ${order.scoreNote}` : ""}
+                </div>
+              ) : null}
             </div>
 
             <div data-smartbar-order-board-swipe-zone="true" className={demoSocialPortrait ? "mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[20px] bg-slate-50/80 px-3 py-3 text-slate-500 ring-1 ring-slate-100" : "mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-[22px] bg-slate-50/80 px-4 py-4 text-slate-500 ring-1 ring-slate-100"}>
@@ -656,6 +736,12 @@ export default function SmartBarOrderBoardMock({
     onDemoEntered?.(orderId);
   };
 
+  const scoreOrder = (orderId: string, score: SmartBarOrderBoardScore, note = "") => {
+    setOrders((current) => current.map((order) => (
+      order.id === orderId ? { ...order, score, scoreNote: note } : order
+    )));
+  };
+
   useEffect(() => {
     if (!demoMode || !demoAutoOpenOrderId || !demoAutoOpenKey) return undefined;
 
@@ -826,6 +912,7 @@ export default function SmartBarOrderBoardMock({
           order={activeOrder}
           onClose={() => setActiveOrderId(null)}
           onMarkEntered={markEntered}
+          onScoreOrder={scoreOrder}
           demoSocialPortrait={demoSocialPortrait}
           demoContainedSheet={demoContainedSheet}
           demoPlaygroundSheet={demoPlaygroundSheet}
