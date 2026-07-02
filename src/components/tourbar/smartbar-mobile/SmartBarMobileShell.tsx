@@ -3409,7 +3409,7 @@ export default function SmartBarMobileShell({
           applyOrderResultEstimates(reviewedParentResult);
           if (nextRequiredLineId) {
             setSelectedLineId(nextRequiredLineId);
-            setCartExpanded(false);
+            setCartExpanded(true);
           } else if (multiSelect) {
             setSelectedLineId((current) => (current === line.id ? line.id : current));
           }
