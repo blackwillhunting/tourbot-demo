@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { ArrowLeft, ReceiptText, XCircle } from "lucide-react";
 import SmartBarMobileShell from "../smartbar-mobile/SmartBarMobileShell";
 
@@ -38,7 +38,7 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
 
   return (
     <>
-      <div className="mx-auto mt-5 max-w-xl rounded-[28px] bg-white/92 p-3 pb-[148px] shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 sm:mt-7 sm:p-4 sm:pb-[152px]">
+      <div className="mx-auto mt-5 max-w-xl rounded-[28px] bg-white/92 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 sm:mt-7 sm:p-4">
         <div className="flex items-center justify-between gap-3 px-1 py-1">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
@@ -94,30 +94,40 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
           </div>
         </section>
 
-        <div className="mt-3 rounded-[24px] bg-slate-50 p-3 text-center ring-1 ring-slate-200/80">
-          <div className="text-sm font-semibold text-slate-700">SmartBar shelf</div>
-          <div className="mt-1 text-xs font-medium leading-5 text-slate-500">
-            Use the SmartBar capsule below. Ticket building comes next.
-          </div>
-        </div>
-      </div>
+        <section className="mt-3 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_50%_0%,rgba(219,234,254,0.92),transparent_42%),linear-gradient(180deg,#eef7ff_0%,#e7f3ff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.78)] ring-1 ring-sky-100/80">
+          <div className="relative h-[330px] overflow-hidden [transform:translateZ(0)] sm:h-[360px]">
+            <div className="pointer-events-none absolute inset-x-5 top-5 rounded-[22px] bg-white/62 p-4 text-slate-700 shadow-[0_16px_34px_rgba(15,23,42,0.08)] ring-1 ring-white/70">
+              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+                SmartBar
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-950">
+                Say or type a test order.
+              </div>
+            </div>
 
-      <SmartBarMobileShell
-        mode="overlay"
-        demoRestCompanion={{ label: "SmartBar", showLogo: true }}
-        entryModeLabel="Say or type order"
-        buildingLabel="Building test ticket..."
-        onSubmitPrompt={(query) => ({
-          surfaceKind: "info",
-          eyebrow: "Sandbox shell",
-          title: "Ticket builder comes next",
-          body: query.trim()
-            ? "The next patch will turn this test order into a ticket tile."
-            : "The next patch will turn test orders into ticket tiles.",
-          statusLabel: "Shell",
-          height: 260,
-        })}
-      />
+            <SmartBarMobileShell
+              mode="overlay"
+              introCallout={{
+                title: "Say or type a test order",
+              }}
+              demoRestCompanion={{ label: "SmartBar", showLogo: true }}
+              entryModeLabel="Say or type order"
+              buildingLabel="Building test ticket..."
+              compactCartRows
+              onSubmitPrompt={(query) => ({
+                surfaceKind: "info",
+                eyebrow: "Sandbox",
+                title: "Ticket builder comes next",
+                body: query.trim()
+                  ? "Next, this order will become a test ticket."
+                  : "Next, SmartBar will turn test orders into tickets.",
+                statusLabel: "Shell",
+                height: 260,
+              })}
+            />
+          </div>
+        </section>
+      </div>
 
       {ticketOpen && (
         <div className="fixed inset-0 z-[10090] grid place-items-center bg-slate-950/42 px-4 py-6 backdrop-blur-sm">
@@ -155,3 +165,4 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
     </>
   );
 }
+
