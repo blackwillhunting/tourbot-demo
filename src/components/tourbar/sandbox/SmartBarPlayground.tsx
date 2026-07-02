@@ -75,7 +75,7 @@ function createPlaygroundOrderResult(query: string): SmartBarMobileOrderResult {
         title: "gar-stix",
         status: "unknown",
         helper: "Needs menu match",
-        price: "â€”",
+        price: "-",
         details: ["Unknown item"],
         options: ["Map item", "Remove"],
         optionSelectionMode: "single",
@@ -142,18 +142,35 @@ function TicketTile({
   ticket,
   index,
   onOpen,
+  compact = false,
 }: {
   ticket: PlaygroundTicket | null;
   index: number;
   onOpen: (ticket: PlaygroundTicket) => void;
+  compact?: boolean;
 }) {
   if (!ticket) {
     return (
-      <div className="min-h-[52px] rounded-2xl border border-dashed border-sky-200/80 bg-white/45 px-2.5 py-2 text-left">
-        <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+      <div
+        className={compact
+          ? "min-h-[34px] rounded-xl border border-dashed border-sky-200/80 bg-white/48 px-1.5 py-1 text-left"
+          : "min-h-[52px] rounded-2xl border border-dashed border-sky-200/80 bg-white/45 px-2.5 py-2 text-left"
+        }
+      >
+        <div
+          className={compact
+            ? "text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400"
+            : "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
+          }
+        >
           Slot {index + 1}
         </div>
-        <div className="mt-1 truncate text-[13px] font-semibold text-slate-500">
+        <div
+          className={compact
+            ? "mt-0.5 truncate text-[10px] font-semibold leading-3 text-slate-500"
+            : "mt-1 truncate text-[13px] font-semibold text-slate-500"
+          }
+        >
           {EMPTY_SLOT_LABELS[index] || "Waiting"}
         </div>
       </div>
@@ -166,24 +183,39 @@ function TicketTile({
     <button
       type="button"
       onClick={() => onOpen(ticket)}
-      className="min-h-[52px] rounded-2xl bg-white px-2.5 py-2 text-left shadow-[0_8px_18px_rgba(14,116,144,0.10)] ring-1 ring-sky-100 transition hover:-translate-y-0.5"
+      className={compact
+        ? "min-h-[34px] rounded-xl bg-white px-1.5 py-1 text-left shadow-[0_6px_14px_rgba(14,116,144,0.09)] ring-1 ring-sky-100 transition hover:-translate-y-0.5"
+        : "min-h-[52px] rounded-2xl bg-white px-2.5 py-2 text-left shadow-[0_8px_18px_rgba(14,116,144,0.10)] ring-1 ring-sky-100 transition hover:-translate-y-0.5"
+      }
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+      <div className="flex items-center justify-between gap-1.5">
+        <span
+          className={compact
+            ? "text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400"
+            : "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
+          }
+        >
           {ticket.id}
         </span>
-        <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] ${
+        <span className={`${compact ? "px-1 py-0 text-[8px]" : "px-1.5 py-0.5 text-[9px]"} rounded-full font-bold uppercase tracking-[0.08em] ${
           ready ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
         }`}>
           {ticket.statusLabel}
         </span>
       </div>
-      <div className="mt-1 truncate text-[13px] font-semibold leading-4 text-slate-950">
+      <div
+        className={compact
+          ? "mt-0.5 truncate text-[10px] font-semibold leading-3 text-slate-950"
+          : "mt-1 truncate text-[13px] font-semibold leading-4 text-slate-950"
+        }
+      >
         {ticket.label}
       </div>
-      <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-        {ticket.total}
-      </div>
+      {!compact && (
+        <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
+          {ticket.total}
+        </div>
+      )}
     </button>
   );
 }
@@ -196,6 +228,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
   const [tickets, setTickets] = useState<PlaygroundTicket[]>([]);
   const [activeTicket, setActiveTicket] = useState<PlaygroundTicket | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
 
   const forceSampleCart = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -218,9 +251,12 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     return [...visibleTickets, ...Array(Math.max(0, 4 - visibleTickets.length)).fill(null)] as Array<PlaygroundTicket | null>;
   }, [tickets]);
 
+  const compactOrderRail = forceSampleCart || cartOpen;
+
   const handleSubmitPrompt = useCallback((query: string, _meta?: SmartBarMobileSubmitMeta) => {
     latestPromptRef.current = query;
     const result = createPlaygroundOrderResult(query);
+    setCartOpen(true);
     orderLinesRef.current = result.lines;
     estimatedTotalRef.current = result.estimatedTotal || "—";
     return result;
@@ -251,6 +287,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   }, []);
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
+    setCartOpen(true);
     const nextTicket = createTicketFromResult(
       result,
       latestPromptRef.current || "Test order",
@@ -263,8 +300,9 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
   const handleResetCart = useCallback(() => {
     orderLinesRef.current = [];
-    estimatedTotalRef.current = "—";
+    estimatedTotalRef.current = "-";
     latestPromptRef.current = "";
+    setCartOpen(false);
   }, []);
 
   return (
@@ -292,8 +330,9 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
 
-        <div className="absolute inset-x-3 top-3 z-40 rounded-[26px] bg-[#e9f6ff]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_12px_28px_rgba(14,116,144,0.08)] ring-1 ring-sky-100/90 backdrop-blur">
-          <div className="mb-2 flex items-center justify-between px-1">
+        <div className={`absolute inset-x-3 top-3 z-40 rounded-[26px] bg-[#e9f6ff]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_12px_28px_rgba(14,116,144,0.08)] ring-1 ring-sky-100/90 backdrop-blur ${compactOrderRail ? "p-1.5" : "p-2"}`}>
+          {!compactOrderRail && (
+            <div className="mb-2 flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <ReceiptText className="h-4 w-4 text-[#012169]" />
               <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -304,21 +343,23 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
               <Clock3 className="h-3 w-3" />
               {tickets.length ? `${tickets.length} shown` : "Waiting"}
             </span>
-          </div>
+            </div>
+          )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className={compactOrderRail ? "grid grid-cols-4 gap-1.5" : "grid grid-cols-2 gap-2"}>
             {ticketSlots.map((ticket, index) => (
               <TicketTile
                 key={ticket?.id || `empty-${index}`}
                 ticket={ticket}
                 index={index}
                 onOpen={setActiveTicket}
+                compact={compactOrderRail}
               />
             ))}
           </div>
         </div>
 
-        <div className="absolute inset-x-0 bottom-0 top-[150px] z-20 overflow-visible [transform:translateZ(0)]">
+        <div className={`absolute inset-x-0 bottom-0 z-20 overflow-visible [transform:translateZ(0)] ${compactOrderRail ? "top-[58px]" : "top-[150px]"}`}>
           <SmartBarMobileShell
             mode="overlay"
             demoTransitionShield
@@ -328,6 +369,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             demoRestCompanion={{ label: "SmartBar", showLogo: true }}
             entryModeLabel="Say or type order"
             sendOrderNumber="T-184"
+            compactCartRows
             demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}
