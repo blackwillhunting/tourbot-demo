@@ -1847,6 +1847,7 @@ function SmartBarRootDemoSelector() {
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const stageScrollRef = useRef<HTMLDivElement | null>(null);
+  const rootRunIdRef = useRef(0);
 
   const stageItems = useMemo<SmartBarRootStageItem[]>(() => {
     const messageItems = SMARTBAR_ROOT_MESSAGES.map((message, sourceIndex) => ({
@@ -1945,6 +1946,7 @@ function SmartBarRootDemoSelector() {
   }, [step]);
 
   const resetAccess = useCallback(() => {
+    rootRunIdRef.current += 1;
     clearStoredTourBotDemoToken();
     cleanupResetAccessUrl();
     setIsSessionChecking(false);
@@ -1954,12 +1956,15 @@ function SmartBarRootDemoSelector() {
     setGateView("challenge");
     setStep(0);
     setWavingIndex(null);
+    setRestaurantPreviewSettled(false);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     let isCancelled = false;
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
 
     const loadSession = async () => {
       if (shouldResetAccessFromUrl()) {
@@ -1996,7 +2001,7 @@ function SmartBarRootDemoSelector() {
 
       setIsSessionChecking(true);
       const result = await checkTourBotDemoSession();
-      if (isCancelled) return;
+      if (isCancelled || rootRunIdRef.current !== runId) return;
 
       if (result.accepted) {
         if (redirectToSafeSmartBarRootReturnTo()) return;
@@ -2033,10 +2038,14 @@ function SmartBarRootDemoSelector() {
   const retryPasscode = async () => {
     if (isWaving) return;
 
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setStep(0);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setPasscode("");
     setGateView("challenge");
     setWavingIndex(null);
@@ -2050,24 +2059,30 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
 
     if (passcode.length < REQUIRED_PASSCODE_LENGTH) {
       setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
       setGateView("failure");
       setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      if (rootRunIdRef.current !== runId) return;
       setWavingIndex(null);
       return;
     }
 
     const loginResult = await loginToTourBotDemo(passcode);
+    if (rootRunIdRef.current !== runId) return;
     if (!loginResult.accepted) {
       setFailureMessage("That code could not be verified. Check the passcode and try again.");
       setGateView("failure");
       setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      if (rootRunIdRef.current !== runId) return;
       setWavingIndex(null);
       return;
     }
@@ -2080,36 +2095,49 @@ function SmartBarRootDemoSelector() {
     setGateView("challenge");
     setStep(1);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setWavingIndex(null);
   };
 
   const goSetupWalkthrough = async () => {
     if (isWaving || !hasAccess || setupStartStep < 0) return;
 
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setStep(setupStartStep);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setWavingIndex(null);
   };
 
   const finishSetupWalkthrough = () => {
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
     setStep(1);
   };
 
   const goRestaurantPreview = async () => {
     if (isWaving || !hasAccess || restaurantPreviewStep < 0) return;
 
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
     setRestaurantPreviewSettled(false);
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setStep(restaurantPreviewStep);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
     setRestaurantPreviewSettled(true);
     setWavingIndex(null);
   };
 
   const finishRestaurantPreview = () => {
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
     setRestaurantPreviewSettled(false);
     setStep(1);
   };
@@ -2117,6 +2145,8 @@ function SmartBarRootDemoSelector() {
   const goBack = () => {
     if (isWaving || !hasAccess) return;
     if (step <= 1) return;
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
     if (isRestaurantPreview) {
       finishRestaurantPreview();
       return;
@@ -2145,6 +2175,8 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
