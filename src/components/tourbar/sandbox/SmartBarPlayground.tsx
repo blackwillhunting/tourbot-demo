@@ -24,7 +24,7 @@ import {
   smartBarMobileRepriceCartFromGuideAi,
   smartBarMobileResultFromGuideAi,
 } from "../smartbar-mobile/burgerrush/burgerRushMobileGuideAdapter";
-import SmartBarOrderBoardMock, { type SmartBarOrderBoardItem } from "../order-board/SmartBarOrderBoardMock";
+import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem } from "../order-board/SmartBarOrderBoardMock";
 
 type SmartBarPlaygroundProps = {
   onBack: () => void;
@@ -146,6 +146,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
   const [, setCartOpen] = useState(false);
   const [boardExpanded, setBoardExpanded] = useState(true);
+  const [activeBoardOrder, setActiveBoardOrder] = useState<SmartBarOrderBoardItem | null>(null);
 
   const forceProductionCart = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -367,6 +368,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   }, [sendOrderNumber]);
 
   const handleBoardEntered = useCallback((orderId: string) => {
+    setActiveBoardOrder(null);
     setBoardOrders((current) => current.map((order) => (
       order.id === orderId ? { ...order, status: "entered" } : order
     )));
@@ -414,6 +416,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             demoMaxVisibleOrders={4}
             demoAnimateIncomingOrders
             demoPlaygroundSheet
+            onDemoOpenOrder={setActiveBoardOrder}
             className="!min-h-0 h-full overflow-hidden !px-3 !py-3"
             onDemoEntered={handleBoardEntered}
           />
@@ -443,6 +446,16 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             onResetCart={handleResetCart}
           />
         </div>
+
+        {activeBoardOrder ? (
+          <SmartBarOrderSheet
+            order={activeBoardOrder}
+            onClose={() => setActiveBoardOrder(null)}
+            onMarkEntered={handleBoardEntered}
+            demoSocialPortrait
+            demoPlaygroundSheet
+          />
+        ) : null}
       </div>
     </div>
   );

@@ -16,6 +16,8 @@ export type SmartBarOrderBoardMockProps = {
   demoAnimateIncomingOrders?: boolean;
   /** Playground mode: let the ticket sheet own the screen instead of staying inside the board frame. */
   demoPlaygroundSheet?: boolean;
+  /** Playground mode: let the parent stage render the ticket sheet above the whole phone frame. */
+  onDemoOpenOrder?: (order: SmartBarOrderBoardItem) => void;
   demoMaxVisibleOrders?: number;
   demoRevealOrderId?: string;
   demoRevealDelayMs?: number;
@@ -298,7 +300,7 @@ function SmartBarOrderTile({
   );
 }
 
-function SmartBarOrderSheet({
+export function SmartBarOrderSheet({
   order,
   onClose,
   onMarkEntered,
@@ -324,7 +326,7 @@ function SmartBarOrderSheet({
     <AnimatePresence>
       <motion.div
         className={demoPlaygroundSheet
-          ? "fixed inset-0 z-[90] flex items-start justify-center bg-slate-950/18 px-4 py-4 backdrop-blur-[2px]"
+          ? "absolute inset-0 z-[70] flex items-center justify-center bg-slate-950/18 px-3 py-4 backdrop-blur-[2px]"
           : demoContainedSheet
             ? "absolute inset-0 z-50 flex items-center justify-center bg-slate-950/14 px-3 py-3 backdrop-blur-[2px]"
             : demoSocialPortrait
@@ -344,7 +346,7 @@ function SmartBarOrderSheet({
           data-smartbar-order-board-sheet="true"
           className={[
             demoPlaygroundSheet
-              ? "relative mt-[max(3.5rem,env(safe-area-inset-top))] h-[min(560px,calc(100svh-7rem))] w-full max-w-[430px] overflow-hidden rounded-[32px] border border-white/70"
+              ? "relative h-[min(560px,calc(100%-2rem))] w-[calc(100%-1.5rem)] max-w-[398px] overflow-hidden rounded-[32px] border border-white/70"
               : demoContainedSheet
                 ? "relative h-full max-h-full w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/70"
                 : demoSocialPortrait
@@ -510,6 +512,7 @@ export default function SmartBarOrderBoardMock({
   demoFourTileBoard = false,
   demoAnimateIncomingOrders = false,
   demoPlaygroundSheet = false,
+  onDemoOpenOrder,
   demoMaxVisibleOrders,
   demoRevealOrderId,
   demoRevealDelayMs = 1760,
@@ -797,7 +800,14 @@ export default function SmartBarOrderBoardMock({
                   transition={{ duration: order.id === recentlyRevealedOrderId ? 1.05 : 0.46, ease: "easeOut" }}
                   style={{ transformPerspective: 820, transformOrigin: "center bottom" }}
                 >
-                  <SmartBarOrderTile order={order} onOpen={(nextOrder) => setActiveOrderId(nextOrder.id)} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoTapCue={order.id === tapCueOrderId} />
+                  <SmartBarOrderTile order={order} onOpen={(nextOrder) => {
+                    if (onDemoOpenOrder) {
+                      onDemoOpenOrder(nextOrder);
+                      return;
+                    }
+
+                    setActiveOrderId(nextOrder.id);
+                  }} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoTapCue={order.id === tapCueOrderId} />
                 </motion.div>
               );
             })}
@@ -811,7 +821,7 @@ export default function SmartBarOrderBoardMock({
         ) : null}
       </div>
 
-      {activeOrder ? (
+      {activeOrder && !onDemoOpenOrder ? (
         <SmartBarOrderSheet
           order={activeOrder}
           onClose={() => setActiveOrderId(null)}
