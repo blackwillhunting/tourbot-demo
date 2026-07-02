@@ -362,7 +362,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             entryModeLabel="Say or type order"
             sendOrderNumber="T-184"
             compactCartRows
-            demoBottomLiftPx={32}
+            demoBottomLiftPx={16}
             demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}
