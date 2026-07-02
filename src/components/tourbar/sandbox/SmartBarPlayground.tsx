@@ -77,7 +77,7 @@ function createPlaygroundOrderResult(query: string): SmartBarMobileOrderResult {
         helper: "Needs menu match",
         price: "-",
         details: ["Unknown item"],
-        options: ["Map item", "Remove"],
+        options: [],
         optionSelectionMode: "single",
       },
     ],
@@ -93,6 +93,10 @@ function applyChoiceToLines(
   value: string,
   meta?: SmartBarMobileApplyChoiceMeta,
 ): SmartBarMobileOrderLine[] {
+  if (selectedLine.status === "unknown" || selectedLine.id === "playground-gar-stix") {
+    return lines;
+  }
+
   return lines.map((line) => {
     if (line.id !== selectedLine.id) return line;
 
@@ -111,11 +115,13 @@ function applyChoiceToLines(
     };
   });
 }
-
 function removeLine(lines: SmartBarMobileOrderLine[], removedLine: SmartBarMobileOrderLine) {
+  if (removedLine.status === "unknown" || removedLine.id === "playground-gar-stix") {
+    return lines;
+  }
+
   return lines.filter((line) => line.id !== removedLine.id);
 }
-
 function formatPlaygroundTicketId(sequence: number) {
   return `T-${String(sequence).padStart(3, "0")}`;
 }
@@ -367,7 +373,6 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
         <div className={`absolute inset-x-0 bottom-0 z-20 overflow-visible [transform:translateZ(0)] ${compactOrderRail ? "top-[58px]" : "top-[150px]"}`}>
           <SmartBarMobileShell
             mode="overlay"
-            demoTransitionShield
             introCallout={{
               title: "Say or type an order",
             }}
