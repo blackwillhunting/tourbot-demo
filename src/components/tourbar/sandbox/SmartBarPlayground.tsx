@@ -7,6 +7,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileOrderResult,
   type SmartBarMobileSubmitMeta,
 } from "../smartbar-mobile/SmartBarMobileShell";
+import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../smartbar-mobile/SmartBarVendorContext";
 import {
   smartBarMobileApplyChoiceToCarryoutOrder,
   smartBarMobileApplyChoiceToVisibleLines,
@@ -28,6 +29,7 @@ import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem
 
 type SmartBarPlaygroundProps = {
   onBack: () => void;
+  vendorContext?: SmartBarVendorContext | null;
 };
 
 function smartBarPlaygroundRetryKey(value: string) {
@@ -103,6 +105,7 @@ function createBoardOrderFromResult(
   result: SmartBarMobileOrderResult,
   rawOrder: string,
   ticketId: string,
+  vendorContext: SmartBarVendorContext,
 ): SmartBarOrderBoardItem {
   const lines = result.lines || [];
 
@@ -129,16 +132,24 @@ function createBoardOrderFromResult(
     notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
       .filter(Boolean)
       .join(" - "),
+    clientId: vendorContext.clientId,
+    vendorId: vendorContext.vendorId,
+    displayName: vendorContext.displayName,
+    menuProfileId: vendorContext.menuProfileId,
+    behaviorProfileId: vendorContext.behaviorProfileId,
+    boardProfileId: vendorContext.boardProfileId,
+    timezone: vendorContext.timezone,
   };
 }
 
-export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) {
+export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPlaygroundProps) {
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const estimatedTotalRef = useRef("-");
   const latestPromptRef = useRef("");
   const ticketSequenceRef = useRef(184);
   const activeOrderTicketIdRef = useRef<string | null>(null);
+  const activeVendorContext = useMemo(() => normalizeSmartBarVendorContext(vendorContext), [vendorContext]);
   const pendingTicketIdRef = useRef(formatPlaygroundTicketId(184));
   const boardOrderIdsRef = useRef(new Set<string>());
 
@@ -200,7 +211,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     setCartOpen(true);
 
     try {
-      const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt);
+      const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt, activeVendorContext);
       const resultForMerge = {
         ...result,
         lines: smartBarPlaygroundEnsureRetryReplacementLine(
@@ -248,7 +259,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
       return mergedErrorResult;
     }
-  }, [reserveActiveTicketId]);
+  }, [activeVendorContext, reserveActiveTicketId]);
 
   const handleApplyLineChoice = useCallback(async (
     line: SmartBarMobileOrderLine,
@@ -287,6 +298,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
         `${meta?.selected === false ? "deselected" : "selected"} ${value} for ${line.title}`,
+        activeVendorContext,
       );
 
       orderLinesRef.current = repricedResult.lines;
@@ -301,7 +313,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       console.warn("SmartBar playground reprice failed after choice", error);
       return optimisticResult;
     }
-  }, []);
+  }, [activeVendorContext]);
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
@@ -326,6 +338,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
         `removed ${line.title}`,
+        activeVendorContext,
       );
 
       orderLinesRef.current = repricedResult.lines;
@@ -340,7 +353,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       console.warn("SmartBar playground reprice failed after remove", error);
       return optimisticResult;
     }
-  }, []);
+  }, [activeVendorContext]);
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
     setCartOpen(true);
@@ -361,11 +374,12 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       },
       latestPromptRef.current || "SmartBar order",
       ticketId,
+      activeVendorContext,
     );
 
     setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId)]);
     setBoardExpanded(true);
-  }, [sendOrderNumber]);
+  }, [activeVendorContext, sendOrderNumber]);
 
   const handleBoardEntered = useCallback((orderId: string) => {
     setActiveBoardOrder(null);

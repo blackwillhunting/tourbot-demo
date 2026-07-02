@@ -8,6 +8,13 @@ import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexap
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import SmartBarPlayground from "./components/tourbar/sandbox/SmartBarPlayground";
+import {
+  clearStoredSmartBarVendorContext,
+  getStoredSmartBarVendorContext,
+  saveStoredSmartBarVendorContext,
+  smartBarVendorContextFromAuthPayload,
+  type SmartBarVendorContext,
+} from "./components/tourbar/smartbar-mobile/SmartBarVendorContext";
 import SmartBarSetupWalkthrough, { SMARTBAR_SETUP_WALKTHROUGH_STEPS } from "./components/tourbar/setup/SmartBarSetupWalkthrough";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
@@ -43,11 +50,20 @@ type TourBotAuthResponse = {
   token?: string;
   expiresAt?: number;
   demoPath?: string;
+  vendorContext?: Partial<SmartBarVendorContext> | null;
+  clientId?: string;
+  vendorId?: string;
+  displayName?: string;
+  menuProfileId?: string;
+  behaviorProfileId?: string;
+  boardProfileId?: string;
+  timezone?: string;
 };
 
 type TourBotAuthResult = {
   accepted: boolean;
   demoPath?: string;
+  vendorContext?: SmartBarVendorContext;
 };
 
 function isLocalDemoAuthBypassEnabled() {
@@ -77,6 +93,7 @@ function clearStoredTourBotDemoToken() {
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_KEY);
   window.localStorage.removeItem(TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY);
   window.localStorage.removeItem(TOURBOT_AUTH_DEMO_PATH_KEY);
+  clearStoredSmartBarVendorContext();
   clearLegacyPrototypeCookie();
 }
 
@@ -169,7 +186,12 @@ function redirectToTourBotDemoPath(
   return true;
 }
 
-function saveStoredTourBotDemoToken(token: string, expiresAt?: number, demoPath?: string) {
+function saveStoredTourBotDemoToken(
+  token: string,
+  expiresAt?: number,
+  demoPath?: string,
+  vendorContext?: SmartBarVendorContext | null,
+) {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(TOURBOT_AUTH_TOKEN_KEY, token);
@@ -180,6 +202,9 @@ function saveStoredTourBotDemoToken(token: string, expiresAt?: number, demoPath?
   }
 
   saveStoredTourBotDemoPath(demoPath);
+  if (vendorContext) {
+    saveStoredSmartBarVendorContext(vendorContext, demoPath);
+  }
   clearLegacyPrototypeCookie();
 }
 
@@ -310,7 +335,7 @@ function cleanupResetAccessUrl() {
 async function checkTourBotDemoSession(): Promise<TourBotAuthResult> {
   if (isLocalDemoAuthBypassEnabled()) {
     ensureLocalDemoAuthToken();
-    return { accepted: true };
+    return { accepted: true, vendorContext: getStoredSmartBarVendorContext() };
   }
 
   const token = getStoredTourBotDemoToken();
@@ -337,13 +362,17 @@ async function checkTourBotDemoSession(): Promise<TourBotAuthResult> {
       return { accepted: false };
     }
 
+    const demoPath = body.demoPath || getStoredTourBotDemoPath();
+    const vendorContext = smartBarVendorContextFromAuthPayload(body, demoPath);
+
     if (typeof body.expiresAt === "number") {
-      saveStoredTourBotDemoToken(token, body.expiresAt, body.demoPath || getStoredTourBotDemoPath());
-    } else if (body.demoPath) {
-      saveStoredTourBotDemoPath(body.demoPath);
+      saveStoredTourBotDemoToken(token, body.expiresAt, demoPath, vendorContext);
+    } else {
+      if (body.demoPath) saveStoredTourBotDemoPath(body.demoPath);
+      saveStoredSmartBarVendorContext(vendorContext, demoPath);
     }
 
-    return { accepted: true, demoPath: body.demoPath || getStoredTourBotDemoPath() };
+    return { accepted: true, demoPath, vendorContext };
   } catch {
     return { accepted: false };
   }
@@ -352,7 +381,7 @@ async function checkTourBotDemoSession(): Promise<TourBotAuthResult> {
 async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> {
   if (isLocalDemoAuthBypassEnabled()) {
     ensureLocalDemoAuthToken();
-    return { accepted: true };
+    return { accepted: true, vendorContext: getStoredSmartBarVendorContext() };
   }
 
   try {
@@ -377,8 +406,9 @@ async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> 
       return { accepted: false };
     }
 
-    saveStoredTourBotDemoToken(body.token, body.expiresAt, body.demoPath);
-    return { accepted: true, demoPath: body.demoPath };
+    const vendorContext = smartBarVendorContextFromAuthPayload(body, body.demoPath);
+    saveStoredTourBotDemoToken(body.token, body.expiresAt, body.demoPath, vendorContext);
+    return { accepted: true, demoPath: body.demoPath, vendorContext };
   } catch {
     clearStoredTourBotDemoToken();
     return { accepted: false };
@@ -1530,10 +1560,12 @@ function SmartBarRootLaunchMessage({
   const isStoryIcon = message.storyIcon === true;
   const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(null);
 
+  const activeVendorContext = getStoredSmartBarVendorContext();
+
   if (activeUseItLane === "playground") {
     return (
       <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
-        <SmartBarPlayground onBack={() => setActiveUseItLane("sandbox")} />
+        <SmartBarPlayground onBack={() => setActiveUseItLane("sandbox")} vendorContext={activeVendorContext} />
       </div>
     );
   }

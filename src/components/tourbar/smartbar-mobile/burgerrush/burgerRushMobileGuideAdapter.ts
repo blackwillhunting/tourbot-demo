@@ -1,15 +1,24 @@
 import type { CarryoutOrder, GuideAiCarryoutResponse } from "../../TourBarOrdering";
 import type { SmartBarMobileOrderResult } from "../SmartBarMobileShell";
 import { smartBarMobileResultFromOrder } from "./burgerRushMobileCartReducer";
+import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../SmartBarVendorContext";
 
 const SMARTBAR_MOBILE_GUIDE_AI_URL = "/api/guide_ai";
 const SMARTBAR_MOBILE_AUTH_TOKEN_KEY = "tourbot_demo_token";
 
-function smartBarMobileBuildGuideConfig() {
+function smartBarMobileBuildGuideConfig(vendorContext?: SmartBarVendorContext | null) {
+  const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
+
   return {
     mode: "commerce",
-    label: "BurgerRush Carryout",
+    label: `${activeVendorContext.displayName} Carryout`,
     catalogMode: "carryout_ordering",
+    clientId: activeVendorContext.clientId,
+    vendorId: activeVendorContext.vendorId,
+    menuProfileId: activeVendorContext.menuProfileId,
+    behaviorProfileId: activeVendorContext.behaviorProfileId,
+    boardProfileId: activeVendorContext.boardProfileId,
+    vendorContext: activeVendorContext,
     features: {
       refinementChips: true,
       bookingActions: true,
@@ -84,7 +93,9 @@ export function smartBarMobileApiErrorResult(query: string, error: unknown): Sma
 export async function smartBarMobileResultFromGuideAi(
   query: string,
   carryoutOrder: CarryoutOrder | null,
+  vendorContext?: SmartBarVendorContext | null,
 ): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
+  const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
   const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
     method: "POST",
     credentials: "include",
@@ -92,23 +103,32 @@ export async function smartBarMobileResultFromGuideAi(
     headers: smartBarMobileBuildGuideAiHeaders(),
     body: JSON.stringify({
       mode: "commerce",
-      guideConfig: smartBarMobileBuildGuideConfig(),
+      guideConfig: smartBarMobileBuildGuideConfig(activeVendorContext),
       message: query,
+      clientId: activeVendorContext.clientId,
+      vendorId: activeVendorContext.vendorId,
+      menuProfileId: activeVendorContext.menuProfileId,
+      behaviorProfileId: activeVendorContext.behaviorProfileId,
+      boardProfileId: activeVendorContext.boardProfileId,
+      vendorContext: activeVendorContext,
       conversationContext: {
         singleTurn: !carryoutOrder,
         lastUserMessage: query,
         recentUserMessages: [query],
         commerceContext: {
           carryoutOrder,
+          vendorContext: activeVendorContext,
         },
       },
       visibleContext: {
         carryoutOrder,
+        vendorContext: activeVendorContext,
       },
       pageContext: {
         url: typeof window !== "undefined" ? window.location.href : "",
-        title: typeof document !== "undefined" ? document.title : "BurgerRush Carryout",
+        title: typeof document !== "undefined" ? document.title : `${activeVendorContext.displayName} Carryout`,
         sections: smartBarMobileGetPageSections(),
+        vendorContext: activeVendorContext,
       },
     }),
   });
@@ -149,6 +169,7 @@ export async function smartBarMobileResultFromGuideAi(
 export async function smartBarMobileRepriceCartFromGuideAi(
   carryoutOrder: CarryoutOrder,
   reason: string,
+  vendorContext?: SmartBarVendorContext | null,
 ): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
   const query = [
     "Reprice the current BurgerRush carryout cart.",
@@ -158,5 +179,5 @@ export async function smartBarMobileRepriceCartFromGuideAi(
     reason ? `Cart change: ${reason}.` : "",
   ].filter(Boolean).join(" ");
 
-  return smartBarMobileResultFromGuideAi(query, carryoutOrder);
+  return smartBarMobileResultFromGuideAi(query, carryoutOrder, vendorContext);
 }

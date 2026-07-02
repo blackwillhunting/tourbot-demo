@@ -62,6 +62,13 @@ export type SmartBarOrderBoardItem = {
   notes?: string;
   score?: SmartBarOrderBoardScore;
   scoreNote?: string;
+  clientId?: string;
+  vendorId?: string;
+  displayName?: string;
+  menuProfileId?: string;
+  behaviorProfileId?: string;
+  boardProfileId?: string;
+  timezone?: string;
 };
 
 const INITIAL_ORDERS: SmartBarOrderBoardItem[] = [
