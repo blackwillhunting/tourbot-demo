@@ -10,6 +10,9 @@ export type SmartBarOrderBoardMockProps = {
   demoSocialPortrait?: boolean;
   /** Walkthrough board mode: tighter portrait grid so six tiles fit without clipping. */
   demoCompactBoard?: boolean;
+  /** Playground board mode: compact 2x2 board for four visible ticket tiles. */
+  demoFourTileBoard?: boolean;
+  demoMaxVisibleOrders?: number;
   demoRevealOrderId?: string;
   demoRevealDelayMs?: number;
   demoAutoOpenOrderId?: string;
@@ -226,12 +229,14 @@ function SmartBarOrderTile({
   onOpen,
   demoSocialPortrait = false,
   demoCompactBoard = false,
+  demoFourTileBoard = false,
   demoTapCue = false,
 }: {
   order: SmartBarOrderBoardItem;
   onOpen: (order: SmartBarOrderBoardItem) => void;
   demoSocialPortrait?: boolean;
   demoCompactBoard?: boolean;
+  demoFourTileBoard?: boolean;
   demoTapCue?: boolean;
 }) {
   const isNew = order.status === "new";
@@ -244,9 +249,11 @@ function SmartBarOrderTile({
       data-smartbar-order-board-status={order.status}
       className={[
         demoSocialPortrait
-          ? demoCompactBoard
-            ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
-            : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
+          ? demoFourTileBoard
+            ? "group relative h-[4.75rem] w-full rounded-[20px] p-1.5 text-center transition"
+            : demoCompactBoard
+              ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
+              : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
           : "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
         isNew
           ? "bg-white text-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.12)] ring-1 ring-white/80 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.16)]"
@@ -255,12 +262,12 @@ function SmartBarOrderTile({
       aria-label={`Open SmartBar order ${order.id}`}
     >
       <span className="flex h-full flex-col items-center justify-center">
-        <span className={demoSocialPortrait ? demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
-        <span className={demoSocialPortrait ? demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
+        <span className={demoSocialPortrait ? demoFourTileBoard ? "text-[1.35rem] font-black tracking-tight" : demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
+        <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
           {isNew ? timeLabel(order.minutesAgo) : "entered"}
         </span>
         {isNew ? (
-          <span className={demoSocialPortrait ? demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
+          <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
             {order.itemCount} items
           </span>
         ) : null}
@@ -385,7 +392,7 @@ function SmartBarOrderSheet({
                 </span>
               </div>
               <div className="mt-2 text-sm font-semibold text-slate-500">
-                {timeLabel(order.minutesAgo)} Ã‚Â· {order.pickup} Ã‚Â· Pay at counter
+                {timeLabel(order.minutesAgo)} - {order.pickup} - Pay at counter
               </div>
             </div>
 
@@ -414,7 +421,7 @@ function SmartBarOrderSheet({
                       <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">
                         {group.title}
                       </span>
-                      <span className="text-[0.95rem] font-black text-sky-700">{item.quantity}Ãƒâ€”</span>
+                      <span className="text-[0.95rem] font-black text-sky-700">{item.quantity}x</span>
                       <span className="text-[0.95rem] font-black text-slate-950">{item.name}</span>
                     </div>
                     {item.details?.length ? (
@@ -484,6 +491,8 @@ export default function SmartBarOrderBoardMock({
   demoMode = false,
   demoSocialPortrait = false,
   demoCompactBoard = false,
+  demoFourTileBoard = false,
+  demoMaxVisibleOrders,
   demoRevealOrderId,
   demoRevealDelayMs = 1760,
   demoAutoOpenOrderId,
@@ -574,6 +583,11 @@ export default function SmartBarOrderBoardMock({
     [orders],
   );
 
+  const visibleSortedOrders = useMemo(
+    () => (typeof demoMaxVisibleOrders === "number" ? sortedOrders.slice(0, Math.max(0, demoMaxVisibleOrders)) : sortedOrders),
+    [demoMaxVisibleOrders, sortedOrders],
+  );
+
   const showRevealSlot = Boolean(
     revealSlotVisible && demoMode && demoRevealOrderId && !orders.some((order) => order.id === demoRevealOrderId),
   );
@@ -652,10 +666,10 @@ export default function SmartBarOrderBoardMock({
       ].filter(Boolean).join(" ")}
     >
       <div className={demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
-        <header className={demoSocialPortrait ? demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
+        <header className={demoSocialPortrait ? demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
           <div>
-            <div className="text-xs font-black uppercase tracking-[0.28em] text-sky-700">SmartBar</div>
-            <h1 className="mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl">
+            <div className={demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
+            <h1 className={demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
               Order Board
             </h1>
             {!demoSocialPortrait ? (
@@ -694,18 +708,22 @@ export default function SmartBarOrderBoardMock({
 
         <section className={demoSocialPortrait ? "min-h-0 flex-1" : undefined}>
           <div className={demoSocialPortrait
-            ? demoCompactBoard
-              ? "grid w-full grid-cols-2 gap-2"
-              : "grid w-full grid-cols-2 gap-2.5"
+            ? demoFourTileBoard
+              ? "grid h-full min-h-0 w-full grid-cols-2 grid-rows-2 gap-2"
+              : demoCompactBoard
+                ? "grid w-full grid-cols-2 gap-2"
+                : "grid w-full grid-cols-2 gap-2.5"
             : "grid w-fit grid-cols-[repeat(2,11.75rem)] gap-3 sm:grid-cols-[repeat(3,11.75rem)] sm:gap-3 lg:grid-cols-[repeat(4,11.75rem)] max-[430px]:grid-cols-[repeat(2,10.25rem)] max-[430px]:gap-2"
           }>
             {showRevealSlot ? (
               <motion.div
                 layout
                 className={demoSocialPortrait
-                  ? demoCompactBoard
-                    ? "h-[7.85rem] w-full rounded-[24px] border border-dashed border-white/70 bg-white/26"
-                    : "h-[9.3rem] w-full rounded-[28px] border border-dashed border-white/70 bg-white/26"
+                  ? demoFourTileBoard
+                    ? "h-[4.75rem] w-full rounded-[20px] border border-dashed border-white/70 bg-white/26"
+                    : demoCompactBoard
+                      ? "h-[7.85rem] w-full rounded-[24px] border border-dashed border-white/70 bg-white/26"
+                      : "h-[9.3rem] w-full rounded-[28px] border border-dashed border-white/70 bg-white/26"
                   : "h-[11.75rem] w-[11.75rem] rounded-[28px] border border-dashed border-white/70 bg-white/20 max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]"
                 }
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -714,7 +732,7 @@ export default function SmartBarOrderBoardMock({
                 aria-hidden="true"
               />
             ) : null}
-            {sortedOrders.map((order) => {
+            {visibleSortedOrders.map((order) => {
               const isRecentlyEntered = order.id === recentlyEnteredOrderId;
 
               return (
@@ -728,7 +746,7 @@ export default function SmartBarOrderBoardMock({
                   transition={{ duration: order.id === recentlyRevealedOrderId ? 1.05 : 0.46, ease: "easeOut" }}
                   style={{ transformPerspective: 820, transformOrigin: "center bottom" }}
                 >
-                  <SmartBarOrderTile order={order} onOpen={(nextOrder) => setActiveOrderId(nextOrder.id)} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoTapCue={order.id === tapCueOrderId} />
+                  <SmartBarOrderTile order={order} onOpen={(nextOrder) => setActiveOrderId(nextOrder.id)} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoTapCue={order.id === tapCueOrderId} />
                 </motion.div>
               );
             })}
@@ -737,7 +755,7 @@ export default function SmartBarOrderBoardMock({
 
         {!demoSocialPortrait ? (
           <footer className="mt-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-            White = needs entry Ã‚Â· Blue = entered in POS
+            White = needs entry - Blue = entered in POS
           </footer>
         ) : null}
       </div>

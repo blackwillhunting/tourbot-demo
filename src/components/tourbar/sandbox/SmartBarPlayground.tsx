@@ -33,7 +33,7 @@ type SmartBarPlaygroundProps = {
 function smartBarPlaygroundRetryKey(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replace(/^\s*\d+\s*[Ã—x]\s*/i, "")
+    .replace(/^\s*\d+\s*x\s*/i, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -65,7 +65,7 @@ function smartBarPlaygroundRetryFallbackLine(query: string, meta?: SmartBarMobil
     title,
     status: "unknown",
     helper: "Not on the BurgerRush menu",
-    price: "â€”",
+    price: "-",
     details: [],
     retryPrompt: "Try the item again with a BurgerRush menu name.",
   };
@@ -128,14 +128,14 @@ function createBoardOrderFromResult(
     ],
     notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
       .filter(Boolean)
-      .join(" Â· "),
+      .join(" - "),
   };
 }
 
 export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) {
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
-  const estimatedTotalRef = useRef("â€”");
+  const estimatedTotalRef = useRef("-");
   const latestPromptRef = useRef("");
   const ticketSequenceRef = useRef(184);
   const activeOrderTicketIdRef = useRef<string | null>(null);
@@ -267,7 +267,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       value,
       meta?.selected ?? true,
     );
-    const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "â€”"
+    const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "-"
       ? previousEstimatedTotal
       : smartBarMobileEstimatedTotalFromLines(nextLines);
 
@@ -304,7 +304,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
-    const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "â€”";
+    const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "-";
     const optimisticCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
       carryoutOrderRef.current,
       line,
@@ -375,7 +375,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   const handleResetCart = useCallback(() => {
     carryoutOrderRef.current = null;
     orderLinesRef.current = [];
-    estimatedTotalRef.current = "â€”";
+    estimatedTotalRef.current = "-";
     latestPromptRef.current = "";
     activeOrderTicketIdRef.current = null;
     pendingTicketIdRef.current = formatPlaygroundTicketId(ticketSequenceRef.current);
@@ -410,6 +410,8 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             demoOrders={boardOrders}
             demoSocialPortrait
             demoCompactBoard
+            demoFourTileBoard
+            demoMaxVisibleOrders={4}
             demoContainedSheet
             className="!min-h-0 h-full overflow-hidden !px-3 !py-3"
             onDemoEntered={handleBoardEntered}
