@@ -69,6 +69,17 @@ function createPlaygroundOrderResult(query: string): SmartBarMobileOrderResult {
         options: ["Croutons", "No croutons"],
         optionSelectionMode: "single",
       },
+      {
+        id: "playground-gar-stix",
+        cartLineKey: "playground-gar-stix",
+        title: "gar-stix",
+        status: "unknown",
+        helper: "Needs menu match",
+        price: "â€”",
+        details: ["Unknown item"],
+        options: ["Map item", "Remove"],
+        optionSelectionMode: "single",
+      },
     ],
     estimatedSubtotal: "$39.47",
     estimatedTax: "$3.16",
@@ -186,6 +197,22 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   const [tickets, setTickets] = useState<PlaygroundTicket[]>([]);
   const [activeTicket, setActiveTicket] = useState<PlaygroundTicket | null>(null);
 
+  const forceSampleCart = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return new URLSearchParams(window.location.search).get("playgroundCart") === "1";
+  }, []);
+
+  const forcedCartSubmission = useMemo(() => (
+    forceSampleCart
+      ? {
+          id: 9001,
+          query: "large pepperoni well done, buffalo wings, caesar salad, gar-stix",
+          typing: false,
+          submitDelayMs: 0,
+        }
+      : null
+  ), [forceSampleCart]);
+
   const ticketSlots = useMemo(() => {
     const visibleTickets = tickets.slice(0, 4);
     return [...visibleTickets, ...Array(Math.max(0, 4 - visibleTickets.length)).fill(null)] as Array<PlaygroundTicket | null>;
@@ -301,6 +328,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             demoRestCompanion={{ label: "SmartBar", showLogo: true }}
             entryModeLabel="Say or type order"
             sendOrderNumber="T-184"
+            demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}
             onRemoveLine={handleRemoveLine}
