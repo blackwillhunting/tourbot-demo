@@ -241,7 +241,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   }, []);
 
   return (
-    <div className="mx-auto mt-5 w-full max-w-[430px]">
+    <div className="mx-auto mt-0 w-full max-w-[430px]">
       <div className="mb-3 flex items-center justify-between gap-3 px-1">
         <button
           type="button"
@@ -262,7 +262,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
         </div>
       </div>
 
-      <div className="relative h-[calc(100dvh-170px)] min-h-[610px] max-h-[720px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
+      <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
 
         <div className="absolute inset-x-3 top-3 z-40 rounded-[26px] bg-[#e9f6ff]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_12px_28px_rgba(14,116,144,0.08)] ring-1 ring-sky-100/90 backdrop-blur">

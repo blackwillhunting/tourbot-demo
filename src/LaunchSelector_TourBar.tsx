@@ -1156,10 +1156,9 @@ function SmartBarRootDemoLaunchButton({
   );
 }
 
-function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
+function SmartBarRootSandboxReadiness({ onBack, onOpenPlayground }: { onBack: () => void; onOpenPlayground: () => void }) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
   const [showTestInstructions, setShowTestInstructions] = useState(false);
-  const [showPlayground, setShowPlayground] = useState(false);
   const sandboxReadyOverride = useMemo(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("sandboxReady") === "1";
@@ -1179,9 +1178,6 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
           ? "bg-emerald-100 text-emerald-700"
           : "bg-slate-100 text-slate-500";
 
-  if (showPlayground) {
-    return <SmartBarPlayground onBack={() => setShowPlayground(false)} />;
-  }
 
   if (showTestInstructions) {
     const instructionRows = [
@@ -1237,7 +1233,7 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
           type="button"
           onClick={() => {
             setShowTestInstructions(false);
-            setShowPlayground(true);
+            onOpenPlayground();
           }}
           className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
         >
@@ -1532,7 +1528,15 @@ function SmartBarRootLaunchMessage({
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
-  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | null>(null);
+  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(null);
+
+  if (activeUseItLane === "playground") {
+    return (
+      <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
+        <SmartBarPlayground onBack={() => setActiveUseItLane("sandbox")} />
+      </div>
+    );
+  }
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
@@ -1558,7 +1562,7 @@ function SmartBarRootLaunchMessage({
 
         {message.demoButtons && (
           activeUseItLane === "sandbox" ? (
-            <SmartBarRootSandboxReadiness onBack={() => setActiveUseItLane(null)} />
+            <SmartBarRootSandboxReadiness onBack={() => setActiveUseItLane(null)} onOpenPlayground={() => setActiveUseItLane("playground")} />
           ) : activeUseItLane === "website" ? (
             <SmartBarRootWebsiteModeReadiness onBack={() => setActiveUseItLane(null)} />
           ) : activeUseItLane === "board" ? (
