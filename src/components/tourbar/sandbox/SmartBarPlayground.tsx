@@ -22,7 +22,7 @@ type PlaygroundTicket = {
   lines: SmartBarMobileOrderLine[];
 };
 
-const EMPTY_SLOT_LABELS = ["Next order", "Waiting", "Waiting", "Waiting"];
+const EMPTY_SLOT_LABELS = ["Waiting", "Waiting", "Waiting", "Waiting"];
 
 function compactTicketLabel(lines: SmartBarMobileOrderLine[]) {
   if (!lines.length) return "Test ticket";
