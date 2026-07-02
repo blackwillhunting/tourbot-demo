@@ -3383,25 +3383,34 @@ export default function SmartBarMobileShell({
         .then((parentResult) => {
           if (!parentResult || parentResult.lines.length === 0) return;
 
+          let nextRequiredLineId: string | null = null;
           const reviewedParentResult: SmartBarMobileOrderResult = {
             ...parentResult,
-            lines: parentResult.lines.map((candidate) => (
-              smartBarMobileLinesAreSameInstance(candidate, resolvedLine)
-                ? {
-                    ...candidate,
-                    status: resolvedLine.status,
-                    helper: resolvedLine.helper,
-                    details: resolvedLine.details,
-                    options: candidate.options || resolvedLine.options || line.options || [],
-                    optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
-                  }
-                : candidate
-            )),
+            lines: parentResult.lines.map((candidate) => {
+              if (!smartBarMobileLinesAreSameInstance(candidate, resolvedLine)) return candidate;
+
+              const stillNeedsRequiredChoice = candidate.status === "pending";
+              if (stillNeedsRequiredChoice && (candidate.options || []).length) {
+                nextRequiredLineId = candidate.id;
+              }
+
+              return {
+                ...candidate,
+                status: stillNeedsRequiredChoice ? candidate.status : resolvedLine.status,
+                helper: stillNeedsRequiredChoice ? candidate.helper : resolvedLine.helper,
+                details: stillNeedsRequiredChoice ? candidate.details : resolvedLine.details,
+                options: candidate.options || resolvedLine.options || line.options || [],
+                optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
+              };
+            }),
           };
 
           setOrderLines(reviewedParentResult.lines);
           applyOrderResultEstimates(reviewedParentResult);
-          if (multiSelect) {
+          if (nextRequiredLineId) {
+            setSelectedLineId(nextRequiredLineId);
+            setCartExpanded(false);
+          } else if (multiSelect) {
             setSelectedLineId((current) => (current === line.id ? line.id : current));
           }
         })
