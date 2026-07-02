@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, ArrowUp, Search, X } from "lucide-react";
 
@@ -12,6 +12,10 @@ export type SmartBarOrderBoardMockProps = {
   demoCompactBoard?: boolean;
   /** Playground board mode: compact 2x2 board for four visible ticket tiles. */
   demoFourTileBoard?: boolean;
+  /** Playground mode: animate newly injected orders instead of popping them in. */
+  demoAnimateIncomingOrders?: boolean;
+  /** Playground mode: let the ticket sheet own the screen instead of staying inside the board frame. */
+  demoPlaygroundSheet?: boolean;
   demoMaxVisibleOrders?: number;
   demoRevealOrderId?: string;
   demoRevealDelayMs?: number;
@@ -300,6 +304,7 @@ function SmartBarOrderSheet({
   onMarkEntered,
   demoSocialPortrait = false,
   demoContainedSheet = false,
+  demoPlaygroundSheet = false,
   demoMarkEnteredLabel = "Entered",
   demoMarkEnteredCue = false,
 }: {
@@ -308,6 +313,7 @@ function SmartBarOrderSheet({
   onMarkEntered: (orderId: string) => void;
   demoSocialPortrait?: boolean;
   demoContainedSheet?: boolean;
+  demoPlaygroundSheet?: boolean;
   demoMarkEnteredLabel?: string;
   demoMarkEnteredCue?: boolean;
 }) {
@@ -317,13 +323,15 @@ function SmartBarOrderSheet({
   return (
     <AnimatePresence>
       <motion.div
-        className={demoContainedSheet
-          ? "absolute inset-0 z-50 flex items-center justify-center bg-slate-950/14 px-3 py-3 backdrop-blur-[2px]"
-          : demoSocialPortrait
-            ? "fixed z-50 flex items-center justify-center bg-slate-950/18 px-2 py-2 backdrop-blur-[2px]"
-            : "fixed inset-0 z-50 flex items-end justify-center bg-slate-950/20 px-3 pb-3 backdrop-blur-[2px]"
+        className={demoPlaygroundSheet
+          ? "fixed inset-0 z-[90] flex items-start justify-center bg-slate-950/18 px-4 py-4 backdrop-blur-[2px]"
+          : demoContainedSheet
+            ? "absolute inset-0 z-50 flex items-center justify-center bg-slate-950/14 px-3 py-3 backdrop-blur-[2px]"
+            : demoSocialPortrait
+              ? "fixed z-50 flex items-center justify-center bg-slate-950/18 px-2 py-2 backdrop-blur-[2px]"
+              : "fixed inset-0 z-50 flex items-end justify-center bg-slate-950/20 px-3 pb-3 backdrop-blur-[2px]"
         }
-        style={!demoContainedSheet && demoSocialPortrait ? { left: -10, right: -10, top: -72, bottom: -126 } : undefined}
+        style={!demoPlaygroundSheet && !demoContainedSheet && demoSocialPortrait ? { left: -10, right: -10, top: -72, bottom: -126 } : undefined}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -335,19 +343,27 @@ function SmartBarOrderSheet({
           aria-label={`SmartBar order ${order.id}`}
           data-smartbar-order-board-sheet="true"
           className={[
-            demoContainedSheet
-              ? "relative h-full max-h-full w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/70"
-              : demoSocialPortrait
-                ? "relative h-[92%] max-h-[620px] w-full max-w-none overflow-hidden rounded-[32px] border border-white/70"
-                : "relative w-full max-w-3xl overflow-hidden rounded-[34px] border border-white/70",
+            demoPlaygroundSheet
+              ? "relative mt-[max(3.5rem,env(safe-area-inset-top))] h-[min(560px,calc(100svh-7rem))] w-full max-w-[430px] overflow-hidden rounded-[32px] border border-white/70"
+              : demoContainedSheet
+                ? "relative h-full max-h-full w-full max-w-[26rem] overflow-hidden rounded-[28px] border border-white/70"
+                : demoSocialPortrait
+                  ? "relative h-[92%] max-h-[620px] w-full max-w-none overflow-hidden rounded-[32px] border border-white/70"
+                  : "relative w-full max-w-3xl overflow-hidden rounded-[34px] border border-white/70",
             "shadow-[0_30px_90px_rgba(15,23,42,0.28)] ring-1 ring-slate-950/5",
             isSwipingDone ? "bg-slate-200" : "bg-white",
           ].join(" ")}
-          initial={demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.88 : 0.70 } : { y: "110%" }}
-          animate={demoContainedSheet || demoSocialPortrait
+          initial={demoPlaygroundSheet
+            ? { opacity: 0, y: 34, scale: 0.94 }
+            : demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.88 : 0.70 } : { y: "110%" }}
+          animate={demoPlaygroundSheet
             ? { opacity: 1, y: isSwipingDone ? -18 : 0, scale: isSwipingDone ? 0.96 : 1 }
-            : { y: isSwipingDone ? -96 : 0, scale: isSwipingDone ? 0.985 : 1 }}
-          exit={demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.9 : 0.72 } : { y: "110%" }}
+            : demoContainedSheet || demoSocialPortrait
+              ? { opacity: 1, y: isSwipingDone ? -18 : 0, scale: isSwipingDone ? 0.96 : 1 }
+              : { y: isSwipingDone ? -96 : 0, scale: isSwipingDone ? 0.985 : 1 }}
+          exit={demoPlaygroundSheet
+            ? { opacity: 0, y: 34, scale: 0.94 }
+            : demoContainedSheet || demoSocialPortrait ? { opacity: 0, y: 24, scale: demoContainedSheet ? 0.9 : 0.72 } : { y: "110%" }}
           drag={isNew ? "y" : false}
           dragConstraints={{ top: -150, bottom: 130 }}
           dragElastic={{ top: 0.18, bottom: 0.22 }}
@@ -492,6 +508,8 @@ export default function SmartBarOrderBoardMock({
   demoSocialPortrait = false,
   demoCompactBoard = false,
   demoFourTileBoard = false,
+  demoAnimateIncomingOrders = false,
+  demoPlaygroundSheet = false,
   demoMaxVisibleOrders,
   demoRevealOrderId,
   demoRevealDelayMs = 1760,
@@ -511,6 +529,8 @@ export default function SmartBarOrderBoardMock({
   onDemoEntered,
 }: SmartBarOrderBoardMockProps = {}) {
   const sourceOrders = demoOrders ?? INITIAL_ORDERS;
+  const previousSourceOrderIdsRef = useRef<Set<string> | null>(null);
+  const incomingOrderClearTimerRef = useRef<number | null>(null);
   const initialVisibleOrders = useMemo(
     () => (demoMode && demoRevealOrderId
       ? sourceOrders.filter((order) => order.id !== demoRevealOrderId)
@@ -529,15 +549,42 @@ export default function SmartBarOrderBoardMock({
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    const previousSourceOrderIds = previousSourceOrderIdsRef.current;
+    const nextSourceOrderIds = new Set(sourceOrders.map((order) => order.id));
+    const incomingOrder = demoAnimateIncomingOrders && previousSourceOrderIds
+      ? sourceOrders.find((order) => !previousSourceOrderIds.has(order.id)) || null
+      : null;
+
+    previousSourceOrderIdsRef.current = nextSourceOrderIds;
+
+    if (incomingOrderClearTimerRef.current !== null) {
+      window.clearTimeout(incomingOrderClearTimerRef.current);
+      incomingOrderClearTimerRef.current = null;
+    }
+
     setOrders(initialVisibleOrders);
     setActiveOrderId(null);
     setRevealSlotVisible(false);
-    setRecentlyRevealedOrderId(null);
+    setRecentlyRevealedOrderId(incomingOrder?.id ?? null);
     setRecentlyEnteredOrderId(null);
     setTapCueOrderId(null);
     setMarkEnteredCueOrderId(null);
 
-    if (!demoMode || !demoRevealOrderId) return undefined;
+    if (incomingOrder) {
+      incomingOrderClearTimerRef.current = window.setTimeout(() => {
+        setRecentlyRevealedOrderId(null);
+        incomingOrderClearTimerRef.current = null;
+      }, 1150);
+    }
+
+    if (!demoMode || !demoRevealOrderId) {
+      return () => {
+        if (incomingOrderClearTimerRef.current !== null) {
+          window.clearTimeout(incomingOrderClearTimerRef.current);
+          incomingOrderClearTimerRef.current = null;
+        }
+      };
+    }
 
     // Demo arrival choreography:
     // 1) Start with the latest existing ticket (S-186) in the first slot.
@@ -561,8 +608,12 @@ export default function SmartBarOrderBoardMock({
       window.clearTimeout(openSlotTimer);
       window.clearTimeout(revealTimer);
       window.clearTimeout(clearRevealTimer);
+      if (incomingOrderClearTimerRef.current !== null) {
+        window.clearTimeout(incomingOrderClearTimerRef.current);
+        incomingOrderClearTimerRef.current = null;
+      }
     };
-  }, [demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
+  }, [demoAnimateIncomingOrders, demoMode, demoRevealDelayMs, demoRevealOrderId, initialVisibleOrders, sourceOrders]);
 
   // Keep demoInitialOpenOrderId from resetting the board state after a demo action.
   // The walkthrough uses this prop to start the handled step with S-184 open.
@@ -767,6 +818,7 @@ export default function SmartBarOrderBoardMock({
           onMarkEntered={markEntered}
           demoSocialPortrait={demoSocialPortrait}
           demoContainedSheet={demoContainedSheet}
+          demoPlaygroundSheet={demoPlaygroundSheet}
           demoMarkEnteredLabel={demoMarkEnteredLabel}
           demoMarkEnteredCue={activeOrder.id === markEnteredCueOrderId}
         />

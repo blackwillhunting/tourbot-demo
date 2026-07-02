@@ -412,7 +412,8 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             demoCompactBoard
             demoFourTileBoard
             demoMaxVisibleOrders={4}
-            demoContainedSheet
+            demoAnimateIncomingOrders
+            demoPlaygroundSheet
             className="!min-h-0 h-full overflow-hidden !px-3 !py-3"
             onDemoEntered={handleBoardEntered}
           />
