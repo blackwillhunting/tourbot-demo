@@ -6,29 +6,29 @@ type SmartBarSandboxWorkbenchProps = {
   onBack: () => void;
 };
 
-const placeholderTiles = [
+const testOrderTiles = [
   {
     id: "T-001",
-    title: "Ticket shell",
+    title: "Sample ticket",
     subtitle: "Tap to preview",
     active: true,
   },
   {
     id: "T-002",
     title: "Waiting",
-    subtitle: "Next test order",
+    subtitle: "Next order",
     active: false,
   },
   {
     id: "T-003",
     title: "Waiting",
-    subtitle: "Next test order",
+    subtitle: "Next order",
     active: false,
   },
   {
     id: "T-004",
     title: "Waiting",
-    subtitle: "Next test order",
+    subtitle: "Next order",
     active: false,
   },
 ];
@@ -38,8 +38,8 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
 
   return (
     <>
-      <div className="mx-auto mt-5 max-w-xl rounded-[28px] bg-white/92 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.08)] ring-1 ring-white/80 sm:mt-7 sm:p-4">
-        <div className="flex items-center justify-between gap-3 px-1 py-1">
+      <div className="mx-auto mt-5 max-w-[480px] sm:mt-7">
+        <div className="mb-3 flex items-center justify-between gap-3 px-2">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               Sandbox
@@ -52,79 +52,63 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex shrink-0 items-center rounded-full bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+            className="inline-flex shrink-0 items-center rounded-full bg-white/80 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
           >
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
             Back
           </button>
         </div>
 
-        <section className="mt-3 rounded-[24px] bg-[#012169] p-3 text-white shadow-[0_16px_32px_rgba(1,33,105,0.16)]">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              <ReceiptText className="h-4 w-4 text-sky-100" />
-              Test orders
-            </div>
-            <div className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-50/85 ring-1 ring-white/15">
-              Shell
-            </div>
-          </div>
+        <section className="relative h-[640px] overflow-hidden rounded-[34px] bg-white shadow-[0_22px_60px_rgba(15,23,42,0.12)] ring-1 ring-white/80 [transform:translateZ(0)]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(219,234,254,0.92),transparent_38%),linear-gradient(180deg,#f8fcff_0%,#edf7ff_48%,#ffffff_100%)]" />
 
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {placeholderTiles.map((tile) => (
-              <button
-                key={tile.id}
-                type="button"
-                disabled={!tile.active}
-                onClick={() => setTicketOpen(true)}
-                className={[
-                  "rounded-2xl p-2.5 text-left ring-1 transition",
-                  tile.active
-                    ? "bg-white text-slate-950 ring-white/70 hover:-translate-y-0.5"
-                    : "bg-white/8 text-sky-50/60 ring-white/12",
-                ].join(" ")}
-              >
-                <div className="text-[10px] font-bold uppercase tracking-[0.1em] opacity-70">
-                  {tile.id}
-                </div>
-                <div className="mt-1 truncate text-sm font-semibold">{tile.title}</div>
-                <div className="mt-0.5 truncate text-[11px] opacity-70">{tile.subtitle}</div>
-              </button>
-            ))}
-          </div>
-        </section>
+          <SmartBarMobileShell
+            mode="overlay"
+            introCallout={{
+              title: "Tap to say or type your order",
+              startDelayMs: 320,
+              typeDelayMs: 20,
+            }}
+            demoRestCompanion={{ label: "SmartBar", showLogo: true }}
+            entryModeLabel="Say or type order"
+            buildingLabel="Building test ticket..."
+            compactCartRows
+            demoWalkthroughCartMode
+          />
 
-        <section className="mt-3 overflow-hidden rounded-[28px] bg-[radial-gradient(circle_at_50%_0%,rgba(219,234,254,0.92),transparent_42%),linear-gradient(180deg,#eef7ff_0%,#e7f3ff_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.78)] ring-1 ring-sky-100/80">
-          <div className="relative h-[330px] overflow-hidden [transform:translateZ(0)] sm:h-[360px]">
-            <div className="pointer-events-none absolute inset-x-5 top-5 rounded-[22px] bg-white/62 p-4 text-slate-700 shadow-[0_16px_34px_rgba(15,23,42,0.08)] ring-1 ring-white/70">
-              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                SmartBar
+          <div className="pointer-events-auto absolute inset-x-3 top-3 z-[10086] rounded-[26px] bg-[#012169] p-3 text-white shadow-[0_16px_32px_rgba(1,33,105,0.18)] ring-1 ring-white/20">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <ReceiptText className="h-4 w-4 text-sky-100" />
+                Test orders
               </div>
-              <div className="mt-1 text-sm font-semibold text-slate-950">
-                Say or type a test order.
+              <div className="rounded-full bg-white/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-sky-50/85 ring-1 ring-white/15">
+                Sandbox
               </div>
             </div>
 
-            <SmartBarMobileShell
-              mode="overlay"
-              introCallout={{
-                title: "Say or type a test order",
-              }}
-              demoRestCompanion={{ label: "SmartBar", showLogo: true }}
-              entryModeLabel="Say or type order"
-              buildingLabel="Building test ticket..."
-              compactCartRows
-              onSubmitPrompt={(query) => ({
-                surfaceKind: "info",
-                eyebrow: "Sandbox",
-                title: "Ticket builder comes next",
-                body: query.trim()
-                  ? "Next, this order will become a test ticket."
-                  : "Next, SmartBar will turn test orders into tickets.",
-                statusLabel: "Shell",
-                height: 260,
-              })}
-            />
+            <div className="grid grid-cols-4 gap-2">
+              {testOrderTiles.map((tile) => (
+                <button
+                  key={tile.id}
+                  type="button"
+                  disabled={!tile.active}
+                  onClick={() => setTicketOpen(true)}
+                  className={[
+                    "min-w-0 rounded-2xl p-2 text-left ring-1 transition",
+                    tile.active
+                      ? "bg-white text-slate-950 ring-white/70 hover:-translate-y-0.5"
+                      : "bg-white/8 text-sky-50/55 ring-white/12",
+                  ].join(" ")}
+                >
+                  <div className="truncate text-[9px] font-black uppercase tracking-[0.09em] opacity-70">
+                    {tile.id}
+                  </div>
+                  <div className="mt-1 truncate text-[12px] font-bold leading-4">{tile.title}</div>
+                  <div className="mt-0.5 truncate text-[10px] opacity-70">{tile.subtitle}</div>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       </div>
@@ -157,7 +141,7 @@ export default function SmartBarSandboxWorkbench({ onBack }: SmartBarSandboxWork
             </div>
 
             <div className="mt-3 rounded-3xl bg-slate-950 px-4 py-3 text-center text-sm font-semibold text-white">
-              Scorecard area
+              Ready / Needs Fix goes here
             </div>
           </div>
         </div>
