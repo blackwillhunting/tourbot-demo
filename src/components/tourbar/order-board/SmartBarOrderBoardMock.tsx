@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Search, X } from "lucide-react";
 
 type SmartBarOrderBoardItemStatus = "new" | "entered";
 
-type SmartBarOrderBoardMockProps = {
+export type SmartBarOrderBoardMockProps = {
   demoMode?: boolean;
   /** Social reel portrait mode: large 2x2 board and big readable ticket. */
   demoSocialPortrait?: boolean;
@@ -33,7 +33,7 @@ type SmartBarOrderBoardMockProps = {
   onDemoEntered?: (orderId: string) => void;
 };
 
-type SmartBarOrderBoardItem = {
+export type SmartBarOrderBoardItem = {
   id: string;
   minutesAgo: number;
   status: SmartBarOrderBoardItemStatus;
@@ -385,7 +385,7 @@ function SmartBarOrderSheet({
                 </span>
               </div>
               <div className="mt-2 text-sm font-semibold text-slate-500">
-                {timeLabel(order.minutesAgo)} · {order.pickup} · Pay at counter
+                {timeLabel(order.minutesAgo)} Ã‚Â· {order.pickup} Ã‚Â· Pay at counter
               </div>
             </div>
 
@@ -414,7 +414,7 @@ function SmartBarOrderSheet({
                       <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">
                         {group.title}
                       </span>
-                      <span className="text-[0.95rem] font-black text-sky-700">{item.quantity}×</span>
+                      <span className="text-[0.95rem] font-black text-sky-700">{item.quantity}Ãƒâ€”</span>
                       <span className="text-[0.95rem] font-black text-slate-950">{item.name}</span>
                     </div>
                     {item.details?.length ? (
@@ -737,7 +737,7 @@ export default function SmartBarOrderBoardMock({
 
         {!demoSocialPortrait ? (
           <footer className="mt-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-            White = needs entry · Blue = entered in POS
+            White = needs entry Ã‚Â· Blue = entered in POS
           </footer>
         ) : null}
       </div>

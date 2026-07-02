@@ -1,6 +1,5 @@
-﻿import { useCallback, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, Clock3, ReceiptText, X } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileApplyChoiceMeta,
@@ -25,28 +24,11 @@ import {
   smartBarMobileRepriceCartFromGuideAi,
   smartBarMobileResultFromGuideAi,
 } from "../smartbar-mobile/burgerrush/burgerRushMobileGuideAdapter";
+import SmartBarOrderBoardMock, { type SmartBarOrderBoardItem } from "../order-board/SmartBarOrderBoardMock";
 
 type SmartBarPlaygroundProps = {
   onBack: () => void;
 };
-
-type PlaygroundTicket = {
-  id: string;
-  label: string;
-  rawOrder: string;
-  statusLabel: string;
-  total: string;
-  createdLabel: string;
-  lines: SmartBarMobileOrderLine[];
-};
-
-const EMPTY_SLOT_LABELS = ["Waiting", "Waiting", "Waiting", "Waiting"];
-
-function compactTicketLabel(lines: SmartBarMobileOrderLine[]) {
-  if (!lines.length) return "SmartBar ticket";
-  if (lines.length === 1) return lines[0].title;
-  return `${lines[0].title} +${lines.length - 1}`;
-}
 
 function smartBarPlaygroundRetryKey(value: string) {
   return String(value || "")
@@ -110,110 +92,44 @@ function formatPlaygroundTicketId(sequence: number) {
   return `T-${String(sequence).padStart(3, "0")}`;
 }
 
-function playgroundTicketStatusLabel(lines: SmartBarMobileOrderLine[]) {
-  return lines.some((line) => line.status === "pending" || line.status === "unknown")
-    ? "Review"
-    : lines.some((line) => line.status === "options")
-      ? "Options"
-      : "Ready";
+function boardDetailsForLine(line: SmartBarMobileOrderLine) {
+  const details = (line.details || []).filter(Boolean);
+  if (details.length) return details;
+  if (line.helper) return [line.helper];
+  return undefined;
 }
 
-function createTicketFromResult(
+function createBoardOrderFromResult(
   result: SmartBarMobileOrderResult,
   rawOrder: string,
   ticketId: string,
-): PlaygroundTicket {
+): SmartBarOrderBoardItem {
+  const lines = result.lines || [];
+
   return {
     id: ticketId,
-    label: compactTicketLabel(result.lines),
-    rawOrder,
-    statusLabel: playgroundTicketStatusLabel(result.lines),
-    total: result.estimatedTotal || "â€”",
-    createdLabel: "Now",
-    lines: result.lines,
+    minutesAgo: 0,
+    status: "new",
+    customer: "SmartBar",
+    phone: "202-555-0184",
+    pickup: "ASAP",
+    itemCount: Math.max(1, lines.length),
+    groups: [
+      {
+        title: "Order",
+        items: lines.length
+          ? lines.map((line) => ({
+              quantity: 1,
+              name: line.demoDisplayTitle || line.title,
+              details: boardDetailsForLine(line),
+            }))
+          : [{ quantity: 1, name: "SmartBar ticket" }],
+      },
+    ],
+    notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
+      .filter(Boolean)
+      .join(" Â· "),
   };
-}
-
-function TicketTile({
-  ticket,
-  index,
-  onOpen,
-  compact = false,
-}: {
-  ticket: PlaygroundTicket | null;
-  index: number;
-  onOpen: (ticket: PlaygroundTicket) => void;
-  compact?: boolean;
-}) {
-  if (!ticket) {
-    return (
-      <div
-        className={compact
-          ? "min-h-[34px] rounded-xl border border-dashed border-sky-200/80 bg-white/48 px-1.5 py-1 text-left"
-          : "min-h-[52px] rounded-2xl border border-dashed border-sky-200/80 bg-white/45 px-2.5 py-2 text-left"
-        }
-      >
-        <div
-          className={compact
-            ? "text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400"
-            : "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
-          }
-        >
-          Slot {index + 1}
-        </div>
-        <div
-          className={compact
-            ? "mt-0.5 truncate text-[10px] font-semibold leading-3 text-slate-500"
-            : "mt-1 truncate text-[13px] font-semibold text-slate-500"
-          }
-        >
-          {EMPTY_SLOT_LABELS[index] || "Waiting"}
-        </div>
-      </div>
-    );
-  }
-
-  const ready = ticket.statusLabel === "Ready";
-
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(ticket)}
-      className={compact
-        ? "min-h-[34px] rounded-xl bg-white px-1.5 py-1 text-left shadow-[0_6px_14px_rgba(14,116,144,0.09)] ring-1 ring-sky-100 transition hover:-translate-y-0.5"
-        : "min-h-[52px] rounded-2xl bg-white px-2.5 py-2 text-left shadow-[0_8px_18px_rgba(14,116,144,0.10)] ring-1 ring-sky-100 transition hover:-translate-y-0.5"
-      }
-    >
-      <div className="flex items-center justify-between gap-1.5">
-        <span
-          className={compact
-            ? "text-[8px] font-bold uppercase tracking-[0.08em] text-slate-400"
-            : "text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400"
-          }
-        >
-          {ticket.id}
-        </span>
-        <span className={`${compact ? "px-1 py-0 text-[8px]" : "px-1.5 py-0.5 text-[9px]"} rounded-full font-bold uppercase tracking-[0.08em] ${
-          ready ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-        }`}>
-          {ticket.statusLabel}
-        </span>
-      </div>
-      <div
-        className={compact
-          ? "mt-0.5 truncate text-[10px] font-semibold leading-3 text-slate-950"
-          : "mt-1 truncate text-[13px] font-semibold leading-4 text-slate-950"
-        }
-      >
-        {ticket.label}
-      </div>
-      {!compact && (
-        <div className="mt-0.5 text-[11px] font-semibold text-slate-500">
-          {ticket.total}
-        </div>
-      )}
-    </button>
-  );
 }
 
 export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) {
@@ -224,11 +140,12 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   const ticketSequenceRef = useRef(184);
   const activeOrderTicketIdRef = useRef<string | null>(null);
   const pendingTicketIdRef = useRef(formatPlaygroundTicketId(184));
+  const boardOrderIdsRef = useRef(new Set<string>());
 
-  const [tickets, setTickets] = useState<PlaygroundTicket[]>([]);
+  const [boardOrders, setBoardOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
-  const [activeTicket, setActiveTicket] = useState<PlaygroundTicket | null>(null);
-  const [cartOpen, setCartOpen] = useState(false);
+  const [, setCartOpen] = useState(false);
+  const [boardExpanded, setBoardExpanded] = useState(true);
 
   const forceProductionCart = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -239,37 +156,12 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     forceProductionCart
       ? {
           id: 9001,
-          query: "large pepperoni well done, buffalo wings, caesar salad, gar-stix",
+          query: "double cheeseburger combo no onions, large fries, large diet coke",
           typing: false,
           submitDelayMs: 0,
         }
       : null
   ), [forceProductionCart]);
-
-  const ticketSlots = useMemo(() => {
-    const visibleTickets = tickets.slice(0, 4);
-    return [...visibleTickets, ...Array(Math.max(0, 4 - visibleTickets.length)).fill(null)] as Array<PlaygroundTicket | null>;
-  }, [tickets]);
-
-  const visibleTicketCount = Math.min(tickets.length, 4);
-  const shownTicketLabel = tickets.length > 4 ? `${visibleTicketCount} of ${tickets.length} shown` : `${visibleTicketCount} shown`;
-
-  const compactOrderRail = forceProductionCart || cartOpen;
-
-  const updateActiveTicketFromResult = useCallback((result: SmartBarMobileOrderResult) => {
-    const ticketId = activeOrderTicketIdRef.current || pendingTicketIdRef.current;
-    if (!ticketId) return;
-
-    const updatedTicket = createTicketFromResult(
-      result,
-      latestPromptRef.current || "SmartBar order",
-      ticketId,
-    );
-
-    setTickets((current) => current.map((ticket) => (
-      ticket.id === ticketId ? updatedTicket : ticket
-    )));
-  }, []);
 
   const reserveActiveTicketId = useCallback(() => {
     if (activeOrderTicketIdRef.current) return activeOrderTicketIdRef.current;
@@ -301,6 +193,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     if (!replacingUnknown) {
       reserveActiveTicketId();
       latestPromptRef.current = query;
+      setBoardExpanded(false);
     }
 
     setCartOpen(true);
@@ -333,7 +226,6 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
         smartBarMobileRemoveReplacementFromCarryoutOrder(result.carryoutOrder ?? null, meta),
         shouldUseExistingCart,
       );
-      if (replacingUnknown) updateActiveTicketFromResult(mergedResult);
 
       return mergedResult;
     } catch (error) {
@@ -352,11 +244,10 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       orderLinesRef.current = mergedErrorResult.lines;
       estimatedTotalRef.current = mergedErrorResult.estimatedTotal || previousEstimatedTotal;
       carryoutOrderRef.current = carryoutOrderForPrompt;
-      if (replacingUnknown) updateActiveTicketFromResult(mergedErrorResult);
 
       return mergedErrorResult;
     }
-  }, [reserveActiveTicketId, updateActiveTicketFromResult]);
+  }, [reserveActiveTicketId]);
 
   const handleApplyLineChoice = useCallback(async (
     line: SmartBarMobileOrderLine,
@@ -389,8 +280,6 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       estimatedTotal: optimisticEstimatedTotal,
     };
 
-    updateActiveTicketFromResult(optimisticResult);
-
     if (!optimisticCarryoutOrder) return optimisticResult;
 
     try {
@@ -403,18 +292,15 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       estimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
       carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
-      const finalResult = {
+      return {
         ...repricedResult,
         estimatedTotal: repricedResult.estimatedTotal || optimisticEstimatedTotal,
       };
-      updateActiveTicketFromResult(finalResult);
-
-      return finalResult;
     } catch (error) {
       console.warn("SmartBar playground reprice failed after choice", error);
       return optimisticResult;
     }
-  }, [updateActiveTicketFromResult]);
+  }, []);
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
@@ -433,8 +319,6 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       estimatedTotal: nextEstimatedTotal,
     };
 
-    updateActiveTicketFromResult(optimisticResult);
-
     if (!nextLines.length || !optimisticCarryoutOrder) return optimisticResult;
 
     try {
@@ -447,30 +331,46 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
       estimatedTotalRef.current = repricedResult.estimatedTotal || nextEstimatedTotal;
       carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
-      const finalResult = {
+      return {
         ...repricedResult,
         estimatedTotal: repricedResult.estimatedTotal || nextEstimatedTotal,
       };
-      updateActiveTicketFromResult(finalResult);
-
-      return finalResult;
     } catch (error) {
       console.warn("SmartBar playground reprice failed after remove", error);
       return optimisticResult;
     }
-  }, [updateActiveTicketFromResult]);
+  }, []);
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
     setCartOpen(true);
-    const ticketId = pendingTicketIdRef.current || activeOrderTicketIdRef.current || reserveActiveTicketId();
-    const nextTicket = createTicketFromResult(
-      result,
+    orderLinesRef.current = result.lines;
+    estimatedTotalRef.current = result.estimatedTotal || estimatedTotalRef.current;
+  }, []);
+
+  const handleOrderSent = useCallback(() => {
+    const ticketId = activeOrderTicketIdRef.current || pendingTicketIdRef.current || sendOrderNumber;
+    if (!ticketId || boardOrderIdsRef.current.has(ticketId)) return;
+
+    boardOrderIdsRef.current.add(ticketId);
+
+    const boardOrder = createBoardOrderFromResult(
+      {
+        lines: orderLinesRef.current,
+        estimatedTotal: estimatedTotalRef.current,
+      },
       latestPromptRef.current || "SmartBar order",
       ticketId,
     );
 
-    setTickets((current) => [nextTicket, ...current.filter((ticket) => ticket.id !== nextTicket.id)]);
-  }, [reserveActiveTicketId]);
+    setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId)]);
+    setBoardExpanded(true);
+  }, [sendOrderNumber]);
+
+  const handleBoardEntered = useCallback((orderId: string) => {
+    setBoardOrders((current) => current.map((order) => (
+      order.id === orderId ? { ...order, status: "entered" } : order
+    )));
+  }, []);
 
   const handleResetCart = useCallback(() => {
     carryoutOrderRef.current = null;
@@ -483,6 +383,8 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     setCartOpen(false);
   }, []);
 
+  const boardIsCompact = !boardExpanded || forceProductionCart;
+
   return (
     <div className="mx-auto mt-0 w-full max-w-[430px]">
       <div className="mb-2 flex items-center px-1">
@@ -494,46 +396,35 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
           Back
         </button>
-
       </div>
 
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
 
-        <div className={`absolute inset-x-3 top-3 z-40 rounded-[26px] bg-[#e9f6ff]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_12px_28px_rgba(14,116,144,0.08)] ring-1 ring-sky-100/90 backdrop-blur ${compactOrderRail ? "p-1.5" : "p-2"}`}>
-          {!compactOrderRail && (
-            <div className="mb-2 flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <ReceiptText className="h-4 w-4 text-[#012169]" />
-              <span className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-                Test Orders
-              </span>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 ring-1 ring-sky-100">
-              <Clock3 className="h-3 w-3" />
-              {tickets.length ? shownTicketLabel : "Waiting"}
-            </span>
-            </div>
-          )}
-
-          <div className={compactOrderRail ? "grid grid-cols-4 gap-1.5" : "grid grid-cols-2 gap-2"}>
-            {ticketSlots.map((ticket, index) => (
-              <TicketTile
-                key={ticket?.id || `empty-${index}`}
-                ticket={ticket}
-                index={index}
-                onOpen={setActiveTicket}
-                compact={compactOrderRail}
-              />
-            ))}
-          </div>
+        <div className={[
+          "absolute inset-x-3 top-3 z-30 overflow-hidden rounded-[28px] bg-white/58 shadow-[0_16px_36px_rgba(14,116,144,0.12)] ring-1 ring-white/80 transition-all duration-300",
+          boardIsCompact ? "h-[92px]" : "h-[286px]",
+        ].join(" ")}
+        >
+          <SmartBarOrderBoardMock
+            demoOrders={boardOrders}
+            demoSocialPortrait
+            demoCompactBoard
+            demoContainedSheet
+            className="!min-h-0 h-full overflow-hidden !px-3 !py-3"
+            onDemoEntered={handleBoardEntered}
+          />
         </div>
 
-        <div className={`absolute inset-x-0 bottom-0 z-20 overflow-visible [transform:translateZ(0)] ${compactOrderRail ? "top-[58px]" : "top-[150px]"}`}>
+        <div className={[
+          "absolute inset-x-0 bottom-0 z-20 overflow-visible [transform:translateZ(0)] transition-all duration-300",
+          boardIsCompact ? "top-[108px]" : "top-[306px]",
+        ].join(" ")}
+        >
           <SmartBarMobileShell
             mode="overlay"
             introCallout={{
-              title: "Say or type an order",
+              title: boardOrders.length ? "Say or type another order" : "Say or type an order",
             }}
             demoRestCompanion={{ label: "SmartBar", showLogo: true }}
             entryModeLabel="Say or type order"
@@ -545,83 +436,10 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             onApplyLineChoice={handleApplyLineChoice}
             onRemoveLine={handleRemoveLine}
             onCartReady={handleCartReady}
+            onOrderSent={handleOrderSent}
             onResetCart={handleResetCart}
           />
         </div>
-
-        <AnimatePresence>
-          {activeTicket && (
-            <motion.div
-              key={activeTicket.id}
-              className="absolute inset-3 z-[60] flex items-end"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <button
-                type="button"
-                className="absolute inset-0 rounded-[30px] bg-slate-950/24 backdrop-blur-[2px]"
-                onClick={() => setActiveTicket(null)}
-                aria-label="Close ticket"
-              />
-
-              <motion.div
-                className="relative z-10 w-full rounded-[28px] bg-white p-4 text-slate-950 shadow-[0_24px_60px_rgba(15,23,42,0.24)] ring-1 ring-slate-200"
-                initial={{ y: 26, scale: 0.985 }}
-                animate={{ y: 0, scale: 1 }}
-                exit={{ y: 20, scale: 0.99 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                      {activeTicket.id}
-                    </div>
-                    <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                      {activeTicket.label}
-                    </h3>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTicket(null)}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200"
-                    aria-label="Close ticket"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <div className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-sm font-medium leading-5 text-slate-600 ring-1 ring-slate-200">
-                  {activeTicket.rawOrder}
-                </div>
-
-                <div className="mt-3 grid gap-2">
-                  {activeTicket.lines.map((line) => (
-                    <div key={line.id} className="rounded-2xl bg-white px-3 py-2 ring-1 ring-slate-200">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-950">{line.title}</div>
-                          <div className="mt-0.5 text-xs font-medium text-slate-500">
-                            {(line.details || []).slice(0, 3).join(" â€¢ ") || line.helper}
-                          </div>
-                        </div>
-                        <div className="text-sm font-semibold text-slate-700">{line.price}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800 ring-1 ring-emerald-100">
-                  <span className="inline-flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Ticket preview
-                  </span>
-                  <span>{activeTicket.total}</span>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

@@ -169,7 +169,7 @@ const demoLines: SmartBarMobileOrderLine[] = [
     title: "Chocolate shake",
     status: "unknown",
     helper: "Could not match item",
-    price: "—",
+    price: "Ã¢â‚¬â€",
     details: [],
     retryPrompt: "Re-enter the item so SmartBar can match it.",
   },
@@ -210,7 +210,7 @@ const smartBarMobileSocialMontageLines: SmartBarMobileOrderLine[] = [
     title: "cho c snd",
     status: "unknown",
     helper: "Could not match item",
-    price: "—",
+    price: "Ã¢â‚¬â€",
     details: [],
     retryPrompt: "Clarify or replace this item.",
   },
@@ -255,7 +255,7 @@ const smartBarMobileWalkthroughPizzaLines: SmartBarMobileOrderLine[] = [
     demoDisplayTitle: "gar-stix",
     status: "unknown",
     helper: "Garlic knots or breadsticks?",
-    price: "—",
+    price: "Ã¢â‚¬â€",
     details: [],
     retryPrompt: "Clarify as garlic knots or breadsticks.",
   },
@@ -609,7 +609,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
     if (summary) {
       const checkIn = essentials.find((block) => block.id === "stay-check-in")?.value || "Missing";
       const checkOut = essentials.find((block) => block.id === "stay-checkout")?.value || "Missing";
-      const guests = (essentials.find((block) => block.id === "stay-guests")?.value || "Missing").replace(/\s*·\s*/g, ", ");
+      const guests = (essentials.find((block) => block.id === "stay-guests")?.value || "Missing").replace(/\s*Ã‚Â·\s*/g, ", ");
       const selectedPackages = packages.filter((block) => block.tone !== "empty" && block.tone === "ready");
       const addOns = selectedPackages.length && !/reviewed/i.test(selectedPackages[0]?.value || "")
         ? selectedPackages.map((block) => block.valueIcon === "package" ? block.helper || block.value : block.value).join(", ")
@@ -801,7 +801,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
     {
       id: "stay-guests",
       label: "Guests",
-      value: "1 adult · 0 kids",
+      value: "1 adult Ã‚Â· 0 kids",
       helper: "Required",
       tone: "ready",
       actionId: "booking-edit-guests",
@@ -956,7 +956,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
               aria-label="Previous month"
             >
-              ‹
+              Ã¢â‚¬Â¹
             </button>
             <div className="text-center">
               <div className="text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
@@ -971,7 +971,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
               className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-base font-black text-white ring-1 ring-white/12"
               aria-label="Next month"
             >
-              ›
+              Ã¢â‚¬Âº
             </button>
           </div>
 
@@ -1040,7 +1040,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
             className={buttonClass}
             aria-label={`Decrease ${label.toLowerCase()}`}
           >
-            −
+            Ã¢Ë†â€™
           </button>
           <div className="flex h-10 min-w-[46px] items-center justify-center rounded-full bg-emerald-300/92 px-3 text-[16px] font-black text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] ring-1 ring-emerald-100/34">
             {value}
@@ -1065,7 +1065,7 @@ function smartBarMobileSocialBookingMontageResult(stage: SmartBarMobileDemoMonta
         type="button"
         className="mb-3 flex w-full items-center justify-between rounded-[20px] border border-sky-100/16 bg-sky-200/16 px-3 py-2 text-left text-xs font-black text-sky-100 ring-1 ring-white/8"
       >
-        <span>Aug 4–Aug 9</span>
+        <span>Aug 4Ã¢â‚¬â€œAug 9</span>
         <span>Edit</span>
       </button>
 
@@ -1702,16 +1702,16 @@ function SmartBarMobileFormattedBody({ text }: { text: string }) {
     <div className="space-y-3">
       {blocks.map((block, blockIndex) => {
         const lines = block.split(/\n+/g).map((line) => line.trim()).filter(Boolean);
-        const bulletLines = lines.filter((line) => /^[-•]\s+/.test(line));
+        const bulletLines = lines.filter((line) => /^[-Ã¢â‚¬Â¢]\s+/.test(line));
 
         if (bulletLines.length && bulletLines.length === lines.length) {
           return (
             <ul key={`block-${blockIndex}`} className="space-y-2">
               {bulletLines.map((line, lineIndex) => {
-                const cleanLine = line.replace(/^[-•]\s+/, "");
+                const cleanLine = line.replace(/^[-Ã¢â‚¬Â¢]\s+/, "");
                 return (
                   <li key={`block-${blockIndex}-line-${lineIndex}`} className="flex gap-2">
-                    <span className="mt-[0.18rem] text-white/54">•</span>
+                    <span className="mt-[0.18rem] text-white/54">Ã¢â‚¬Â¢</span>
                     <span className="min-w-0 flex-1">
                       {smartBarMobileRenderInlineMarkdown(cleanLine, `block-${blockIndex}-line-${lineIndex}`)}
                     </span>
@@ -1807,13 +1807,13 @@ function smartBarMobileTotalsFromLines(
     total: authoritativeTotal ?? total,
     subtotalLabel: authoritativeSubtotal !== null
       ? smartBarMobileMoneyFromNumber(authoritativeSubtotal)
-      : subtotal > 0 ? smartBarMobileMoneyFromNumber(subtotal) : "—",
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(subtotal) : "Ã¢â‚¬â€",
     taxLabel: authoritativeTax !== null
       ? smartBarMobileMoneyFromNumber(authoritativeTax)
-      : subtotal > 0 ? smartBarMobileMoneyFromNumber(tax) : "—",
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(tax) : "Ã¢â‚¬â€",
     totalLabel: authoritativeTotal !== null
       ? smartBarMobileMoneyFromNumber(authoritativeTotal)
-      : subtotal > 0 ? smartBarMobileMoneyFromNumber(total) : "—",
+      : subtotal > 0 ? smartBarMobileMoneyFromNumber(total) : "Ã¢â‚¬â€",
   };
 }
 
@@ -1871,7 +1871,7 @@ function ThinkingText({ text }: { text: string }) {
             delay: index * 0.035,
           }}
         >
-          {character === " " ? " " : character}
+          {character === " " ? "Ã‚Â " : character}
         </motion.span>
       ))}
     </span>
@@ -1880,8 +1880,8 @@ function ThinkingText({ text }: { text: string }) {
 
 
 function smartBarMobileTitlePrefix(value: string) {
-  const match = value.match(/^\s*(\d+)\s*[×x]\s*(.+)$/i);
-  return match ? { prefix: `${match[1]} × `, body: match[2] } : { prefix: "", body: value };
+  const match = value.match(/^\s*(\d+)\s*[Ãƒâ€”x]\s*(.+)$/i);
+  return match ? { prefix: `${match[1]} Ãƒâ€” `, body: match[2] } : { prefix: "", body: value };
 }
 
 function smartBarMobileShortLabel(value: string) {
@@ -1987,7 +1987,7 @@ function smartBarMobileShortTitle(value: string) {
 function smartBarMobileDemoKey(value: string) {
   return String(value || "")
     .toLowerCase()
-    .replace(/^\s*\d+\s*[×x]\s*/i, "")
+    .replace(/^\s*\d+\s*[Ãƒâ€”x]\s*/i, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -2024,7 +2024,7 @@ function smartBarMobileHasReviewedOptionLineKey(
 }
 
 function smartBarMobileLineComparableTitle(line: SmartBarMobileOrderLine) {
-  return smartBarMobileDemoKey(String(line.title || "").replace(/^\s*\d+\s*[×x]\s*/i, ""));
+  return smartBarMobileDemoKey(String(line.title || "").replace(/^\s*\d+\s*[Ãƒâ€”x]\s*/i, ""));
 }
 
 function smartBarMobileLineSourceItemKey(line: SmartBarMobileOrderLine) {
@@ -2189,6 +2189,7 @@ type SmartBarMobileShellProps = {
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
+  onOrderSent?: () => void;
   onResetCart?: () => void;
 };
 
@@ -2218,6 +2219,7 @@ export default function SmartBarMobileShell({
   onNavigateToLine,
   onGenericAction,
   onCartReady,
+  onOrderSent,
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
@@ -2910,7 +2912,7 @@ export default function SmartBarMobileShell({
               setOrderLines([]);
               setOrderEstimatedSubtotal(undefined);
               setOrderEstimatedTax(undefined);
-              setOrderEstimatedTotal("—");
+              setOrderEstimatedTotal("Ã¢â‚¬â€");
             } else {
               setGenericResult(null);
               if (result.lines.length > 0) {
@@ -3424,11 +3426,11 @@ export default function SmartBarMobileShell({
     const fallbackLines = smartBarMobileRemoveOneLineInstance(orderLines, line);
     const optimisticResult: SmartBarMobileOrderResult = {
       lines: fallbackLines,
-      estimatedTotal: fallbackLines.length ? undefined : "—",
+      estimatedTotal: fallbackLines.length ? undefined : "Ã¢â‚¬â€",
     };
 
     setOrderLines(optimisticResult.lines);
-    applyOrderResultEstimates(optimisticResult, optimisticResult.lines.length ? "" : "—");
+    applyOrderResultEstimates(optimisticResult, optimisticResult.lines.length ? "" : "Ã¢â‚¬â€");
     setLineOverrides({});
     setSelectedLineId(null);
     setCartExpanded(true);
@@ -3445,7 +3447,7 @@ export default function SmartBarMobileShell({
       .then((parentResult) => {
         if (!parentResult) return;
         setOrderLines(parentResult.lines);
-        applyOrderResultEstimates(parentResult, parentResult.lines.length ? "" : "—");
+        applyOrderResultEstimates(parentResult, parentResult.lines.length ? "" : "Ã¢â‚¬â€");
 
         if (parentResult.lines.length === 0) {
           setHasCart(false);
@@ -3500,7 +3502,7 @@ export default function SmartBarMobileShell({
           setOrderLines([]);
           setOrderEstimatedSubtotal(undefined);
           setOrderEstimatedTax(undefined);
-          setOrderEstimatedTotal("—");
+          setOrderEstimatedTotal("Ã¢â‚¬â€");
           setRetryDraft("");
           setLineOverrides({});
           setSelectedLineId(null);
@@ -3650,6 +3652,7 @@ export default function SmartBarMobileShell({
         });
         setHandoffState("idle");
         setCartExpanded(true);
+        onOrderSent?.();
       }, SMARTBAR_MOBILE_SEND_ORDER_REVEAL_DELAY_MS);
     }, SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS);
   };
@@ -3706,8 +3709,8 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Retry gray entries";
     if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Review yellow entries";
     if (phase === "cart") return "Send order";
-    if (checkoutReady) return `Ready to send · ${cartTotals.totalLabel}`;
-    return `${unresolvedReviewCount} need attention · ${cartTotals.totalLabel}`;
+    if (checkoutReady) return `Ready to send Ã‚Â· ${cartTotals.totalLabel}`;
+    return `${unresolvedReviewCount} need attention Ã‚Â· ${cartTotals.totalLabel}`;
   })();
 
   const demoRestCompanionIsBlank = phase === "rest" && Boolean(demoRestCompanion?.blank);
@@ -3874,7 +3877,7 @@ export default function SmartBarMobileShell({
         setOrderLines([]);
         setOrderEstimatedSubtotal(undefined);
         setOrderEstimatedTax(undefined);
-        setOrderEstimatedTotal("—");
+        setOrderEstimatedTotal("Ã¢â‚¬â€");
       } else {
         setGenericResult(null);
         setOrderLines(nextResult.lines);
@@ -3926,7 +3929,7 @@ export default function SmartBarMobileShell({
         setOrderLines([]);
         setOrderEstimatedSubtotal(undefined);
         setOrderEstimatedTax(undefined);
-        setOrderEstimatedTotal("—");
+        setOrderEstimatedTotal("Ã¢â‚¬â€");
         setHasCart(true);
         setPhase("cart");
       });
@@ -3966,7 +3969,7 @@ export default function SmartBarMobileShell({
           setOrderLines([]);
           setOrderEstimatedSubtotal(undefined);
           setOrderEstimatedTax(undefined);
-          setOrderEstimatedTotal("—");
+          setOrderEstimatedTotal("Ã¢â‚¬â€");
         } else {
           setGenericResult(null);
           setOrderLines(nextResult.lines);
@@ -4067,7 +4070,7 @@ export default function SmartBarMobileShell({
       setOrderLines([]);
       setOrderEstimatedSubtotal(undefined);
       setOrderEstimatedTax(undefined);
-      setOrderEstimatedTotal("—");
+      setOrderEstimatedTotal("Ã¢â‚¬â€");
       setHasCart(false);
       setCartExpanded(false);
       setSubmittedPromptPreview("");
@@ -4143,7 +4146,7 @@ export default function SmartBarMobileShell({
     handleGenericActionClick(
       {
         id: actionId,
-        label: actionLabel.replace(/→/g, "").replace(/\s+/g, " ").trim(),
+        label: actionLabel.replace(/Ã¢â€ â€™/g, "").replace(/\s+/g, " ").trim(),
         variant: actionElement.getAttribute("data-smartbar-mobile-content-action-variant") === "secondary"
           ? "secondary"
           : "primary",
@@ -4944,7 +4947,7 @@ export default function SmartBarMobileShell({
                               </div>
                               {demoCompactCartRows && !demoWalkthroughHideCartChrome && !line.demoHideMeta ? (
                                 <div className={`min-w-[3.4rem] shrink-0 truncate text-[11px] font-black leading-none ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
-                                  · {smartBarMobileCompactRowHelper(line)}
+                                  Ã‚Â· {smartBarMobileCompactRowHelper(line)}
                                 </div>
                               ) : !demoCompactCartRows && !line.demoHideMeta ? (
                                 <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
