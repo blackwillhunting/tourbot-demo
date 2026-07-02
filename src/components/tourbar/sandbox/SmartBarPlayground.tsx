@@ -116,13 +116,15 @@ function removeLine(lines: SmartBarMobileOrderLine[], removedLine: SmartBarMobil
   return lines.filter((line) => line.id !== removedLine.id);
 }
 
+function formatPlaygroundTicketId(sequence: number) {
+  return `T-${String(sequence).padStart(3, "0")}`;
+}
+
 function createTicketFromResult(
   result: SmartBarMobileOrderResult,
   rawOrder: string,
-  sequence: number,
+  ticketId: string,
 ): PlaygroundTicket {
-  const ticketId = `T-${String(sequence).padStart(3, "0")}`;
-
   return {
     id: ticketId,
     label: compactTicketLabel(result.lines),
@@ -225,8 +227,10 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
   const estimatedTotalRef = useRef("—");
   const latestPromptRef = useRef("");
   const ticketSequenceRef = useRef(184);
+  const pendingTicketIdRef = useRef(formatPlaygroundTicketId(184));
 
   const [tickets, setTickets] = useState<PlaygroundTicket[]>([]);
+  const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
   const [activeTicket, setActiveTicket] = useState<PlaygroundTicket | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -251,9 +255,15 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
     return [...visibleTickets, ...Array(Math.max(0, 4 - visibleTickets.length)).fill(null)] as Array<PlaygroundTicket | null>;
   }, [tickets]);
 
+  const visibleTicketCount = Math.min(tickets.length, 4);
+  const shownTicketLabel = tickets.length > 4 ? `${visibleTicketCount} of ${tickets.length} shown` : `${visibleTicketCount} shown`;
+
   const compactOrderRail = forceSampleCart || cartOpen;
 
   const handleSubmitPrompt = useCallback((query: string, _meta?: SmartBarMobileSubmitMeta) => {
+    const ticketId = formatPlaygroundTicketId(ticketSequenceRef.current);
+    pendingTicketIdRef.current = ticketId;
+    setSendOrderNumber(ticketId);
     latestPromptRef.current = query;
     const result = createPlaygroundOrderResult(query);
     setCartOpen(true);
@@ -288,14 +298,17 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
     setCartOpen(true);
+    const ticketId = pendingTicketIdRef.current || formatPlaygroundTicketId(ticketSequenceRef.current);
     const nextTicket = createTicketFromResult(
       result,
       latestPromptRef.current || "Test order",
-      ticketSequenceRef.current,
+      ticketId,
     );
     ticketSequenceRef.current += 1;
+    pendingTicketIdRef.current = formatPlaygroundTicketId(ticketSequenceRef.current);
+    setSendOrderNumber(pendingTicketIdRef.current);
 
-    setTickets((current) => [nextTicket, ...current.filter((ticket) => ticket.id !== nextTicket.id)].slice(0, 4));
+    setTickets((current) => [nextTicket, ...current.filter((ticket) => ticket.id !== nextTicket.id)]);
   }, []);
 
   const handleResetCart = useCallback(() => {
@@ -333,7 +346,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500 ring-1 ring-sky-100">
               <Clock3 className="h-3 w-3" />
-              {tickets.length ? `${tickets.length} shown` : "Waiting"}
+              {tickets.length ? shownTicketLabel : "Waiting"}
             </span>
             </div>
           )}
@@ -360,7 +373,7 @@ export default function SmartBarPlayground({ onBack }: SmartBarPlaygroundProps) 
             }}
             demoRestCompanion={{ label: "SmartBar", showLogo: true }}
             entryModeLabel="Say or type order"
-            sendOrderNumber="T-184"
+            sendOrderNumber={sendOrderNumber}
             compactCartRows
             demoBottomLiftPx={16}
             demoSubmission={forcedCartSubmission}
