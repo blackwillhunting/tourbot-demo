@@ -301,13 +301,20 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
         activeVendorContext,
       );
 
-      orderLinesRef.current = repricedResult.lines;
-      estimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
+      const mergedRepricedResult = smartBarMobileMergeOrderResults(
+        repricedResult,
+        nextLines,
+        optimisticEstimatedTotal,
+        true,
+      );
+
+      orderLinesRef.current = mergedRepricedResult.lines;
+      estimatedTotalRef.current = mergedRepricedResult.estimatedTotal || optimisticEstimatedTotal;
       carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
       return {
-        ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || optimisticEstimatedTotal,
+        ...mergedRepricedResult,
+        estimatedTotal: mergedRepricedResult.estimatedTotal || optimisticEstimatedTotal,
       };
     } catch (error) {
       console.warn("SmartBar playground reprice failed after choice", error);
@@ -341,13 +348,20 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
         activeVendorContext,
       );
 
-      orderLinesRef.current = repricedResult.lines;
-      estimatedTotalRef.current = repricedResult.estimatedTotal || nextEstimatedTotal;
+      const mergedRepricedResult = smartBarMobileMergeOrderResults(
+        repricedResult,
+        nextLines,
+        nextEstimatedTotal,
+        true,
+      );
+
+      orderLinesRef.current = mergedRepricedResult.lines;
+      estimatedTotalRef.current = mergedRepricedResult.estimatedTotal || nextEstimatedTotal;
       carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
       return {
-        ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || nextEstimatedTotal,
+        ...mergedRepricedResult,
+        estimatedTotal: mergedRepricedResult.estimatedTotal || nextEstimatedTotal,
       };
     } catch (error) {
       console.warn("SmartBar playground reprice failed after remove", error);

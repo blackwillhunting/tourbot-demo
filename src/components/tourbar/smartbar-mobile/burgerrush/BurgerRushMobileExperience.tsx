@@ -524,13 +524,20 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         `${meta?.selected === false ? "deselected" : "selected"} ${value} for ${line.title}`,
       );
 
-      mobileOrderLinesRef.current = repricedResult.lines;
-      mobileEstimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
+      const mergedRepricedResult = smartBarMobileMergeOrderResults(
+        repricedResult,
+        nextLines,
+        optimisticEstimatedTotal,
+        true,
+      );
+
+      mobileOrderLinesRef.current = mergedRepricedResult.lines;
+      mobileEstimatedTotalRef.current = mergedRepricedResult.estimatedTotal || optimisticEstimatedTotal;
       mobileCarryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
       return {
-        ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || optimisticEstimatedTotal,
+        ...mergedRepricedResult,
+        estimatedTotal: mergedRepricedResult.estimatedTotal || optimisticEstimatedTotal,
       };
     } catch (error) {
       console.warn("SmartBar mobile reprice failed after choice", error);
@@ -564,13 +571,20 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         `removed ${line.title}`,
       );
 
-      mobileOrderLinesRef.current = repricedResult.lines;
-      mobileEstimatedTotalRef.current = repricedResult.estimatedTotal || nextEstimatedTotal;
+      const mergedRepricedResult = smartBarMobileMergeOrderResults(
+        repricedResult,
+        nextLines,
+        nextEstimatedTotal,
+        true,
+      );
+
+      mobileOrderLinesRef.current = mergedRepricedResult.lines;
+      mobileEstimatedTotalRef.current = mergedRepricedResult.estimatedTotal || nextEstimatedTotal;
       mobileCarryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
 
       return {
-        ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || nextEstimatedTotal,
+        ...mergedRepricedResult,
+        estimatedTotal: mergedRepricedResult.estimatedTotal || nextEstimatedTotal,
       };
     } catch (error) {
       console.warn("SmartBar mobile reprice failed after remove", error);
