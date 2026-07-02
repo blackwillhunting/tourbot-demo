@@ -7,6 +7,7 @@ import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } f
 import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexapath/NexaPathMobileExperience";
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
+import SmartBarPlayground from "./components/tourbar/sandbox/SmartBarPlayground";
 import SmartBarSetupWalkthrough, { SMARTBAR_SETUP_WALKTHROUGH_STEPS } from "./components/tourbar/setup/SmartBarSetupWalkthrough";
 import { SmartBarFlashCardStack, type SmartBarFlashCardStackItem } from "./components/tourbar/speed-demo/SmartBarFlashCardStack";
 import {
@@ -1158,6 +1159,7 @@ function SmartBarRootDemoLaunchButton({
 function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
   const [showTestInstructions, setShowTestInstructions] = useState(false);
+  const [showPlayground, setShowPlayground] = useState(false);
   const sandboxReadyOverride = useMemo(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("sandboxReady") === "1";
@@ -1176,6 +1178,10 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
         : status === "Ready"
           ? "bg-emerald-100 text-emerald-700"
           : "bg-slate-100 text-slate-500";
+
+  if (showPlayground) {
+    return <SmartBarPlayground onBack={() => setShowPlayground(false)} />;
+  }
 
   if (showTestInstructions) {
     const instructionRows = [
@@ -1229,10 +1235,13 @@ function SmartBarRootSandboxReadiness({ onBack }: { onBack: () => void }) {
 
         <button
           type="button"
-          onClick={() => setShowTestInstructions(false)}
+          onClick={() => {
+            setShowTestInstructions(false);
+            setShowPlayground(true);
+          }}
           className="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
         >
-          Back to Readiness
+          Begin Testing
         </button>
       </div>
     );
