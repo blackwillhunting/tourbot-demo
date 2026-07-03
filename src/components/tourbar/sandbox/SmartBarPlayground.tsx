@@ -35,10 +35,26 @@ type SmartBarTicketCreateResponse = {
   ticketId?: string;
   ticketNumber?: string;
   ticketDisplayId?: string;
+  scoringStatus?: string;
+  scoreNote?: string;
+  readyLineCount?: number | string;
+  requiredLineCount?: number | string;
+  optionalLineCount?: number | string;
+  unknownLineCount?: number | string;
+  issueLineCount?: number | string;
   code?: string;
   message?: string;
 };
 
+type SmartBarPlaygroundTicketScoring = {
+  scoringStatus: "ready" | "needs_fix";
+  scoreNote: string;
+  readyLineCount: number;
+  requiredLineCount: number;
+  optionalLineCount: number;
+  unknownLineCount: number;
+  issueLineCount: number;
+};
 
 type PersistedSmartBarTicketLine = {
   title?: string;
@@ -65,6 +81,11 @@ type PersistedSmartBarTicket = {
   status?: string;
   scoringStatus?: "ready" | "needs_fix" | string;
   scoreNote?: string;
+  readyLineCount?: number | string;
+  requiredLineCount?: number | string;
+  optionalLineCount?: number | string;
+  unknownLineCount?: number | string;
+  issueLineCount?: number | string;
   customerText?: string;
   itemCount?: number | string;
   estimatedTotal?: number | string;
@@ -93,8 +114,71 @@ function smartBarPlaygroundNumberFromCurrency(value: string | undefined) {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function smartBarPlaygroundScoringStatus(lines: SmartBarMobileOrderLine[]) {
-  return lines.some((line) => line.status !== "ready") ? "needs_fix" : "ready";
+function smartBarPlaygroundPlural(count: number, singular: string, plural = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function smartBarPlaygroundBuildScoring(lines: SmartBarMobileOrderLine[]): SmartBarPlaygroundTicketScoring {
+  let readyLineCount = 0;
+  let requiredLineCount = 0;
+  let optionalLineCount = 0;
+  let unknownLineCount = 0;
+  let otherIssueLineCount = 0;
+
+  lines.forEach((line) => {
+    if (line.status === "ready") {
+      readyLineCount += 1;
+      return;
+    }
+
+    if (line.status === "pending") {
+      requiredLineCount += 1;
+      return;
+    }
+
+    if (line.status === "options") {
+      optionalLineCount += 1;
+      return;
+    }
+
+    if (line.status === "unknown") {
+      unknownLineCount += 1;
+      return;
+    }
+
+    otherIssueLineCount += 1;
+  });
+
+  const issueLineCount = requiredLineCount + optionalLineCount + unknownLineCount + otherIssueLineCount;
+
+  if (!issueLineCount) {
+    return {
+      scoringStatus: "ready",
+      scoreNote: "All lines ready.",
+      readyLineCount,
+      requiredLineCount,
+      optionalLineCount,
+      unknownLineCount,
+      issueLineCount,
+    };
+  }
+
+  const parts = [
+    requiredLineCount ? smartBarPlaygroundPlural(requiredLineCount, "required choice") : "",
+    optionalLineCount ? smartBarPlaygroundPlural(optionalLineCount, "optional review") : "",
+    unknownLineCount ? smartBarPlaygroundPlural(unknownLineCount, "unknown item") : "",
+    otherIssueLineCount ? smartBarPlaygroundPlural(otherIssueLineCount, "other issue") : "",
+  ].filter(Boolean);
+
+  return {
+    scoringStatus: "needs_fix",
+    scoreNote: `Needs attention: ${parts.join(", ")}.`,
+    readyLineCount,
+    requiredLineCount,
+    optionalLineCount,
+    unknownLineCount,
+    issueLineCount,
+  };
 }
 
 async function createPersistentSmartBarTicket(
@@ -103,6 +187,7 @@ async function createPersistentSmartBarTicket(
   vendorContext: SmartBarVendorContext,
 ): Promise<SmartBarTicketCreateResponse | null> {
   const lines = result.lines || [];
+  const scoring = smartBarPlaygroundBuildScoring(lines);
 
   const payload = {
     clientId: vendorContext.clientId,
@@ -113,7 +198,13 @@ async function createPersistentSmartBarTicket(
     timezone: vendorContext.timezone,
     mode: "sandbox",
     customerText: rawOrder || "SmartBar order",
-    scoringStatus: smartBarPlaygroundScoringStatus(lines),
+    scoringStatus: scoring.scoringStatus,
+    scoreNote: scoring.scoreNote,
+    readyLineCount: scoring.readyLineCount,
+    requiredLineCount: scoring.requiredLineCount,
+    optionalLineCount: scoring.optionalLineCount,
+    unknownLineCount: scoring.unknownLineCount,
+    issueLineCount: scoring.issueLineCount,
     ticket: {
       items: lines.map((line) => ({
         title: line.demoDisplayTitle || line.title,
@@ -267,6 +358,11 @@ function smartBarTicketQuantity(value: number | string | undefined) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
+function smartBarTicketNumber(value: number | string | undefined) {
+  const parsed = Number(value || 0);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
 function smartBarTicketTotalLabel(value: number | string | undefined) {
   const total = String(value || "").trim();
   if (!total) return "";
@@ -314,7 +410,7 @@ function smartBarPersistedTicketToBoardOrder(
     ]
       .filter(Boolean)
       .join(" - "),
-    score: ticket.scoringStatus === "needs_fix" ? "needs_fix" : "ready",
+    score: ticket.scoringStatus === "needs_fix" || smartBarTicketNumber(ticket.issueLineCount) > 0 ? "needs_fix" : "ready",
     scoreNote: ticket.scoreNote || "",
     clientId: ticket.clientId || vendorContext.clientId,
     vendorId: ticket.vendorId || vendorContext.vendorId,
@@ -333,6 +429,7 @@ function createBoardOrderFromResult(
   vendorContext: SmartBarVendorContext,
 ): SmartBarOrderBoardItem {
   const lines = result.lines || [];
+  const scoring = smartBarPlaygroundBuildScoring(lines);
 
   return {
     id: ticketId,
@@ -357,6 +454,8 @@ function createBoardOrderFromResult(
     notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
       .filter(Boolean)
       .join(" - "),
+    score: scoring.scoringStatus,
+    scoreNote: scoring.scoreNote,
     clientId: vendorContext.clientId,
     vendorId: vendorContext.vendorId,
     displayName: vendorContext.displayName,
