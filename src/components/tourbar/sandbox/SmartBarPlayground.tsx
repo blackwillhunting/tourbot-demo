@@ -27,6 +27,78 @@ import {
 } from "../smartbar-mobile/burgerrush/burgerRushMobileGuideAdapter";
 import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem } from "../order-board/SmartBarOrderBoardMock";
 
+const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
+
+type SmartBarTicketCreateResponse = {
+  ok?: boolean;
+  ticketId?: string;
+  ticketNumber?: string;
+  ticketDisplayId?: string;
+  code?: string;
+  message?: string;
+};
+
+function smartBarPlaygroundNumberFromCurrency(value: string | undefined) {
+  const normalized = String(value || "").replace(/[^0-9.-]/g, "");
+  if (!normalized) return undefined;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function smartBarPlaygroundScoringStatus(lines: SmartBarMobileOrderLine[]) {
+  return lines.some((line) => line.status !== "ready") ? "needs_fix" : "ready";
+}
+
+async function createPersistentSmartBarTicket(
+  result: SmartBarMobileOrderResult,
+  rawOrder: string,
+  vendorContext: SmartBarVendorContext,
+): Promise<SmartBarTicketCreateResponse | null> {
+  const lines = result.lines || [];
+
+  const payload = {
+    clientId: vendorContext.clientId,
+    vendorId: vendorContext.vendorId,
+    menuProfileId: vendorContext.menuProfileId,
+    behaviorProfileId: vendorContext.behaviorProfileId,
+    boardProfileId: vendorContext.boardProfileId,
+    timezone: vendorContext.timezone,
+    mode: "sandbox",
+    customerText: rawOrder || "SmartBar order",
+    scoringStatus: smartBarPlaygroundScoringStatus(lines),
+    ticket: {
+      items: lines.map((line) => ({
+        title: line.demoDisplayTitle || line.title,
+        quantity: 1,
+        status: line.status,
+        details: boardDetailsForLine(line) || [],
+        price: line.price,
+      })),
+      totals: {
+        estimatedTotal: smartBarPlaygroundNumberFromCurrency(result.estimatedTotal),
+        estimatedTotalLabel: result.estimatedTotal || "",
+      },
+    },
+  };
+
+  const response = await fetch(SMARTBAR_TICKET_CREATE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = (await response.json().catch(() => null)) as SmartBarTicketCreateResponse | null;
+
+  if (!response.ok || !json?.ok) {
+    throw new Error(json?.message || json?.code || `SmartBar ticket create failed with HTTP ${response.status}`);
+  }
+
+  return json;
+}
+
 type SmartBarPlaygroundProps = {
   onBack: () => void;
   vendorContext?: SmartBarVendorContext | null;
@@ -361,24 +433,46 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
     estimatedTotalRef.current = result.estimatedTotal || estimatedTotalRef.current;
   }, []);
 
-  const handleOrderSent = useCallback(() => {
-    const ticketId = activeOrderTicketIdRef.current || pendingTicketIdRef.current || sendOrderNumber;
-    if (!ticketId || boardOrderIdsRef.current.has(ticketId)) return;
+  const handleOrderSent = useCallback(async () => {
+    const fallbackTicketId = activeOrderTicketIdRef.current || pendingTicketIdRef.current || sendOrderNumber;
+    if (!fallbackTicketId || boardOrderIdsRef.current.has(fallbackTicketId)) return fallbackTicketId;
+
+    boardOrderIdsRef.current.add(fallbackTicketId);
+
+    const currentResult = {
+      lines: orderLinesRef.current,
+      estimatedTotal: estimatedTotalRef.current,
+    };
+    const rawOrder = latestPromptRef.current || "SmartBar order";
+
+    let ticketId = fallbackTicketId;
+
+    try {
+      const persistedTicket = await createPersistentSmartBarTicket(
+        currentResult,
+        rawOrder,
+        activeVendorContext,
+      );
+
+      ticketId = persistedTicket?.ticketDisplayId || persistedTicket?.ticketNumber || fallbackTicketId;
+    } catch (error) {
+      console.error("SmartBar ticket persistence failed", error);
+    }
 
     boardOrderIdsRef.current.add(ticketId);
 
     const boardOrder = createBoardOrderFromResult(
-      {
-        lines: orderLinesRef.current,
-        estimatedTotal: estimatedTotalRef.current,
-      },
-      latestPromptRef.current || "SmartBar order",
+      currentResult,
+      rawOrder,
       ticketId,
       activeVendorContext,
     );
 
-    setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId)]);
+    setSendOrderNumber(ticketId);
+    setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId && order.id !== fallbackTicketId)]);
     setBoardExpanded(true);
+
+    return ticketId;
   }, [activeVendorContext, sendOrderNumber]);
 
   const handleBoardEntered = useCallback((orderId: string) => {

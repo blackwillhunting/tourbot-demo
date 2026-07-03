@@ -2189,7 +2189,7 @@ type SmartBarMobileShellProps = {
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
-  onOrderSent?: () => void;
+  onOrderSent?: () => string | Promise<string | void> | void;
   onResetCart?: () => void;
 };
 
@@ -3638,18 +3638,30 @@ export default function SmartBarMobileShell({
       handoffCollapseTimerRef.current = null;
       setCartExpanded(false);
 
-      handoffResetTimerRef.current = window.setTimeout(() => {
+      handoffResetTimerRef.current = window.setTimeout(async () => {
         handoffResetTimerRef.current = null;
+
+        let resolvedOrderNumber = sendOrderNumber;
+
+        try {
+          const persistedOrderNumber = await onOrderSent?.();
+          if (typeof persistedOrderNumber === "string" && persistedOrderNumber.trim()) {
+            resolvedOrderNumber = persistedOrderNumber.trim();
+          }
+        } catch (error) {
+          console.error("SmartBar order handoff failed", error);
+        }
+
         setGenericResult({
           surfaceKind: "info",
           eyebrow: "Order sent",
-          title: `SmartBar Order ${sendOrderNumber}`,
+          title: `SmartBar Order ${resolvedOrderNumber}`,
           statusLabel: "Order sent",
           height: 268,
           content: (
             <div className="rounded-[28px] border border-white/18 bg-slate-950/72 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_28px_rgba(2,6,23,0.20)] ring-1 ring-white/12">
               <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200/88">Order sent</div>
-              <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{sendOrderNumber}</div>
+              <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{resolvedOrderNumber}</div>
               <div className="mx-auto mt-3 max-w-[240px] rounded-full bg-white/92 px-4 py-2 text-sm font-black text-slate-950 shadow-sm">
                 Show this number at pickup.
               </div>
@@ -3661,7 +3673,6 @@ export default function SmartBarMobileShell({
         });
         setHandoffState("idle");
         setCartExpanded(true);
-        onOrderSent?.();
       }, SMARTBAR_MOBILE_SEND_ORDER_REVEAL_DELAY_MS);
     }, SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS);
   };
