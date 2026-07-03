@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
@@ -28,12 +28,59 @@ import {
 import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem } from "../order-board/SmartBarOrderBoardMock";
 
 const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
+const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 
 type SmartBarTicketCreateResponse = {
   ok?: boolean;
   ticketId?: string;
   ticketNumber?: string;
   ticketDisplayId?: string;
+  code?: string;
+  message?: string;
+};
+
+
+type PersistedSmartBarTicketLine = {
+  title?: string;
+  name?: string;
+  quantity?: number | string;
+  status?: string;
+  details?: unknown;
+  price?: string;
+};
+
+type PersistedSmartBarTicket = {
+  ticketId?: string;
+  ticketNumber?: string;
+  ticketDisplayId?: string;
+  clientId?: string;
+  vendorId?: string;
+  displayName?: string;
+  menuProfileId?: string;
+  behaviorProfileId?: string;
+  boardProfileId?: string;
+  timezone?: string;
+  mode?: string;
+  businessDate?: string;
+  status?: string;
+  scoringStatus?: "ready" | "needs_fix" | string;
+  scoreNote?: string;
+  customerText?: string;
+  itemCount?: number | string;
+  estimatedTotal?: number | string;
+  createdAt?: string;
+  ticket?: {
+    items?: PersistedSmartBarTicketLine[];
+    totals?: {
+      estimatedTotal?: number | string;
+      estimatedTotalLabel?: string;
+    };
+  };
+};
+
+type SmartBarTicketListResponse = {
+  ok?: boolean;
+  tickets?: PersistedSmartBarTicket[];
   code?: string;
   message?: string;
 };
@@ -97,6 +144,33 @@ async function createPersistentSmartBarTicket(
   }
 
   return json;
+}
+
+function smartBarTicketListUrl(vendorContext: SmartBarVendorContext) {
+  const params = new URLSearchParams({
+    vendorId: vendorContext.vendorId,
+    mode: "sandbox",
+    timezone: vendorContext.timezone,
+  });
+
+  return `${SMARTBAR_TICKET_LIST_URL}?${params.toString()}`;
+}
+
+async function listPersistentSmartBarTickets(vendorContext: SmartBarVendorContext): Promise<PersistedSmartBarTicket[]> {
+  const response = await fetch(smartBarTicketListUrl(vendorContext), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const json = (await response.json().catch(() => null)) as SmartBarTicketListResponse | null;
+
+  if (!response.ok || !json?.ok) {
+    throw new Error(json?.message || json?.code || `SmartBar ticket list failed with HTTP ${response.status}`);
+  }
+
+  return Array.isArray(json.tickets) ? json.tickets : [];
 }
 
 type SmartBarPlaygroundProps = {
@@ -173,6 +247,85 @@ function boardDetailsForLine(line: SmartBarMobileOrderLine) {
   return undefined;
 }
 
+function smartBarTicketDisplayId(ticket: PersistedSmartBarTicket) {
+  if (ticket.ticketDisplayId) return ticket.ticketDisplayId;
+  if (ticket.ticketNumber) {
+    return ticket.ticketNumber.startsWith("#") ? ticket.ticketNumber : `#${ticket.ticketNumber}`;
+  }
+
+  return ticket.ticketId || "SmartBar ticket";
+}
+
+function smartBarTicketDetails(value: unknown) {
+  if (Array.isArray(value)) return value.map((detail) => String(detail || "").trim()).filter(Boolean);
+  const detail = String(value || "").trim();
+  return detail ? [detail] : undefined;
+}
+
+function smartBarTicketQuantity(value: number | string | undefined) {
+  const parsed = Number(value || 1);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function smartBarTicketTotalLabel(value: number | string | undefined) {
+  const total = String(value || "").trim();
+  if (!total) return "";
+  return total.startsWith("$") ? total : `$${total}`;
+}
+
+function smartBarTicketMinutesAgo(createdAt?: string) {
+  const timestamp = Date.parse(String(createdAt || ""));
+  if (!Number.isFinite(timestamp)) return 0;
+
+  return Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+}
+
+function smartBarPersistedTicketToBoardOrder(
+  ticket: PersistedSmartBarTicket,
+  vendorContext: SmartBarVendorContext,
+): SmartBarOrderBoardItem {
+  const items = ticket.ticket?.items || [];
+  const ticketId = smartBarTicketDisplayId(ticket);
+  const estimatedTotalLabel = ticket.ticket?.totals?.estimatedTotalLabel || smartBarTicketTotalLabel(ticket.estimatedTotal);
+
+  return {
+    id: ticketId,
+    minutesAgo: smartBarTicketMinutesAgo(ticket.createdAt),
+    status: ticket.status === "processed" || ticket.status === "entered" ? "entered" : "new",
+    customer: "SmartBar",
+    phone: "202-555-0184",
+    pickup: "ASAP",
+    itemCount: Math.max(1, Number(ticket.itemCount || items.length || 1) || 1),
+    groups: [
+      {
+        title: "Order",
+        items: items.length
+          ? items.map((item) => ({
+              quantity: smartBarTicketQuantity(item.quantity),
+              name: item.title || item.name || "SmartBar ticket",
+              details: smartBarTicketDetails(item.details),
+            }))
+          : [{ quantity: 1, name: "SmartBar ticket" }],
+      },
+    ],
+    notes: [
+      ticket.customerText ? `Heard: ${ticket.customerText}` : "SmartBar ticket",
+      estimatedTotalLabel ? `Total: ${estimatedTotalLabel}` : "",
+    ]
+      .filter(Boolean)
+      .join(" - "),
+    score: ticket.scoringStatus === "needs_fix" ? "needs_fix" : "ready",
+    scoreNote: ticket.scoreNote || "",
+    clientId: ticket.clientId || vendorContext.clientId,
+    vendorId: ticket.vendorId || vendorContext.vendorId,
+    displayName: ticket.displayName || vendorContext.displayName,
+    menuProfileId: ticket.menuProfileId || vendorContext.menuProfileId,
+    behaviorProfileId: ticket.behaviorProfileId || vendorContext.behaviorProfileId,
+    boardProfileId: ticket.boardProfileId || vendorContext.boardProfileId,
+    timezone: ticket.timezone || vendorContext.timezone,
+  };
+}
+
 function createBoardOrderFromResult(
   result: SmartBarMobileOrderResult,
   rawOrder: string,
@@ -224,12 +377,56 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
   const activeVendorContext = useMemo(() => normalizeSmartBarVendorContext(vendorContext), [vendorContext]);
   const pendingTicketIdRef = useRef(formatPlaygroundTicketId(184));
   const boardOrderIdsRef = useRef(new Set<string>());
+  const loadBoardTicketsRequestRef = useRef(0);
 
   const [boardOrders, setBoardOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
   const [, setCartOpen] = useState(false);
   const [boardExpanded, setBoardExpanded] = useState(true);
   const [activeBoardOrder, setActiveBoardOrder] = useState<SmartBarOrderBoardItem | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const requestId = loadBoardTicketsRequestRef.current + 1;
+    loadBoardTicketsRequestRef.current = requestId;
+
+    async function loadPersistedBoardTickets() {
+      try {
+        const tickets = await listPersistentSmartBarTickets(activeVendorContext);
+        if (cancelled || loadBoardTicketsRequestRef.current !== requestId) return;
+
+        const loadedOrders = tickets.map((ticket) => smartBarPersistedTicketToBoardOrder(ticket, activeVendorContext));
+        loadedOrders.forEach((order) => boardOrderIdsRef.current.add(order.id));
+
+        setBoardOrders((current) => {
+          const currentById = new Map(current.map((order) => [order.id, order]));
+          const loadedIds = new Set(loadedOrders.map((order) => order.id));
+          const mergedLoadedOrders = loadedOrders.map((order) => {
+            const existing = currentById.get(order.id);
+            return existing
+              ? {
+                  ...order,
+                  status: existing.status,
+                  score: existing.score,
+                  scoreNote: existing.scoreNote,
+                }
+              : order;
+          });
+          const localOnlyOrders = current.filter((order) => !loadedIds.has(order.id));
+
+          return [...mergedLoadedOrders, ...localOnlyOrders];
+        });
+      } catch (error) {
+        console.warn("SmartBar ticket list failed", error);
+      }
+    }
+
+    loadPersistedBoardTickets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeVendorContext]);
 
   const forceProductionCart = useMemo(() => {
     if (typeof window === "undefined") return false;
