@@ -36,6 +36,7 @@ type SmartBarTicketCreateResponse = {
   ticketId?: string;
   ticketNumber?: string;
   ticketDisplayId?: string;
+  mode?: string;
   businessDate?: string;
   readinessStatus?: string;
   readinessNote?: string;
@@ -471,6 +472,7 @@ function smartBarPersistedTicketToBoardOrder(
     scoreNote: ticket.managerScoreNote || "",
     backendTicketId: ticket.ticketId,
     businessDate: ticket.businessDate,
+    mode: ticket.mode || "sandbox",
     readinessStatus: ticket.readinessStatus || (ticket.scoringStatus === "ready" ? "ready" : ticket.scoringStatus === "needs_fix" ? "needs_review" : undefined),
     readinessNote: ticket.readinessNote || "",
     clientId: ticket.clientId || vendorContext.clientId,
@@ -524,6 +526,7 @@ function createBoardOrderFromResult(
     behaviorProfileId: vendorContext.behaviorProfileId,
     boardProfileId: vendorContext.boardProfileId,
     timezone: vendorContext.timezone,
+    mode: "sandbox",
   };
 }
 
@@ -834,6 +837,7 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
       ...boardOrderBase,
       backendTicketId: persistedTicket?.ticketId,
       businessDate: persistedTicket?.businessDate,
+      mode: persistedTicket?.mode || "sandbox",
       readinessStatus: persistedTicket?.readinessStatus || boardOrderBase.readinessStatus,
       readinessNote: persistedTicket?.readinessNote || boardOrderBase.readinessNote,
       score: smartBarManagerScoreFromValue(persistedTicket?.managerScoreStatus),

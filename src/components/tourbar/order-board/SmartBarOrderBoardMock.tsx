@@ -75,6 +75,7 @@ export type SmartBarOrderBoardItem = {
   behaviorProfileId?: string;
   boardProfileId?: string;
   timezone?: string;
+  mode?: string;
 };
 
 const INITIAL_ORDERS: SmartBarOrderBoardItem[] = [
@@ -355,7 +356,8 @@ export function SmartBarOrderSheet({
   const [fixNote, setFixNote] = useState(order.scoreNote || "");
   const [fixOpen, setFixOpen] = useState(order.score === "needs_fix");
   const isNew = order.status === "new";
-  const scoreLabel = order.score === "ready" ? "Ready" : order.score === "needs_fix" ? "Needs Fix" : null;
+  const showManagerScoring = order.mode !== "live";
+  const scoreLabel = showManagerScoring && order.score === "ready" ? "Ready" : showManagerScoring && order.score === "needs_fix" ? "Needs Fix" : null;
 
   useEffect(() => {
     setFixNote(order.scoreNote || "");
@@ -504,64 +506,66 @@ export function SmartBarOrderSheet({
               )}
             </div>
 
-            <div className={demoSocialPortrait ? "mt-3 rounded-[22px] bg-slate-50/88 px-3 py-3 ring-1 ring-slate-100" : "mt-4 rounded-[24px] bg-slate-50/88 px-4 py-4 ring-1 ring-slate-100"}>
-              <div className="text-[0.72rem] font-black uppercase tracking-[0.22em] text-slate-500">How did SmartBar do?</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFixOpen(false);
-                    setFixNote("");
-                    onScoreOrder?.(order.id, "ready", "");
-                  }}
-                  className={[
-                    "rounded-full px-3 py-2 text-sm font-black transition",
-                    order.score === "ready"
-                      ? "bg-emerald-400 text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.20)]"
-                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-700",
-                  ].join(" ")}
-                >
-                  Ready
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFixOpen(true);
-                    onScoreOrder?.(order.id, "needs_fix", fixNote);
-                  }}
-                  className={[
-                    "rounded-full px-3 py-2 text-sm font-black transition",
-                    order.score === "needs_fix"
-                      ? "bg-rose-500 text-white shadow-[0_10px_24px_rgba(244,63,94,0.20)]"
-                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700",
-                  ].join(" ")}
-                >
-                  Needs Fix
-                </button>
-              </div>
-              {fixOpen ? (
-                <div className="mt-3">
-                  <textarea
-                    value={fixNote}
-                    onChange={(event) => setFixNote(event.target.value)}
-                    placeholder="What needs fixing?"
-                    className="min-h-[72px] w-full resize-none rounded-[18px] bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-200"
-                  />
+            {showManagerScoring ? (
+              <div className={demoSocialPortrait ? "mt-3 rounded-[22px] bg-slate-50/88 px-3 py-3 ring-1 ring-slate-100" : "mt-4 rounded-[24px] bg-slate-50/88 px-4 py-4 ring-1 ring-slate-100"}>
+                <div className="text-[0.72rem] font-black uppercase tracking-[0.22em] text-slate-500">How did SmartBar do?</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => onScoreOrder?.(order.id, "needs_fix", fixNote)}
-                    className="mt-2 w-full rounded-full bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5"
+                    onClick={() => {
+                      setFixOpen(false);
+                      setFixNote("");
+                      onScoreOrder?.(order.id, "ready", "");
+                    }}
+                    className={[
+                      "rounded-full px-3 py-2 text-sm font-black transition",
+                      order.score === "ready"
+                        ? "bg-emerald-400 text-slate-950 shadow-[0_10px_24px_rgba(16,185,129,0.20)]"
+                        : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-emerald-50 hover:text-emerald-700",
+                    ].join(" ")}
                   >
-                    Save note
+                    Ready
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFixOpen(true);
+                      onScoreOrder?.(order.id, "needs_fix", fixNote);
+                    }}
+                    className={[
+                      "rounded-full px-3 py-2 text-sm font-black transition",
+                      order.score === "needs_fix"
+                        ? "bg-rose-500 text-white shadow-[0_10px_24px_rgba(244,63,94,0.20)]"
+                        : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-rose-50 hover:text-rose-700",
+                    ].join(" ")}
+                  >
+                    Needs Fix
                   </button>
                 </div>
-              ) : null}
-              {order.score ? (
-                <div className="mt-2 text-xs font-bold text-slate-500">
-                  Saved: {order.score === "ready" ? "Ready" : "Needs Fix"}{order.scoreNote ? ` - ${order.scoreNote}` : ""}
-                </div>
-              ) : null}
-            </div>
+                {fixOpen ? (
+                  <div className="mt-3">
+                    <textarea
+                      value={fixNote}
+                      onChange={(event) => setFixNote(event.target.value)}
+                      placeholder="What needs fixing?"
+                      className="min-h-[72px] w-full resize-none rounded-[18px] bg-white px-3 py-2 text-sm font-semibold text-slate-700 outline-none ring-1 ring-slate-200 placeholder:text-slate-400 focus:ring-2 focus:ring-sky-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => onScoreOrder?.(order.id, "needs_fix", fixNote)}
+                      className="mt-2 w-full rounded-full bg-slate-950 px-3 py-2 text-sm font-black text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5"
+                    >
+                      Save note
+                    </button>
+                  </div>
+                ) : null}
+                {order.score ? (
+                  <div className="mt-2 text-xs font-bold text-slate-500">
+                    Saved: {order.score === "ready" ? "Ready" : "Needs Fix"}{order.scoreNote ? ` - ${order.scoreNote}` : ""}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div data-smartbar-order-board-swipe-zone="true" className={demoSocialPortrait ? "mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[20px] bg-slate-50/80 px-3 py-3 text-slate-500 ring-1 ring-slate-100" : "mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-[22px] bg-slate-50/80 px-4 py-4 text-slate-500 ring-1 ring-slate-100"}>
               <button
