@@ -13,6 +13,8 @@ export type SmartBarOrderBoardMockProps = {
   demoCompactBoard?: boolean;
   /** Playground board mode: compact 2x2 board for four visible ticket tiles. */
   demoFourTileBoard?: boolean;
+  /** Playground collapsed mode: use very flat tiles so the minimized board is not clipped. */
+  demoFlatBoardTiles?: boolean;
   /** Playground mode: animate newly injected orders instead of popping them in. */
   demoAnimateIncomingOrders?: boolean;
   /** Playground mode: let the ticket sheet own the screen instead of staying inside the board frame. */
@@ -246,6 +248,7 @@ function SmartBarOrderTile({
   demoSocialPortrait = false,
   demoCompactBoard = false,
   demoFourTileBoard = false,
+  demoFlatBoardTiles = false,
   demoTapCue = false,
 }: {
   order: SmartBarOrderBoardItem;
@@ -253,9 +256,11 @@ function SmartBarOrderTile({
   demoSocialPortrait?: boolean;
   demoCompactBoard?: boolean;
   demoFourTileBoard?: boolean;
+  demoFlatBoardTiles?: boolean;
   demoTapCue?: boolean;
 }) {
   const isNew = order.status === "new";
+  const tileStatusLabel = order.score ? (order.score === "ready" ? "Ready" : "Needs fix") : `${order.itemCount} items`;
 
   return (
     <button
@@ -265,11 +270,13 @@ function SmartBarOrderTile({
       data-smartbar-order-board-status={order.status}
       className={[
         demoSocialPortrait
-          ? demoFourTileBoard
-            ? "group relative h-[4.75rem] w-full rounded-[20px] p-1.5 text-center transition"
-            : demoCompactBoard
-              ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
-              : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
+          ? demoFlatBoardTiles
+            ? "group relative h-[1.25rem] w-full rounded-[10px] px-2 py-0 text-center transition"
+            : demoFourTileBoard
+              ? "group relative h-[4.75rem] w-full rounded-[20px] p-1.5 text-center transition"
+              : demoCompactBoard
+                ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
+                : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
           : "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
         isNew
           ? "bg-white text-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.12)] ring-1 ring-white/80 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.16)]"
@@ -277,17 +284,26 @@ function SmartBarOrderTile({
       ].join(" ")}
       aria-label={`Open SmartBar order ${order.id}`}
     >
-      <span className="flex h-full flex-col items-center justify-center">
-        <span className={demoSocialPortrait ? demoFourTileBoard ? "text-[1.35rem] font-black tracking-tight" : demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
-        <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
-          {isNew ? timeLabel(order.minutesAgo) : "entered"}
-        </span>
-        {isNew ? (
-          <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
-            {order.score ? (order.score === "ready" ? "Ready" : "Needs fix") : `${order.itemCount} items`}
+      {demoFlatBoardTiles ? (
+        <span className="flex h-full min-w-0 items-center justify-between gap-1.5 px-0.5">
+          <span className="min-w-0 shrink-0 text-[0.72rem] font-black leading-none tracking-[-0.02em]">{order.id}</span>
+          <span className="min-w-0 truncate text-[0.42rem] font-black uppercase leading-none tracking-[0.09em] text-slate-400">
+            {isNew ? tileStatusLabel : "Entered"}
           </span>
-        ) : null}
-      </span>
+        </span>
+      ) : (
+        <span className="flex h-full flex-col items-center justify-center">
+          <span className={demoSocialPortrait ? demoFourTileBoard ? "text-[1.35rem] font-black tracking-tight" : demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
+          <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
+            {isNew ? timeLabel(order.minutesAgo) : "entered"}
+          </span>
+          {isNew ? (
+            <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
+              {tileStatusLabel}
+            </span>
+          ) : null}
+        </span>
+      )}
       {demoTapCue ? (
         <motion.span
           aria-hidden="true"
@@ -597,6 +613,7 @@ export default function SmartBarOrderBoardMock({
   demoSocialPortrait = false,
   demoCompactBoard = false,
   demoFourTileBoard = false,
+  demoFlatBoardTiles = false,
   demoAnimateIncomingOrders = false,
   demoPlaygroundSheet = false,
   onDemoOpenOrder,
@@ -813,10 +830,10 @@ export default function SmartBarOrderBoardMock({
       ].filter(Boolean).join(" ")}
     >
       <div className={demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
-        <header className={demoSocialPortrait ? demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
+        <header className={demoSocialPortrait ? demoFlatBoardTiles ? "mb-1 flex items-start justify-between gap-2" : demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
           <div>
-            <div className={demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
-            <h1 className={demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
+            <div className={demoFlatBoardTiles ? "text-[0.46rem] font-black uppercase leading-none tracking-[0.22em] text-sky-700" : demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
+            <h1 className={demoFlatBoardTiles ? "mt-0.5 inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur" : demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
               Order Board
             </h1>
             {!demoSocialPortrait ? (
@@ -828,17 +845,17 @@ export default function SmartBarOrderBoardMock({
           <div className="flex items-center justify-end">
             <div
               className={[
-                "flex h-11 items-center rounded-full bg-white/85 shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur transition-all",
-                searchOpen ? "w-56 px-3" : "w-11 justify-center px-0",
+                demoFlatBoardTiles ? "flex h-8 items-center rounded-full bg-white/85 shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur transition-all" : "flex h-11 items-center rounded-full bg-white/85 shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur transition-all",
+                searchOpen ? (demoFlatBoardTiles ? "w-44 px-2" : "w-56 px-3") : (demoFlatBoardTiles ? "w-8 justify-center px-0" : "w-11 justify-center px-0"),
               ].join(" ")}
             >
               <button
                 type="button"
                 onClick={() => setSearchOpen((value) => !value)}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"
+                className={demoFlatBoardTiles ? "grid h-7 w-7 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-sky-50 hover:text-sky-700" : "grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-500 transition hover:bg-sky-50 hover:text-sky-700"}
                 aria-label="Search SmartBar orders"
               >
-                <Search className="h-4 w-4" />
+                <Search className={demoFlatBoardTiles ? "h-3.5 w-3.5" : "h-4 w-4"} />
               </button>
               {searchOpen ? (
                 <input
@@ -853,24 +870,28 @@ export default function SmartBarOrderBoardMock({
           </div>
         </header>
 
-        <section className={demoSocialPortrait ? "min-h-0 flex-1" : undefined}>
+        <section className={demoSocialPortrait ? demoFlatBoardTiles ? "min-h-0" : "min-h-0 flex-1" : undefined}>
           <div className={demoSocialPortrait
-            ? demoFourTileBoard
-              ? "grid h-full min-h-0 w-full grid-cols-2 grid-rows-2 gap-2"
-              : demoCompactBoard
-                ? "grid w-full grid-cols-2 gap-2"
-                : "grid w-full grid-cols-2 gap-2.5"
+            ? demoFlatBoardTiles
+              ? "grid w-full grid-cols-2 gap-x-1.5 gap-y-1"
+              : demoFourTileBoard
+                ? "grid w-full grid-cols-2 gap-x-2 gap-y-2 content-start"
+                : demoCompactBoard
+                  ? "grid w-full grid-cols-2 gap-2"
+                  : "grid w-full grid-cols-2 gap-2.5"
             : "grid w-fit grid-cols-[repeat(2,11.75rem)] gap-3 sm:grid-cols-[repeat(3,11.75rem)] sm:gap-3 lg:grid-cols-[repeat(4,11.75rem)] max-[430px]:grid-cols-[repeat(2,10.25rem)] max-[430px]:gap-2"
           }>
             {showRevealSlot ? (
               <motion.div
                 layout
                 className={demoSocialPortrait
-                  ? demoFourTileBoard
-                    ? "h-[4.75rem] w-full rounded-[20px] border border-dashed border-white/70 bg-white/26"
-                    : demoCompactBoard
-                      ? "h-[7.85rem] w-full rounded-[24px] border border-dashed border-white/70 bg-white/26"
-                      : "h-[9.3rem] w-full rounded-[28px] border border-dashed border-white/70 bg-white/26"
+                  ? demoFlatBoardTiles
+                    ? "h-[1.25rem] w-full rounded-[10px] border border-dashed border-white/70 bg-white/26"
+                    : demoFourTileBoard
+                      ? "h-[4.75rem] w-full rounded-[20px] border border-dashed border-white/70 bg-white/26"
+                      : demoCompactBoard
+                        ? "h-[7.85rem] w-full rounded-[24px] border border-dashed border-white/70 bg-white/26"
+                        : "h-[9.3rem] w-full rounded-[28px] border border-dashed border-white/70 bg-white/26"
                   : "h-[11.75rem] w-[11.75rem] rounded-[28px] border border-dashed border-white/70 bg-white/20 max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]"
                 }
                 initial={{ opacity: 0, scale: 0.98 }}
@@ -900,7 +921,7 @@ export default function SmartBarOrderBoardMock({
                     }
 
                     setActiveOrderId(nextOrder.id);
-                  }} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoTapCue={order.id === tapCueOrderId} />
+                  }} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoFlatBoardTiles={demoFlatBoardTiles} demoTapCue={order.id === tapCueOrderId} />
                 </motion.div>
               );
             })}

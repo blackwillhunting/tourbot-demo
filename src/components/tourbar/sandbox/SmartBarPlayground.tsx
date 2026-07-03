@@ -826,11 +826,12 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
             demoSocialPortrait
             demoCompactBoard
             demoFourTileBoard
+            demoFlatBoardTiles={boardIsCompact}
             demoMaxVisibleOrders={4}
             demoAnimateIncomingOrders
             demoPlaygroundSheet
             onDemoOpenOrder={setActiveBoardOrder}
-            className="!min-h-0 h-full overflow-hidden !px-3 !py-3"
+            className={boardIsCompact ? "!min-h-0 h-full overflow-hidden !px-3 !py-1.5" : "!min-h-0 h-full overflow-hidden !px-3 !py-3"}
             onDemoEntered={handleBoardEntered}
           />
         </div>
