@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CarryoutOrder } from "../../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileOrderLine,
@@ -24,6 +24,7 @@ import {
   smartBarMobileRepriceCartFromGuideAi,
   smartBarMobileResultFromGuideAi,
 } from "./burgerRushMobileGuideAdapter";
+import { getStoredSmartBarVendorContext } from "../SmartBarVendorContext";
 import { BurgerRushCarryoutSite } from "../../../../App-Carryout";
 
 function BurgerRushMobileProductSurface({ hideMobileBrowseControls = false }: { hideMobileBrowseControls?: boolean }) {
@@ -341,6 +342,7 @@ function smartBarMobileDemoFixtureResult(
 
 
 export default function BurgerRushMobileExperience({ demoFixtureMode = false }: BurgerRushMobileExperienceProps = {}) {
+  const activeVendorContext = useMemo(() => getStoredSmartBarVendorContext(), []);
   const mobileCarryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const mobileEstimatedTotalRef = useRef("—");
@@ -438,7 +440,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     }
 
     try {
-      const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt);
+      const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt, activeVendorContext);
       const resultForMerge = {
         ...result,
         lines: smartBarMobileEnsureRetryReplacementLine(
@@ -487,7 +489,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
 
       return mergedErrorResult;
     }
-  }, [demoFixtureMode]);
+  }, [activeVendorContext, demoFixtureMode]);
 
   const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => {
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
@@ -522,6 +524,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
         `${meta?.selected === false ? "deselected" : "selected"} ${value} for ${line.title}`,
+        activeVendorContext,
       );
 
       mobileOrderLinesRef.current = repricedResult.lines;
@@ -536,7 +539,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       console.warn("SmartBar mobile reprice failed after choice", error);
       return optimisticResult;
     }
-  }, [demoFixtureMode]);
+  }, [activeVendorContext, demoFixtureMode]);
 
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
@@ -562,6 +565,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
         `removed ${line.title}`,
+        activeVendorContext,
       );
 
       mobileOrderLinesRef.current = repricedResult.lines;
@@ -576,7 +580,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       console.warn("SmartBar mobile reprice failed after remove", error);
       return optimisticResult;
     }
-  }, [demoFixtureMode]);
+  }, [activeVendorContext, demoFixtureMode]);
 
 
   const handleResetCart = useCallback(() => {
