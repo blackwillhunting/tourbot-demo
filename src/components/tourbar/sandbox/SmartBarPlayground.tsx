@@ -484,6 +484,11 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
   const [boardExpanded, setBoardExpanded] = useState(true);
   const [activeBoardOrder, setActiveBoardOrder] = useState<SmartBarOrderBoardItem | null>(null);
 
+  const handleCartOpenChange = useCallback((open: boolean) => {
+    setCartOpen(open);
+    setBoardExpanded(!open);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const requestId = loadBoardTicketsRequestRef.current + 1;
@@ -796,6 +801,7 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
     pendingTicketIdRef.current = formatPlaygroundTicketId(ticketSequenceRef.current);
     setSendOrderNumber(pendingTicketIdRef.current);
     setCartOpen(false);
+    setBoardExpanded(true);
   }, []);
 
   const boardIsCompact = !boardExpanded || forceProductionCart;
@@ -856,6 +862,7 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
             onApplyLineChoice={handleApplyLineChoice}
             onRemoveLine={handleRemoveLine}
             onCartReady={handleCartReady}
+            onCartOpenChange={handleCartOpenChange}
             onOrderSent={handleOrderSent}
             onResetCart={handleResetCart}
           />

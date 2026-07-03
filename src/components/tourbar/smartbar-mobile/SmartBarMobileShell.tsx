@@ -2189,6 +2189,8 @@ type SmartBarMobileShellProps = {
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
+  /** Notifies contained demos when the cart/review surface opens or closes. */
+  onCartOpenChange?: (open: boolean) => void;
   onOrderSent?: () => string | Promise<string | void> | void;
   onResetCart?: () => void;
 };
@@ -2219,6 +2221,7 @@ export default function SmartBarMobileShell({
   onNavigateToLine,
   onGenericAction,
   onCartReady,
+  onCartOpenChange,
   onOrderSent,
   onResetCart,
 }: SmartBarMobileShellProps) {
@@ -2237,6 +2240,11 @@ export default function SmartBarMobileShell({
   const adaptiveRailOffsetRef = useRef(0);
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
+
+  useEffect(() => {
+    onCartOpenChange?.(phase === "building_cart" || phase === "cart");
+  }, [onCartOpenChange, phase]);
+
   const [entryDraft, setEntryDraft] = useState("");
   const [entryFocused, setEntryFocused] = useState(false);
   const [hasEditedEntryDraft, setHasEditedEntryDraft] = useState(false);
