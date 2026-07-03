@@ -64,6 +64,10 @@ export type SmartBarOrderBoardItem = {
   notes?: string;
   score?: SmartBarOrderBoardScore;
   scoreNote?: string;
+  backendTicketId?: string;
+  businessDate?: string;
+  readinessStatus?: "ready" | "needs_review" | string;
+  readinessNote?: string;
   clientId?: string;
   vendorId?: string;
   displayName?: string;

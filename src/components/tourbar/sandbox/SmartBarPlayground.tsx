@@ -29,12 +29,19 @@ import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem
 
 const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
+const SMARTBAR_TICKET_SCORE_URL = "/api/smartbar-tickets/score";
 
 type SmartBarTicketCreateResponse = {
   ok?: boolean;
   ticketId?: string;
   ticketNumber?: string;
   ticketDisplayId?: string;
+  businessDate?: string;
+  readinessStatus?: string;
+  readinessNote?: string;
+  managerScoreStatus?: string;
+  managerScoreNote?: string;
+  managerScoredAt?: string;
   scoringStatus?: string;
   scoreNote?: string;
   readyLineCount?: number | string;
@@ -46,9 +53,9 @@ type SmartBarTicketCreateResponse = {
   message?: string;
 };
 
-type SmartBarPlaygroundTicketScoring = {
-  scoringStatus: "ready" | "needs_fix";
-  scoreNote: string;
+type SmartBarPlaygroundTicketReadiness = {
+  readinessStatus: "ready" | "needs_review";
+  readinessNote: string;
   readyLineCount: number;
   requiredLineCount: number;
   optionalLineCount: number;
@@ -79,7 +86,12 @@ type PersistedSmartBarTicket = {
   mode?: string;
   businessDate?: string;
   status?: string;
-  scoringStatus?: "ready" | "needs_fix" | string;
+  readinessStatus?: "ready" | "needs_review" | string;
+  readinessNote?: string;
+  managerScoreStatus?: "unscored" | "ready" | "needs_fix" | string;
+  managerScoreNote?: string;
+  managerScoredAt?: string;
+  scoringStatus?: "unscored" | "ready" | "needs_fix" | string;
   scoreNote?: string;
   readyLineCount?: number | string;
   requiredLineCount?: number | string;
@@ -106,6 +118,18 @@ type SmartBarTicketListResponse = {
   message?: string;
 };
 
+type SmartBarTicketManagerScore = "ready" | "needs_fix";
+
+type SmartBarTicketScoreResponse = PersistedSmartBarTicket & {
+  ok?: boolean;
+  code?: string;
+  message?: string;
+};
+
+function smartBarManagerScoreFromValue(value: unknown): SmartBarTicketManagerScore | undefined {
+  return value === "ready" || value === "needs_fix" ? value : undefined;
+}
+
 function smartBarPlaygroundNumberFromCurrency(value: string | undefined) {
   const normalized = String(value || "").replace(/[^0-9.-]/g, "");
   if (!normalized) return undefined;
@@ -118,7 +142,7 @@ function smartBarPlaygroundPlural(count: number, singular: string, plural = `${s
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function smartBarPlaygroundBuildScoring(lines: SmartBarMobileOrderLine[]): SmartBarPlaygroundTicketScoring {
+function smartBarPlaygroundBuildReadiness(lines: SmartBarMobileOrderLine[]): SmartBarPlaygroundTicketReadiness {
   let readyLineCount = 0;
   let requiredLineCount = 0;
   let optionalLineCount = 0;
@@ -153,8 +177,8 @@ function smartBarPlaygroundBuildScoring(lines: SmartBarMobileOrderLine[]): Smart
 
   if (!issueLineCount) {
     return {
-      scoringStatus: "ready",
-      scoreNote: "All lines ready.",
+      readinessStatus: "ready",
+      readinessNote: "All lines ready.",
       readyLineCount,
       requiredLineCount,
       optionalLineCount,
@@ -171,8 +195,8 @@ function smartBarPlaygroundBuildScoring(lines: SmartBarMobileOrderLine[]): Smart
   ].filter(Boolean);
 
   return {
-    scoringStatus: "needs_fix",
-    scoreNote: `Needs attention: ${parts.join(", ")}.`,
+    readinessStatus: "needs_review",
+    readinessNote: `Needs attention: ${parts.join(", ")}.`,
     readyLineCount,
     requiredLineCount,
     optionalLineCount,
@@ -187,7 +211,7 @@ async function createPersistentSmartBarTicket(
   vendorContext: SmartBarVendorContext,
 ): Promise<SmartBarTicketCreateResponse | null> {
   const lines = result.lines || [];
-  const scoring = smartBarPlaygroundBuildScoring(lines);
+  const readiness = smartBarPlaygroundBuildReadiness(lines);
 
   const payload = {
     clientId: vendorContext.clientId,
@@ -198,13 +222,15 @@ async function createPersistentSmartBarTicket(
     timezone: vendorContext.timezone,
     mode: "sandbox",
     customerText: rawOrder || "SmartBar order",
-    scoringStatus: scoring.scoringStatus,
-    scoreNote: scoring.scoreNote,
-    readyLineCount: scoring.readyLineCount,
-    requiredLineCount: scoring.requiredLineCount,
-    optionalLineCount: scoring.optionalLineCount,
-    unknownLineCount: scoring.unknownLineCount,
-    issueLineCount: scoring.issueLineCount,
+    readinessStatus: readiness.readinessStatus,
+    readinessNote: readiness.readinessNote,
+    managerScoreStatus: "unscored",
+    managerScoreNote: "",
+    readyLineCount: readiness.readyLineCount,
+    requiredLineCount: readiness.requiredLineCount,
+    optionalLineCount: readiness.optionalLineCount,
+    unknownLineCount: readiness.unknownLineCount,
+    issueLineCount: readiness.issueLineCount,
     ticket: {
       items: lines.map((line) => ({
         title: line.demoDisplayTitle || line.title,
@@ -262,6 +288,41 @@ async function listPersistentSmartBarTickets(vendorContext: SmartBarVendorContex
   }
 
   return Array.isArray(json.tickets) ? json.tickets : [];
+}
+
+async function updatePersistentSmartBarTicketScore(
+  order: SmartBarOrderBoardItem,
+  score: SmartBarTicketManagerScore,
+  note: string,
+  vendorContext: SmartBarVendorContext,
+): Promise<SmartBarTicketScoreResponse | null> {
+  if (!order.backendTicketId) return null;
+
+  const payload = {
+    ticketId: order.backendTicketId,
+    vendorId: order.vendorId || vendorContext.vendorId,
+    mode: "sandbox",
+    businessDate: order.businessDate,
+    timezone: order.timezone || vendorContext.timezone,
+    managerScoreStatus: score,
+    managerScoreNote: score === "needs_fix" ? note : "",
+  };
+
+  const response = await fetch(SMARTBAR_TICKET_SCORE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = (await response.json().catch(() => null)) as SmartBarTicketScoreResponse | null;
+
+  if (!response.ok || !json?.ok) {
+    throw new Error(json?.message || json?.code || `SmartBar ticket score failed with HTTP ${response.status}`);
+  }
+
+  return json;
 }
 
 type SmartBarPlaygroundProps = {
@@ -358,10 +419,6 @@ function smartBarTicketQuantity(value: number | string | undefined) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
 }
 
-function smartBarTicketNumber(value: number | string | undefined) {
-  const parsed = Number(value || 0);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-}
 
 function smartBarTicketTotalLabel(value: number | string | undefined) {
   const total = String(value || "").trim();
@@ -410,8 +467,12 @@ function smartBarPersistedTicketToBoardOrder(
     ]
       .filter(Boolean)
       .join(" - "),
-    score: ticket.scoringStatus === "needs_fix" || smartBarTicketNumber(ticket.issueLineCount) > 0 ? "needs_fix" : "ready",
-    scoreNote: ticket.scoreNote || "",
+    score: smartBarManagerScoreFromValue(ticket.managerScoreStatus),
+    scoreNote: ticket.managerScoreNote || "",
+    backendTicketId: ticket.ticketId,
+    businessDate: ticket.businessDate,
+    readinessStatus: ticket.readinessStatus || (ticket.scoringStatus === "ready" ? "ready" : ticket.scoringStatus === "needs_fix" ? "needs_review" : undefined),
+    readinessNote: ticket.readinessNote || "",
     clientId: ticket.clientId || vendorContext.clientId,
     vendorId: ticket.vendorId || vendorContext.vendorId,
     displayName: ticket.displayName || vendorContext.displayName,
@@ -429,7 +490,7 @@ function createBoardOrderFromResult(
   vendorContext: SmartBarVendorContext,
 ): SmartBarOrderBoardItem {
   const lines = result.lines || [];
-  const scoring = smartBarPlaygroundBuildScoring(lines);
+  const readiness = smartBarPlaygroundBuildReadiness(lines);
 
   return {
     id: ticketId,
@@ -454,8 +515,8 @@ function createBoardOrderFromResult(
     notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
       .filter(Boolean)
       .join(" - "),
-    score: scoring.scoringStatus,
-    scoreNote: scoring.scoreNote,
+    readinessStatus: readiness.readinessStatus,
+    readinessNote: readiness.readinessNote,
     clientId: vendorContext.clientId,
     vendorId: vendorContext.vendorId,
     displayName: vendorContext.displayName,
@@ -747,9 +808,10 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
     const rawOrder = latestPromptRef.current || "SmartBar order";
 
     let ticketId = fallbackTicketId;
+    let persistedTicket: SmartBarTicketCreateResponse | null = null;
 
     try {
-      const persistedTicket = await createPersistentSmartBarTicket(
+      persistedTicket = await createPersistentSmartBarTicket(
         currentResult,
         rawOrder,
         activeVendorContext,
@@ -762,12 +824,21 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
 
     boardOrderIdsRef.current.add(ticketId);
 
-    const boardOrder = createBoardOrderFromResult(
+    const boardOrderBase = createBoardOrderFromResult(
       currentResult,
       rawOrder,
       ticketId,
       activeVendorContext,
     );
+    const boardOrder = {
+      ...boardOrderBase,
+      backendTicketId: persistedTicket?.ticketId,
+      businessDate: persistedTicket?.businessDate,
+      readinessStatus: persistedTicket?.readinessStatus || boardOrderBase.readinessStatus,
+      readinessNote: persistedTicket?.readinessNote || boardOrderBase.readinessNote,
+      score: smartBarManagerScoreFromValue(persistedTicket?.managerScoreStatus),
+      scoreNote: persistedTicket?.managerScoreNote || "",
+    };
 
     setSendOrderNumber(ticketId);
     setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId && order.id !== fallbackTicketId)]);
@@ -783,14 +854,45 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
     )));
   }, []);
 
-  const handleBoardScore = useCallback((orderId: string, score: "ready" | "needs_fix", note = "") => {
+  const handleBoardScore = useCallback(async (orderId: string, score: SmartBarTicketManagerScore, note = "") => {
+    const currentOrder = activeBoardOrder?.id === orderId
+      ? activeBoardOrder
+      : boardOrders.find((order) => order.id === orderId) || null;
+
+    const normalizedNote = score === "needs_fix" ? note : "";
+
     setBoardOrders((current) => current.map((order) => (
-      order.id === orderId ? { ...order, score, scoreNote: note } : order
+      order.id === orderId ? { ...order, score, scoreNote: normalizedNote } : order
     )));
     setActiveBoardOrder((current) => (
-      current && current.id === orderId ? { ...current, score, scoreNote: note } : current
+      current && current.id === orderId ? { ...current, score, scoreNote: normalizedNote } : current
     ));
-  }, []);
+
+    if (!currentOrder?.backendTicketId) return;
+
+    try {
+      const updatedTicket = await updatePersistentSmartBarTicketScore(
+        currentOrder,
+        score,
+        normalizedNote,
+        activeVendorContext,
+      );
+
+      if (!updatedTicket) return;
+
+      const savedScore = smartBarManagerScoreFromValue(updatedTicket.managerScoreStatus) || score;
+      const savedNote = updatedTicket.managerScoreNote || "";
+
+      setBoardOrders((current) => current.map((order) => (
+        order.id === orderId ? { ...order, score: savedScore, scoreNote: savedNote } : order
+      )));
+      setActiveBoardOrder((current) => (
+        current && current.id === orderId ? { ...current, score: savedScore, scoreNote: savedNote } : current
+      ));
+    } catch (error) {
+      console.error("SmartBar ticket manager score persistence failed", error);
+    }
+  }, [activeBoardOrder, activeVendorContext, boardOrders]);
 
   const handleResetCart = useCallback(() => {
     carryoutOrderRef.current = null;
