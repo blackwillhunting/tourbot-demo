@@ -8,10 +8,12 @@ import NexaPathMobileExperience from "./components/tourbar/smartbar-mobile/nexap
 import DomiMobileExperience from "./components/tourbar/smartbar-mobile/domi/DomiMobileExperience";
 import RestaurantWalkthrough from "./components/tourbar/walkthrough/RestaurantWalkthrough";
 import SmartBarPlayground from "./components/tourbar/sandbox/SmartBarPlayground";
+import SmartBarOrderBoardMock, { type SmartBarOrderBoardItem } from "./components/tourbar/order-board/SmartBarOrderBoardMock";
 import {
   clearStoredSmartBarVendorContext,
   getStoredSmartBarVendorContext,
   saveStoredSmartBarVendorContext,
+  normalizeSmartBarVendorContext,
   smartBarVendorContextFromAuthPayload,
   type SmartBarVendorContext,
 } from "./components/tourbar/smartbar-mobile/SmartBarVendorContext";
@@ -42,6 +44,11 @@ const SMARTBAR_VENDOR_ACTION_URLS = [
   "/api/smartbar/vendor-action",
   "https://tourbot.getn2ai.com/api/smartbar/vendor-action",
 ] as const;
+const SMARTBAR_VENDOR_STATUS_URLS = [
+  "/api/smartbar/vendor-status",
+  "https://tourbot.getn2ai.com/api/smartbar/vendor-status",
+] as const;
+const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
 const TOURBOT_AUTH_DEMO_PATH_KEY = "tourbot_demo_path";
@@ -470,6 +477,57 @@ async function submitSmartBarVendorAction(
       return nextVendorContext;
     } catch (error) {
       lastFailureReason = error instanceof Error ? error.message : "vendor_action_network_failed";
+    }
+  }
+
+  throw new Error(lastFailureReason);
+}
+async function refreshSmartBarVendorStatus(
+  vendorContext?: SmartBarVendorContext | null,
+): Promise<SmartBarVendorContext> {
+  const token = getStoredTourBotDemoToken();
+  if (!token) {
+    throw new Error("missing_session_token");
+  }
+
+  const fallbackVendorContext = vendorContext || getStoredSmartBarVendorContext();
+  let lastFailureReason = "vendor_status_failed";
+
+  for (const url of SMARTBAR_VENDOR_STATUS_URLS) {
+    try {
+      const isAbsoluteUrl = /^https?:\/\//i.test(url);
+      const response = await fetch(url, {
+        method: "GET",
+        credentials: isAbsoluteUrl ? "omit" : "include",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+
+      const rawBody = await response.text().catch(() => "");
+      const body = (rawBody ? JSON.parse(rawBody) : {}) as {
+        ok?: boolean;
+        vendorContext?: Partial<SmartBarVendorContext> | null;
+        item?: unknown;
+        demoPath?: string;
+        reason?: string;
+      };
+
+      if (!response.ok || body.ok !== true) {
+        lastFailureReason = body.reason || `vendor_status_failed_${response.status}`;
+        continue;
+      }
+
+      const nextVendorContext = smartBarVendorContextFromAuthPayload(
+        body.vendorContext || body.item || fallbackVendorContext || {},
+        body.demoPath || fallbackVendorContext?.demoPath || "",
+      );
+      saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+      return nextVendorContext;
+    } catch (error) {
+      lastFailureReason = error instanceof Error ? error.message : "vendor_status_network_failed";
     }
   }
 
@@ -1501,7 +1559,7 @@ function SmartBarRootWebsiteModeReadiness({
   const statusClass = (status: string) =>
     status === "Pending" || status === "Pending review"
       ? "bg-amber-200 text-[#012169]"
-      : status === "Finished" || status === "Ready" || status === "Ready for review"
+      : status === "Finished" || status === "Ready" || status === "Ready for review" || status === "Approved" || status === "Live"
         ? "bg-emerald-100 text-emerald-700"
         : status === "I'm finished"
           ? "bg-[#012169] text-white"
@@ -1511,18 +1569,21 @@ function SmartBarRootWebsiteModeReadiness({
   const vendorWebsiteModeStatus = String(vendorContext?.websiteModeStatus || "").trim().toLowerCase();
   const vendorInstallStatus = String(vendorContext?.installStatus || "").trim().toLowerCase();
   const vendorGhostTestStatus = String(vendorContext?.ghostTestStatus || "").trim().toLowerCase();
+  const ghostTestWasApproved = vendorGhostTestStatus === "approved" || vendorWebsiteModeStatus === "live";
   const websiteWasRequested =
     websiteRequested ||
     Boolean(vendorContext?.websiteSetupRequestedUtc) ||
     ["pending", "requested", "complete", "ready"].includes(vendorWebsiteSetupRequestStatus) ||
-    ["requested", "installed_pending_verification", "ready", "live"].includes(vendorWebsiteModeStatus);
+    ["requested", "installed_pending_verification", "ghost_test_ready_for_review", "ready", "live"].includes(vendorWebsiteModeStatus);
   const installWasFinished =
     installFinished ||
     Boolean(vendorContext?.installFinishedUtc) ||
     vendorInstallStatus === "vendor_finished" ||
     vendorWebsiteModeStatus === "installed_pending_verification" ||
-    vendorWebsiteModeStatus === "ghost_test_ready_for_review";
+    vendorWebsiteModeStatus === "ghost_test_ready_for_review" ||
+    vendorWebsiteModeStatus === "live";
   const ghostTestWasReady =
+    ghostTestWasApproved ||
     ghostTestReady ||
     Boolean(vendorContext?.ghostTestReadyUtc) ||
     vendorGhostTestStatus === "ready_for_review" ||
@@ -1570,7 +1631,7 @@ function SmartBarRootWebsiteModeReadiness({
       number: 3,
       title: "Ghost test",
       detail: "Test before going live.",
-      status: ghostTestWasReady ? "Pending review" : installWasFinished ? "Ready for review" : websiteWasRequested ? "Waiting" : "Locked",
+      status: ghostTestWasApproved ? "Approved" : ghostTestWasReady ? "Pending review" : installWasFinished ? "Ready for review" : websiteWasRequested ? "Waiting" : "Locked",
       active: websiteWasRequested,
       action: installWasFinished && !ghostTestWasReady,
       actionType: "ghostReady",
@@ -1660,28 +1721,290 @@ function SmartBarRootWebsiteModeReadiness({
   );
 }
 
-function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
+type SmartBarLiveBoardTicketLine = {
+  title?: string;
+  name?: string;
+  quantity?: number | string;
+  details?: unknown;
+};
+
+type SmartBarLiveBoardTicket = {
+  ticketId?: string;
+  ticketNumber?: string;
+  ticketDisplayId?: string;
+  clientId?: string;
+  vendorId?: string;
+  displayName?: string;
+  menuProfileId?: string;
+  behaviorProfileId?: string;
+  boardProfileId?: string;
+  timezone?: string;
+  mode?: string;
+  businessDate?: string;
+  status?: string;
+  customerText?: string;
+  itemCount?: number | string;
+  estimatedTotal?: number | string;
+  createdAt?: string;
+  readinessStatus?: string;
+  readinessNote?: string;
+  managerScoreStatus?: "ready" | "needs_fix" | string;
+  managerScoreNote?: string;
+  ticket?: {
+    items?: SmartBarLiveBoardTicketLine[];
+    totals?: {
+      estimatedTotalLabel?: string;
+      estimatedTotal?: number | string;
+    };
+  };
+};
+
+type SmartBarLiveBoardTicketListResponse = {
+  ok?: boolean;
+  tickets?: SmartBarLiveBoardTicket[];
+  code?: string;
+  message?: string;
+};
+
+function smartBarLiveOrderBoardIsEnabled(vendorContext?: SmartBarVendorContext | null) {
+  const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
+  const websiteModeStatus = String(activeVendorContext.websiteModeStatus || "").trim().toLowerCase();
+  const ghostTestStatus = String(activeVendorContext.ghostTestStatus || "").trim().toLowerCase();
+
+  return Boolean(activeVendorContext.orderBoardEnabled) || websiteModeStatus === "live" || ghostTestStatus === "approved";
+}
+
+function smartBarLiveBoardTicketListUrl(vendorContext: SmartBarVendorContext) {
+  const params = new URLSearchParams({
+    vendorId: vendorContext.vendorId,
+    mode: "sandbox",
+    timezone: vendorContext.timezone,
+    limit: "80",
+  });
+
+  return `${SMARTBAR_TICKET_LIST_URL}?${params.toString()}`;
+}
+
+async function listSmartBarLiveBoardTickets(vendorContext: SmartBarVendorContext): Promise<SmartBarLiveBoardTicket[]> {
+  const response = await fetch(smartBarLiveBoardTicketListUrl(vendorContext), {
+    method: "GET",
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  const json = (await response.json().catch(() => null)) as SmartBarLiveBoardTicketListResponse | null;
+
+  if (!response.ok || !json?.ok) {
+    throw new Error(json?.message || json?.code || `SmartBar live order board list failed with HTTP ${response.status}`);
+  }
+
+  return Array.isArray(json.tickets) ? json.tickets : [];
+}
+
+function smartBarLiveBoardTicketDisplayId(ticket: SmartBarLiveBoardTicket) {
+  if (ticket.ticketDisplayId) return ticket.ticketDisplayId;
+  if (ticket.ticketNumber) return ticket.ticketNumber.startsWith("#") ? ticket.ticketNumber : `#${ticket.ticketNumber}`;
+  return ticket.ticketId || "SmartBar ticket";
+}
+
+function smartBarLiveBoardTicketDetails(value: unknown) {
+  if (Array.isArray(value)) return value.map((detail) => String(detail || "").trim()).filter(Boolean);
+  const detail = String(value || "").trim();
+  return detail ? [detail] : undefined;
+}
+
+function smartBarLiveBoardTicketQuantity(value: unknown) {
+  const parsed = Number(value || 1);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function smartBarLiveBoardTicketTotalLabel(value: unknown) {
+  const total = String(value || "").trim();
+  if (!total) return "";
+  return total.startsWith("$") ? total : `$${total}`;
+}
+
+function smartBarLiveBoardTicketMinutesAgo(createdAt?: string) {
+  const timestamp = Date.parse(String(createdAt || ""));
+  if (!Number.isFinite(timestamp)) return 0;
+  return Math.max(0, Math.round((Date.now() - timestamp) / 60000));
+}
+
+function smartBarLiveBoardTicketToOrder(ticket: SmartBarLiveBoardTicket, vendorContext: SmartBarVendorContext): SmartBarOrderBoardItem {
+  const items = ticket.ticket?.items || [];
+  const ticketId = smartBarLiveBoardTicketDisplayId(ticket);
+  const estimatedTotalLabel = ticket.ticket?.totals?.estimatedTotalLabel || smartBarLiveBoardTicketTotalLabel(ticket.estimatedTotal);
+
+  return {
+    id: ticketId,
+    minutesAgo: smartBarLiveBoardTicketMinutesAgo(ticket.createdAt),
+    status: ticket.status === "processed" || ticket.status === "entered" ? "entered" : "new",
+    customer: "SmartBar",
+    phone: "202-555-0184",
+    pickup: "ASAP",
+    itemCount: Math.max(1, Number(ticket.itemCount || items.length || 1) || 1),
+    groups: [
+      {
+        title: "Order",
+        items: items.length
+          ? items.map((item) => ({
+              quantity: smartBarLiveBoardTicketQuantity(item.quantity),
+              name: item.title || item.name || "SmartBar ticket",
+              details: smartBarLiveBoardTicketDetails(item.details),
+            }))
+          : [{ quantity: 1, name: "SmartBar ticket" }],
+      },
+    ],
+    notes: [
+      ticket.customerText ? `Heard: ${ticket.customerText}` : "SmartBar ticket",
+      estimatedTotalLabel ? `Total: ${estimatedTotalLabel}` : "",
+    ].filter(Boolean).join(" - "),
+    score: ticket.managerScoreStatus === "ready" || ticket.managerScoreStatus === "needs_fix" ? ticket.managerScoreStatus : undefined,
+    scoreNote: ticket.managerScoreNote || "",
+    backendTicketId: ticket.ticketId,
+    businessDate: ticket.businessDate,
+    mode: ticket.mode || "sandbox",
+    readinessStatus: ticket.readinessStatus,
+    readinessNote: ticket.readinessNote || "",
+    clientId: ticket.clientId || vendorContext.clientId,
+    vendorId: ticket.vendorId || vendorContext.vendorId,
+    displayName: ticket.displayName || vendorContext.displayName,
+    menuProfileId: ticket.menuProfileId || vendorContext.menuProfileId,
+    behaviorProfileId: ticket.behaviorProfileId || vendorContext.behaviorProfileId,
+    boardProfileId: ticket.boardProfileId || vendorContext.boardProfileId,
+    timezone: ticket.timezone || vendorContext.timezone,
+  };
+}
+
+function SmartBarRootLiveOrderBoardStatus({
+  onBack,
+  vendorContext,
+}: {
+  onBack: () => void;
+  vendorContext?: SmartBarVendorContext | null;
+}) {
+  const activeVendorContext = useMemo(() => normalizeSmartBarVendorContext(vendorContext), [vendorContext]);
+  const [boardOpen, setBoardOpen] = useState(false);
+  const [orders, setOrders] = useState<SmartBarOrderBoardItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const boardEnabled = smartBarLiveOrderBoardIsEnabled(activeVendorContext);
+
+  const loadOrders = useCallback(async () => {
+    if (!boardEnabled) return;
+    setIsLoading(true);
+    setLoadError("");
+
+    try {
+      const tickets = await listSmartBarLiveBoardTickets(activeVendorContext);
+      setOrders(tickets.map((ticket) => smartBarLiveBoardTicketToOrder(ticket, activeVendorContext)));
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "unknown_error";
+      setLoadError(reason);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeVendorContext, boardEnabled]);
+
+  useEffect(() => {
+    if (!boardEnabled) return;
+    void loadOrders();
+
+    const intervalId = window.setInterval(() => {
+      void loadOrders();
+    }, 15000);
+
+    return () => window.clearInterval(intervalId);
+  }, [boardEnabled, loadOrders]);
+
+  const newOrderCount = orders.filter((order) => order.status === "new").length;
+  const handledCount = orders.filter((order) => order.status === "entered").length;
+
+  if (boardOpen && boardEnabled) {
+    return (
+      <div className="mx-auto mt-6 max-w-5xl rounded-[24px] bg-white/92 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:mt-7 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+              Order Board
+            </div>
+            <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+              {activeVendorContext.displayName} Orders
+            </h3>
+            <div className="mt-1 text-sm font-semibold text-slate-500">
+              {newOrderCount} new · {handledCount} handled today
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadOrders()}
+              disabled={isLoading}
+              className="inline-flex shrink-0 items-center rounded-full bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoading ? "Refreshing..." : "Refresh"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBoardOpen(false)}
+              className="inline-flex shrink-0 items-center rounded-full bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+            >
+              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+              Back
+            </button>
+          </div>
+        </div>
+
+        {loadError ? (
+          <div className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100">
+            Board could not load: {loadError}
+          </div>
+        ) : null}
+
+        <div className="mt-4 overflow-hidden rounded-[28px] ring-1 ring-sky-100">
+          <SmartBarOrderBoardMock
+            demoOrders={orders}
+            demoAnimateIncomingOrders
+            onDemoEntered={(orderId) => {
+              setOrders((current) => current.map((order) => (
+                order.id === orderId ? { ...order, status: "entered" } : order
+              )));
+            }}
+            className="!min-h-[560px] !px-4 !py-4"
+          />
+        </div>
+      </div>
+    );
+  }
+
   const rowBase = "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 ring-1";
   const activeRow = "bg-white text-slate-950 ring-slate-200/80";
+  const mutedRow = "bg-slate-50/80 text-slate-500 ring-slate-200/70";
 
   const steps = [
     {
       number: 1,
       title: "Board status",
-      detail: "Live order board opens here, not the demo site.",
-      status: "Board view",
+      detail: boardEnabled ? "Live order board is enabled for this vendor." : "Admin approval unlocks the live order board.",
+      status: boardEnabled ? "Open board" : "Locked",
+      action: boardEnabled,
     },
     {
       number: 2,
       title: "New orders",
       detail: "Incoming tickets.",
-      status: "0 new",
+      status: boardEnabled ? `${newOrderCount} new` : "—",
+      action: false,
     },
     {
       number: 3,
       title: "Handled today",
       detail: "Completed tickets.",
-      status: "0",
+      status: boardEnabled ? String(handledCount) : "—",
+      action: false,
     },
   ];
 
@@ -1709,7 +2032,7 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
 
       <div className="mt-4 grid gap-3">
         {steps.map((step) => (
-          <div key={step.title} className={`${rowBase} ${activeRow}`}>
+          <div key={step.title} className={`${rowBase} ${step.action || boardEnabled ? activeRow : mutedRow}`}>
             <div className="flex min-w-0 items-center gap-3">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-slate-500 ring-1 ring-slate-200">
                 {step.number}
@@ -1720,14 +2043,15 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
-            {"actionHref" in step ? (
-              <a
-                href={typeof step.actionHref === "string" ? step.actionHref : undefined}
+            {step.action ? (
+              <button
+                type="button"
+                onClick={() => setBoardOpen(true)}
                 className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
               >
-                Open
+                Board View
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </a>
+              </button>
             ) : (
               <div className="inline-flex items-center justify-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
                 {step.status}
@@ -1736,10 +2060,15 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
           </div>
         ))}
       </div>
+
+      {!boardEnabled ? (
+        <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
+          Waiting for admin approval after ghost test review.
+        </div>
+      ) : null}
     </div>
   );
 }
-
 
 function SmartBarRootLaunchMessage({
   message,
@@ -1759,6 +2088,43 @@ function SmartBarRootLaunchMessage({
     setActiveVendorContext(nextVendorContext);
     saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
   }, []);
+
+  const refreshActiveVendorContext = useCallback(async () => {
+    try {
+      const nextVendorContext = await refreshSmartBarVendorStatus();
+      handleVendorContextUpdate(nextVendorContext);
+      return;
+    } catch {
+      // Fall back to the legacy session endpoint so a temporary status-refresh
+      // failure does not break the logged-in view.
+    }
+
+    const sessionResult = await checkTourBotDemoSession();
+    if (sessionResult.accepted && sessionResult.vendorContext) {
+      handleVendorContextUpdate(sessionResult.vendorContext);
+    }
+  }, [handleVendorContextUpdate]);
+
+  useEffect(() => {
+    if (activeUseItLane !== "website" && activeUseItLane !== "board") return;
+
+    void refreshActiveVendorContext();
+
+    const intervalId = window.setInterval(() => {
+      void refreshActiveVendorContext();
+    }, 15000);
+
+    const handleFocus = () => {
+      void refreshActiveVendorContext();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [activeUseItLane, refreshActiveVendorContext]);
 
   if (activeUseItLane === "playground") {
     return (
@@ -1805,7 +2171,7 @@ function SmartBarRootLaunchMessage({
               onVendorContextUpdate={handleVendorContextUpdate}
             />
           ) : activeUseItLane === "board" ? (
-            <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} />
+            <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} vendorContext={activeVendorContext} />
           ) : (
             <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
               <SmartBarRootDemoLaunchButton
@@ -1825,7 +2191,7 @@ function SmartBarRootLaunchMessage({
               <SmartBarRootDemoLaunchButton
                 icon={ReceiptText}
                 eyebrow="Live Orders"
-                title="Live Order Board"
+                title="Order Board"
                 description="Live orders."
                 onSelect={() => setActiveUseItLane("board")}
               />
