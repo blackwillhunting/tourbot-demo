@@ -38,6 +38,7 @@ const REQUIRED_PASSCODE_LENGTH = 6;
 
 const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
+const SMARTBAR_VENDOR_ACTION_URL = "/api/smartbar/vendor-action";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
 const TOURBOT_AUTH_DEMO_PATH_KEY = "tourbot_demo_path";
@@ -65,6 +66,8 @@ type TourBotAuthResult = {
   demoPath?: string;
   vendorContext?: SmartBarVendorContext;
 };
+
+type SmartBarVendorAction = "sandbox_request" | "website_setup_request" | "website_install_finished";
 
 function isLocalDemoAuthBypassEnabled() {
   if (typeof window === "undefined") return false;
@@ -416,6 +419,46 @@ async function loginToTourBotDemo(passcode: string): Promise<TourBotAuthResult> 
   }
 }
 
+
+async function submitSmartBarVendorAction(
+  action: SmartBarVendorAction,
+  vendorContext?: SmartBarVendorContext | null,
+): Promise<SmartBarVendorContext> {
+  const token = getStoredTourBotDemoToken();
+  if (!token) {
+    throw new Error("missing_session_token");
+  }
+
+  const response = await fetch(SMARTBAR_VENDOR_ACTION_URL, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ action, vendorContext }),
+  });
+
+  const body = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    vendorContext?: Partial<SmartBarVendorContext> | null;
+    item?: unknown;
+    demoPath?: string;
+    reason?: string;
+  };
+
+  if (!response.ok || body.ok !== true) {
+    throw new Error(body.reason || "vendor_action_failed");
+  }
+
+  const nextVendorContext = smartBarVendorContextFromAuthPayload(
+    body.vendorContext || body.item || vendorContext || {},
+    body.demoPath || vendorContext?.demoPath || "",
+  );
+  saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+  return nextVendorContext;
+}
 
 type PreludeSlip = SmartBarTutorCard;
 
@@ -1192,12 +1235,16 @@ function SmartBarRootSandboxReadiness({
   onBack,
   onOpenPlayground,
   vendorContext,
+  onVendorContextUpdate,
 }: {
   onBack: () => void;
   onOpenPlayground: () => void;
   vendorContext?: SmartBarVendorContext | null;
+  onVendorContextUpdate?: (vendorContext: SmartBarVendorContext) => void;
 }) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
+  const [sandboxRequestSubmitting, setSandboxRequestSubmitting] = useState(false);
+  const [sandboxRequestError, setSandboxRequestError] = useState("");
   const [showTestInstructions, setShowTestInstructions] = useState(false);
   const queryReadyOverride = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -1205,8 +1252,30 @@ function SmartBarRootSandboxReadiness({
   }, []);
   const vendorOnboardingStatus = String(vendorContext?.onboardingStatus || "").trim().toLowerCase();
   const vendorIsReadyForOrders = vendorContext?.isReadyForOrders === true || vendorOnboardingStatus === "ready";
+  const vendorSandboxRequestStatus = String(vendorContext?.sandboxRequestStatus || "").trim().toLowerCase();
+  const vendorSandboxStatus = String(vendorContext?.sandboxStatus || "").trim().toLowerCase();
+  const vendorSandboxRequested =
+    Boolean(vendorContext?.sandboxRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(vendorSandboxRequestStatus) ||
+    ["requested", "ready"].includes(vendorSandboxStatus);
   const sandboxReadyOverride = queryReadyOverride || vendorIsReadyForOrders;
-  const sandboxIsRequested = sandboxReadyOverride || sandboxRequested;
+  const sandboxIsRequested = sandboxReadyOverride || vendorSandboxRequested || sandboxRequested;
+
+  const submitSandboxRequest = async () => {
+    if (sandboxRequestSubmitting) return;
+    setSandboxRequestSubmitting(true);
+    setSandboxRequestError("");
+
+    try {
+      const nextVendorContext = await submitSmartBarVendorAction("sandbox_request", vendorContext);
+      setSandboxRequested(true);
+      onVendorContextUpdate?.(nextVendorContext);
+    } catch {
+      setSandboxRequestError("Request could not be sent. Try again.");
+    } finally {
+      setSandboxRequestSubmitting(false);
+    }
+  };
 
   const rowBase = "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 ring-1";
   const activeRow = "bg-white text-slate-950 ring-slate-200/80";
@@ -1354,10 +1423,11 @@ function SmartBarRootSandboxReadiness({
             {step.action && step.actionType === "request" ? (
               <button
                 type="button"
-                onClick={() => setSandboxRequested(true)}
-                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
+                onClick={submitSandboxRequest}
+                disabled={sandboxRequestSubmitting}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Request
+                {sandboxRequestSubmitting ? "Sending..." : "Request"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             ) : step.action && step.actionType === "begin" ? (
@@ -1377,12 +1447,29 @@ function SmartBarRootSandboxReadiness({
           </div>
         ))}
       </div>
+
+      {sandboxRequestError ? (
+        <div className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100">
+          {sandboxRequestError}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function SmartBarRootWebsiteModeReadiness({ onBack }: { onBack: () => void }) {
+function SmartBarRootWebsiteModeReadiness({
+  onBack,
+  vendorContext,
+  onVendorContextUpdate,
+}: {
+  onBack: () => void;
+  vendorContext?: SmartBarVendorContext | null;
+  onVendorContextUpdate?: (vendorContext: SmartBarVendorContext) => void;
+}) {
   const [websiteRequested, setWebsiteRequested] = useState(false);
+  const [installFinished, setInstallFinished] = useState(false);
+  const [websiteActionSubmitting, setWebsiteActionSubmitting] = useState<SmartBarVendorAction | null>(null);
+  const [websiteActionError, setWebsiteActionError] = useState("");
 
   const rowBase = "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 ring-1";
   const activeRow = "bg-white text-slate-950 ring-slate-200/80";
@@ -1391,34 +1478,70 @@ function SmartBarRootWebsiteModeReadiness({ onBack }: { onBack: () => void }) {
   const statusClass = (status: string) =>
     status === "Pending"
       ? "bg-amber-200 text-[#012169]"
-      : status === "Ready"
+      : status === "Finished" || status === "Ready"
         ? "bg-emerald-100 text-emerald-700"
-        : "bg-slate-100 text-slate-500";
+        : status === "I'm finished"
+          ? "bg-[#012169] text-white"
+          : "bg-slate-100 text-slate-500";
+
+  const vendorWebsiteSetupRequestStatus = String(vendorContext?.websiteSetupRequestStatus || "").trim().toLowerCase();
+  const vendorWebsiteModeStatus = String(vendorContext?.websiteModeStatus || "").trim().toLowerCase();
+  const vendorInstallStatus = String(vendorContext?.installStatus || "").trim().toLowerCase();
+  const websiteWasRequested =
+    websiteRequested ||
+    Boolean(vendorContext?.websiteSetupRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(vendorWebsiteSetupRequestStatus) ||
+    ["requested", "installed_pending_verification", "ready", "live"].includes(vendorWebsiteModeStatus);
+  const installWasFinished =
+    installFinished ||
+    Boolean(vendorContext?.installFinishedUtc) ||
+    vendorInstallStatus === "vendor_finished" ||
+    vendorWebsiteModeStatus === "installed_pending_verification";
+
+  const submitWebsiteAction = async (action: SmartBarVendorAction) => {
+    if (websiteActionSubmitting) return;
+    setWebsiteActionSubmitting(action);
+    setWebsiteActionError("");
+
+    try {
+      const nextVendorContext = await submitSmartBarVendorAction(action, vendorContext);
+      if (action === "website_setup_request") setWebsiteRequested(true);
+      if (action === "website_install_finished") setInstallFinished(true);
+      onVendorContextUpdate?.(nextVendorContext);
+    } catch {
+      setWebsiteActionError("Request could not be sent. Try again.");
+    } finally {
+      setWebsiteActionSubmitting(null);
+    }
+  };
 
   const steps = [
     {
       number: 1,
       title: "Request setup",
       detail: "Prepare install code.",
-      status: websiteRequested ? "Pending" : "Request",
+      status: websiteWasRequested ? "Pending" : "Request",
       active: true,
-      action: !websiteRequested,
+      action: !websiteWasRequested,
+      actionType: "request",
     },
     {
       number: 2,
       title: "Install code",
       detail: "Add one script tag.",
-      status: websiteRequested ? "Pending" : "Waiting",
-      active: websiteRequested,
-      action: false,
+      status: installWasFinished ? "Finished" : websiteWasRequested ? "I'm finished" : "Waiting",
+      active: websiteWasRequested,
+      action: websiteWasRequested && !installWasFinished,
+      actionType: "finished",
     },
     {
       number: 3,
       title: "Ghost test",
       detail: "Test before going live.",
-      status: websiteRequested ? "Waiting" : "Locked",
-      active: websiteRequested,
+      status: installWasFinished ? "Pending" : websiteWasRequested ? "Waiting" : "Locked",
+      active: websiteWasRequested,
       action: false,
+      actionType: "status",
     },
   ];
 
@@ -1457,13 +1580,24 @@ function SmartBarRootWebsiteModeReadiness({ onBack }: { onBack: () => void }) {
               </div>
             </div>
 
-            {step.action ? (
+            {step.action && step.actionType === "request" ? (
               <button
                 type="button"
-                onClick={() => setWebsiteRequested(true)}
-                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
+                onClick={() => submitWebsiteAction("website_setup_request")}
+                disabled={websiteActionSubmitting !== null}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Request
+                {websiteActionSubmitting === "website_setup_request" ? "Sending..." : "Request"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            ) : step.action && step.actionType === "finished" ? (
+              <button
+                type="button"
+                onClick={() => submitWebsiteAction("website_install_finished")}
+                disabled={websiteActionSubmitting !== null}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {websiteActionSubmitting === "website_install_finished" ? "Sending..." : "I'm finished"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             ) : (
@@ -1474,6 +1608,12 @@ function SmartBarRootWebsiteModeReadiness({ onBack }: { onBack: () => void }) {
           </div>
         ))}
       </div>
+
+      {websiteActionError ? (
+        <div className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-100">
+          {websiteActionError}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1572,8 +1712,12 @@ function SmartBarRootLaunchMessage({
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
   const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(null);
+  const [activeVendorContext, setActiveVendorContext] = useState(() => getStoredSmartBarVendorContext());
 
-  const activeVendorContext = getStoredSmartBarVendorContext();
+  const handleVendorContextUpdate = useCallback((nextVendorContext: SmartBarVendorContext) => {
+    setActiveVendorContext(nextVendorContext);
+    saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+  }, []);
 
   if (activeUseItLane === "playground") {
     return (
@@ -1611,9 +1755,14 @@ function SmartBarRootLaunchMessage({
               onBack={() => setActiveUseItLane(null)}
               onOpenPlayground={() => setActiveUseItLane("playground")}
               vendorContext={activeVendorContext}
+              onVendorContextUpdate={handleVendorContextUpdate}
             />
           ) : activeUseItLane === "website" ? (
-            <SmartBarRootWebsiteModeReadiness onBack={() => setActiveUseItLane(null)} />
+            <SmartBarRootWebsiteModeReadiness
+              onBack={() => setActiveUseItLane(null)}
+              vendorContext={activeVendorContext}
+              onVendorContextUpdate={handleVendorContextUpdate}
+            />
           ) : activeUseItLane === "board" ? (
             <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} />
           ) : (
@@ -1623,7 +1772,7 @@ function SmartBarRootLaunchMessage({
                 icon={ShoppingCart}
                 eyebrow="Private Testing"
                 title="Sandbox"
-                description="Test orders privately before customers see them."
+                description="Test orders privately."
                 onSelect={() => setActiveUseItLane("sandbox")}
               />
               <SmartBarRootDemoLaunchButton
@@ -1631,7 +1780,7 @@ function SmartBarRootLaunchMessage({
                 icon={ShieldCheck}
                 eyebrow="Website Mode"
                 title="Website Mode"
-                description="Connect SmartBar to your real site and control Ghost Mode."
+                description="Connect to your site in Ghost Mode."
                 onSelect={() => setActiveUseItLane("website")}
               />
               <SmartBarRootDemoLaunchButton
@@ -1639,7 +1788,7 @@ function SmartBarRootLaunchMessage({
                 icon={ReceiptText}
                 eyebrow="Live Orders"
                 title="Live Order Board"
-                description="Manage incoming SmartBar orders after launch."
+                description="Manage live orders."
                 onSelect={() => setActiveUseItLane("board")}
               />
             </div>

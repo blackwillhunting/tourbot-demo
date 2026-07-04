@@ -13,6 +13,16 @@ export type SmartBarVendorContext = {
   readyBy: string;
   lastSmokeTestUtc: string;
   lastSmokeTestStatus: string;
+  sandboxRequestStatus: string;
+  sandboxRequestedUtc: string;
+  sandboxStatus: string;
+  websiteSetupRequestStatus: string;
+  websiteSetupRequestedUtc: string;
+  installStatus: string;
+  installFinishedUtc: string;
+  websiteModeStatus: string;
+  lastVendorAction: string;
+  lastVendorActionUtc: string;
 };
 
 export const SMARTBAR_VENDOR_CONTEXT_STORAGE_KEY = "smartbar_vendor_context";
@@ -32,6 +42,16 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   readyBy: "",
   lastSmokeTestUtc: "",
   lastSmokeTestStatus: "",
+  sandboxRequestStatus: "",
+  sandboxRequestedUtc: "",
+  sandboxStatus: "",
+  websiteSetupRequestStatus: "",
+  websiteSetupRequestedUtc: "",
+  installStatus: "",
+  installFinishedUtc: "",
+  websiteModeStatus: "",
+  lastVendorAction: "",
+  lastVendorActionUtc: "",
 });
 
 function smartBarVendorRecord(value: unknown): Record<string, unknown> {
@@ -107,6 +127,16 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const readyBy = smartBarVendorPickString(merged, ["readyBy", "ready_by", "ReadyBy"]);
   const lastSmokeTestUtc = smartBarVendorPickString(merged, ["lastSmokeTestUtc", "last_smoke_test_utc", "LastSmokeTestUtc"]);
   const lastSmokeTestStatus = smartBarVendorPickString(merged, ["lastSmokeTestStatus", "last_smoke_test_status", "LastSmokeTestStatus"]);
+  const sandboxRequestStatus = smartBarVendorPickString(merged, ["sandboxRequestStatus", "sandbox_request_status", "SandboxRequestStatus"]);
+  const sandboxRequestedUtc = smartBarVendorPickString(merged, ["sandboxRequestedUtc", "sandbox_requested_utc", "SandboxRequestedUtc"]);
+  const sandboxStatus = smartBarVendorPickString(merged, ["sandboxStatus", "sandbox_status", "SandboxStatus"]);
+  const websiteSetupRequestStatus = smartBarVendorPickString(merged, ["websiteSetupRequestStatus", "website_setup_request_status", "WebsiteSetupRequestStatus"]);
+  const websiteSetupRequestedUtc = smartBarVendorPickString(merged, ["websiteSetupRequestedUtc", "website_setup_requested_utc", "WebsiteSetupRequestedUtc"]);
+  const installStatus = smartBarVendorPickString(merged, ["installStatus", "install_status", "InstallStatus"]);
+  const installFinishedUtc = smartBarVendorPickString(merged, ["installFinishedUtc", "install_finished_utc", "InstallFinishedUtc"]);
+  const websiteModeStatus = smartBarVendorPickString(merged, ["websiteModeStatus", "website_mode_status", "WebsiteModeStatus"]);
+  const lastVendorAction = smartBarVendorPickString(merged, ["lastVendorAction", "last_vendor_action", "LastVendorAction"]);
+  const lastVendorActionUtc = smartBarVendorPickString(merged, ["lastVendorActionUtc", "last_vendor_action_utc", "LastVendorActionUtc"]);
 
   return {
     clientId,
@@ -123,6 +153,16 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     readyBy,
     lastSmokeTestUtc,
     lastSmokeTestStatus,
+    sandboxRequestStatus,
+    sandboxRequestedUtc,
+    sandboxStatus,
+    websiteSetupRequestStatus,
+    websiteSetupRequestedUtc,
+    installStatus,
+    installFinishedUtc,
+    websiteModeStatus,
+    lastVendorAction,
+    lastVendorActionUtc,
   };
 }
 
