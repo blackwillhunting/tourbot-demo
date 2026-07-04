@@ -1174,7 +1174,7 @@ function SmartBarRootDemoLaunchButton({
   note,
   onSelect,
 }: {
-  href: string;
+  href?: string;
   icon: ComponentType<{ className?: string }>;
   eyebrow: string;
   title: string;
@@ -1185,17 +1185,9 @@ function SmartBarRootDemoLaunchButton({
   onSelect?: () => void;
 }) {
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
-
-  return (
-    <a
-      href={href}
-      onClick={(event) => {
-        if (!onSelect) return;
-        event.preventDefault();
-        onSelect();
-      }}
-      className="group flex h-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4"
-    >
+  const launchClassName = "group flex h-full w-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
+  const content = (
+    <>
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
         <Icon className="h-5 w-5" />
       </div>
@@ -1243,10 +1235,23 @@ function SmartBarRootDemoLaunchButton({
         )}
       </span>
       <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+    </>
+  );
+
+  if (onSelect) {
+    return (
+      <button type="button" onClick={onSelect} className={launchClassName}>
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <a href={href || "#"} className={launchClassName}>
+      {content}
     </a>
   );
 }
-
 function SmartBarRootSandboxReadiness({
   onBack,
   onOpenPlayground,
@@ -1644,9 +1649,8 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
     {
       number: 1,
       title: "Board status",
-      detail: "Live orders land here.",
-      status: "Open Board",
-      actionHref: "/direct-ordering?mode=board",
+      detail: "Live order board opens here, not the demo site.",
+      status: "Board view",
     },
     {
       number: 2,
@@ -1667,7 +1671,7 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-            Live Order Board
+            Order Board
           </div>
           <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
             Status
@@ -1699,7 +1703,7 @@ function SmartBarRootLiveOrderBoardStatus({ onBack }: { onBack: () => void }) {
 
             {"actionHref" in step ? (
               <a
-                href={step.actionHref}
+                href={typeof step.actionHref === "string" ? step.actionHref : undefined}
                 className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
               >
                 Open
@@ -1786,27 +1790,24 @@ function SmartBarRootLaunchMessage({
           ) : (
             <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
               <SmartBarRootDemoLaunchButton
-                href="/direct-ordering?mode=sandbox"
                 icon={ShoppingCart}
                 eyebrow="Private Testing"
                 title="Sandbox"
-                description="Test orders privately."
+                description="Test orders."
                 onSelect={() => setActiveUseItLane("sandbox")}
               />
               <SmartBarRootDemoLaunchButton
-                href="/direct-ordering?mode=website"
                 icon={ShieldCheck}
                 eyebrow="Website Mode"
                 title="Website Mode"
-                description="Connect to your site in Ghost Mode."
+                description="Connect site."
                 onSelect={() => setActiveUseItLane("website")}
               />
               <SmartBarRootDemoLaunchButton
-                href="/direct-ordering?mode=board"
                 icon={ReceiptText}
                 eyebrow="Live Orders"
                 title="Live Order Board"
-                description="Manage live orders."
+                description="Live orders."
                 onSelect={() => setActiveUseItLane("board")}
               />
             </div>
