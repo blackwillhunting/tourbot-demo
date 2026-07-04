@@ -45,7 +45,7 @@ export const SMARTBAR_SETUP_WALKTHROUGH_STEPS: SmartBarSetupWalkthroughStep[] = 
   {
     title: "Go Live",
     eyebrow: "Step 5 of 5",
-    message: "Turn SmartBar on and start receiving live order tickets on the order board.",
+    message: "Setup is complete. Next, use SmartBar with your menu and send your first test ticket.",
   },
 ];
 

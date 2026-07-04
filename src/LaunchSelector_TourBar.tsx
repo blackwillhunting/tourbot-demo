@@ -1858,7 +1858,7 @@ function SmartBarRootRestaurantPreview({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
         >
-          <RestaurantWalkthrough chrome="content" onFinish={onFinish} />
+          <RestaurantWalkthrough chrome="content" onFinish={onFinish} finishLabel="Start setup" />
         </motion.div>
       )}
     </div>
@@ -1906,6 +1906,7 @@ function SmartBarRootDemoSelector() {
   const currentSetupIndex = isSetupStep ? current.setupIndex : 0;
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
+  const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
   const restaurantPreviewStep = stageItems.findIndex((item) => item.kind === "restaurant-preview");
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
@@ -2148,7 +2149,7 @@ function SmartBarRootDemoSelector() {
   const finishSetupWalkthrough = () => {
     rootRunIdRef.current += 1;
     setWavingIndex(null);
-    setStep(1);
+    setStep(useItStep >= 0 ? useItStep : 1);
   };
 
   const goRestaurantPreview = async () => {
@@ -2172,6 +2173,13 @@ function SmartBarRootDemoSelector() {
     setWavingIndex(null);
     setRestaurantPreviewSettled(false);
     setStep(1);
+  };
+
+  const completeRestaurantPreview = () => {
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
+    setRestaurantPreviewSettled(false);
+    setStep(setupStartStep >= 0 ? setupStartStep : 1);
   };
 
   const goBack = () => {
@@ -2221,7 +2229,7 @@ function SmartBarRootDemoSelector() {
         : "Submit"
     : isSetupStep
       ? isLastSetupStep
-        ? "Finish"
+        ? "Use SmartBar"
         : "Next"
       : isLaunchOverview
         ? "Use it"
@@ -2357,7 +2365,7 @@ function SmartBarRootDemoSelector() {
                     <SmartBarRootRestaurantPreview
                       isWaving={wavingIndex === index}
                       isSettled={isRestaurantPreviewSettled}
-                      onFinish={finishRestaurantPreview}
+                      onFinish={completeRestaurantPreview}
                     />
                   )}
                 </div>

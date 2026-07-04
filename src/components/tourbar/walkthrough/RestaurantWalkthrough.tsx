@@ -314,6 +314,7 @@ function RestaurantWalkthroughNavigator({
   onRerun,
   onRestart,
   onFinish,
+  finishLabel = "Finish",
   isVisible = true,
   rerunLabel = "Rerun",
   finalMode = false,
@@ -325,6 +326,7 @@ function RestaurantWalkthroughNavigator({
   onRerun: () => void;
   onRestart?: () => void;
   onFinish?: () => void;
+  finishLabel?: string;
   isVisible?: boolean;
   rerunLabel?: string;
   finalMode?: boolean;
@@ -367,7 +369,7 @@ function RestaurantWalkthroughNavigator({
             onClick={onFinish}
             className={primaryButtonClass}
           >
-            Finish
+            {finishLabel}
             <ArrowRight className="ml-2 h-4 w-4" />
           </button>
         </>
@@ -765,11 +767,13 @@ function WalkthroughClosingSandboxCta({
   onBack,
   onRestart,
   onFinish,
+  finishLabel = "Finish",
 }: {
   onRequestPrivateSandbox: () => void;
   onBack: () => void;
   onRestart: () => void;
   onFinish: () => void;
+  finishLabel?: string;
 }) {
   void onRequestPrivateSandbox;
 
@@ -807,7 +811,7 @@ function WalkthroughClosingSandboxCta({
         </button>
 
         <button type="button" onClick={onFinish} className={primaryButtonClass}>
-          Finish
+          {finishLabel}
           <ArrowRight className="ml-2 h-4 w-4" />
         </button>
       </motion.div>
@@ -827,6 +831,7 @@ function CustomerFlowScene({
   onRestart,
   onFinish,
   onRequestPrivateSandbox,
+  finishLabel = "Finish",
   slidePhase = "done",
 }: {
   activeStep: CustomerFlowStep;
@@ -840,6 +845,7 @@ function CustomerFlowScene({
   onRestart: () => void;
   onFinish: () => void;
   onRequestPrivateSandbox: () => void;
+  finishLabel?: string;
   slidePhase?: WalkthroughSlidePhase;
 }) {
   const content = customerStepContent[activeStep];
@@ -1304,6 +1310,7 @@ function CustomerFlowScene({
           onBack={onBack}
           onRestart={onRestart}
           onFinish={onFinish}
+          finishLabel={finishLabel}
         />
       )}
 
@@ -1342,6 +1349,7 @@ function CustomerFlowScene({
         onRerun={onRerun}
         onRestart={onRestart}
         onFinish={onFinish}
+        finishLabel={finishLabel}
         isVisible={!isCloseStep && shouldShowNavigator}
         rerunLabel={usesReadWatchDecide ? "See again" : "Rerun"}
         finalMode={isCloseStep}
@@ -1353,12 +1361,14 @@ function CustomerFlowScene({
 type RestaurantWalkthroughProps = {
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
+  finishLabel?: string;
   chrome?: "full" | "content";
 };
 
 export default function RestaurantWalkthrough({
   onFinish,
   onRequestPrivateSandbox,
+  finishLabel = "Finish",
   chrome = "full",
 }: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
@@ -1623,6 +1633,7 @@ export default function RestaurantWalkthrough({
               onRestart={restartWalkthrough}
               onFinish={finishWalkthrough}
               onRequestPrivateSandbox={requestPrivateSandbox}
+              finishLabel={finishLabel}
               slidePhase={slidePhase}
             />
           </div>
