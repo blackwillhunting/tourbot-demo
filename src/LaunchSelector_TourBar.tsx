@@ -1019,7 +1019,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "SmartBar",
     message:
-      "**Phone orders â†’ clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
+      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
     icon: SmartBarPhoneToTicketIcon,
     iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
     storyIcon: true,
@@ -2313,7 +2313,7 @@ function SmartBarRootPasscodeChallenge({
                     ease: "easeInOut",
                   }}
                 >
-                  {character || "â€¢"}
+                  {character || "•"}
                 </motion.div>
               );
             }
@@ -3006,7 +3006,7 @@ function SmartBarRootDemoSelector() {
 }
 
 function ThinkingCode({ value }: { value: string }) {
-  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "â€¢").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
+  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "•").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
 
   return (
     <div

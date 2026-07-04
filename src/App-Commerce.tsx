@@ -212,9 +212,9 @@ export const PAGES: Record<PageId, Page> = {
         title: "Business King Suite",
         price: "$289/night",
         body:
-          "A quiet upper-floor king suite in the Executive Tower with ergonomic desk, fast Wiâ€‘Fi, blackout curtains, lounge access, and easy conference-center routing.",
+          "A quiet upper-floor king suite in the Executive Tower with ergonomic desk, fast Wi‑Fi, blackout curtains, lounge access, and easy conference-center routing.",
         details: ["King bed", "Executive Tower", "Desk + task lighting", "Lounge access", "Quiet wing"],
-        tags: ["Quiet", "Business", "Wiâ€‘Fi", "Desk"],
+        tags: ["Quiet", "Business", "Wi‑Fi", "Desk"],
       },
       {
         id: "room-executive-tower-king",
@@ -301,8 +301,8 @@ export const PAGES: Record<PageId, Page> = {
         title: "Business Ready Package",
         price: "+$45/night",
         body:
-          "Includes breakfast, meeting pod credit, premium Wiâ€‘Fi tier, and 6pm late checkout. Best paired with Business King or Executive Tower rooms.",
-        details: ["Breakfast", "Meeting pod credit", "Premium Wiâ€‘Fi", "Late checkout"],
+          "Includes breakfast, meeting pod credit, premium Wi‑Fi tier, and 6pm late checkout. Best paired with Business King or Executive Tower rooms.",
+        details: ["Breakfast", "Meeting pod credit", "Premium Wi‑Fi", "Late checkout"],
         tags: ["Business", "Meetings", "Productivity"],
       },
       {
@@ -929,7 +929,7 @@ function Hero({ page }: { page: Page }) {
               ))}
             </div>
             <div className="mt-3 rounded-xl bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-950 sm:mt-5 sm:rounded-2xl sm:px-4 sm:py-3 sm:text-sm">
-              Ask about the resort â†’ compare options â†’ booking preloads
+              Ask about the resort → compare options → booking preloads
             </div>
           </div>
         </div>
@@ -1736,7 +1736,7 @@ function SectionCard({
                       variant="outline"
                       className="rounded-full px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm"
                     >
-                      See next option â†’
+                      See next option →
                     </Button>
                   </>
                 ) : (
