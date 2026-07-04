@@ -20,6 +20,8 @@ export type SmartBarVendorContext = {
   websiteSetupRequestedUtc: string;
   installStatus: string;
   installFinishedUtc: string;
+  ghostTestStatus: string;
+  ghostTestReadyUtc: string;
   websiteModeStatus: string;
   lastVendorAction: string;
   lastVendorActionUtc: string;
@@ -49,6 +51,8 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   websiteSetupRequestedUtc: "",
   installStatus: "",
   installFinishedUtc: "",
+  ghostTestStatus: "",
+  ghostTestReadyUtc: "",
   websiteModeStatus: "",
   lastVendorAction: "",
   lastVendorActionUtc: "",
@@ -134,6 +138,8 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const websiteSetupRequestedUtc = smartBarVendorPickString(merged, ["websiteSetupRequestedUtc", "website_setup_requested_utc", "WebsiteSetupRequestedUtc"]);
   const installStatus = smartBarVendorPickString(merged, ["installStatus", "install_status", "InstallStatus"]);
   const installFinishedUtc = smartBarVendorPickString(merged, ["installFinishedUtc", "install_finished_utc", "InstallFinishedUtc"]);
+  const ghostTestStatus = smartBarVendorPickString(merged, ["ghostTestStatus", "ghost_test_status", "GhostTestStatus"]);
+  const ghostTestReadyUtc = smartBarVendorPickString(merged, ["ghostTestReadyUtc", "ghost_test_ready_utc", "GhostTestReadyUtc"]);
   const websiteModeStatus = smartBarVendorPickString(merged, ["websiteModeStatus", "website_mode_status", "WebsiteModeStatus"]);
   const lastVendorAction = smartBarVendorPickString(merged, ["lastVendorAction", "last_vendor_action", "LastVendorAction"]);
   const lastVendorActionUtc = smartBarVendorPickString(merged, ["lastVendorActionUtc", "last_vendor_action_utc", "LastVendorActionUtc"]);
@@ -160,6 +166,8 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     websiteSetupRequestedUtc,
     installStatus,
     installFinishedUtc,
+    ghostTestStatus,
+    ghostTestReadyUtc,
     websiteModeStatus,
     lastVendorAction,
     lastVendorActionUtc,

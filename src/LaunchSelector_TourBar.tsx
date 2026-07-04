@@ -70,7 +70,7 @@ type TourBotAuthResult = {
   vendorContext?: SmartBarVendorContext;
 };
 
-type SmartBarVendorAction = "sandbox_request" | "website_setup_request" | "website_install_finished";
+type SmartBarVendorAction = "sandbox_request" | "website_setup_request" | "website_install_finished" | "ghost_test_ready";
 
 function isLocalDemoAuthBypassEnabled() {
   if (typeof window === "undefined") return false;
@@ -1490,6 +1490,7 @@ function SmartBarRootWebsiteModeReadiness({
 }) {
   const [websiteRequested, setWebsiteRequested] = useState(false);
   const [installFinished, setInstallFinished] = useState(false);
+  const [ghostTestReady, setGhostTestReady] = useState(false);
   const [websiteActionSubmitting, setWebsiteActionSubmitting] = useState<SmartBarVendorAction | null>(null);
   const [websiteActionError, setWebsiteActionError] = useState("");
 
@@ -1498,9 +1499,9 @@ function SmartBarRootWebsiteModeReadiness({
   const mutedRow = "bg-slate-50/80 text-slate-500 ring-slate-200/70";
 
   const statusClass = (status: string) =>
-    status === "Pending"
+    status === "Pending" || status === "Pending review"
       ? "bg-amber-200 text-[#012169]"
-      : status === "Finished" || status === "Ready"
+      : status === "Finished" || status === "Ready" || status === "Ready for review"
         ? "bg-emerald-100 text-emerald-700"
         : status === "I'm finished"
           ? "bg-[#012169] text-white"
@@ -1509,6 +1510,7 @@ function SmartBarRootWebsiteModeReadiness({
   const vendorWebsiteSetupRequestStatus = String(vendorContext?.websiteSetupRequestStatus || "").trim().toLowerCase();
   const vendorWebsiteModeStatus = String(vendorContext?.websiteModeStatus || "").trim().toLowerCase();
   const vendorInstallStatus = String(vendorContext?.installStatus || "").trim().toLowerCase();
+  const vendorGhostTestStatus = String(vendorContext?.ghostTestStatus || "").trim().toLowerCase();
   const websiteWasRequested =
     websiteRequested ||
     Boolean(vendorContext?.websiteSetupRequestedUtc) ||
@@ -1518,7 +1520,13 @@ function SmartBarRootWebsiteModeReadiness({
     installFinished ||
     Boolean(vendorContext?.installFinishedUtc) ||
     vendorInstallStatus === "vendor_finished" ||
-    vendorWebsiteModeStatus === "installed_pending_verification";
+    vendorWebsiteModeStatus === "installed_pending_verification" ||
+    vendorWebsiteModeStatus === "ghost_test_ready_for_review";
+  const ghostTestWasReady =
+    ghostTestReady ||
+    Boolean(vendorContext?.ghostTestReadyUtc) ||
+    vendorGhostTestStatus === "ready_for_review" ||
+    vendorWebsiteModeStatus === "ghost_test_ready_for_review";
 
   const submitWebsiteAction = async (action: SmartBarVendorAction) => {
     if (websiteActionSubmitting) return;
@@ -1529,6 +1537,7 @@ function SmartBarRootWebsiteModeReadiness({
       const nextVendorContext = await submitSmartBarVendorAction(action, vendorContext);
       if (action === "website_setup_request") setWebsiteRequested(true);
       if (action === "website_install_finished") setInstallFinished(true);
+      if (action === "ghost_test_ready") setGhostTestReady(true);
       onVendorContextUpdate?.(nextVendorContext);
     } catch (error) {
       const reason = error instanceof Error && error.message ? error.message : "unknown_error";
@@ -1561,10 +1570,10 @@ function SmartBarRootWebsiteModeReadiness({
       number: 3,
       title: "Ghost test",
       detail: "Test before going live.",
-      status: installWasFinished ? "Pending" : websiteWasRequested ? "Waiting" : "Locked",
+      status: ghostTestWasReady ? "Pending review" : installWasFinished ? "Ready for review" : websiteWasRequested ? "Waiting" : "Locked",
       active: websiteWasRequested,
-      action: false,
-      actionType: "status",
+      action: installWasFinished && !ghostTestWasReady,
+      actionType: "ghostReady",
     },
   ];
 
@@ -1621,6 +1630,16 @@ function SmartBarRootWebsiteModeReadiness({
                 className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {websiteActionSubmitting === "website_install_finished" ? "Sending..." : "I'm finished"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            ) : step.action && step.actionType === "ghostReady" ? (
+              <button
+                type="button"
+                onClick={() => submitWebsiteAction("ghost_test_ready")}
+                disabled={websiteActionSubmitting !== null}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {websiteActionSubmitting === "ghost_test_ready" ? "Sending..." : "Ready for review"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             ) : (
