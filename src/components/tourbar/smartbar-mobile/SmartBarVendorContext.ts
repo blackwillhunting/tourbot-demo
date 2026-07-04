@@ -7,6 +7,12 @@ export type SmartBarVendorContext = {
   behaviorProfileId: string;
   boardProfileId: string;
   timezone: string;
+  onboardingStatus: string;
+  isReadyForOrders: boolean;
+  readyForOrdersUtc: string;
+  readyBy: string;
+  lastSmokeTestUtc: string;
+  lastSmokeTestStatus: string;
 };
 
 export const SMARTBAR_VENDOR_CONTEXT_STORAGE_KEY = "smartbar_vendor_context";
@@ -20,6 +26,12 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   behaviorProfileId: "burger-rush-smartbar-v1",
   boardProfileId: "standard-order-board-v1",
   timezone: "America/New_York",
+  onboardingStatus: "",
+  isReadyForOrders: false,
+  readyForOrdersUtc: "",
+  readyBy: "",
+  lastSmokeTestUtc: "",
+  lastSmokeTestStatus: "",
 });
 
 function smartBarVendorRecord(value: unknown): Record<string, unknown> {
@@ -50,6 +62,26 @@ function smartBarVendorPickString(source: Record<string, unknown>, keys: string[
   return "";
 }
 
+function smartBarVendorPickBoolean(source: Record<string, unknown>, keys: string[], fallback = false) {
+  const lowerKeyMap = new Map(Object.keys(source).map((key) => [key.toLowerCase(), key]));
+
+  for (const key of keys) {
+    const actualKey = Object.prototype.hasOwnProperty.call(source, key) ? key : lowerKeyMap.get(key.toLowerCase());
+    if (!actualKey) continue;
+
+    const value = source[actualKey];
+    if (typeof value === "boolean") return value;
+    if (typeof value === "number") return value !== 0;
+    if (typeof value === "string") {
+      const clean = value.trim().toLowerCase();
+      if (["true", "1", "yes", "y", "ready"].includes(clean)) return true;
+      if (["false", "0", "no", "n", ""].includes(clean)) return false;
+    }
+  }
+
+  return fallback;
+}
+
 function smartBarVendorNormalizePath(value: unknown) {
   const path = smartBarVendorCleanString(value);
   if (!path || path.startsWith("http://") || path.startsWith("https://") || path.includes("\\")) return "";
@@ -69,6 +101,12 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const behaviorProfileId = smartBarVendorPickString(merged, ["behaviorProfileId", "behavior_profile_id", "BehaviorProfileId"]) || `${clientId}-smartbar-v1`;
   const boardProfileId = smartBarVendorPickString(merged, ["boardProfileId", "board_profile_id", "BoardProfileId"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.boardProfileId;
   const timezone = smartBarVendorPickString(merged, ["timezone", "timeZone", "time_zone", "Timezone", "TimeZone"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.timezone;
+  const onboardingStatus = smartBarVendorPickString(merged, ["onboardingStatus", "onboarding_status", "OnboardingStatus"]);
+  const isReadyForOrders = smartBarVendorPickBoolean(merged, ["isReadyForOrders", "is_ready_for_orders", "readyForOrders", "ReadyForOrders", "IsReadyForOrders"]);
+  const readyForOrdersUtc = smartBarVendorPickString(merged, ["readyForOrdersUtc", "ready_for_orders_utc", "ReadyForOrdersUtc"]);
+  const readyBy = smartBarVendorPickString(merged, ["readyBy", "ready_by", "ReadyBy"]);
+  const lastSmokeTestUtc = smartBarVendorPickString(merged, ["lastSmokeTestUtc", "last_smoke_test_utc", "LastSmokeTestUtc"]);
+  const lastSmokeTestStatus = smartBarVendorPickString(merged, ["lastSmokeTestStatus", "last_smoke_test_status", "LastSmokeTestStatus"]);
 
   return {
     clientId,
@@ -79,6 +117,12 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     behaviorProfileId,
     boardProfileId,
     timezone,
+    onboardingStatus,
+    isReadyForOrders,
+    readyForOrdersUtc,
+    readyBy,
+    lastSmokeTestUtc,
+    lastSmokeTestStatus,
   };
 }
 

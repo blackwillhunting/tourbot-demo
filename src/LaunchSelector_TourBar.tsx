@@ -1188,13 +1188,24 @@ function SmartBarRootDemoLaunchButton({
   );
 }
 
-function SmartBarRootSandboxReadiness({ onBack, onOpenPlayground }: { onBack: () => void; onOpenPlayground: () => void }) {
+function SmartBarRootSandboxReadiness({
+  onBack,
+  onOpenPlayground,
+  vendorContext,
+}: {
+  onBack: () => void;
+  onOpenPlayground: () => void;
+  vendorContext?: SmartBarVendorContext | null;
+}) {
   const [sandboxRequested, setSandboxRequested] = useState(false);
   const [showTestInstructions, setShowTestInstructions] = useState(false);
-  const sandboxReadyOverride = useMemo(() => {
+  const queryReadyOverride = useMemo(() => {
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("sandboxReady") === "1";
   }, []);
+  const vendorOnboardingStatus = String(vendorContext?.onboardingStatus || "").trim().toLowerCase();
+  const vendorIsReadyForOrders = vendorContext?.isReadyForOrders === true || vendorOnboardingStatus === "ready";
+  const sandboxReadyOverride = queryReadyOverride || vendorIsReadyForOrders;
   const sandboxIsRequested = sandboxReadyOverride || sandboxRequested;
 
   const rowBase = "flex items-center justify-between gap-3 rounded-2xl px-3.5 py-3 ring-1";
@@ -1596,7 +1607,11 @@ function SmartBarRootLaunchMessage({
 
         {message.demoButtons && (
           activeUseItLane === "sandbox" ? (
-            <SmartBarRootSandboxReadiness onBack={() => setActiveUseItLane(null)} onOpenPlayground={() => setActiveUseItLane("playground")} />
+            <SmartBarRootSandboxReadiness
+              onBack={() => setActiveUseItLane(null)}
+              onOpenPlayground={() => setActiveUseItLane("playground")}
+              vendorContext={activeVendorContext}
+            />
           ) : activeUseItLane === "website" ? (
             <SmartBarRootWebsiteModeReadiness onBack={() => setActiveUseItLane(null)} />
           ) : activeUseItLane === "board" ? (
