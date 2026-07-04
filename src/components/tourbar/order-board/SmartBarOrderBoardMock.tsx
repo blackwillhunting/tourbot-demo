@@ -257,6 +257,7 @@ function SmartBarOrderTile({
   demoCompactBoard = false,
   demoFourTileBoard = false,
   demoFlatBoardTiles = false,
+  demoOperationalBoard = false,
   demoTapCue = false,
 }: {
   order: SmartBarOrderBoardItem;
@@ -265,6 +266,7 @@ function SmartBarOrderTile({
   demoCompactBoard?: boolean;
   demoFourTileBoard?: boolean;
   demoFlatBoardTiles?: boolean;
+  demoOperationalBoard?: boolean;
   demoTapCue?: boolean;
 }) {
   const isNew = order.status === "new";
@@ -277,15 +279,17 @@ function SmartBarOrderTile({
       data-smartbar-order-board-tile={order.id}
       data-smartbar-order-board-status={order.status}
       className={[
-        demoSocialPortrait
-          ? demoFlatBoardTiles
-            ? "group relative h-[1.25rem] w-full rounded-[10px] px-2 py-0 text-center transition"
-            : demoFourTileBoard
-              ? "group relative h-[4.75rem] w-full rounded-[20px] p-1.5 text-center transition"
-              : demoCompactBoard
-                ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
-                : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
-          : "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
+        demoOperationalBoard
+          ? "group relative h-[9.75rem] w-full rounded-[22px] p-2.5 text-center transition"
+          : demoSocialPortrait
+            ? demoFlatBoardTiles
+              ? "group relative h-[1.25rem] w-full rounded-[10px] px-2 py-0 text-center transition"
+              : demoFourTileBoard
+                ? "group relative h-[4.75rem] w-full rounded-[20px] p-1.5 text-center transition"
+                : demoCompactBoard
+                  ? "group relative h-[7.85rem] w-full rounded-[24px] p-2 text-center transition"
+                  : "group relative h-[9.3rem] w-full rounded-[28px] p-2.5 text-center transition"
+            : "group relative h-[11.75rem] w-[11.75rem] rounded-[28px] p-3 text-center transition max-[430px]:h-[10.25rem] max-[430px]:w-[10.25rem]",
         isNew
           ? "bg-white text-slate-950 shadow-[0_18px_38px_rgba(15,23,42,0.12)] ring-1 ring-white/80 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(15,23,42,0.16)]"
           : "bg-transparent text-slate-400 shadow-none ring-0",
@@ -301,12 +305,12 @@ function SmartBarOrderTile({
         </span>
       ) : (
         <span className="flex h-full flex-col items-center justify-center">
-          <span className={demoSocialPortrait ? demoFourTileBoard ? "text-[1.35rem] font-black tracking-tight" : demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
-          <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
+          <span className={demoOperationalBoard ? "text-[clamp(1.25rem,3.2vw,2.05rem)] font-black tracking-tight" : demoSocialPortrait ? demoFourTileBoard ? "text-[1.35rem] font-black tracking-tight" : demoCompactBoard ? "text-[1.86rem] font-black tracking-tight" : "text-[2.2rem] font-black tracking-tight" : "text-[clamp(1.35rem,4.8vw,2.7rem)] font-black tracking-tight"}>{order.id}</span>
+          <span className={demoOperationalBoard ? "mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400" : demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-slate-400" : "mt-0.5 text-[0.68rem] font-semibold uppercase tracking-[0.15em] text-slate-400" : "mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400"}>
             {isNew ? timeLabel(order.minutesAgo) : "entered"}
           </span>
           {isNew ? (
-            <span className={demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
+            <span className={demoOperationalBoard ? "mt-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400" : demoSocialPortrait ? demoFourTileBoard ? "mt-0 text-[0.52rem] font-semibold uppercase tracking-[0.10em] text-slate-400" : demoCompactBoard ? "mt-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-slate-400" : "mt-0 text-[0.68rem] font-semibold uppercase tracking-[0.13em] text-slate-400" : "mt-0.5 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400"}>
               {tileStatusLabel}
             </span>
           ) : null}
@@ -837,12 +841,14 @@ export default function SmartBarOrderBoardMock({
   return (
     <main
       className={[
-        "relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.20),_transparent_32%),linear-gradient(135deg,_#f8fbff_0%,_#e9f6ff_48%,_#f8fbff_100%)] px-4 py-5 text-slate-950 sm:px-6 sm:py-8",
+        demoOperationalBoard
+          ? "relative h-full min-h-0 overflow-hidden bg-transparent text-slate-950"
+          : "relative min-h-[100svh] overflow-x-hidden bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.20),_transparent_32%),linear-gradient(135deg,_#f8fbff_0%,_#e9f6ff_48%,_#f8fbff_100%)] px-4 py-5 text-slate-950 sm:px-6 sm:py-8",
         className,
       ].filter(Boolean).join(" ")}
     >
-      <div className={demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
-        <header className={demoSocialPortrait ? demoFlatBoardTiles ? "mb-1 flex items-start justify-between gap-2" : demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : demoOperationalBoard ? "mb-2 flex items-center justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
+      <div className={demoOperationalBoard ? "mx-auto flex h-full min-h-0 max-w-none flex-col" : demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
+        <header className={demoOperationalBoard ? "hidden" : demoSocialPortrait ? demoFlatBoardTiles ? "mb-1 flex items-start justify-between gap-2" : demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
           <div>
             <div className={demoFlatBoardTiles ? "text-[0.46rem] font-black uppercase leading-none tracking-[0.22em] text-sky-700" : demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : demoOperationalBoard ? "text-[0.62rem] font-black uppercase tracking-[0.22em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
             <h1 className={demoFlatBoardTiles ? "mt-0.5 inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur" : demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : demoOperationalBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1 text-base font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur sm:text-lg" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
@@ -882,9 +888,11 @@ export default function SmartBarOrderBoardMock({
           </div>
         </header>
 
-        <section className={demoSocialPortrait ? demoFlatBoardTiles ? "min-h-0" : "min-h-0 flex-1" : undefined}>
-          <div className={demoSocialPortrait
-            ? demoFlatBoardTiles
+        <section className={demoOperationalBoard ? "min-h-0 flex-1 overflow-y-auto px-1 py-1" : demoSocialPortrait ? demoFlatBoardTiles ? "min-h-0" : "min-h-0 flex-1" : undefined}>
+          <div className={demoOperationalBoard
+            ? "grid w-full grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] content-start gap-2 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]"
+            : demoSocialPortrait
+              ? demoFlatBoardTiles
               ? "grid w-full grid-cols-2 gap-x-1.5 gap-y-1"
               : demoFourTileBoard
                 ? "grid w-full grid-cols-2 gap-x-2 gap-y-2 content-start"
@@ -933,14 +941,14 @@ export default function SmartBarOrderBoardMock({
                     }
 
                     setActiveOrderId(nextOrder.id);
-                  }} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoFlatBoardTiles={demoFlatBoardTiles} demoTapCue={order.id === tapCueOrderId} />
+                  }} demoSocialPortrait={demoSocialPortrait} demoCompactBoard={demoCompactBoard} demoFourTileBoard={demoFourTileBoard} demoFlatBoardTiles={demoFlatBoardTiles} demoOperationalBoard={demoOperationalBoard} demoTapCue={order.id === tapCueOrderId} />
                 </motion.div>
               );
             })}
           </div>
         </section>
 
-        {!demoSocialPortrait ? (
+        {!demoSocialPortrait && !demoOperationalBoard ? (
           <footer className="mt-4 text-center text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
             White = needs entry - Blue = entered in POS
           </footer>
