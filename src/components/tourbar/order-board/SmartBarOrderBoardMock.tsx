@@ -15,6 +15,9 @@ export type SmartBarOrderBoardMockProps = {
   demoFourTileBoard?: boolean;
   /** Playground collapsed mode: use very flat tiles so the minimized board is not clipped. */
   demoFlatBoardTiles?: boolean;
+  /** Real vendor board mode: compact the header so order tiles dominate the screen. */
+  demoOperationalBoard?: boolean;
+  /** Real vendor board mode: compact the header so order tiles dominate the screen. */
   /** Playground mode: animate newly injected orders instead of popping them in. */
   demoAnimateIncomingOrders?: boolean;
   /** Playground mode: let the ticket sheet own the screen instead of staying inside the board frame. */
@@ -622,6 +625,7 @@ export default function SmartBarOrderBoardMock({
   demoCompactBoard = false,
   demoFourTileBoard = false,
   demoFlatBoardTiles = false,
+  demoOperationalBoard = false,
   demoAnimateIncomingOrders = false,
   demoPlaygroundSheet = false,
   onDemoOpenOrder,
@@ -838,13 +842,13 @@ export default function SmartBarOrderBoardMock({
       ].filter(Boolean).join(" ")}
     >
       <div className={demoSocialPortrait ? "mx-auto flex h-full max-w-none flex-col" : "mx-auto max-w-6xl"}>
-        <header className={demoSocialPortrait ? demoFlatBoardTiles ? "mb-1 flex items-start justify-between gap-2" : demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
+        <header className={demoSocialPortrait ? demoFlatBoardTiles ? "mb-1 flex items-start justify-between gap-2" : demoFourTileBoard ? "mb-2 flex items-start justify-between gap-2" : demoCompactBoard ? "mb-3 flex items-start justify-between gap-3" : "mb-6 flex items-start justify-between gap-3" : demoOperationalBoard ? "mb-2 flex items-center justify-between gap-3" : "mb-5 flex flex-col gap-3 sm:mb-7 sm:flex-row sm:items-end sm:justify-between"}>
           <div>
-            <div className={demoFlatBoardTiles ? "text-[0.46rem] font-black uppercase leading-none tracking-[0.22em] text-sky-700" : demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
-            <h1 className={demoFlatBoardTiles ? "mt-0.5 inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur" : demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
+            <div className={demoFlatBoardTiles ? "text-[0.46rem] font-black uppercase leading-none tracking-[0.22em] text-sky-700" : demoFourTileBoard ? "text-[0.64rem] font-black uppercase tracking-[0.24em] text-sky-700" : demoOperationalBoard ? "text-[0.62rem] font-black uppercase tracking-[0.22em] text-sky-700" : "text-xs font-black uppercase tracking-[0.28em] text-sky-700"}>SmartBar</div>
+            <h1 className={demoFlatBoardTiles ? "mt-0.5 inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-sm font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur" : demoFourTileBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1.5 text-lg font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur" : demoOperationalBoard ? "mt-1 inline-flex rounded-full bg-white/80 px-3 py-1 text-base font-black tracking-tight shadow-[0_10px_24px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur sm:text-lg" : "mt-2 inline-flex rounded-full bg-white/80 px-4 py-2 text-xl font-black tracking-tight shadow-[0_14px_34px_rgba(15,23,42,0.10)] ring-1 ring-white/80 backdrop-blur sm:text-2xl"}>
               Order Board
             </h1>
-            {!demoSocialPortrait ? (
+            {!demoSocialPortrait && !demoOperationalBoard ? (
               <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600 sm:text-base">
                 Tap SmartBar tickets, enter into the register, swipe away.
               </p>

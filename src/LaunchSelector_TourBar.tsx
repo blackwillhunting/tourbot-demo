@@ -1019,7 +1019,7 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "SmartBar",
     message:
-      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
+      "**Phone orders â†’ clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
     icon: SmartBarPhoneToTicketIcon,
     iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
     storyIcon: true,
@@ -1924,17 +1924,17 @@ function SmartBarRootLiveOrderBoardStatus({
 
   if (boardOpen && boardEnabled) {
     return (
-      <div className="mx-auto mt-6 max-w-5xl rounded-[24px] bg-white/92 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:mt-7 sm:p-5">
+      <div className="mx-auto mt-0 max-w-6xl rounded-[22px] bg-white/92 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
               Order Board
             </div>
-            <h3 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
+            <h3 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
               {activeVendorContext.displayName} Orders
             </h3>
             <div className="mt-1 text-sm font-semibold text-slate-500">
-              {newOrderCount} new · {handledCount} handled today
+              {newOrderCount} new Â· {handledCount} handled today
             </div>
           </div>
 
@@ -1964,16 +1964,17 @@ function SmartBarRootLiveOrderBoardStatus({
           </div>
         ) : null}
 
-        <div className="mt-4 overflow-hidden rounded-[28px] ring-1 ring-sky-100">
+        <div className="mt-2 overflow-hidden rounded-[24px] ring-1 ring-sky-100">
           <SmartBarOrderBoardMock
             demoOrders={orders}
             demoAnimateIncomingOrders
+            demoOperationalBoard
             onDemoEntered={(orderId) => {
               setOrders((current) => current.map((order) => (
                 order.id === orderId ? { ...order, status: "entered" } : order
               )));
             }}
-            className="!min-h-[560px] !px-4 !py-4"
+            className="!min-h-[640px] !px-3 !py-3 sm:!px-4 sm:!py-4"
           />
         </div>
       </div>
@@ -1996,14 +1997,14 @@ function SmartBarRootLiveOrderBoardStatus({
       number: 2,
       title: "New orders",
       detail: "Incoming tickets.",
-      status: boardEnabled ? `${newOrderCount} new` : "—",
+      status: boardEnabled ? `${newOrderCount} new` : "â€”",
       action: false,
     },
     {
       number: 3,
       title: "Handled today",
       detail: "Completed tickets.",
-      status: boardEnabled ? String(handledCount) : "—",
+      status: boardEnabled ? String(handledCount) : "â€”",
       action: false,
     },
   ];
@@ -2134,27 +2135,33 @@ function SmartBarRootLaunchMessage({
     );
   }
 
-  return (
-    <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-5 py-7 sm:px-10 sm:py-10`}>
-      <div className={`mx-auto ${message.demoButtons ? "max-w-4xl" : "max-w-2xl"}`}>
-        <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div
-            className={[
-              "flex shrink-0 items-center justify-center rounded-2xl ring-1",
-              isStoryIcon ? "h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10 sm:h-11 sm:w-11",
-              message.iconClass,
-            ].join(" ")}
-          >
-            <Icon className={isStoryIcon ? "h-8 w-8 sm:h-9 sm:w-9" : "h-5 w-5"} />
-          </div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            {message.label}
-          </div>
-        </div>
+  const isLiveBoardLane = activeUseItLane === "board";
 
-        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          {isWaving ? <SmartBarRootThinkingText body={message.message} /> : <SmartBarRootMarkdownText body={message.message} />}
-        </div>
+  return (
+    <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} ${isLiveBoardLane ? "px-3 py-3 sm:px-5 sm:py-4" : "px-5 py-7 sm:px-10 sm:py-10"}`}>
+      <div className={`mx-auto ${isLiveBoardLane ? "max-w-6xl" : message.demoButtons ? "max-w-4xl" : "max-w-2xl"}`}>
+        {!isLiveBoardLane ? (
+          <>
+            <div className="mb-4 flex items-center gap-3 sm:mb-5">
+              <div
+                className={[
+                  "flex shrink-0 items-center justify-center rounded-2xl ring-1",
+                  isStoryIcon ? "h-12 w-12 sm:h-14 sm:w-14" : "h-10 w-10 sm:h-11 sm:w-11",
+                  message.iconClass,
+                ].join(" ")}
+              >
+                <Icon className={isStoryIcon ? "h-8 w-8 sm:h-9 sm:w-9" : "h-5 w-5"} />
+              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                {message.label}
+              </div>
+            </div>
+
+            <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+              {isWaving ? <SmartBarRootThinkingText body={message.message} /> : <SmartBarRootMarkdownText body={message.message} />}
+            </div>
+          </>
+        ) : null}
 
         {message.demoButtons && (
           activeUseItLane === "sandbox" ? (
@@ -2306,7 +2313,7 @@ function SmartBarRootPasscodeChallenge({
                     ease: "easeInOut",
                   }}
                 >
-                  {character || "•"}
+                  {character || "â€¢"}
                 </motion.div>
               );
             }
@@ -2354,7 +2361,7 @@ function SmartBarRootPasscodeChallenge({
                   event.preventDefault();
                   updateFromIndex(index, event.clipboardData.getData("text"));
                 }}
-                placeholder="—"
+                placeholder="â€”"
                 type="text"
                 value={character}
               />
@@ -2999,7 +3006,7 @@ function SmartBarRootDemoSelector() {
 }
 
 function ThinkingCode({ value }: { value: string }) {
-  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "•").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
+  const characters = value.trim().padEnd(REQUIRED_PASSCODE_LENGTH, "â€¢").slice(0, REQUIRED_PASSCODE_LENGTH).split("");
 
   return (
     <div
