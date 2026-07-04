@@ -1934,7 +1934,7 @@ function SmartBarRootLiveOrderBoardStatus({
               {activeVendorContext.displayName} Orders
             </h3>
             <div className="mt-1 text-sm font-semibold text-slate-500">
-              {newOrderCount} new Â· {handledCount} handled today
+              {newOrderCount} new · {handledCount} handled today
             </div>
           </div>
 
@@ -1997,14 +1997,14 @@ function SmartBarRootLiveOrderBoardStatus({
       number: 2,
       title: "New orders",
       detail: "Incoming tickets.",
-      status: boardEnabled ? `${newOrderCount} new` : "â€”",
+      status: boardEnabled ? `${newOrderCount} new` : "-",
       action: false,
     },
     {
       number: 3,
       title: "Handled today",
       detail: "Completed tickets.",
-      status: boardEnabled ? String(handledCount) : "â€”",
+      status: boardEnabled ? String(handledCount) : "-",
       action: false,
     },
   ];
@@ -2361,7 +2361,7 @@ function SmartBarRootPasscodeChallenge({
                   event.preventDefault();
                   updateFromIndex(index, event.clipboardData.getData("text"));
                 }}
-                placeholder="â€”"
+                placeholder="-"
                 type="text"
                 value={character}
               />

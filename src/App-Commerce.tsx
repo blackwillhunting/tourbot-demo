@@ -516,16 +516,16 @@ const pageVisuals: Record<
     eyebrow: "Deal and upgrade routing",
     gradient: "from-violet-950 via-slate-900 to-rose-900",
     accent: "from-violet-950 to-rose-800",
-    metricA: "Business Â· leisure",
-    metricB: "Family Â· events",
+    metricA: "Business · leisure",
+    metricB: "Family · events",
     proof: "Layered add-ons",
   },
   amenities: {
     eyebrow: "Property knowledge layer",
     gradient: "from-emerald-950 via-slate-900 to-cyan-900",
     accent: "from-emerald-950 to-cyan-800",
-    metricA: "Dining Â· spa",
-    metricB: "Kids Â· conference",
+    metricA: "Dining · spa",
+    metricB: "Kids · conference",
     proof: "Explains recommendations",
   },
   booking: {
@@ -1154,7 +1154,7 @@ function formatBookingDateRange(checkIn: string, checkOut: string) {
     day: "numeric",
     year: "numeric",
   });
-  return `${startLabel}â€“${endLabel}`;
+  return `${startLabel}-${endLabel}`;
 }
 
 function tourBarGuestLabel(adults: number, children: number) {
@@ -1369,7 +1369,7 @@ function BookingMock({
               <div className="flex items-start justify-between gap-3">
                 <span>Room subtotal</span>
                 <strong className="text-slate-900">
-                  {roomMeta && nights ? `${bookingRateLabel(roomMeta.price, nights)} Â· ${formatBookingCurrency(roomSubtotal)}` : roomMeta?.price || "Pending"}
+                  {roomMeta && nights ? `${bookingRateLabel(roomMeta.price, nights)} · ${formatBookingCurrency(roomSubtotal)}` : roomMeta?.price || "Pending"}
                 </strong>
               </div>
               <div className="flex items-center justify-between gap-3">
@@ -1445,8 +1445,8 @@ function SectionCard({
   const isRecommendedStart = section.id === "room-business-king";
   const mobileChips = (section.tags || visual.chips).slice(0, 3);
   const mobileSignal = section.price
-    ? `${section.price} Â· ${visual.chips.slice(0, 2).join(" Â· ")}`
-    : visual.chips.slice(0, 2).join(" Â· ");
+    ? `${section.price} · ${visual.chips.slice(0, 2).join(" · ")}`
+    : visual.chips.slice(0, 2).join(" · ");
 
   return (
     <motion.section
