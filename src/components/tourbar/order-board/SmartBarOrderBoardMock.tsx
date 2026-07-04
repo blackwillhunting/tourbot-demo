@@ -280,7 +280,7 @@ function SmartBarOrderTile({
       data-smartbar-order-board-status={order.status}
       className={[
         demoOperationalBoard
-          ? "group relative h-[9.75rem] w-full rounded-[22px] p-2.5 text-center transition"
+          ? "group relative h-[8.5rem] w-full rounded-[22px] p-2.5 text-center transition"
           : demoSocialPortrait
             ? demoFlatBoardTiles
               ? "group relative h-[1.25rem] w-full rounded-[10px] px-2 py-0 text-center transition"
@@ -888,9 +888,9 @@ export default function SmartBarOrderBoardMock({
           </div>
         </header>
 
-        <section className={demoOperationalBoard ? "min-h-0 flex-1 overflow-y-auto px-1 py-1" : demoSocialPortrait ? demoFlatBoardTiles ? "min-h-0" : "min-h-0 flex-1" : undefined}>
+        <section className={demoOperationalBoard ? "min-h-0 flex-1 overflow-y-auto px-2 py-2 pb-6" : demoSocialPortrait ? demoFlatBoardTiles ? "min-h-0" : "min-h-0 flex-1" : undefined}>
           <div className={demoOperationalBoard
-            ? "grid w-full grid-cols-[repeat(auto-fill,minmax(10.5rem,1fr))] content-start gap-2 sm:grid-cols-[repeat(auto-fill,minmax(11rem,1fr))]"
+            ? "grid w-full grid-cols-[repeat(auto-fill,minmax(10.25rem,1fr))] content-start gap-2 pb-4 sm:grid-cols-[repeat(auto-fill,minmax(10.75rem,1fr))]"
             : demoSocialPortrait
               ? demoFlatBoardTiles
               ? "grid w-full grid-cols-2 gap-x-1.5 gap-y-1"

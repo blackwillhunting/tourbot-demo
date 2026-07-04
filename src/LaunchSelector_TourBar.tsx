@@ -1924,7 +1924,7 @@ function SmartBarRootLiveOrderBoardStatus({
 
   if (boardOpen && boardEnabled) {
     return (
-      <div className="mx-auto mt-0 flex h-[calc(100svh-92px)] min-h-[500px] max-w-6xl flex-col overflow-hidden rounded-[20px] bg-white/94 p-2 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:h-[calc(100svh-108px)]">
+      <div className="mx-auto mt-0 flex min-h-0 max-w-6xl flex-col overflow-hidden rounded-[20px] bg-white/94 p-2 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80" style={{ height: "min(820px, calc(100svh - 130px))" }}>
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-100/80 px-2 py-1.5">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <div className="shrink-0 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700">
@@ -1967,7 +1967,7 @@ function SmartBarRootLiveOrderBoardStatus({
           </div>
         ) : null}
 
-        <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[18px] bg-sky-50/70 ring-1 ring-sky-100">
+        <div className="mt-2 min-h-0 flex-1 overflow-hidden rounded-[18px] border border-sky-100 bg-sky-50/70 shadow-inner">
           <SmartBarOrderBoardMock
             demoOrders={orders}
             demoAnimateIncomingOrders
