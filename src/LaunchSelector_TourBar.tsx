@@ -150,6 +150,7 @@ function tourBotDemoPathIsFoodRoute(cleanPath: string) {
     cleanPath === "/burger-rush" ||
     cleanPath === "/burger-rush-play" ||
     cleanPath === "/smartbar-burgerrush" ||
+    cleanPath === "/smartbar-play" ||
     cleanPath === "/direct-ordering" ||
     cleanPath === "/foodtrio" ||
     cleanPath === "/food-trio" ||
@@ -952,6 +953,7 @@ function getSafeSmartBarRootReturnTo() {
       "/domi-play",
       "/smartbar-speed",
       "/smartbar-burgerrush",
+      "/smartbar-play",
       "/burger-rush",
       "/burger-rush-play",
       "/direct-ordering",

@@ -46,6 +46,7 @@ function isSmartBarHostname() {
 function smartBarSpeedVariantFromPath(path: string) {
   if (path === "/food-trio-desktop") return "foodTrioDesktop";
   return path === "/smartbar-burgerrush" ||
+    path === "/smartbar-play" ||
     path === "/burger-rush" ||
     path === "/burger-rush-play" ||
     path === "/direct-ordering"
@@ -407,7 +408,7 @@ function Router() {
     );
   }
 
-  if (path === "/smartbar-burgerrush") {
+  if (path === "/smartbar-burgerrush" || path === "/smartbar-play") {
     return (
       <ProtectedDemoRoute>
         <LaunchSelectorTourBar variant="burgerRushOnly" />
