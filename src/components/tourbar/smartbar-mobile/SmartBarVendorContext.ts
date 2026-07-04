@@ -23,6 +23,9 @@ export type SmartBarVendorContext = {
   ghostTestStatus: string;
   ghostTestReadyUtc: string;
   websiteModeStatus: string;
+  orderBoardEnabled: boolean;
+  liveApprovedUtc: string;
+  liveApprovedBy: string;
   lastVendorAction: string;
   lastVendorActionUtc: string;
 };
@@ -54,6 +57,9 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   ghostTestStatus: "",
   ghostTestReadyUtc: "",
   websiteModeStatus: "",
+  orderBoardEnabled: false,
+  liveApprovedUtc: "",
+  liveApprovedBy: "",
   lastVendorAction: "",
   lastVendorActionUtc: "",
 });
@@ -141,6 +147,9 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const ghostTestStatus = smartBarVendorPickString(merged, ["ghostTestStatus", "ghost_test_status", "GhostTestStatus"]);
   const ghostTestReadyUtc = smartBarVendorPickString(merged, ["ghostTestReadyUtc", "ghost_test_ready_utc", "GhostTestReadyUtc"]);
   const websiteModeStatus = smartBarVendorPickString(merged, ["websiteModeStatus", "website_mode_status", "WebsiteModeStatus"]);
+  const orderBoardEnabled = smartBarVendorPickBoolean(merged, ["orderBoardEnabled", "order_board_enabled", "OrderBoardEnabled"]);
+  const liveApprovedUtc = smartBarVendorPickString(merged, ["liveApprovedUtc", "live_approved_utc", "LiveApprovedUtc"]);
+  const liveApprovedBy = smartBarVendorPickString(merged, ["liveApprovedBy", "live_approved_by", "LiveApprovedBy"]);
   const lastVendorAction = smartBarVendorPickString(merged, ["lastVendorAction", "last_vendor_action", "LastVendorAction"]);
   const lastVendorActionUtc = smartBarVendorPickString(merged, ["lastVendorActionUtc", "last_vendor_action_utc", "LastVendorActionUtc"]);
 
@@ -169,6 +178,9 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     ghostTestStatus,
     ghostTestReadyUtc,
     websiteModeStatus,
+    orderBoardEnabled,
+    liveApprovedUtc,
+    liveApprovedBy,
     lastVendorAction,
     lastVendorActionUtc,
   };
