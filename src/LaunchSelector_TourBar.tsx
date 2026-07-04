@@ -38,7 +38,10 @@ const REQUIRED_PASSCODE_LENGTH = 6;
 
 const TOURBOT_AUTH_LOGIN_URL = "/api/tourbot-auth/login";
 const TOURBOT_AUTH_SESSION_URL = "/api/tourbot-auth/session";
-const SMARTBAR_VENDOR_ACTION_URL = "/api/smartbar/vendor-action";
+const SMARTBAR_VENDOR_ACTION_URLS = [
+  "/api/smartbar/vendor-action",
+  "https://tourbot.getn2ai.com/api/smartbar/vendor-action",
+] as const;
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
 const TOURBOT_AUTH_DEMO_PATH_KEY = "tourbot_demo_path";
@@ -429,35 +432,48 @@ async function submitSmartBarVendorAction(
     throw new Error("missing_session_token");
   }
 
-  const response = await fetch(SMARTBAR_VENDOR_ACTION_URL, {
-    method: "POST",
-    credentials: "include",
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ action, vendorContext }),
-  });
+  let lastFailureReason = "vendor_action_failed";
 
-  const body = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    vendorContext?: Partial<SmartBarVendorContext> | null;
-    item?: unknown;
-    demoPath?: string;
-    reason?: string;
-  };
+  for (const url of SMARTBAR_VENDOR_ACTION_URLS) {
+    try {
+      const isAbsoluteUrl = /^https?:\/\//i.test(url);
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: isAbsoluteUrl ? "omit" : "include",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action }),
+      });
 
-  if (!response.ok || body.ok !== true) {
-    throw new Error(body.reason || "vendor_action_failed");
+      const rawBody = await response.text().catch(() => "");
+      const body = (rawBody ? JSON.parse(rawBody) : {}) as {
+        ok?: boolean;
+        vendorContext?: Partial<SmartBarVendorContext> | null;
+        item?: unknown;
+        demoPath?: string;
+        reason?: string;
+      };
+
+      if (!response.ok || body.ok !== true) {
+        lastFailureReason = body.reason || `vendor_action_failed_${response.status}`;
+        continue;
+      }
+
+      const nextVendorContext = smartBarVendorContextFromAuthPayload(
+        body.vendorContext || body.item || vendorContext || {},
+        body.demoPath || vendorContext?.demoPath || "",
+      );
+      saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+      return nextVendorContext;
+    } catch (error) {
+      lastFailureReason = error instanceof Error ? error.message : "vendor_action_network_failed";
+    }
   }
 
-  const nextVendorContext = smartBarVendorContextFromAuthPayload(
-    body.vendorContext || body.item || vendorContext || {},
-    body.demoPath || vendorContext?.demoPath || "",
-  );
-  saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
-  return nextVendorContext;
+  throw new Error(lastFailureReason);
 }
 
 type PreludeSlip = SmartBarTutorCard;
@@ -1270,8 +1286,9 @@ function SmartBarRootSandboxReadiness({
       const nextVendorContext = await submitSmartBarVendorAction("sandbox_request", vendorContext);
       setSandboxRequested(true);
       onVendorContextUpdate?.(nextVendorContext);
-    } catch {
-      setSandboxRequestError("Request could not be sent. Try again.");
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "unknown_error";
+      setSandboxRequestError(`Request could not be sent: ${reason}`);
     } finally {
       setSandboxRequestSubmitting(false);
     }
@@ -1508,8 +1525,9 @@ function SmartBarRootWebsiteModeReadiness({
       if (action === "website_setup_request") setWebsiteRequested(true);
       if (action === "website_install_finished") setInstallFinished(true);
       onVendorContextUpdate?.(nextVendorContext);
-    } catch {
-      setWebsiteActionError("Request could not be sent. Try again.");
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "unknown_error";
+      setWebsiteActionError(`Request could not be sent: ${reason}`);
     } finally {
       setWebsiteActionSubmitting(null);
     }
