@@ -1252,7 +1252,7 @@ function SmartBarRootDemoLaunchButton({
 }) {
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
   const stepLabel = typeof stepNumber === "number" ? String(stepNumber).padStart(2, "0") : "";
-  const launchBaseClassName = "group flex h-full w-full items-start gap-3 rounded-[22px] px-4 py-3 text-left shadow-[0_14px_34px_rgba(1,33,105,0.18)] ring-1 transition sm:px-5 sm:py-4";
+  const launchBaseClassName = "group relative flex h-full min-h-[132px] w-full items-start gap-3 overflow-hidden rounded-[22px] px-4 py-3 text-left shadow-[0_14px_34px_rgba(1,33,105,0.18)] ring-1 transition sm:px-5 sm:py-4";
   const launchStateClassName = isDisabled
     ? "cursor-not-allowed bg-slate-50 text-slate-400 shadow-none ring-slate-200/80 hover:translate-y-0"
     : isComplete
@@ -1268,18 +1268,19 @@ function SmartBarRootDemoLaunchButton({
   const launchClassName = `${launchBaseClassName} ${launchStateClassName}`;
   const content = (
     <>
-      <div className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 transition ${iconClassName}`}>
+      <div className={`absolute left-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-2xl ring-1 transition ${iconClassName}`}>
         {stepLabel ? <span className="text-sm font-black tracking-tight">{stepLabel}</span> : <Icon className="h-5 w-5" />}
         {stepLabel ? <Icon className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 opacity-75" /> : null}
       </div>
-      <span className="min-w-0 flex-1">
-        <span className={`block text-[10px] font-semibold uppercase tracking-[0.12em] ${eyebrowClassName}`}>
+
+      <span className="block min-w-0 flex-1 pl-14 pr-20">
+        <span className={`block whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] ${eyebrowClassName}`}>
           {eyebrow}
         </span>
-        <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
+        <span className="mt-0.5 block whitespace-nowrap text-base font-semibold tracking-tight sm:text-lg">
           {title}
         </span>
-        <span className={`mt-0.5 block text-[13px] leading-5 sm:text-sm ${descriptionClassName}`}>
+        <span className={`mt-0.5 block whitespace-nowrap text-[13px] leading-5 sm:text-sm ${descriptionClassName}`}>
           {description}
         </span>
 
@@ -1315,16 +1316,17 @@ function SmartBarRootDemoLaunchButton({
           </span>
         )}
       </span>
+
       {isComplete ? (
-        <span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+        <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
         </span>
       ) : isDisabled ? (
-        <span className="mt-1 shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
+        <span className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
           {disabledLabel}
         </span>
       ) : (
-        <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+        <ArrowRight className="absolute right-5 top-9 h-5 w-5 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
       )}
     </>
   );
@@ -1351,6 +1353,7 @@ function SmartBarRootDemoLaunchButton({
     </a>
   );
 }
+
 function SmartBarRootSandboxReadiness({
   onBack,
   onOpenPlayground,
