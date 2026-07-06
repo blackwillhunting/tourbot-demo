@@ -1373,7 +1373,7 @@ function SmartBarRootSandboxReadiness({
 
   if (showTestInstructions) {
     const instructionRows = [
-      "Say or type an order",
+      "Tap to say or type your order",
       "Open the ticket",
       "Mark Ready or Needs Fix",
     ];

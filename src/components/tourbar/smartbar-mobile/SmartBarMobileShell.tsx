@@ -5078,12 +5078,12 @@ export default function SmartBarMobileShell({
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
             role="button"
             tabIndex={0}
-            aria-label="Dismiss SmartBar intro hint"
-            onClick={() => setIntroCalloutDismissed(true)}
+            aria-label="Open SmartBar entry"
+            onClick={handleCompanionClick}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                setIntroCalloutDismissed(true);
+                handleCompanionClick();
               }
             }}
             className="pointer-events-auto fixed inset-x-0 z-[10082] flex cursor-pointer justify-center px-0"
