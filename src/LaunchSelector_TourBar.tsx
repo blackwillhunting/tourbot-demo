@@ -1223,7 +1223,7 @@ function SmartBarRootProgressDots({ step, count }: { step: number; count: number
 
 function SmartBarRootDemoLaunchButton({
   href,
-  icon: Icon,
+  icon: _Icon,
   eyebrow,
   title,
   description,
@@ -1231,6 +1231,11 @@ function SmartBarRootDemoLaunchButton({
   steps,
   note,
   onSelect,
+  stepNumber,
+  state = "current",
+  stateLabel,
+  disabled = false,
+  disabledReason,
 }: {
   href?: string;
   icon: ComponentType<{ className?: string }>;
@@ -1241,35 +1246,101 @@ function SmartBarRootDemoLaunchButton({
   steps?: string[];
   note?: string;
   onSelect?: () => void;
+  stepNumber?: number;
+  state?: "current" | "complete" | "pending" | "locked" | "ready";
+  stateLabel?: string;
+  disabled?: boolean;
+  disabledReason?: string;
 }) {
+  const isLocked = state === "locked";
+  const isDisabled = disabled || isLocked;
+  const isComplete = state === "complete";
+  const isPending = state === "pending";
+  const isReady = state === "ready";
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
-  const launchClassName = "group flex h-full w-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
+  const displayStateLabel = stateLabel || statusLabel || (isComplete ? "Complete" : isLocked ? "Locked" : isPending ? "In progress" : isReady ? "Ready" : "Next step");
+
+  const launchClassName = [
+    "group flex h-full w-full items-stretch gap-3 rounded-[24px] px-4 py-4 text-left shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 transition sm:px-5 sm:py-5",
+    isLocked
+      ? "cursor-not-allowed bg-slate-50 text-slate-400 ring-slate-200/75"
+      : isComplete
+        ? "bg-white text-slate-950 ring-emerald-200 hover:-translate-y-0.5 hover:ring-emerald-300 hover:shadow-[0_18px_42px_rgba(16,185,129,0.14)]"
+        : isPending
+          ? "bg-white text-slate-950 ring-amber-200 hover:-translate-y-0.5 hover:ring-amber-300 hover:shadow-[0_18px_42px_rgba(245,158,11,0.13)]"
+          : "bg-[#012169] text-white ring-[#012169]/10 hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)]",
+    isDisabled && !isLocked ? "cursor-default hover:translate-y-0" : "",
+  ].join(" ");
+
+  const numberClassName = [
+    "flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-[22px] ring-1 sm:h-20 sm:w-20",
+    isLocked
+      ? "bg-white text-slate-300 ring-slate-200"
+      : isComplete
+        ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+        : isPending
+          ? "bg-amber-50 text-amber-700 ring-amber-100"
+          : "bg-white/16 text-white ring-white/18",
+  ].join(" ");
+
+  const eyebrowClassName = isLocked ? "text-slate-400" : isComplete ? "text-emerald-700" : isPending ? "text-amber-700" : "text-sky-100/82";
+  const descriptionClassName = isLocked ? "text-slate-400" : isComplete || isPending ? "text-slate-500" : "text-sky-100/86";
+  const badgeClassName = [
+    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ring-1",
+    isLocked
+      ? "bg-white text-slate-400 ring-slate-200"
+      : isComplete
+        ? "bg-emerald-100 text-emerald-700 ring-emerald-200/80"
+        : isPending
+          ? "bg-amber-100 text-amber-800 ring-amber-200/80"
+          : "bg-white/16 text-white ring-white/18",
+  ].join(" ");
+
   const content = (
     <>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
-        <Icon className="h-5 w-5" />
+      <div className={numberClassName} aria-hidden="true">
+        <span className="text-[9px] font-black uppercase tracking-[0.12em] opacity-70">Step</span>
+        <span className="text-3xl font-black leading-none tracking-tight sm:text-4xl">
+          {String(stepNumber || 1).padStart(2, "0")}
+        </span>
       </div>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/82">
-          {eyebrow}
+
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="flex items-start justify-between gap-3">
+          <span className="min-w-0">
+            <span className={`block text-[10px] font-semibold uppercase tracking-[0.12em] ${eyebrowClassName}`}>
+              {eyebrow}
+            </span>
+            <span className="mt-0.5 block text-lg font-black tracking-tight sm:text-xl">
+              {title}
+            </span>
+          </span>
+          <span className={badgeClassName}>
+            {isComplete ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+            {displayStateLabel}
+          </span>
         </span>
-        <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
+
+        <span className={`mt-2 block text-[13px] leading-5 sm:text-sm ${descriptionClassName}`}>
           {description}
         </span>
 
-        {hasStatusChecklist && (
+        {disabledReason ? (
+          <span className="mt-3 block rounded-2xl bg-white/70 px-3 py-2 text-[11px] font-semibold leading-4 text-slate-400 ring-1 ring-slate-200/70">
+            {disabledReason}
+          </span>
+        ) : null}
+
+        {hasStatusChecklist && !disabledReason ? (
           <span className="mt-3 block rounded-[18px] bg-white/10 p-3 ring-1 ring-white/15">
-            {statusLabel && (
+            {statusLabel && !stateLabel ? (
               <span className="mb-2 flex items-center justify-between gap-3 rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-sky-50/80">
                 <span>Status</span>
                 <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[10px] text-[#012169]">
                   {statusLabel}
                 </span>
               </span>
-            )}
+            ) : null}
 
             {steps?.length ? (
               <span className="grid gap-1.5">
@@ -1290,18 +1361,29 @@ function SmartBarRootDemoLaunchButton({
               </span>
             )}
           </span>
-        )}
+        ) : null}
       </span>
-      <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+
+      {isLocked ? (
+        <XCircle className="mt-1 h-5 w-5 shrink-0 text-slate-300" />
+      ) : isDisabled ? (
+        <span className="mt-1 h-5 w-5 shrink-0" aria-hidden="true" />
+      ) : (
+        <ArrowRight className={`mt-1 h-5 w-5 shrink-0 transition group-hover:translate-x-0.5 ${isComplete || isPending ? "text-slate-300 group-hover:text-slate-500" : "text-sky-100/82 group-hover:text-white"}`} />
+      )}
     </>
   );
 
   if (onSelect) {
     return (
-      <button type="button" onClick={onSelect} className={launchClassName}>
+      <button type="button" onClick={isDisabled ? undefined : onSelect} disabled={isDisabled} className={launchClassName}>
         {content}
       </button>
     );
+  }
+
+  if (isDisabled) {
+    return <div className={launchClassName}>{content}</div>;
   }
 
   return (
@@ -1310,6 +1392,7 @@ function SmartBarRootDemoLaunchButton({
     </a>
   );
 }
+
 function SmartBarRootSandboxReadiness({
   onBack,
   onOpenPlayground,
@@ -2130,6 +2213,36 @@ function SmartBarRootLaunchMessage({
     };
   }, [activeUseItLane, refreshActiveVendorContext]);
 
+  const launchVendorContext = normalizeSmartBarVendorContext(activeVendorContext);
+  const launchOnboardingStatus = String(launchVendorContext.onboardingStatus || "").trim().toLowerCase();
+  const launchSandboxRequestStatus = String(launchVendorContext.sandboxRequestStatus || "").trim().toLowerCase();
+  const launchSandboxStatus = String(launchVendorContext.sandboxStatus || "").trim().toLowerCase();
+  const launchWebsiteSetupRequestStatus = String(launchVendorContext.websiteSetupRequestStatus || "").trim().toLowerCase();
+  const launchWebsiteModeStatus = String(launchVendorContext.websiteModeStatus || "").trim().toLowerCase();
+  const launchInstallStatus = String(launchVendorContext.installStatus || "").trim().toLowerCase();
+  const launchGhostTestStatus = String(launchVendorContext.ghostTestStatus || "").trim().toLowerCase();
+  const launchSandboxDone =
+    launchVendorContext.isReadyForOrders === true ||
+    launchOnboardingStatus === "ready" ||
+    Boolean(launchVendorContext.sandboxRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(launchSandboxRequestStatus) ||
+    ["requested", "ready"].includes(launchSandboxStatus);
+  const launchWebsiteStarted =
+    Boolean(launchVendorContext.websiteSetupRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(launchWebsiteSetupRequestStatus) ||
+    ["requested", "installed_pending_verification", "ghost_test_ready_for_review", "ready", "live"].includes(launchWebsiteModeStatus) ||
+    launchInstallStatus === "vendor_finished" ||
+    ["ready_for_review", "approved"].includes(launchGhostTestStatus);
+  const launchWebsiteApproved = launchGhostTestStatus === "approved" || launchWebsiteModeStatus === "live";
+  const launchOrderBoardReady = smartBarLiveOrderBoardIsEnabled(launchVendorContext);
+  const launchNextStepLabel = !launchSandboxDone
+    ? "Next: Step 1"
+    : !launchWebsiteStarted
+      ? "Next: Step 2"
+      : !launchOrderBoardReady
+        ? "Waiting for approval"
+        : "Ready for live orders";
+
   if (activeUseItLane === "playground") {
     return (
       <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
@@ -2183,28 +2296,57 @@ function SmartBarRootLaunchMessage({
           ) : activeUseItLane === "board" ? (
             <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} vendorContext={activeVendorContext} />
           ) : (
-            <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
-              <SmartBarRootDemoLaunchButton
-                icon={ShoppingCart}
-                eyebrow="Private Testing"
-                title="Sandbox"
-                description="Test orders."
-                onSelect={() => setActiveUseItLane("sandbox")}
-              />
-              <SmartBarRootDemoLaunchButton
-                icon={ShieldCheck}
-                eyebrow="Website Mode"
-                title="Website Mode"
-                description="Connect site."
-                onSelect={() => setActiveUseItLane("website")}
-              />
-              <SmartBarRootDemoLaunchButton
-                icon={ReceiptText}
-                eyebrow="Live Orders"
-                title="Order Board"
-                description="Live orders."
-                onSelect={() => setActiveUseItLane("board")}
-              />
+            <div className="mt-7 rounded-[30px] bg-white/58 p-3 shadow-[0_18px_44px_rgba(15,23,42,0.06)] ring-1 ring-white/80 sm:mt-8 sm:p-4">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
+                    Launch checklist
+                  </div>
+                  <div className="mt-0.5 text-sm font-semibold text-slate-500">
+                    Complete the steps in order. Only the next useful action is enabled.
+                  </div>
+                </div>
+                <div className="inline-flex items-center rounded-full bg-[#012169] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.08em] text-white shadow-[0_10px_24px_rgba(1,33,105,0.16)]">
+                  {launchNextStepLabel}
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+                <SmartBarRootDemoLaunchButton
+                  stepNumber={1}
+                  icon={ShoppingCart}
+                  eyebrow="Private Testing"
+                  title="Sandbox"
+                  description="Test SmartBar privately before touching your live site."
+                  state={launchSandboxDone ? "complete" : "current"}
+                  stateLabel={launchSandboxDone ? "Complete" : "Start here"}
+                  onSelect={() => setActiveUseItLane("sandbox")}
+                />
+                <SmartBarRootDemoLaunchButton
+                  stepNumber={2}
+                  icon={ShieldCheck}
+                  eyebrow="Website Mode"
+                  title="Website Mode"
+                  description="Add the code, reveal Ghost Mode, and send the test for review."
+                  state={launchWebsiteApproved ? "complete" : launchWebsiteStarted ? "pending" : launchSandboxDone ? "current" : "locked"}
+                  stateLabel={launchWebsiteApproved ? "Complete" : launchWebsiteStarted ? "In progress" : launchSandboxDone ? "Next step" : "Locked"}
+                  disabled={!launchSandboxDone}
+                  disabledReason={!launchSandboxDone ? "Finish Step 1 first." : undefined}
+                  onSelect={() => setActiveUseItLane("website")}
+                />
+                <SmartBarRootDemoLaunchButton
+                  stepNumber={3}
+                  icon={ReceiptText}
+                  eyebrow="Live Orders"
+                  title="Order Board"
+                  description="Open the cashier board when live tickets are approved."
+                  state={launchOrderBoardReady ? "ready" : launchWebsiteStarted ? "pending" : "locked"}
+                  stateLabel={launchOrderBoardReady ? "Ready" : launchWebsiteStarted ? "Admin approval" : "Locked"}
+                  disabled={!launchOrderBoardReady}
+                  disabledReason={!launchOrderBoardReady ? (launchWebsiteStarted ? "Available after ghost test approval." : "Finish Step 2 first.") : undefined}
+                  onSelect={() => setActiveUseItLane("board")}
+                />
+              </div>
             </div>
           )
         )}
