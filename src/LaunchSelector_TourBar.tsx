@@ -1231,6 +1231,10 @@ function SmartBarRootDemoLaunchButton({
   steps,
   note,
   onSelect,
+  stepNumber,
+  isComplete = false,
+  isDisabled = false,
+  disabledLabel = "Locked",
 }: {
   href?: string;
   icon: ComponentType<{ className?: string }>;
@@ -1241,22 +1245,41 @@ function SmartBarRootDemoLaunchButton({
   steps?: string[];
   note?: string;
   onSelect?: () => void;
+  stepNumber?: number;
+  isComplete?: boolean;
+  isDisabled?: boolean;
+  disabledLabel?: string;
 }) {
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
-  const launchClassName = "group flex h-full w-full items-start gap-3 rounded-[22px] bg-[#012169] px-4 py-3 text-left text-white shadow-[0_14px_34px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)] sm:px-5 sm:py-4";
+  const stepLabel = typeof stepNumber === "number" ? String(stepNumber).padStart(2, "0") : "";
+  const launchBaseClassName = "group flex h-full w-full items-start gap-3 rounded-[22px] px-4 py-3 text-left shadow-[0_14px_34px_rgba(1,33,105,0.18)] ring-1 transition sm:px-5 sm:py-4";
+  const launchStateClassName = isDisabled
+    ? "cursor-not-allowed bg-slate-50 text-slate-400 shadow-none ring-slate-200/80 hover:translate-y-0"
+    : isComplete
+      ? "bg-emerald-600 text-white ring-emerald-500/20 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_20px_46px_rgba(22,101,52,0.24)]"
+      : "bg-[#012169] text-white ring-transparent hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)]";
+  const iconClassName = isDisabled
+    ? "bg-white text-slate-400 ring-slate-200"
+    : isComplete
+      ? "bg-white/18 text-white ring-white/18 group-hover:bg-white/24"
+      : "bg-[#eaf3ff]/18 text-white ring-white/16 group-hover:bg-white/22";
+  const eyebrowClassName = isDisabled ? "text-slate-400" : isComplete ? "text-emerald-50/86" : "text-sky-100/82";
+  const descriptionClassName = isDisabled ? "text-slate-400" : isComplete ? "text-emerald-50/90" : "text-sky-100/86";
+  const launchClassName = `${launchBaseClassName} ${launchStateClassName}`;
   const content = (
     <>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#eaf3ff]/18 text-white ring-1 ring-white/16 transition group-hover:bg-white/22">
-        <Icon className="h-5 w-5" />
+      <div className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 transition ${iconClassName}`}>
+        {stepLabel ? <span className="text-sm font-black tracking-tight">{stepLabel}</span> : <Icon className="h-5 w-5" />}
+        {stepLabel ? <Icon className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 opacity-75" /> : null}
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-100/82">
+        <span className={`block text-[10px] font-semibold uppercase tracking-[0.12em] ${eyebrowClassName}`}>
           {eyebrow}
         </span>
         <span className="mt-0.5 block text-base font-semibold tracking-tight sm:text-lg">
           {title}
         </span>
-        <span className="mt-0.5 block text-[13px] leading-5 text-sky-100/86 sm:text-sm">
+        <span className={`mt-0.5 block text-[13px] leading-5 sm:text-sm ${descriptionClassName}`}>
           {description}
         </span>
 
@@ -1292,15 +1315,33 @@ function SmartBarRootDemoLaunchButton({
           </span>
         )}
       </span>
-      <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+      {isComplete ? (
+        <span className="mt-1 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+          <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+      ) : isDisabled ? (
+        <span className="mt-1 shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
+          {disabledLabel}
+        </span>
+      ) : (
+        <ArrowRight className="mt-2 h-5 w-5 shrink-0 text-sky-100/82 transition group-hover:translate-x-0.5 group-hover:text-white" />
+      )}
     </>
   );
 
   if (onSelect) {
     return (
-      <button type="button" onClick={onSelect} className={launchClassName}>
+      <button type="button" onClick={isDisabled ? undefined : onSelect} disabled={isDisabled} className={launchClassName} aria-disabled={isDisabled}>
         {content}
       </button>
+    );
+  }
+
+  if (isDisabled) {
+    return (
+      <span className={launchClassName} aria-disabled="true">
+        {content}
+      </span>
     );
   }
 
@@ -2139,6 +2180,25 @@ function SmartBarRootLaunchMessage({
   }
 
   const isLiveBoardLane = activeUseItLane === "board";
+  const useItVendorContext = normalizeSmartBarVendorContext(activeVendorContext);
+  const useItOnboardingStatus = String(useItVendorContext.onboardingStatus || "").trim().toLowerCase();
+  const useItSandboxRequestStatus = String(useItVendorContext.sandboxRequestStatus || "").trim().toLowerCase();
+  const useItSandboxStatus = String(useItVendorContext.sandboxStatus || "").trim().toLowerCase();
+  const useItGhostTestStatus = String(useItVendorContext.ghostTestStatus || "").trim().toLowerCase();
+  const useItWebsiteModeStatus = String(useItVendorContext.websiteModeStatus || "").trim().toLowerCase();
+  const useItVendorReady = useItVendorContext.isReadyForOrders === true || useItOnboardingStatus === "ready";
+  const useItSandboxComplete =
+    useItVendorReady ||
+    Boolean(useItVendorContext.sandboxRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(useItSandboxRequestStatus) ||
+    ["requested", "ready"].includes(useItSandboxStatus);
+  const useItLiveBoardReady = smartBarLiveOrderBoardIsEnabled(useItVendorContext);
+  const useItWebsiteComplete =
+    useItLiveBoardReady ||
+    useItGhostTestStatus === "approved" ||
+    useItWebsiteModeStatus === "live";
+  const useItWebsiteEnabled = useItSandboxComplete;
+  const useItBoardEnabled = useItLiveBoardReady;
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} ${isLiveBoardLane ? "px-2 py-1 sm:px-4 sm:py-2" : "px-5 py-7 sm:px-10 sm:py-10"}`}>
@@ -2189,6 +2249,8 @@ function SmartBarRootLaunchMessage({
                 eyebrow="Private Testing"
                 title="Sandbox"
                 description="Test orders."
+                stepNumber={1}
+                isComplete={useItSandboxComplete}
                 onSelect={() => setActiveUseItLane("sandbox")}
               />
               <SmartBarRootDemoLaunchButton
@@ -2196,6 +2258,10 @@ function SmartBarRootLaunchMessage({
                 eyebrow="Website Mode"
                 title="Website Mode"
                 description="Connect site."
+                stepNumber={2}
+                isComplete={useItWebsiteComplete}
+                isDisabled={!useItWebsiteEnabled}
+                disabledLabel="Step 1 first"
                 onSelect={() => setActiveUseItLane("website")}
               />
               <SmartBarRootDemoLaunchButton
@@ -2203,6 +2269,10 @@ function SmartBarRootLaunchMessage({
                 eyebrow="Live Orders"
                 title="Order Board"
                 description="Live orders."
+                stepNumber={3}
+                isComplete={useItLiveBoardReady}
+                isDisabled={!useItBoardEnabled}
+                disabledLabel={useItWebsiteEnabled ? "Step 2 first" : "Locked"}
                 onSelect={() => setActiveUseItLane("board")}
               />
             </div>
