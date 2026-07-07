@@ -1,7 +1,8 @@
-import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
+﻿import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
 import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import SmartBarTeaserPage from "./SmartBarTeaserPage";
 import AppCommerce from "./App-Commerce";
 import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
@@ -207,6 +208,10 @@ function SmartBarMobileOnRealInformationalSite() {
 
 function Router() {
   const path = normalizedPath();
+
+  if (path === "/smartbar-teaser" || path === "/local-smartbar-teaser-page") {
+    return <SmartBarTeaserPage />;
+  }
 
 
   if (path === "/social/smartbar-pizza" || path === "/smartbar-pizza" || path === "/local-social-smartbar-pizza" || path === "/pizza-demo") {
