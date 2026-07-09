@@ -278,6 +278,28 @@ function shouldOpenSmartBarRootDemoLobbyFromReturn() {
   return params.get("smartbarReturn") === "demos";
 }
 
+function shouldOpenSmartBarSubscriptionSuccessReturn() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("subscription") === "success";
+}
+
+function cleanupSmartBarSubscriptionReturnUrl() {
+  if (typeof window === "undefined") return;
+
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("subscription")) return;
+
+  params.delete("subscription");
+  const nextSearch = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`,
+  );
+}
+
 function shouldSkipFitsAnywhereAnimationOnPhone() {
   if (typeof window === "undefined") return false;
 
@@ -1810,6 +1832,11 @@ function SmartBarRootWebsiteModeReadiness({
     Boolean(vendorContext?.ghostTestReadyUtc) ||
     vendorGhostTestStatus === "ready_for_review" ||
     vendorWebsiteModeStatus === "ghost_test_ready_for_review";
+  const setupRequestWasCompleted =
+    installWasFinished ||
+    ghostTestWasReady ||
+    ghostTestWasApproved ||
+    vendorWebsiteModeStatus === "live";
 
   const submitWebsiteAction = async (action: SmartBarVendorAction) => {
     if (websiteActionSubmitting) return;
@@ -1835,9 +1862,9 @@ function SmartBarRootWebsiteModeReadiness({
       number: 1,
       title: "Request setup",
       detail: "Prepare install code.",
-      status: websiteWasRequested ? "Pending" : "Request",
+      status: setupRequestWasCompleted ? "Finished" : websiteWasRequested ? "Pending" : "Request",
       active: true,
-      action: !websiteWasRequested,
+      action: !websiteWasRequested && !setupRequestWasCompleted,
       actionType: "request",
     },
     {
@@ -2503,14 +2530,16 @@ function SmartBarRootLaunchMessage({
   message,
   step,
   isWaving,
+  initialUseItLane = null,
 }: {
   message: SmartBarRootDemoMessage;
   step: number;
   isWaving: boolean;
+  initialUseItLane?: "board" | null;
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
-  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(null);
+  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(() => initialUseItLane);
   const [activeVendorContext, setActiveVendorContext] = useState(() => getStoredSmartBarVendorContext());
 
   const handleVendorContextUpdate = useCallback((nextVendorContext: SmartBarVendorContext) => {
@@ -2901,6 +2930,7 @@ function SmartBarRootRestaurantPreview({
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
+  const [subscriptionSuccessReturn] = useState(() => shouldOpenSmartBarSubscriptionSuccessReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -3072,6 +3102,16 @@ function SmartBarRootDemoSelector() {
 
       if (result.accepted) {
         if (redirectToSafeSmartBarRootReturnTo()) return;
+
+        if (subscriptionSuccessReturn) {
+          cleanupSmartBarSubscriptionReturnUrl();
+          setHasAccess(true);
+          setGateView("challenge");
+          setStep(useItStep >= 0 ? useItStep : 1);
+          setWavingIndex(null);
+          setIsSessionChecking(false);
+          return;
+        }
 
         cleanupResetAccessUrl();
         setHasAccess(true);
@@ -3384,6 +3424,7 @@ function SmartBarRootDemoSelector() {
                       message={item.message}
                       step={item.sourceIndex}
                       isWaving={wavingIndex === index}
+                      initialUseItLane={subscriptionSuccessReturn && item.sourceIndex === 1 ? "board" : null}
                     />
                   )}
 
