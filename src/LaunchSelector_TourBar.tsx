@@ -278,11 +278,11 @@ function shouldOpenSmartBarRootDemoLobbyFromReturn() {
   return params.get("smartbarReturn") === "demos";
 }
 
-function shouldOpenSmartBarSubscriptionSuccessReturn() {
+function shouldOpenSmartBarSubscriptionReturn() {
   if (typeof window === "undefined") return false;
 
   const params = new URLSearchParams(window.location.search);
-  return params.get("subscription") === "success";
+  return ["success", "cancel", "payment-method-return"].includes(params.get("subscription") || "");
 }
 
 function cleanupSmartBarSubscriptionReturnUrl() {
@@ -2930,7 +2930,7 @@ function SmartBarRootRestaurantPreview({
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
-  const [subscriptionSuccessReturn] = useState(() => shouldOpenSmartBarSubscriptionSuccessReturn());
+  const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -3103,7 +3103,7 @@ function SmartBarRootDemoSelector() {
       if (result.accepted) {
         if (redirectToSafeSmartBarRootReturnTo()) return;
 
-        if (subscriptionSuccessReturn) {
+        if (subscriptionReturn) {
           cleanupSmartBarSubscriptionReturnUrl();
           setHasAccess(true);
           setGateView("challenge");
@@ -3424,7 +3424,7 @@ function SmartBarRootDemoSelector() {
                       message={item.message}
                       step={item.sourceIndex}
                       isWaving={wavingIndex === index}
-                      initialUseItLane={subscriptionSuccessReturn && item.sourceIndex === 1 ? "board" : null}
+                      initialUseItLane={subscriptionReturn && item.sourceIndex === 1 ? "board" : null}
                     />
                   )}
 
