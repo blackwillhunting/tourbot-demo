@@ -56,6 +56,10 @@ const SMARTBAR_SUBSCRIPTION_PORTAL_URLS = [
   "/api/smartbar/subscription/portal",
   "https://tourbot.getn2ai.com/api/smartbar/subscription/portal",
 ] as const;
+const SMARTBAR_SUBSCRIPTION_CANCEL_URLS = [
+  "/api/smartbar/subscription/cancel",
+  "https://tourbot.getn2ai.com/api/smartbar/subscription/cancel",
+] as const;
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
@@ -614,6 +618,50 @@ function createSmartBarSubscriptionPortalUrl() {
     SMARTBAR_SUBSCRIPTION_PORTAL_URLS,
     "subscription_portal_failed",
   );
+}
+
+async function cancelSmartBarSubscription(): Promise<Partial<SmartBarVendorContext>> {
+  const token = getStoredTourBotDemoToken();
+  if (!token) {
+    throw new Error("missing_session_token");
+  }
+
+  let lastFailureReason = "subscription_cancel_failed";
+
+  for (const url of SMARTBAR_SUBSCRIPTION_CANCEL_URLS) {
+    try {
+      const isAbsoluteUrl = /^https?:\/\//i.test(url);
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: isAbsoluteUrl ? "omit" : "include",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+
+      const rawBody = await response.text().catch(() => "");
+      const body = (rawBody ? JSON.parse(rawBody) : {}) as Partial<SmartBarVendorContext> & {
+        ok?: boolean;
+        reason?: string;
+        message?: string;
+      };
+
+      if (!response.ok || body.ok !== true) {
+        lastFailureReason = body.reason || body.message || `subscription_cancel_failed_${response.status}`;
+        continue;
+      }
+
+      return body;
+    } catch (error) {
+      lastFailureReason = error instanceof Error ? error.message : "subscription_cancel_network_failed";
+    }
+  }
+
+  throw new Error(lastFailureReason);
 }
 
 type PreludeSlip = SmartBarTutorCard;
@@ -2004,20 +2052,36 @@ function smartBarLiveBoardTicketToOrder(ticket: SmartBarLiveBoardTicket, vendorC
   };
 }
 
+function formatSmartBarSubscriptionDate(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(parsed);
+}
+
 function SmartBarRootLiveOrderBoardStatus({
   onBack,
   vendorContext,
+  onVendorContextUpdate,
 }: {
   onBack: () => void;
   vendorContext?: SmartBarVendorContext | null;
+  onVendorContextUpdate?: (nextVendorContext: SmartBarVendorContext) => void;
 }) {
   const activeVendorContext = useMemo(() => normalizeSmartBarVendorContext(vendorContext), [vendorContext]);
   const [boardOpen, setBoardOpen] = useState(false);
   const [orders, setOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | null>(null);
+  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | "cancel" | null>(null);
   const [billingError, setBillingError] = useState("");
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [cancelSuccess, setCancelSuccess] = useState("");
   const operationalBoardEnabled = smartBarLiveOrderBoardIsEnabled(activeVendorContext);
   const subscriptionStatus = String(activeVendorContext.subscriptionStatus || "").trim().toLowerCase();
   const subscriptionActive =
@@ -2025,6 +2089,8 @@ function SmartBarRootLiveOrderBoardStatus({
     (subscriptionStatus === "" && activeVendorContext.subscriptionActive === true);
   const subscriptionPaymentIssue = ["past_due", "unpaid", "incomplete"].includes(subscriptionStatus);
   const subscriptionCanSubscribe = ["canceled", "cancelled", "not_subscribed", "inactive", "none"].includes(subscriptionStatus);
+  const subscriptionCancelScheduled = subscriptionActive && activeVendorContext.subscriptionCancelAtPeriodEnd === true;
+  const subscriptionPeriodEndLabel = formatSmartBarSubscriptionDate(activeVendorContext.subscriptionCurrentPeriodEnd);
   const boardEnabled = operationalBoardEnabled && subscriptionActive;
 
   const loadOrders = useCallback(async () => {
@@ -2058,6 +2124,34 @@ function SmartBarRootLiveOrderBoardStatus({
       setBillingAction(null);
     }
   }, []);
+
+  const confirmCancelSubscription = useCallback(async () => {
+    setBillingAction("cancel");
+    setBillingError("");
+    setCancelSuccess("");
+
+    try {
+      const cancellationState = await cancelSmartBarSubscription();
+      const nextVendorContext = normalizeSmartBarVendorContext({
+        ...activeVendorContext,
+        ...cancellationState,
+      });
+      saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+      onVendorContextUpdate?.(nextVendorContext);
+      setCancelConfirmOpen(false);
+      const canceledThrough = formatSmartBarSubscriptionDate(nextVendorContext.subscriptionCurrentPeriodEnd);
+      setCancelSuccess(
+        canceledThrough
+          ? `Auto-renewal is off. Live Orders remain active until ${canceledThrough}.`
+          : "Auto-renewal is off. Live Orders remain active through the current billing period.",
+      );
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "subscription_cancel_failed";
+      setBillingError(reason);
+    } finally {
+      setBillingAction(null);
+    }
+  }, [activeVendorContext, onVendorContextUpdate]);
 
   useEffect(() => {
     if (!boardEnabled) return;
@@ -2167,32 +2261,44 @@ function SmartBarRootLiveOrderBoardStatus({
     },
   ];
 
-  const subscriptionLabel = subscriptionActive
-    ? "Active — $50/month"
-    : subscriptionPaymentIssue
-      ? "Payment issue"
-      : subscriptionCanSubscribe
-        ? "$50/month"
-        : "Status unavailable";
-  const subscriptionDetail = subscriptionActive
-    ? "Live ordering subscription is active."
-    : subscriptionPaymentIssue
-      ? "Update the payment method to restore live ordering."
-      : subscriptionCanSubscribe
-        ? "Activate live ordering."
-        : "Subscription status could not be confirmed.";
-  const subscriptionButtonLabel = subscriptionActive
-    ? "Manage billing"
-    : subscriptionPaymentIssue
-      ? "Update payment method"
-      : subscriptionCanSubscribe
-        ? "Subscribe"
-        : "";
-  const subscriptionButtonAction: "checkout" | "portal" | null = subscriptionActive || subscriptionPaymentIssue
-    ? "portal"
-    : subscriptionCanSubscribe
-      ? "checkout"
-      : null;
+  const subscriptionLabel = subscriptionCancelScheduled
+    ? subscriptionPeriodEndLabel
+      ? `Canceled — active until ${subscriptionPeriodEndLabel}`
+      : "Canceled — active through current period"
+    : subscriptionActive
+      ? "Active — $50/month"
+      : subscriptionPaymentIssue
+        ? "Payment issue"
+        : subscriptionCanSubscribe
+          ? "$50/month"
+          : "Status unavailable";
+  const subscriptionDetail = subscriptionCancelScheduled
+    ? "Auto-renewal is off. Live Orders remain available through the current billing period."
+    : subscriptionActive
+      ? "Renews monthly automatically."
+      : subscriptionPaymentIssue
+        ? "Update the payment method to restore live ordering."
+        : subscriptionCanSubscribe
+          ? "Activate live ordering."
+          : "Subscription status could not be confirmed.";
+  const subscriptionButtonLabel = subscriptionCancelScheduled
+    ? ""
+    : subscriptionActive
+      ? "Cancel subscription"
+      : subscriptionPaymentIssue
+        ? "Update payment method"
+        : subscriptionCanSubscribe
+          ? "Subscribe"
+          : "";
+  const subscriptionButtonAction: "checkout" | "portal" | "cancel" | null = subscriptionCancelScheduled
+    ? null
+    : subscriptionActive
+      ? "cancel"
+      : subscriptionPaymentIssue
+        ? "portal"
+        : subscriptionCanSubscribe
+          ? "checkout"
+          : null;
 
   return (
     <div className="mx-auto mt-6 max-w-2xl rounded-[24px] bg-white/92 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:mt-7 sm:p-5">
@@ -2227,18 +2333,63 @@ function SmartBarRootLiveOrderBoardStatus({
           {subscriptionButtonAction && subscriptionButtonLabel ? (
             <button
               type="button"
-              onClick={() => void openSubscriptionDestination(subscriptionButtonAction)}
+              onClick={() => {
+                if (subscriptionButtonAction === "cancel") {
+                  setBillingError("");
+                  setCancelSuccess("");
+                  setCancelConfirmOpen(true);
+                  return;
+                }
+                void openSubscriptionDestination(subscriptionButtonAction);
+              }}
               disabled={billingAction !== null}
               className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {billingAction === subscriptionButtonAction ? "Opening..." : subscriptionButtonLabel}
+              {billingAction === subscriptionButtonAction
+                ? subscriptionButtonAction === "cancel"
+                  ? "Canceling..."
+                  : "Opening..."
+                : subscriptionButtonLabel}
             </button>
           ) : null}
         </div>
 
+        {cancelConfirmOpen ? (
+          <div className="mt-3 rounded-2xl bg-slate-50 px-3.5 py-3 ring-1 ring-slate-200/80">
+            <div className="text-sm font-semibold text-slate-950">Cancel SmartBar subscription?</div>
+            <div className="mt-1 text-sm leading-5 text-slate-600">
+              Your subscription will not renew. Live Orders will stay active until {subscriptionPeriodEndLabel || "the end of your current billing period"}.
+            </div>
+            <div className="mt-3 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCancelConfirmOpen(false)}
+                disabled={billingAction !== null}
+                className="inline-flex items-center justify-center rounded-full bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 transition hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Keep subscription
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmCancelSubscription()}
+                disabled={billingAction !== null}
+                className="inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(1,33,105,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {billingAction === "cancel" ? "Canceling..." : "Cancel subscription"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {cancelSuccess ? (
+          <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
+            {cancelSuccess}
+          </div>
+        ) : null}
+
         {billingError ? (
           <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 ring-1 ring-red-100">
-            Could not open billing: {billingError}
+            Subscription action failed: {billingError}
           </div>
         ) : null}
       </div>
@@ -2415,7 +2566,7 @@ function SmartBarRootLaunchMessage({
               onVendorContextUpdate={handleVendorContextUpdate}
             />
           ) : activeUseItLane === "board" ? (
-            <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} vendorContext={activeVendorContext} />
+            <SmartBarRootLiveOrderBoardStatus onBack={() => setActiveUseItLane(null)} vendorContext={activeVendorContext} onVendorContextUpdate={handleVendorContextUpdate} />
           ) : (
             <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
               <SmartBarRootDemoLaunchButton
