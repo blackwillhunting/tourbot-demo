@@ -60,6 +60,10 @@ const SMARTBAR_SUBSCRIPTION_CANCEL_URLS = [
   "/api/smartbar/subscription/cancel",
   "https://tourbot.getn2ai.com/api/smartbar/subscription/cancel",
 ] as const;
+const SMARTBAR_SUBSCRIPTION_REACTIVATE_URLS = [
+  "/api/smartbar/subscription/reactivate",
+  "https://tourbot.getn2ai.com/api/smartbar/subscription/reactivate",
+] as const;
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
@@ -658,6 +662,50 @@ async function cancelSmartBarSubscription(): Promise<Partial<SmartBarVendorConte
       return body;
     } catch (error) {
       lastFailureReason = error instanceof Error ? error.message : "subscription_cancel_network_failed";
+    }
+  }
+
+  throw new Error(lastFailureReason);
+}
+
+async function reactivateSmartBarSubscription(): Promise<Partial<SmartBarVendorContext>> {
+  const token = getStoredTourBotDemoToken();
+  if (!token) {
+    throw new Error("missing_session_token");
+  }
+
+  let lastFailureReason = "subscription_reactivate_failed";
+
+  for (const url of SMARTBAR_SUBSCRIPTION_REACTIVATE_URLS) {
+    try {
+      const isAbsoluteUrl = /^https?:\/\//i.test(url);
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: isAbsoluteUrl ? "omit" : "include",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+
+      const rawBody = await response.text().catch(() => "");
+      const body = (rawBody ? JSON.parse(rawBody) : {}) as Partial<SmartBarVendorContext> & {
+        ok?: boolean;
+        reason?: string;
+        message?: string;
+      };
+
+      if (!response.ok || body.ok !== true) {
+        lastFailureReason = body.reason || body.message || `subscription_reactivate_failed_${response.status}`;
+        continue;
+      }
+
+      return body;
+    } catch (error) {
+      lastFailureReason = error instanceof Error ? error.message : "subscription_reactivate_network_failed";
     }
   }
 
@@ -2078,10 +2126,9 @@ function SmartBarRootLiveOrderBoardStatus({
   const [orders, setOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | "cancel" | null>(null);
+  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | "cancel" | "reactivate" | null>(null);
   const [billingError, setBillingError] = useState("");
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
-  const [cancelSuccess, setCancelSuccess] = useState("");
   const operationalBoardEnabled = smartBarLiveOrderBoardIsEnabled(activeVendorContext);
   const subscriptionStatus = String(activeVendorContext.subscriptionStatus || "").trim().toLowerCase();
   const subscriptionActive =
@@ -2128,7 +2175,6 @@ function SmartBarRootLiveOrderBoardStatus({
   const confirmCancelSubscription = useCallback(async () => {
     setBillingAction("cancel");
     setBillingError("");
-    setCancelSuccess("");
 
     try {
       const cancellationState = await cancelSmartBarSubscription();
@@ -2139,14 +2185,28 @@ function SmartBarRootLiveOrderBoardStatus({
       saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
       onVendorContextUpdate?.(nextVendorContext);
       setCancelConfirmOpen(false);
-      const canceledThrough = formatSmartBarSubscriptionDate(nextVendorContext.subscriptionCurrentPeriodEnd);
-      setCancelSuccess(
-        canceledThrough
-          ? `Auto-renewal is off. Live Orders remain active until ${canceledThrough}.`
-          : "Auto-renewal is off. Live Orders remain active through the current billing period.",
-      );
     } catch (error) {
       const reason = error instanceof Error && error.message ? error.message : "subscription_cancel_failed";
+      setBillingError(reason);
+    } finally {
+      setBillingAction(null);
+    }
+  }, [activeVendorContext, onVendorContextUpdate]);
+
+  const reactivateSubscription = useCallback(async () => {
+    setBillingAction("reactivate");
+    setBillingError("");
+
+    try {
+      const reactivationState = await reactivateSmartBarSubscription();
+      const nextVendorContext = normalizeSmartBarVendorContext({
+        ...activeVendorContext,
+        ...reactivationState,
+      });
+      saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
+      onVendorContextUpdate?.(nextVendorContext);
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "subscription_reactivate_failed";
       setBillingError(reason);
     } finally {
       setBillingAction(null);
@@ -2262,9 +2322,7 @@ function SmartBarRootLiveOrderBoardStatus({
   ];
 
   const subscriptionLabel = subscriptionCancelScheduled
-    ? subscriptionPeriodEndLabel
-      ? `Canceled — active until ${subscriptionPeriodEndLabel}`
-      : "Canceled — active through current period"
+    ? "Cancellation scheduled"
     : subscriptionActive
       ? "Active — $50/month"
       : subscriptionPaymentIssue
@@ -2273,7 +2331,9 @@ function SmartBarRootLiveOrderBoardStatus({
           ? "$50/month"
           : "Status unavailable";
   const subscriptionDetail = subscriptionCancelScheduled
-    ? "Auto-renewal is off. Live Orders remain available through the current billing period."
+    ? subscriptionPeriodEndLabel
+      ? `Active until ${subscriptionPeriodEndLabel}. Auto-renewal is off.`
+      : "Auto-renewal is off. Live Orders remain available through the current billing period."
     : subscriptionActive
       ? "Renews monthly automatically."
       : subscriptionPaymentIssue
@@ -2282,7 +2342,7 @@ function SmartBarRootLiveOrderBoardStatus({
           ? "Activate live ordering."
           : "Subscription status could not be confirmed.";
   const subscriptionButtonLabel = subscriptionCancelScheduled
-    ? ""
+    ? "Reactivate subscription"
     : subscriptionActive
       ? "Cancel subscription"
       : subscriptionPaymentIssue
@@ -2290,8 +2350,8 @@ function SmartBarRootLiveOrderBoardStatus({
         : subscriptionCanSubscribe
           ? "Subscribe"
           : "";
-  const subscriptionButtonAction: "checkout" | "portal" | "cancel" | null = subscriptionCancelScheduled
-    ? null
+  const subscriptionButtonAction: "checkout" | "portal" | "cancel" | "reactivate" | null = subscriptionCancelScheduled
+    ? "reactivate"
     : subscriptionActive
       ? "cancel"
       : subscriptionPaymentIssue
@@ -2336,8 +2396,11 @@ function SmartBarRootLiveOrderBoardStatus({
               onClick={() => {
                 if (subscriptionButtonAction === "cancel") {
                   setBillingError("");
-                  setCancelSuccess("");
                   setCancelConfirmOpen(true);
+                  return;
+                }
+                if (subscriptionButtonAction === "reactivate") {
+                  void reactivateSubscription();
                   return;
                 }
                 void openSubscriptionDestination(subscriptionButtonAction);
@@ -2348,7 +2411,9 @@ function SmartBarRootLiveOrderBoardStatus({
               {billingAction === subscriptionButtonAction
                 ? subscriptionButtonAction === "cancel"
                   ? "Canceling..."
-                  : "Opening..."
+                  : subscriptionButtonAction === "reactivate"
+                    ? "Reactivating..."
+                    : "Opening..."
                 : subscriptionButtonLabel}
             </button>
           ) : null}
@@ -2378,12 +2443,6 @@ function SmartBarRootLiveOrderBoardStatus({
                 {billingAction === "cancel" ? "Canceling..." : "Cancel subscription"}
               </button>
             </div>
-          </div>
-        ) : null}
-
-        {cancelSuccess ? (
-          <div className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
-            {cancelSuccess}
           </div>
         ) : null}
 
