@@ -48,6 +48,14 @@ const SMARTBAR_VENDOR_STATUS_URLS = [
   "/api/smartbar/vendor-status",
   "https://tourbot.getn2ai.com/api/smartbar/vendor-status",
 ] as const;
+const SMARTBAR_SUBSCRIPTION_CHECKOUT_URLS = [
+  "/api/smartbar/subscription/checkout",
+  "https://tourbot.getn2ai.com/api/smartbar/subscription/checkout",
+] as const;
+const SMARTBAR_SUBSCRIPTION_PORTAL_URLS = [
+  "/api/smartbar/subscription/portal",
+  "https://tourbot.getn2ai.com/api/smartbar/subscription/portal",
+] as const;
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
@@ -521,7 +529,12 @@ async function refreshSmartBarVendorStatus(
       }
 
       const nextVendorContext = smartBarVendorContextFromAuthPayload(
-        body.vendorContext || body.item || fallbackVendorContext || {},
+        {
+          ...(fallbackVendorContext || {}),
+          ...(body.item && typeof body.item === "object" && !Array.isArray(body.item) ? body.item : {}),
+          ...body,
+          ...(body.vendorContext || {}),
+        },
         body.demoPath || fallbackVendorContext?.demoPath || "",
       );
       saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
@@ -532,6 +545,75 @@ async function refreshSmartBarVendorStatus(
   }
 
   throw new Error(lastFailureReason);
+}
+
+type SmartBarSubscriptionSessionResponse = {
+  ok?: boolean;
+  url?: string;
+  reason?: string;
+  code?: string;
+  message?: string;
+};
+
+async function createSmartBarSubscriptionSession(
+  urls: readonly string[],
+  fallbackError: string,
+): Promise<string> {
+  const token = getStoredTourBotDemoToken();
+  if (!token) {
+    throw new Error("missing_session_token");
+  }
+
+  let lastFailureReason = fallbackError;
+
+  for (const url of urls) {
+    try {
+      const isAbsoluteUrl = /^https?:\/\//i.test(url);
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: isAbsoluteUrl ? "omit" : "include",
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+
+      const rawBody = await response.text().catch(() => "");
+      const body = (rawBody ? JSON.parse(rawBody) : {}) as SmartBarSubscriptionSessionResponse;
+
+      if (!response.ok || body.ok !== true || !body.url) {
+        lastFailureReason =
+          body.reason ||
+          body.message ||
+          body.code ||
+          `${fallbackError}_${response.status}`;
+        continue;
+      }
+
+      return body.url;
+    } catch (error) {
+      lastFailureReason = error instanceof Error ? error.message : `${fallbackError}_network_failed`;
+    }
+  }
+
+  throw new Error(lastFailureReason);
+}
+
+function createSmartBarSubscriptionCheckoutUrl() {
+  return createSmartBarSubscriptionSession(
+    SMARTBAR_SUBSCRIPTION_CHECKOUT_URLS,
+    "subscription_checkout_failed",
+  );
+}
+
+function createSmartBarSubscriptionPortalUrl() {
+  return createSmartBarSubscriptionSession(
+    SMARTBAR_SUBSCRIPTION_PORTAL_URLS,
+    "subscription_portal_failed",
+  );
 }
 
 type PreludeSlip = SmartBarTutorCard;
@@ -1934,7 +2016,16 @@ function SmartBarRootLiveOrderBoardStatus({
   const [orders, setOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
-  const boardEnabled = smartBarLiveOrderBoardIsEnabled(activeVendorContext);
+  const [billingAction, setBillingAction] = useState<"checkout" | "portal" | null>(null);
+  const [billingError, setBillingError] = useState("");
+  const operationalBoardEnabled = smartBarLiveOrderBoardIsEnabled(activeVendorContext);
+  const subscriptionStatus = String(activeVendorContext.subscriptionStatus || "").trim().toLowerCase();
+  const subscriptionActive =
+    ["active", "trialing"].includes(subscriptionStatus) ||
+    (subscriptionStatus === "" && activeVendorContext.subscriptionActive === true);
+  const subscriptionPaymentIssue = ["past_due", "unpaid", "incomplete"].includes(subscriptionStatus);
+  const subscriptionCanSubscribe = ["canceled", "cancelled", "not_subscribed", "inactive", "none"].includes(subscriptionStatus);
+  const boardEnabled = operationalBoardEnabled && subscriptionActive;
 
   const loadOrders = useCallback(async () => {
     if (!boardEnabled) return;
@@ -1951,6 +2042,22 @@ function SmartBarRootLiveOrderBoardStatus({
       setIsLoading(false);
     }
   }, [activeVendorContext, boardEnabled]);
+
+  const openSubscriptionDestination = useCallback(async (action: "checkout" | "portal") => {
+    setBillingAction(action);
+    setBillingError("");
+
+    try {
+      const url = action === "checkout"
+        ? await createSmartBarSubscriptionCheckoutUrl()
+        : await createSmartBarSubscriptionPortalUrl();
+      window.location.assign(url);
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "subscription_action_failed";
+      setBillingError(reason);
+      setBillingAction(null);
+    }
+  }, []);
 
   useEffect(() => {
     if (!boardEnabled) return;
@@ -2035,8 +2142,12 @@ function SmartBarRootLiveOrderBoardStatus({
   const steps = [
     {
       number: 1,
-      title: "Board status",
-      detail: boardEnabled ? "Live order board is enabled for this vendor." : "Admin approval unlocks the live order board.",
+      title: "Order Board",
+      detail: !subscriptionActive
+        ? "Available after subscription."
+        : operationalBoardEnabled
+          ? "Live order board is enabled."
+          : "Waiting for operational approval.",
       status: boardEnabled ? "Open board" : "Locked",
       action: boardEnabled,
     },
@@ -2055,6 +2166,33 @@ function SmartBarRootLiveOrderBoardStatus({
       action: false,
     },
   ];
+
+  const subscriptionLabel = subscriptionActive
+    ? "Active — $50/month"
+    : subscriptionPaymentIssue
+      ? "Payment issue"
+      : subscriptionCanSubscribe
+        ? "$50/month"
+        : "Status unavailable";
+  const subscriptionDetail = subscriptionActive
+    ? "Live ordering subscription is active."
+    : subscriptionPaymentIssue
+      ? "Update the payment method to restore live ordering."
+      : subscriptionCanSubscribe
+        ? "Activate live ordering."
+        : "Subscription status could not be confirmed.";
+  const subscriptionButtonLabel = subscriptionActive
+    ? "Manage billing"
+    : subscriptionPaymentIssue
+      ? "Update payment method"
+      : subscriptionCanSubscribe
+        ? "Subscribe"
+        : "";
+  const subscriptionButtonAction: "checkout" | "portal" | null = subscriptionActive || subscriptionPaymentIssue
+    ? "portal"
+    : subscriptionCanSubscribe
+      ? "checkout"
+      : null;
 
   return (
     <div className="mx-auto mt-6 max-w-2xl rounded-[24px] bg-white/92 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.07)] ring-1 ring-white/80 sm:mt-7 sm:p-5">
@@ -2078,7 +2216,34 @@ function SmartBarRootLiveOrderBoardStatus({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <div className="mt-4 rounded-2xl bg-white px-3.5 py-3 ring-1 ring-slate-200/80">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold tracking-tight text-slate-950">Subscription</div>
+            <div className="mt-0.5 text-sm font-semibold text-slate-700">{subscriptionLabel}</div>
+            <div className="mt-0.5 text-sm leading-5 text-slate-500">{subscriptionDetail}</div>
+          </div>
+
+          {subscriptionButtonAction && subscriptionButtonLabel ? (
+            <button
+              type="button"
+              onClick={() => void openSubscriptionDestination(subscriptionButtonAction)}
+              disabled={billingAction !== null}
+              className="inline-flex shrink-0 items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {billingAction === subscriptionButtonAction ? "Opening..." : subscriptionButtonLabel}
+            </button>
+          ) : null}
+        </div>
+
+        {billingError ? (
+          <div className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 ring-1 ring-red-100">
+            Could not open billing: {billingError}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-3 grid gap-3">
         {steps.map((step) => (
           <div key={step.title} className={`${rowBase} ${step.action || boardEnabled ? activeRow : mutedRow}`}>
             <div className="flex min-w-0 items-center gap-3">
@@ -2111,7 +2276,13 @@ function SmartBarRootLiveOrderBoardStatus({
 
       {!boardEnabled ? (
         <div className="mt-3 rounded-2xl bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
-          Waiting for admin approval after ghost test review.
+          {!subscriptionActive
+            ? subscriptionPaymentIssue
+              ? "Live order board is paused until the payment method is updated."
+              : subscriptionCanSubscribe
+                ? "Subscribe to unlock the live order board."
+                : "Live order board stays locked until subscription status is confirmed."
+            : "Waiting for admin approval after ghost test review."}
         </div>
       ) : null}
     </div>
@@ -2201,7 +2372,7 @@ function SmartBarRootLaunchMessage({
     useItGhostTestStatus === "approved" ||
     useItWebsiteModeStatus === "live";
   const useItWebsiteEnabled = useItSandboxComplete;
-  const useItBoardEnabled = useItLiveBoardReady;
+  const useItBoardEnabled = useItWebsiteComplete;
 
   return (
     <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} ${isLiveBoardLane ? "px-2 py-1 sm:px-4 sm:py-2" : "px-5 py-7 sm:px-10 sm:py-10"}`}>

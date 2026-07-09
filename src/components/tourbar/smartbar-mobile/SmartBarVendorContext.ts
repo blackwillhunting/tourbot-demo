@@ -26,6 +26,12 @@ export type SmartBarVendorContext = {
   orderBoardEnabled: boolean;
   liveApprovedUtc: string;
   liveApprovedBy: string;
+  subscriptionStatus: string;
+  subscriptionActive: boolean;
+  subscriptionPlan: string;
+  subscriptionCurrentPeriodEnd: string;
+  subscriptionCancelAtPeriodEnd: boolean;
+  subscriptionUpdatedUtc: string;
   lastVendorAction: string;
   lastVendorActionUtc: string;
 };
@@ -60,6 +66,12 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   orderBoardEnabled: false,
   liveApprovedUtc: "",
   liveApprovedBy: "",
+  subscriptionStatus: "",
+  subscriptionActive: false,
+  subscriptionPlan: "",
+  subscriptionCurrentPeriodEnd: "",
+  subscriptionCancelAtPeriodEnd: false,
+  subscriptionUpdatedUtc: "",
   lastVendorAction: "",
   lastVendorActionUtc: "",
 });
@@ -150,6 +162,12 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const orderBoardEnabled = smartBarVendorPickBoolean(merged, ["orderBoardEnabled", "order_board_enabled", "OrderBoardEnabled"]);
   const liveApprovedUtc = smartBarVendorPickString(merged, ["liveApprovedUtc", "live_approved_utc", "LiveApprovedUtc"]);
   const liveApprovedBy = smartBarVendorPickString(merged, ["liveApprovedBy", "live_approved_by", "LiveApprovedBy"]);
+  const subscriptionStatus = smartBarVendorPickString(merged, ["subscriptionStatus", "subscription_status", "SubscriptionStatus"]);
+  const subscriptionActive = smartBarVendorPickBoolean(merged, ["subscriptionActive", "subscription_active", "SubscriptionActive"]);
+  const subscriptionPlan = smartBarVendorPickString(merged, ["subscriptionPlan", "subscription_plan", "SubscriptionPlan"]);
+  const subscriptionCurrentPeriodEnd = smartBarVendorPickString(merged, ["subscriptionCurrentPeriodEnd", "subscription_current_period_end", "SubscriptionCurrentPeriodEnd"]);
+  const subscriptionCancelAtPeriodEnd = smartBarVendorPickBoolean(merged, ["subscriptionCancelAtPeriodEnd", "subscription_cancel_at_period_end", "SubscriptionCancelAtPeriodEnd"]);
+  const subscriptionUpdatedUtc = smartBarVendorPickString(merged, ["subscriptionUpdatedUtc", "subscription_updated_utc", "SubscriptionUpdatedUtc"]);
   const lastVendorAction = smartBarVendorPickString(merged, ["lastVendorAction", "last_vendor_action", "LastVendorAction"]);
   const lastVendorActionUtc = smartBarVendorPickString(merged, ["lastVendorActionUtc", "last_vendor_action_utc", "LastVendorActionUtc"]);
 
@@ -181,6 +199,12 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     orderBoardEnabled,
     liveApprovedUtc,
     liveApprovedBy,
+    subscriptionStatus,
+    subscriptionActive,
+    subscriptionPlan,
+    subscriptionCurrentPeriodEnd,
+    subscriptionCancelAtPeriodEnd,
+    subscriptionUpdatedUtc,
     lastVendorAction,
     lastVendorActionUtc,
   };
