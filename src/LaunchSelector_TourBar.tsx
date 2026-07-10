@@ -1202,6 +1202,8 @@ function SmartBarPhoneToTicketIcon({ className = "" }: { className?: string }) {
 type SmartBarRootDemoMessage = {
   label: string;
   message: string;
+  supportingLine?: string;
+  description?: string;
   icon: ComponentType<{ className?: string }>;
   iconClass: string;
   storyIcon?: boolean;
@@ -1218,8 +1220,10 @@ type SmartBarRootStageItem =
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
     label: "SmartBar",
-    message:
-      "**Phone orders → clean tickets.**\n\nCustomers say what they want. SmartBar sends your staff a ready ticket.",
+    message: "**Voice orders → e-tickets.**",
+    supportingLine: "No forms, no phone calls.",
+    description:
+      "Customers say what they want. SmartBar sends your staff a ready ticket.",
     icon: SmartBarPhoneToTicketIcon,
     iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
     storyIcon: true,
@@ -2634,7 +2638,33 @@ function SmartBarRootLaunchMessage({
             </div>
 
             <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-              {isWaving ? <SmartBarRootThinkingText body={message.message} /> : <SmartBarRootMarkdownText body={message.message} />}
+              <div>
+                {isWaving ? (
+                  <SmartBarRootThinkingText body={message.message} />
+                ) : (
+                  <SmartBarRootMarkdownText body={message.message} />
+                )}
+              </div>
+
+              {message.supportingLine ? (
+                <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
+                  {isWaving ? (
+                    <SmartBarRootThinkingText body={message.supportingLine} />
+                  ) : (
+                    <SmartBarRootMarkdownText body={message.supportingLine} />
+                  )}
+                </div>
+              ) : null}
+
+              {message.description ? (
+                <div className="mt-6 sm:mt-7">
+                  {isWaving ? (
+                    <SmartBarRootThinkingText body={message.description} />
+                  ) : (
+                    <SmartBarRootMarkdownText body={message.description} />
+                  )}
+                </div>
+              ) : null}
             </div>
           </>
         ) : null}
