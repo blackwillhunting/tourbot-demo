@@ -20,9 +20,12 @@ import SmartBarMobileShell, {
 import SmartBarOrderBoardMock from "../order-board/SmartBarOrderBoardMock";
 
 const totalScenes = 3;
-const customerFlowBuiltSteps = 9;
 const slideOneCaption = "Tap to say or type your order";
 const customerEntryPrompt = "Med pep pizza spagh wings gar-stix";
+const quickCustomerEntryPrompt =
+  "med pepproni pizza spagh w meatballs wings w ranch garlic breadstix";
+const fullCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const quickCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 5, 6, 7, 8, 9];
 const TUMBLER_GLIDE_MS = 720;
 
 const restaurantWalkthroughHiddenTailBoardTileCss = `
@@ -87,6 +90,7 @@ const walkthroughOrderBoardOrders = [
     id: "S-184",
     minutesAgo: 0,
     status: "new" as const,
+    mode: "live",
     customer: "SmartBar",
     phone: "202-555-0184",
     pickup: "ASAP",
@@ -114,6 +118,7 @@ const walkthroughOrderBoardOrders = [
     id: "S-183",
     minutesAgo: 4,
     status: "new" as const,
+    mode: "live",
     customer: "Sam",
     phone: "202-555-0191",
     pickup: "ASAP",
@@ -136,6 +141,7 @@ const walkthroughOrderBoardOrders = [
     id: "S-182",
     minutesAgo: 9,
     status: "new" as const,
+    mode: "live",
     customer: "Maya",
     phone: "202-555-0177",
     pickup: "12:45 PM",
@@ -164,6 +170,7 @@ const walkthroughOrderBoardOrders = [
     id: "S-181",
     minutesAgo: 18,
     status: "new" as const,
+    mode: "live",
     customer: "Dana",
     phone: "202-555-0104",
     pickup: "ASAP",
@@ -278,22 +285,23 @@ function RestaurantWalkthroughProgressDots({
 }
 
 function CustomerFlowStepDots({
-  activeStep,
+  activeIndex,
+  count,
 }: {
-  activeStep: CustomerFlowStep;
+  activeIndex: number;
+  count: number;
 }) {
   return (
     <div
       className="flex items-center gap-1.5"
-      aria-label={`Customer flow step ${activeStep}`}
+      aria-label={`Customer flow step ${activeIndex + 1} of ${count}`}
     >
-      {Array.from({ length: customerFlowBuiltSteps }).map((_, index) => {
-        const step = index + 1;
-        const isActive = step === activeStep;
+      {Array.from({ length: count }).map((_, index) => {
+        const isActive = index === activeIndex;
 
         return (
           <span
-            key={`restaurant-walkthrough-customer-step-${step}`}
+            key={`restaurant-walkthrough-customer-step-${index + 1}`}
             className={
               isActive
                 ? "h-1.5 w-5 rounded-full bg-[#012169]/88"
@@ -821,6 +829,11 @@ function WalkthroughClosingSandboxCta({
 
 function CustomerFlowScene({
   activeStep,
+  activeStepIndex,
+  stepCount,
+  canGoBack,
+  canGoNext,
+  variant,
   runId,
   isCompact,
   shellViewportTop,
@@ -835,6 +848,11 @@ function CustomerFlowScene({
   slidePhase = "done",
 }: {
   activeStep: CustomerFlowStep;
+  activeStepIndex: number;
+  stepCount: number;
+  canGoBack: boolean;
+  canGoNext: boolean;
+  variant: RestaurantWalkthroughVariant;
   runId: number;
   isCompact: boolean;
   shellViewportTop: number;
@@ -848,7 +866,15 @@ function CustomerFlowScene({
   finishLabel?: string;
   slidePhase?: WalkthroughSlidePhase;
 }) {
-  const content = customerStepContent[activeStep];
+  const content =
+    variant === "quick" && activeStep === 3
+      ? {
+          eyebrow: "Customer flow",
+          copy: "SmartBar builds a cart.\nReady to send.",
+        }
+      : customerStepContent[activeStep];
+  const entryPrompt =
+    variant === "quick" ? quickCustomerEntryPrompt : customerEntryPrompt;
   const shellDropY = isCompact ? -500 : -460;
   const isCapsuleStep = activeStep === 1;
   const isEntryStep = activeStep === 2;
@@ -1050,12 +1076,12 @@ function CustomerFlowScene({
 
     return {
       id: runId + 2000,
-      query: customerEntryPrompt,
+      query: entryPrompt,
       typing: true,
       manualSubmit: true,
       typeDelayMs: isCompact ? 34 : 38,
     };
-  }, [entryCueComplete, isCompact, isEntryStep, runId]);
+  }, [entryCueComplete, entryPrompt, isCompact, isEntryStep, runId]);
 
   const demoMontageStage = useMemo(() => {
     if (isCartStep) {
@@ -1066,6 +1092,7 @@ function CustomerFlowScene({
         label: "",
         surface: "carts" as const,
         open: true,
+        resolvedState: variant === "quick" ? ("correction" as const) : undefined,
       };
     }
 
@@ -1118,6 +1145,7 @@ function CustomerFlowScene({
     runId,
     sendStage,
     slidePhase,
+    variant,
   ]);
 
   const demoOptionCue = useMemo(() => {
@@ -1145,7 +1173,7 @@ function CustomerFlowScene({
   return (
     <div className="relative h-full px-5 pt-4 pb-7 sm:px-10 sm:pt-5 sm:pb-10">
       <div className="relative z-[5] flex items-center">
-        <CustomerFlowStepDots activeStep={activeStep} />
+        <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
       </div>
 
       <AnimatePresence mode="wait">
@@ -1218,7 +1246,7 @@ function CustomerFlowScene({
               demoPresetEntryDraft={
                 isCartStep && !cartCueComplete && slidePhase !== "done"
                   ? {
-                      draft: customerEntryPrompt,
+                      draft: entryPrompt,
                       runKey: `cart-entry-${runId}-${slidePhase}`,
                     }
                   : null
@@ -1314,7 +1342,7 @@ function CustomerFlowScene({
         />
       )}
 
-      {isCartStep && cartCueComplete && slidePhase === "watch" && (
+      {variant !== "quick" && isCartStep && cartCueComplete && slidePhase === "watch" && (
         <div
           ref={colorPointerOverlayRef}
           className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
@@ -1342,8 +1370,8 @@ function CustomerFlowScene({
       )}
 
       <RestaurantWalkthroughNavigator
-        canGoBack={activeStep > 1}
-        canGoNext={activeStep < customerFlowBuiltSteps}
+        canGoBack={canGoBack}
+        canGoNext={canGoNext}
         onBack={onBack}
         onNext={onNext}
         onRerun={onRerun}
@@ -1358,11 +1386,14 @@ function CustomerFlowScene({
   );
 }
 
+export type RestaurantWalkthroughVariant = "full" | "quick";
+
 type RestaurantWalkthroughProps = {
   onFinish?: () => void;
   onRequestPrivateSandbox?: () => void;
   finishLabel?: string;
   chrome?: "full" | "content";
+  variant?: RestaurantWalkthroughVariant;
 };
 
 export default function RestaurantWalkthrough({
@@ -1370,6 +1401,7 @@ export default function RestaurantWalkthrough({
   onRequestPrivateSandbox,
   finishLabel = "Finish",
   chrome = "full",
+  variant = "full",
 }: RestaurantWalkthroughProps = {}) {
   const [activeScene, setActiveScene] =
     useState<RestaurantWalkthroughSceneNumber>(1);
@@ -1381,12 +1413,15 @@ export default function RestaurantWalkthrough({
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const { width: viewportWidth, height: viewportHeight } = useViewportSize();
   const isCompact = viewportWidth < 700;
+  const customerFlowSteps =
+    variant === "quick" ? quickCustomerFlowSteps : fullCustomerFlowSteps;
+  const customerStepIndex = Math.max(0, customerFlowSteps.indexOf(customerStep));
+  const customerStepCount = customerFlowSteps.length;
 
   useEffect(() => {
     if (
       activeScene !== 1 ||
-      customerStep < 1 ||
-      customerStep > customerFlowBuiltSteps
+      !customerFlowSteps.includes(customerStep)
     ) {
       setSlidePhase("done");
       return;
@@ -1419,7 +1454,7 @@ export default function RestaurantWalkthrough({
       window.clearTimeout(watchTimer);
       window.clearTimeout(doneTimer);
     };
-  }, [activeScene, customerStep, runId]);
+  }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = isCompact ? 590 : 675;
   const cardTop = chrome === "content"
@@ -1480,8 +1515,8 @@ export default function RestaurantWalkthrough({
   }, [activeSegmentIndex, finalCardHeight]);
 
   const goBack = () => {
-    if (activeScene === 1 && customerStep > 1) {
-      setCustomerStep((value) => (value - 1) as CustomerFlowStep);
+    if (activeScene === 1 && customerStepIndex > 0) {
+      setCustomerStep(customerFlowSteps[customerStepIndex - 1]);
       setRunId((value) => value + 1);
       return;
     }
@@ -1495,8 +1530,8 @@ export default function RestaurantWalkthrough({
   };
 
   const goNext = () => {
-    if (activeScene === 1 && customerStep < customerFlowBuiltSteps) {
-      setCustomerStep((value) => (value + 1) as CustomerFlowStep);
+    if (activeScene === 1 && customerStepIndex < customerStepCount - 1) {
+      setCustomerStep(customerFlowSteps[customerStepIndex + 1]);
       setRunId((value) => value + 1);
       return;
     }
@@ -1513,7 +1548,7 @@ export default function RestaurantWalkthrough({
 
   const restartWalkthrough = () => {
     setActiveScene(1);
-    setCustomerStep(1);
+    setCustomerStep(customerFlowSteps[0]);
     setSlidePhase("read");
     setRunId((value) => value + 1);
   };
@@ -1623,6 +1658,11 @@ export default function RestaurantWalkthrough({
           >
             <CustomerFlowScene
               activeStep={customerStep}
+              activeStepIndex={customerStepIndex}
+              stepCount={customerStepCount}
+              canGoBack={customerStepIndex > 0}
+              canGoNext={customerStepIndex < customerStepCount - 1}
+              variant={variant}
               runId={runId}
               isCompact={isCompact}
               shellViewportTop={shellViewportTop}
