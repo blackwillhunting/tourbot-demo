@@ -3,6 +3,7 @@ import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import SmartBarTeaserPage from "./SmartBarTeaserPage";
+import SmartBarTeaserV2 from "./SmartBarTeaserV2";
 import AppCommerce from "./App-Commerce";
 import AppCarryout from "./App-Carryout";
 import AppCustomerCarryout from "./App-CustomerCarryout";
@@ -209,7 +210,16 @@ function SmartBarMobileOnRealInformationalSite() {
 function Router() {
   const path = normalizedPath();
 
-  if (path === "/smartbar-teaser" || path === "/local-smartbar-teaser-page") {
+  if (
+    path === "/smartbar-teaser" ||
+    path === "/local-smartbar-teaser-page" ||
+    path === "/smartbar-teaser-v2" ||
+    path === "/local-smartbar-teaser-v2"
+  ) {
+    return <SmartBarTeaserV2 />;
+  }
+
+  if (path === "/smartbar-teaser-video" || path === "/local-smartbar-teaser-video") {
     return <SmartBarTeaserPage />;
   }
 
