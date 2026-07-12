@@ -1159,31 +1159,6 @@ function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
-const SMARTBAR_DESTINATION_RIBBON_HANDOFF_KEY = "smartbar_destination_ribbon_handoff_v1";
-
-type SmartBarDestinationRibbonHandoff = "to-teaser" | "to-portal";
-
-function writeSmartBarDestinationRibbonHandoff(value: SmartBarDestinationRibbonHandoff) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.sessionStorage.setItem(SMARTBAR_DESTINATION_RIBBON_HANDOFF_KEY, value);
-  } catch {
-    // Navigation still works if session storage is unavailable.
-  }
-}
-
-function consumeSmartBarDestinationRibbonHandoff(expected: SmartBarDestinationRibbonHandoff) {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const value = window.sessionStorage.getItem(SMARTBAR_DESTINATION_RIBBON_HANDOFF_KEY);
-    if (value) window.sessionStorage.removeItem(SMARTBAR_DESTINATION_RIBBON_HANDOFF_KEY);
-    return value === expected;
-  } catch {
-    return false;
-  }
-}
 
 
 type SmartBarRootDemoMessage = {
@@ -1228,15 +1203,6 @@ const SMARTBAR_DEMOS_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
   label: "SmartBar demos",
   message: "**Opening demos.**",
   supportingLine: "Choose Quick Demo or Full Walkthrough.",
-  icon: PlayCircle,
-  iconClass: "bg-[#012169] text-white ring-[#012169]/10",
-};
-
-const SMARTBAR_TEASER_ARRIVAL_MESSAGE: SmartBarRootDemoMessage = {
-  label: "SmartBar teaser",
-  message: "**Voice orders → e-tickets.**",
-  supportingLine: "No forms, no phone calls.",
-  description: "Customers say what they want. SmartBar sends your staff a ready ticket.",
   icon: PlayCircle,
   iconClass: "bg-[#012169] text-white ring-[#012169]/10",
 };
@@ -2963,29 +2929,20 @@ function SmartBarRootRestaurantPreview({
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
-  const [isIncomingFromTeaser] = useState(() =>
-    consumeSmartBarDestinationRibbonHandoff("to-portal"),
-  );
-  const [isIncomingArrivalActive, setIncomingArrivalActive] = useState(() => isIncomingFromTeaser);
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(() =>
-    isIncomingFromTeaser ? 0 : hasInitialStoredAccess ? 1 : 0,
-  );
-  const [wavingIndex, setWavingIndex] = useState<number | null>(() =>
-    isIncomingFromTeaser ? 0 : null,
-  );
+  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
+  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const stageScrollRef = useRef<HTMLDivElement | null>(null);
   const rootRunIdRef = useRef(0);
-  const incomingArrivalStartedRef = useRef(false);
 
   const stageItems = useMemo<SmartBarRootStageItem[]>(() => {
     const messageItems = SMARTBAR_ROOT_MESSAGES.map((message, sourceIndex) => ({
@@ -3002,48 +2959,30 @@ function SmartBarRootDemoSelector() {
       kind: "setup-step" as const,
       setupIndex,
     }));
-    const incomingTeaserItem = {
-      kind: "message" as const,
-      message: SMARTBAR_TEASER_ARRIVAL_MESSAGE,
-      sourceIndex: -1,
-    };
 
-    let items: SmartBarRootStageItem[];
     if (hasAccess) {
-      items = isIncomingFromTeaser
-        ? [incomingTeaserItem, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }]
-        : [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
-    } else if (gateView === "failure") {
-      items = isIncomingFromTeaser
-        ? [incomingTeaserItem, { kind: "passcode" }, { kind: "failure" }]
-        : [{ kind: "passcode" }, { kind: "failure" }];
-    } else {
-      items = isIncomingFromTeaser
-        ? [incomingTeaserItem, { kind: "passcode" }]
-        : [{ kind: "passcode" }];
+      return [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
     }
+    if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
+    return [{ kind: "passcode" }];
+  }, [gateView, hasAccess]);
 
-    return items;
-  }, [gateView, hasAccess, isIncomingFromTeaser]);
-
-  const passcodeStep = isIncomingFromTeaser ? 1 : 0;
-  const launchOverviewTargetStep = 1;
-  const failureTargetStep = passcodeStep + 1;
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
   const isLaunchOverview = current?.kind === "message" && current.sourceIndex === 0;
-  const isIncomingTeaserCard = isIncomingFromTeaser && current?.kind === "message" && current.sourceIndex === -1;
   const isRestaurantPreview = current?.kind === "restaurant-preview";
   const isSetupStep = current?.kind === "setup-step";
   const currentSetupIndex = isSetupStep ? current.setupIndex : 0;
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
   const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
-  const arrivalTargetStep = hasAccess ? launchOverviewTargetStep : passcodeStep;
+  const demosTransitionStep = stageItems.findIndex(
+    (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
+  );
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
-    !hasAccess && gateView === "challenge" && step === passcodeStep
+    !hasAccess && gateView === "challenge" && step === 0
       ? "transition-none"
       : "transition-[height] duration-700 ease-out";
 
@@ -3099,15 +3038,13 @@ function SmartBarRootDemoSelector() {
   }, [step, stageItems.length, isRestaurantPreviewSettled]);
 
   useEffect(() => {
-    if (isIncomingArrivalActive) return;
-
     if (hasAccess) {
-      setStep((value) => Math.min(Math.max(launchOverviewTargetStep, value), stageItems.length - 1));
+      setStep((value) => Math.min(Math.max(1, value), stageItems.length - 1));
       return;
     }
 
     setStep((value) => Math.min(value, Math.max(0, stageItems.length - 1)));
-  }, [hasAccess, isIncomingArrivalActive, launchOverviewTargetStep, stageItems.length]);
+  }, [hasAccess, stageItems.length]);
 
   useEffect(() => {
     stageScrollRef.current?.scrollTo({ top: 0 });
@@ -3122,14 +3059,10 @@ function SmartBarRootDemoSelector() {
     setPasscode("");
     setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
-    setStep(passcodeStep);
+    setStep(0);
     setWavingIndex(null);
     setRestaurantPreviewSettled(false);
-  }, [passcodeStep]);
-
-  const setInitialSessionStep = (nextStep: number) => {
-    if (!isIncomingFromTeaser) setStep(nextStep);
-  };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3147,7 +3080,7 @@ function SmartBarRootDemoSelector() {
         setPasscode("");
         setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
         setGateView("challenge");
-        setInitialSessionStep(0);
+        setStep(0);
         setWavingIndex(null);
         setIsSessionChecking(false);
         return;
@@ -3156,7 +3089,7 @@ function SmartBarRootDemoSelector() {
       const hasStoredToken = Boolean(getStoredTourBotDemoToken());
       if (!hasStoredToken) {
         setHasAccess(false);
-        setInitialSessionStep(0);
+        setStep(0);
         setIsSessionChecking(false);
         return;
       }
@@ -3165,7 +3098,7 @@ function SmartBarRootDemoSelector() {
         cleanupResetAccessUrl();
         setHasAccess(true);
         setGateView("challenge");
-        setInitialSessionStep(SMARTBAR_ROOT_MESSAGES.length);
+        setStep(SMARTBAR_ROOT_MESSAGES.length);
         setWavingIndex(null);
         setIsSessionChecking(false);
         return;
@@ -3182,7 +3115,7 @@ function SmartBarRootDemoSelector() {
           cleanupSmartBarSubscriptionReturnUrl();
           setHasAccess(true);
           setGateView("challenge");
-          setInitialSessionStep(useItStep >= 0 ? useItStep : 1);
+          setStep(useItStep >= 0 ? useItStep : 1);
           setWavingIndex(null);
           setIsSessionChecking(false);
           return;
@@ -3191,10 +3124,10 @@ function SmartBarRootDemoSelector() {
         cleanupResetAccessUrl();
         setHasAccess(true);
         setGateView("challenge");
-        setInitialSessionStep(1);
+        setStep(1);
       } else {
         setHasAccess(false);
-        setInitialSessionStep(0);
+        setStep(0);
       }
 
       setIsSessionChecking(false);
@@ -3206,44 +3139,6 @@ function SmartBarRootDemoSelector() {
       isCancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (
-      !isIncomingFromTeaser ||
-      !isIncomingArrivalActive ||
-      isSessionChecking ||
-      incomingArrivalStartedRef.current ||
-      arrivalTargetStep < 0
-    ) {
-      return;
-    }
-
-    incomingArrivalStartedRef.current = true;
-    const runId = rootRunIdRef.current + 1;
-    rootRunIdRef.current = runId;
-    setWavingIndex(0);
-
-    const glideTimer = window.setTimeout(() => {
-      if (rootRunIdRef.current !== runId) return;
-      setStep(arrivalTargetStep);
-    }, SMARTBAR_ROOT_MESSAGE_WAVE_MS);
-
-    const settleTimer = window.setTimeout(() => {
-      if (rootRunIdRef.current !== runId) return;
-      setWavingIndex(null);
-      setIncomingArrivalActive(false);
-    }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS);
-
-    return () => {
-      window.clearTimeout(glideTimer);
-      window.clearTimeout(settleTimer);
-    };
-  }, [
-    arrivalTargetStep,
-    isIncomingArrivalActive,
-    isIncomingFromTeaser,
-    isSessionChecking,
-  ]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -3263,7 +3158,7 @@ function SmartBarRootDemoSelector() {
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
     if (rootRunIdRef.current !== runId) return;
-    setStep(passcodeStep);
+    setStep(0);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
     if (rootRunIdRef.current !== runId) return;
     setPasscode("");
@@ -3288,7 +3183,7 @@ function SmartBarRootDemoSelector() {
     if (passcode.length < REQUIRED_PASSCODE_LENGTH) {
       setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
       setGateView("failure");
-      setStep(failureTargetStep);
+      setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
       if (rootRunIdRef.current !== runId) return;
       setWavingIndex(null);
@@ -3300,7 +3195,7 @@ function SmartBarRootDemoSelector() {
     if (!loginResult.accepted) {
       setFailureMessage("That code could not be verified. Check the passcode and try again.");
       setGateView("failure");
-      setStep(failureTargetStep);
+      setStep(1);
       await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
       if (rootRunIdRef.current !== runId) return;
       setWavingIndex(null);
@@ -3313,7 +3208,7 @@ function SmartBarRootDemoSelector() {
     cleanupResetAccessUrl();
     setHasAccess(true);
     setGateView("challenge");
-    setStep(launchOverviewTargetStep);
+    setStep(1);
     await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
     if (rootRunIdRef.current !== runId) return;
     setWavingIndex(null);
@@ -3336,13 +3231,29 @@ function SmartBarRootDemoSelector() {
   const finishSetupWalkthrough = () => {
     rootRunIdRef.current += 1;
     setWavingIndex(null);
-    setStep(useItStep >= 0 ? useItStep : launchOverviewTargetStep);
+    setStep(useItStep >= 0 ? useItStep : 1);
   };
 
-  const goBackToDemos = () => {
-    if (isWaving || !hasAccess) return;
+  const goBackToDemos = async () => {
+    if (isWaving || !hasAccess || demosTransitionStep < 0) return;
 
-    writeSmartBarDestinationRibbonHandoff("to-teaser");
+    const runId = rootRunIdRef.current + 1;
+    rootRunIdRef.current = runId;
+    setWavingIndex(step);
+
+    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
+
+    setStep(demosTransitionStep);
+    setWavingIndex(null);
+
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
+
+    setWavingIndex(demosTransitionStep);
+    await wait(720);
+    if (rootRunIdRef.current !== runId) return;
+
     window.location.assign("/smartbar-teaser");
   };
 
@@ -3350,19 +3261,19 @@ function SmartBarRootDemoSelector() {
     rootRunIdRef.current += 1;
     setWavingIndex(null);
     setRestaurantPreviewSettled(false);
-    setStep(launchOverviewTargetStep);
+    setStep(1);
   };
 
   const completeRestaurantPreview = () => {
     rootRunIdRef.current += 1;
     setWavingIndex(null);
     setRestaurantPreviewSettled(false);
-    setStep(setupStartStep >= 0 ? setupStartStep : launchOverviewTargetStep);
+    setStep(setupStartStep >= 0 ? setupStartStep : 1);
   };
 
   const goBack = () => {
     if (isWaving || !hasAccess) return;
-    if (step <= launchOverviewTargetStep) return;
+    if (step <= 1) return;
     rootRunIdRef.current += 1;
     setWavingIndex(null);
     if (isRestaurantPreview) {
@@ -3375,7 +3286,7 @@ function SmartBarRootDemoSelector() {
       return;
     }
 
-    setStep((value) => Math.max(launchOverviewTargetStep, value - 1));
+    setStep((value) => Math.max(1, value - 1));
   };
 
   const goNext = async () => {
@@ -3465,12 +3376,7 @@ function SmartBarRootDemoSelector() {
 
       <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-2.5 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div className="shrink-0">
-          {isIncomingTeaserCard ? (
-            <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
-              <PlayCircle className="h-3.5 w-3.5" />
-              SmartBar teaser
-            </div>
-          ) : hasAccess ? (
+          {hasAccess ? (
             <SmartBarRootProgressDots
               step={isSetupStep ? currentSetupIndex : isRestaurantPreview ? SMARTBAR_ROOT_MESSAGES.length : currentMessageStep}
               count={isSetupStep ? SMARTBAR_SETUP_WALKTHROUGH_STEPS.length : SMARTBAR_ROOT_MESSAGES.length + 1}
