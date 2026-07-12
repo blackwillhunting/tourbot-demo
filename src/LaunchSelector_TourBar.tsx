@@ -1207,6 +1207,14 @@ const SMARTBAR_DEMOS_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
   iconClass: "bg-[#012169] text-white ring-[#012169]/10",
 };
 
+const SMARTBAR_LOGIN_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
+  label: "SmartBar access",
+  message: "**Opening SmartBar.**",
+  supportingLine: "Your session decides whether you enter the portal or see the login challenge.",
+  icon: KeyRound,
+  iconClass: "bg-[#012169] text-white ring-[#012169]/10",
+};
+
 const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
 const SMARTBAR_ROOT_MESSAGE_WAVE_MS = 1360;
@@ -2697,11 +2705,13 @@ function SmartBarRootLaunchMessage({
 
 function SmartBarRootPasscodeChallenge({
   code,
+  isActive,
   isChecking,
   onChange,
   onSubmit,
 }: {
   code: string;
+  isActive: boolean;
   isChecking: boolean;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -2710,8 +2720,9 @@ function SmartBarRootPasscodeChallenge({
   const boxes = Array.from({ length: REQUIRED_PASSCODE_LENGTH });
 
   useEffect(() => {
+    if (!isActive) return;
     inputRefs.current[0]?.focus();
-  }, []);
+  }, [isActive]);
 
   const focusBox = (index: number) => {
     window.setTimeout(() => {
@@ -2935,8 +2946,9 @@ function SmartBarRootDemoSelector() {
   const [passcode, setPasscode] = useState("");
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
-  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const [isLoginEntryTransitionPending, setLoginEntryTransitionPending] = useState(() => !hasInitialStoredAccess);
+  const [step, setStep] = useState(1);
+  const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 1));
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -2964,7 +2976,14 @@ function SmartBarRootDemoSelector() {
       return [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
     }
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
-    return [{ kind: "passcode" }];
+    return [
+      { kind: "passcode" },
+      {
+        kind: "message",
+        message: SMARTBAR_LOGIN_TRANSITION_MESSAGE,
+        sourceIndex: -1,
+      },
+    ];
   }, [gateView, hasAccess]);
 
   const current = stageItems[step];
@@ -2981,15 +3000,18 @@ function SmartBarRootDemoSelector() {
     (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
   );
   const isWaving = wavingIndex !== null;
+  const isLoginEntryTransition = !hasAccess && current?.kind === "message" && current.sourceIndex === -1;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
       ? "transition-none"
       : "transition-[height] duration-700 ease-out";
 
-  const stepLabel = !hasAccess
-    ? isSessionChecking
-      ? "Checking access"
-      : "Private access"
+  const stepLabel = isLoginEntryTransition
+    ? "Opening SmartBar"
+    : !hasAccess
+      ? isSessionChecking
+        ? "Checking access"
+        : "Private access"
     : isRestaurantPreview
       ? "Understand it"
       : isSetupStep
@@ -3050,6 +3072,32 @@ function SmartBarRootDemoSelector() {
     stageScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
 
+  useEffect(() => {
+    if (!isLoginEntryTransitionPending || hasAccess || gateView !== "challenge") return;
+
+    let isCancelled = false;
+    setStep(1);
+    setWavingIndex(1);
+
+    const spinTimer = window.setTimeout(() => {
+      if (isCancelled) return;
+      setStep(0);
+      setWavingIndex(0);
+    }, 160);
+
+    const finishTimer = window.setTimeout(() => {
+      if (isCancelled) return;
+      setWavingIndex(null);
+      setLoginEntryTransitionPending(false);
+    }, 160 + SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+
+    return () => {
+      isCancelled = true;
+      window.clearTimeout(spinTimer);
+      window.clearTimeout(finishTimer);
+    };
+  }, [gateView, hasAccess, isLoginEntryTransitionPending]);
+
   const resetAccess = useCallback(() => {
     rootRunIdRef.current += 1;
     clearStoredTourBotDemoToken();
@@ -3059,8 +3107,9 @@ function SmartBarRootDemoSelector() {
     setPasscode("");
     setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
-    setStep(0);
-    setWavingIndex(null);
+    setLoginEntryTransitionPending(true);
+    setStep(1);
+    setWavingIndex(1);
     setRestaurantPreviewSettled(false);
   }, []);
 
@@ -3080,8 +3129,9 @@ function SmartBarRootDemoSelector() {
         setPasscode("");
         setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
         setGateView("challenge");
-        setStep(0);
-        setWavingIndex(null);
+        setLoginEntryTransitionPending(true);
+        setStep(1);
+        setWavingIndex(1);
         setIsSessionChecking(false);
         return;
       }
@@ -3089,7 +3139,9 @@ function SmartBarRootDemoSelector() {
       const hasStoredToken = Boolean(getStoredTourBotDemoToken());
       if (!hasStoredToken) {
         setHasAccess(false);
-        setStep(0);
+        setLoginEntryTransitionPending(true);
+        setStep(1);
+        setWavingIndex(1);
         setIsSessionChecking(false);
         return;
       }
@@ -3127,7 +3179,10 @@ function SmartBarRootDemoSelector() {
         setStep(1);
       } else {
         setHasAccess(false);
-        setStep(0);
+        setGateView("challenge");
+        setLoginEntryTransitionPending(true);
+        setStep(1);
+        setWavingIndex(1);
       }
 
       setIsSessionChecking(false);
@@ -3309,7 +3364,7 @@ function SmartBarRootDemoSelector() {
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isRestaurantPreview);
+  const showNextButton = (!hasAccess && !isLoginEntryTransition) || (hasAccess && !currentMessage?.demoButtons && !isRestaurantPreview);
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -3426,6 +3481,7 @@ function SmartBarRootDemoSelector() {
                   {item.kind === "passcode" && (
                     <SmartBarRootPasscodeChallenge
                       code={passcode}
+                      isActive={step === index}
                       isChecking={wavingIndex === index}
                       onChange={setPasscode}
                       onSubmit={submitPasscode}
