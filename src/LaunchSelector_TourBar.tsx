@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
+﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
@@ -1198,6 +1198,14 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
     demoButtons: true,
   },
 ];
+
+const SMARTBAR_DEMOS_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
+  label: "SmartBar demos",
+  message: "**Opening demos.**",
+  supportingLine: "Choose Quick Demo or Full Walkthrough.",
+  icon: PlayCircle,
+  iconClass: "bg-[#012169] text-white ring-[#012169]/10",
+};
 
 const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
@@ -2942,12 +2950,19 @@ function SmartBarRootDemoSelector() {
       message,
       sourceIndex,
     }));
+    const demosTransitionItem = {
+      kind: "message" as const,
+      message: SMARTBAR_DEMOS_TRANSITION_MESSAGE,
+      sourceIndex: SMARTBAR_ROOT_MESSAGES.length,
+    };
     const setupItems = SMARTBAR_SETUP_WALKTHROUGH_STEPS.map((_setupStep, setupIndex) => ({
       kind: "setup-step" as const,
       setupIndex,
     }));
 
-    if (hasAccess) return [{ kind: "passcode" }, ...messageItems, ...setupItems, { kind: "restaurant-preview" }];
+    if (hasAccess) {
+      return [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
+    }
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
   }, [gateView, hasAccess]);
@@ -2962,6 +2977,9 @@ function SmartBarRootDemoSelector() {
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
   const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
+  const demosTransitionStep = stageItems.findIndex(
+    (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
+  );
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -3217,12 +3235,19 @@ function SmartBarRootDemoSelector() {
   };
 
   const goBackToDemos = async () => {
-    if (isWaving || !hasAccess) return;
+    if (isWaving || !hasAccess || demosTransitionStep < 0) return;
 
     const runId = rootRunIdRef.current + 1;
     rootRunIdRef.current = runId;
     setWavingIndex(step);
+
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+    if (rootRunIdRef.current !== runId) return;
+
+    setStep(demosTransitionStep);
+    setWavingIndex(demosTransitionStep);
+
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS + 220);
     if (rootRunIdRef.current !== runId) return;
 
     window.location.assign("/smartbar-teaser");
