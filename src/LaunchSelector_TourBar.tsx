@@ -3245,9 +3245,13 @@ function SmartBarRootDemoSelector() {
     if (rootRunIdRef.current !== runId) return;
 
     setStep(demosTransitionStep);
-    setWavingIndex(demosTransitionStep);
+    setWavingIndex(null);
 
-    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS + 220);
+    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    if (rootRunIdRef.current !== runId) return;
+
+    setWavingIndex(demosTransitionStep);
+    await wait(720);
     if (rootRunIdRef.current !== runId) return;
 
     window.location.assign("/smartbar-teaser");
