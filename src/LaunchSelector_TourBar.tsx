@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, LogIn, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -1176,6 +1176,7 @@ type SmartBarRootStageItem =
   | { kind: "passcode" }
   | { kind: "failure" }
   | { kind: "message"; message: SmartBarRootDemoMessage; sourceIndex: number }
+  | { kind: "portal-transition" }
   | { kind: "setup-step"; setupIndex: number }
   | { kind: "restaurant-preview" };
 
@@ -1211,6 +1212,34 @@ const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
 const SMARTBAR_ROOT_MESSAGE_WAVE_MS = 1360;
 const SMARTBAR_ROOT_RIBBON_GLIDE_MS = 720;
+const SMARTBAR_ROUTE_HANDOFF_KEY = "smartbar_route_handoff";
+const SMARTBAR_ROUTE_HANDOFF_SPIN_MS = 720;
+
+type SmartBarRouteHandoff = "portal-to-teaser" | "teaser-to-portal";
+
+function setSmartBarRouteHandoff(value: SmartBarRouteHandoff) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(SMARTBAR_ROUTE_HANDOFF_KEY, value);
+  } catch {
+    // Navigation still works without the visual handoff marker.
+  }
+}
+
+function consumeSmartBarRouteHandoff(expected: SmartBarRouteHandoff) {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const value = window.sessionStorage.getItem(SMARTBAR_ROUTE_HANDOFF_KEY);
+    if (value !== expected) return false;
+    window.sessionStorage.removeItem(SMARTBAR_ROUTE_HANDOFF_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_STAGGER = 0.075;
 const SMARTBAR_ROOT_PASSCODE_BOX_WIGGLE_DURATION = 1.18;
 
@@ -2884,6 +2913,36 @@ function SmartBarRootAccessFailure({ body, isWaving }: { body: string; isWaving:
   );
 }
 
+function SmartBarRootPortalTransitionCard({ isWaving }: { isWaving: boolean }) {
+  return (
+    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
+            <LogIn className="h-6 w-6 sm:h-7 sm:w-7" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            SmartBar access
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          <div className="font-semibold text-slate-950">
+            {isWaving ? (
+              <SmartBarRootThinkingText body="Opening SmartBar." />
+            ) : (
+              "Opening SmartBar."
+            )}
+          </div>
+          <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
+            Your session decides whether you enter the portal or see the login challenge.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SmartBarRootRestaurantPreview({
   isWaving,
   isSettled,
@@ -2929,14 +2988,27 @@ function SmartBarRootRestaurantPreview({
 
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
+  const [incomingPortalHandoff, setIncomingPortalHandoff] = useState(() =>
+    consumeSmartBarRouteHandoff("teaser-to-portal"),
+  );
+  const [incomingPortalMinimumDone, setIncomingPortalMinimumDone] = useState(
+    () => !incomingPortalHandoff,
+  );
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
-  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
-  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const initialPortalTransitionStep = hasInitialStoredAccess
+    ? 1 + SMARTBAR_ROOT_MESSAGES.length + 1 + SMARTBAR_SETUP_WALKTHROUGH_STEPS.length + 1
+    : 1;
+  const [step, setStep] = useState(() =>
+    incomingPortalHandoff ? initialPortalTransitionStep : hasInitialStoredAccess ? 1 : 0,
+  );
+  const [wavingIndex, setWavingIndex] = useState<number | null>(() =>
+    incomingPortalHandoff ? initialPortalTransitionStep : null,
+  );
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -2961,16 +3033,26 @@ function SmartBarRootDemoSelector() {
     }));
 
     if (hasAccess) {
-      return [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
+      return [
+        { kind: "passcode" },
+        ...messageItems,
+        demosTransitionItem,
+        ...setupItems,
+        { kind: "restaurant-preview" },
+        { kind: "portal-transition" },
+      ];
     }
-    if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
-    return [{ kind: "passcode" }];
+    if (gateView === "failure") {
+      return [{ kind: "passcode" }, { kind: "failure" }, { kind: "portal-transition" }];
+    }
+    return [{ kind: "passcode" }, { kind: "portal-transition" }];
   }, [gateView, hasAccess]);
 
   const current = stageItems[step];
   const currentMessage = current?.kind === "message" ? current.message : null;
   const currentMessageStep = current?.kind === "message" ? current.sourceIndex : 0;
   const isLaunchOverview = current?.kind === "message" && current.sourceIndex === 0;
+  const isPortalTransition = current?.kind === "portal-transition";
   const isRestaurantPreview = current?.kind === "restaurant-preview";
   const isSetupStep = current?.kind === "setup-step";
   const currentSetupIndex = isSetupStep ? current.setupIndex : 0;
@@ -2980,17 +3062,20 @@ function SmartBarRootDemoSelector() {
   const demosTransitionStep = stageItems.findIndex(
     (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
   );
+  const portalTransitionStep = stageItems.findIndex((item) => item.kind === "portal-transition");
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
       ? "transition-none"
       : "transition-[height] duration-700 ease-out";
 
-  const stepLabel = !hasAccess
-    ? isSessionChecking
-      ? "Checking access"
-      : "Private access"
-    : isRestaurantPreview
+  const stepLabel = isPortalTransition
+    ? "Opening SmartBar"
+    : !hasAccess
+      ? isSessionChecking
+        ? "Checking access"
+        : "Private access"
+      : isRestaurantPreview
       ? "Understand it"
       : isSetupStep
         ? "Set it up"
@@ -3037,14 +3122,58 @@ function SmartBarRootDemoSelector() {
     };
   }, [step, stageItems.length, isRestaurantPreviewSettled]);
 
+  useLayoutEffect(() => {
+    if (!incomingPortalHandoff || portalTransitionStep < 0) return;
+
+    setStep(portalTransitionStep);
+    setWavingIndex(portalTransitionStep);
+  }, [incomingPortalHandoff, portalTransitionStep]);
+
   useEffect(() => {
+    if (incomingPortalHandoff) return;
+
     if (hasAccess) {
       setStep((value) => Math.min(Math.max(1, value), stageItems.length - 1));
       return;
     }
 
     setStep((value) => Math.min(value, Math.max(0, stageItems.length - 1)));
-  }, [hasAccess, stageItems.length]);
+  }, [hasAccess, incomingPortalHandoff, stageItems.length]);
+
+  useEffect(() => {
+    if (!incomingPortalHandoff) return;
+
+    const timer = window.setTimeout(
+      () => setIncomingPortalMinimumDone(true),
+      SMARTBAR_ROUTE_HANDOFF_SPIN_MS,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [incomingPortalHandoff]);
+
+  useEffect(() => {
+    if (
+      !incomingPortalHandoff ||
+      !incomingPortalMinimumDone ||
+      isSessionChecking
+    ) {
+      return;
+    }
+
+    setWavingIndex(null);
+    setStep(hasAccess ? 1 : 0);
+
+    const timer = window.setTimeout(() => {
+      setIncomingPortalHandoff(false);
+    }, SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    hasAccess,
+    incomingPortalHandoff,
+    incomingPortalMinimumDone,
+    isSessionChecking,
+  ]);
 
   useEffect(() => {
     stageScrollRef.current?.scrollTo({ top: 0 });
@@ -3080,8 +3209,8 @@ function SmartBarRootDemoSelector() {
         setPasscode("");
         setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
         setGateView("challenge");
-        setStep(0);
-        setWavingIndex(null);
+        if (!incomingPortalHandoff) setStep(0);
+        if (!incomingPortalHandoff) setWavingIndex(null);
         setIsSessionChecking(false);
         return;
       }
@@ -3089,7 +3218,7 @@ function SmartBarRootDemoSelector() {
       const hasStoredToken = Boolean(getStoredTourBotDemoToken());
       if (!hasStoredToken) {
         setHasAccess(false);
-        setStep(0);
+        if (!incomingPortalHandoff) setStep(0);
         setIsSessionChecking(false);
         return;
       }
@@ -3098,8 +3227,10 @@ function SmartBarRootDemoSelector() {
         cleanupResetAccessUrl();
         setHasAccess(true);
         setGateView("challenge");
-        setStep(SMARTBAR_ROOT_MESSAGES.length);
-        setWavingIndex(null);
+        if (!incomingPortalHandoff) {
+          setStep(SMARTBAR_ROOT_MESSAGES.length);
+          setWavingIndex(null);
+        }
         setIsSessionChecking(false);
         return;
       }
@@ -3115,8 +3246,10 @@ function SmartBarRootDemoSelector() {
           cleanupSmartBarSubscriptionReturnUrl();
           setHasAccess(true);
           setGateView("challenge");
-          setStep(useItStep >= 0 ? useItStep : 1);
-          setWavingIndex(null);
+          if (!incomingPortalHandoff) {
+            setStep(useItStep >= 0 ? useItStep : 1);
+            setWavingIndex(null);
+          }
           setIsSessionChecking(false);
           return;
         }
@@ -3124,10 +3257,10 @@ function SmartBarRootDemoSelector() {
         cleanupResetAccessUrl();
         setHasAccess(true);
         setGateView("challenge");
-        setStep(1);
+        if (!incomingPortalHandoff) setStep(1);
       } else {
         setHasAccess(false);
-        setStep(0);
+        if (!incomingPortalHandoff) setStep(0);
       }
 
       setIsSessionChecking(false);
@@ -3251,9 +3384,10 @@ function SmartBarRootDemoSelector() {
     if (rootRunIdRef.current !== runId) return;
 
     setWavingIndex(demosTransitionStep);
-    await wait(720);
+    await wait(SMARTBAR_ROUTE_HANDOFF_SPIN_MS);
     if (rootRunIdRef.current !== runId) return;
 
+    setSmartBarRouteHandoff("portal-to-teaser");
     window.location.assign("/smartbar-teaser");
   };
 
@@ -3309,7 +3443,7 @@ function SmartBarRootDemoSelector() {
     setStep((value) => Math.min(stageItems.length - 1, value + 1));
   };
 
-  const showNextButton = !hasAccess || (!currentMessage?.demoButtons && !isRestaurantPreview);
+  const showNextButton = !isPortalTransition && (!hasAccess || (!currentMessage?.demoButtons && !isRestaurantPreview));
   const nextLabel = !hasAccess
     ? isSessionChecking
       ? "Checking"
@@ -3343,7 +3477,7 @@ function SmartBarRootDemoSelector() {
           </div>
 
           <div className="flex items-center gap-2">
-            {hasAccess && (isRestaurantPreview || isSetupStep) && (
+            {!incomingPortalHandoff && hasAccess && (isRestaurantPreview || isSetupStep) && (
               <button
                 type="button"
                 onClick={isRestaurantPreview ? finishRestaurantPreview : finishSetupWalkthrough}
@@ -3355,7 +3489,7 @@ function SmartBarRootDemoSelector() {
               </button>
             )}
 
-            {hasAccess && (
+            {!incomingPortalHandoff && hasAccess && (
               <button
                 type="button"
                 onClick={resetAccess}
@@ -3376,7 +3510,12 @@ function SmartBarRootDemoSelector() {
 
       <section className="mx-auto grid min-h-0 w-full flex-1 max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] justify-items-center overflow-hidden px-2.5 py-2 sm:flex sm:flex-col sm:items-center sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div className="shrink-0">
-          {hasAccess ? (
+          {incomingPortalHandoff ? (
+            <div className="flex items-center justify-center gap-2 rounded-full bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 shadow-sm ring-1 ring-white/70 sm:px-4 sm:py-1.5 sm:text-xs">
+              <Sparkles className="h-3.5 w-3.5" />
+              Opening SmartBar
+            </div>
+          ) : hasAccess ? (
             <SmartBarRootProgressDots
               step={isSetupStep ? currentSetupIndex : isRestaurantPreview ? SMARTBAR_ROOT_MESSAGES.length : currentMessageStep}
               count={isSetupStep ? SMARTBAR_SETUP_WALKTHROUGH_STEPS.length : SMARTBAR_ROOT_MESSAGES.length + 1}
@@ -3443,6 +3582,10 @@ function SmartBarRootDemoSelector() {
                     />
                   )}
 
+                  {item.kind === "portal-transition" && (
+                    <SmartBarRootPortalTransitionCard isWaving={wavingIndex === index} />
+                  )}
+
                   {item.kind === "setup-step" && (
                     <SmartBarSetupWalkthrough
                       stepIndex={item.setupIndex}
@@ -3464,7 +3607,7 @@ function SmartBarRootDemoSelector() {
           </div>
         </div>
 
-        {!isRestaurantPreview && (
+        {!isRestaurantPreview && !incomingPortalHandoff && (
           <div className="mt-2 flex w-full max-w-[calc(100vw-1rem)] shrink-0 flex-row items-center justify-center gap-2 pb-3 sm:mt-5 sm:max-w-[52rem] sm:items-center sm:justify-between sm:gap-3 sm:pb-4">
           <button
             type="button"
