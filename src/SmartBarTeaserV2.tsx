@@ -1,4 +1,4 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   useEffect,
   useLayoutEffect,
@@ -11,7 +11,6 @@ import {
   Compass,
   LogIn,
   PhoneCall,
-  PlayCircle,
   ReceiptText,
 } from "lucide-react";
 import RestaurantWalkthrough, {
@@ -28,33 +27,6 @@ const SMARTBAR_TEASER_TRACK_URLS = [
   "https://tourbot.getn2ai.com/api/smartbar-teaser-track",
 ] as const;
 const SMARTBAR_TEASER_SESSION_KEY = "smartbar_teaser_session_id";
-const SMARTBAR_ROUTE_HANDOFF_KEY = "smartbar_route_handoff";
-const SMARTBAR_ROUTE_HANDOFF_SPIN_MS = 720;
-
-type SmartBarRouteHandoff = "portal-to-teaser" | "teaser-to-portal";
-
-function setSmartBarRouteHandoff(value: SmartBarRouteHandoff) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.sessionStorage.setItem(SMARTBAR_ROUTE_HANDOFF_KEY, value);
-  } catch {
-    // Navigation still works without the visual handoff marker.
-  }
-}
-
-function consumeSmartBarRouteHandoff(expected: SmartBarRouteHandoff) {
-  if (typeof window === "undefined") return false;
-
-  try {
-    const value = window.sessionStorage.getItem(SMARTBAR_ROUTE_HANDOFF_KEY);
-    if (value !== expected) return false;
-    window.sessionStorage.removeItem(SMARTBAR_ROUTE_HANDOFF_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 type TeaserChoice = RestaurantWalkthroughVariant;
 type TeaserTrackingEvent =
@@ -312,36 +284,6 @@ function TeaserIntroCard({
   );
 }
 
-function TeaserDemosTransitionCard({ isWaving }: { isWaving: boolean }) {
-  return (
-    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
-            <PlayCircle className="h-6 w-6 sm:h-7 sm:w-7" />
-          </div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            SmartBar demos
-          </div>
-        </div>
-
-        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
-          <div className="font-semibold text-slate-950">
-            {isWaving ? (
-              <TeaserThinkingText body="Opening demos." />
-            ) : (
-              "Opening demos."
-            )}
-          </div>
-          <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
-            Choose Quick Demo or Full Walkthrough.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function TeaserPortalTransitionCard({ isWaving }: { isWaving: boolean }) {
   return (
     <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
@@ -373,14 +315,9 @@ function TeaserPortalTransitionCard({ isWaving }: { isWaving: boolean }) {
 }
 
 export default function SmartBarTeaserV2() {
-  const [incomingDemosHandoff, setIncomingDemosHandoff] = useState(() =>
-    consumeSmartBarRouteHandoff("portal-to-teaser"),
-  );
   const [selectedDemo, setSelectedDemo] = useState<TeaserChoice | null>(null);
-  const [ribbonStep, setRibbonStep] = useState(() => (incomingDemosHandoff ? 3 : 0));
-  const [wavingIndex, setWavingIndex] = useState<number | null>(() =>
-    incomingDemosHandoff ? 3 : null,
-  );
+  const [ribbonStep, setRibbonStep] = useState(0);
+  const [wavingIndex, setWavingIndex] = useState<number | null>(null);
   const [isPortalTransitioning, setIsPortalTransitioning] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -394,7 +331,7 @@ export default function SmartBarTeaserV2() {
   };
 
   const chooseDemo = (choice: TeaserChoice) => {
-    if (isPortalTransitioning || incomingDemosHandoff) return;
+    if (isPortalTransitioning) return;
 
     void trackSmartBarTeaserEvent(
       choice === "quick" ? "quick_demo_click" : "full_walkthrough_click",
@@ -417,7 +354,7 @@ export default function SmartBarTeaserV2() {
   };
 
   const returnToChoices = () => {
-    if (isPortalTransitioning || incomingDemosHandoff) return;
+    if (isPortalTransitioning) return;
 
     clearTransitionTimers();
     setRibbonStep(0);
@@ -426,7 +363,7 @@ export default function SmartBarTeaserV2() {
   };
 
   const openSmartBarPortal = () => {
-    if (isPortalTransitioning || incomingDemosHandoff) return;
+    if (isPortalTransitioning) return;
 
     clearTransitionTimers();
     setIsPortalTransitioning(true);
@@ -441,7 +378,6 @@ export default function SmartBarTeaserV2() {
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
-        setSmartBarRouteHandoff("teaser-to-portal");
         window.location.assign("/");
       }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS + 220),
     );
@@ -454,25 +390,6 @@ export default function SmartBarTeaserV2() {
   }, []);
 
   useEffect(() => clearTransitionTimers, []);
-
-  useEffect(() => {
-    if (!incomingDemosHandoff) return;
-
-    clearTransitionTimers();
-
-    transitionTimersRef.current.push(
-      window.setTimeout(() => {
-        setWavingIndex(null);
-        setRibbonStep(0);
-      }, SMARTBAR_ROUTE_HANDOFF_SPIN_MS),
-    );
-
-    transitionTimersRef.current.push(
-      window.setTimeout(() => {
-        setIncomingDemosHandoff(false);
-      }, SMARTBAR_ROUTE_HANDOFF_SPIN_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS),
-    );
-  }, [incomingDemosHandoff]);
 
   useLayoutEffect(() => {
     const active = segmentRefs.current[ribbonStep];
@@ -514,7 +431,6 @@ export default function SmartBarTeaserV2() {
 
   const isIntro = ribbonStep === 0;
   const isPortalTransition = ribbonStep === 2;
-  const isDemosTransition = ribbonStep === 3;
 
   return (
     <main
@@ -553,19 +469,17 @@ export default function SmartBarTeaserV2() {
             <button
               type="button"
               onClick={openSmartBarPortal}
-              disabled={isPortalTransitioning || incomingDemosHandoff}
+              disabled={isPortalTransitioning}
               className="inline-flex items-center justify-center rounded-full bg-[#012169] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(1,33,105,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-wait disabled:opacity-70 sm:px-3.5 sm:py-2 sm:text-sm"
             >
               <LogIn className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              {incomingDemosHandoff ? "Opening demos" : isPortalTransitioning ? "Opening" : "Log in"}
+              {isPortalTransitioning ? "Opening" : "Log in"}
             </button>
 
             <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-              {isDemosTransition
-                ? "Opening demos"
-                : isPortalTransition
-                  ? "Opening SmartBar"
-                  : isIntro
+              {isPortalTransition
+                ? "Opening SmartBar"
+                : isIntro
                   ? "SmartBar teaser"
                   : selectedDemo === "quick"
                     ? "Quick demo"
@@ -628,14 +542,6 @@ export default function SmartBarTeaserV2() {
                 }}
               >
                 <TeaserPortalTransitionCard isWaving={wavingIndex === 2} />
-              </div>
-
-              <div
-                ref={(node) => {
-                  segmentRefs.current[3] = node;
-                }}
-              >
-                <TeaserDemosTransitionCard isWaving={wavingIndex === 3} />
               </div>
             </motion.div>
           </div>
