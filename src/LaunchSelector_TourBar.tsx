@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, PhoneCall, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -1161,44 +1161,6 @@ function wait(ms: number) {
 
 
 
-function SmartBarPhoneToTicketIcon({ className = "" }: { className?: string }) {
-  return (
-    <span className={`relative block ${className}`} aria-hidden="true">
-      <motion.span
-        className="absolute left-0 top-[6px] grid h-[18px] w-[18px] place-items-center rounded-[8px] bg-white text-[#012169] shadow-[0_6px_14px_rgba(1,33,105,0.12)] ring-1 ring-sky-100"
-        animate={{ y: [0, -1.5, 0], rotate: [0, -3, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <PhoneCall className="h-3.5 w-3.5" strokeWidth={2.35} />
-      </motion.span>
-
-      <motion.span
-        className="absolute left-[17px] top-[14px] h-2.5 w-2.5 rounded-full bg-[#012169] shadow-[0_0_0_5px_rgba(1,33,105,0.08)]"
-        animate={{ scale: [1, 1.22, 1], opacity: [0.88, 1, 0.88] }}
-        transition={{ duration: 1.45, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      <motion.span
-        className="absolute right-0 top-[2px] grid h-[24px] w-[19px] place-items-center rounded-[7px] bg-white text-[#012169] shadow-[0_8px_18px_rgba(15,23,42,0.13)] ring-1 ring-sky-100"
-        animate={{ x: [0, 1.5, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 0.18 }}
-      >
-        <ReceiptText className="h-3.5 w-3.5" strokeWidth={2.35} />
-      </motion.span>
-
-      <motion.span
-        className="absolute right-[-3px] top-[-3px] grid h-3.5 w-3.5 place-items-center rounded-full bg-emerald-400 text-white shadow-[0_4px_10px_rgba(16,185,129,0.24)]"
-        initial={{ scale: 0.86, opacity: 0.9 }}
-        animate={{ scale: [0.9, 1.08, 0.9], opacity: [0.85, 1, 0.85] }}
-        transition={{ duration: 1.7, repeat: Infinity, ease: "easeInOut", delay: 0.32 }}
-      >
-        <Check className="h-2.5 w-2.5" strokeWidth={3} />
-      </motion.span>
-    </span>
-  );
-}
-
-
 type SmartBarRootDemoMessage = {
   label: string;
   message: string;
@@ -1219,14 +1181,13 @@ type SmartBarRootStageItem =
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
   {
-    label: "SmartBar",
-    message: "**Voice orders → e-tickets.**",
-    supportingLine: "No forms, no phone calls.",
+    label: "SmartBar Portal",
+    message: "**Run SmartBar.**",
+    supportingLine: "Test your menu. Prepare your site. Handle live orders.",
     description:
-      "Customers say what they want. SmartBar sends your staff a ready ticket.",
-    icon: SmartBarPhoneToTicketIcon,
-    iconClass: "bg-sky-50 text-[#012169] ring-sky-100",
-    storyIcon: true,
+      "Use Sandbox for private testing, Website Setup to get ready, and Live Orders to manage incoming tickets.",
+    icon: LayoutDashboard,
+    iconClass: "bg-[#012169] text-white ring-[#012169]/10",
   },
   {
     label: "Live Orders",
@@ -2698,9 +2659,9 @@ function SmartBarRootLaunchMessage({
               />
               <SmartBarRootDemoLaunchButton
                 icon={ShieldCheck}
-                eyebrow="Website Mode"
-                title="Website Mode"
-                description="Connect site."
+                eyebrow="Website Setup"
+                title="Website Setup"
+                description="Prepare site."
                 stepNumber={2}
                 isComplete={useItWebsiteComplete}
                 isDisabled={!useItWebsiteEnabled}
@@ -2710,8 +2671,8 @@ function SmartBarRootLaunchMessage({
               <SmartBarRootDemoLaunchButton
                 icon={ReceiptText}
                 eyebrow="Live Orders"
-                title="Order Board"
-                description="Live orders."
+                title="Live Orders"
+                description="Manage tickets."
                 stepNumber={3}
                 isComplete={useItLiveBoardReady}
                 isDisabled={!useItBoardEnabled}
@@ -3001,7 +2962,6 @@ function SmartBarRootDemoSelector() {
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
   const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
-  const restaurantPreviewStep = stageItems.findIndex((item) => item.kind === "restaurant-preview");
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -3256,20 +3216,16 @@ function SmartBarRootDemoSelector() {
     setStep(useItStep >= 0 ? useItStep : 1);
   };
 
-  const goRestaurantPreview = async () => {
-    if (isWaving || !hasAccess || restaurantPreviewStep < 0) return;
+  const goBackToDemos = async () => {
+    if (isWaving || !hasAccess) return;
 
     const runId = rootRunIdRef.current + 1;
     rootRunIdRef.current = runId;
-    setRestaurantPreviewSettled(false);
     setWavingIndex(step);
     await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
     if (rootRunIdRef.current !== runId) return;
-    setStep(restaurantPreviewStep);
-    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
-    if (rootRunIdRef.current !== runId) return;
-    setRestaurantPreviewSettled(true);
-    setWavingIndex(null);
+
+    window.location.assign("/smartbar-teaser");
   };
 
   const finishRestaurantPreview = () => {
@@ -3495,11 +3451,11 @@ function SmartBarRootDemoSelector() {
             <>
               <button
                 type="button"
-                onClick={goRestaurantPreview}
+                onClick={goBackToDemos}
                 disabled={isWaving}
                 className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
               >
-                Demo
+                Back to demos
                 <ArrowRight className="ml-1.5 h-4 w-4 sm:ml-2" />
               </button>
 

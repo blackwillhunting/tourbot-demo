@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   Check,
   Compass,
+  LogIn,
   PhoneCall,
   ReceiptText,
 } from "lucide-react";
@@ -283,10 +284,41 @@ function TeaserIntroCard({
   );
 }
 
+function TeaserPortalTransitionCard({ isWaving }: { isWaving: boolean }) {
+  return (
+    <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-4 flex items-center gap-3 sm:mb-5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
+            <LogIn className="h-6 w-6 sm:h-7 sm:w-7" />
+          </div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+            SmartBar access
+          </div>
+        </div>
+
+        <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+          <div className="font-semibold text-slate-950">
+            {isWaving ? (
+              <TeaserThinkingText body="Opening SmartBar." />
+            ) : (
+              "Opening SmartBar."
+            )}
+          </div>
+          <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
+            Your session decides whether you enter the portal or see the login challenge.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SmartBarTeaserV2() {
   const [selectedDemo, setSelectedDemo] = useState<TeaserChoice | null>(null);
   const [ribbonStep, setRibbonStep] = useState(0);
   const [wavingIndex, setWavingIndex] = useState<number | null>(null);
+  const [isPortalTransitioning, setIsPortalTransitioning] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -299,6 +331,8 @@ export default function SmartBarTeaserV2() {
   };
 
   const chooseDemo = (choice: TeaserChoice) => {
+    if (isPortalTransitioning) return;
+
     void trackSmartBarTeaserEvent(
       choice === "quick" ? "quick_demo_click" : "full_walkthrough_click",
     );
@@ -320,10 +354,33 @@ export default function SmartBarTeaserV2() {
   };
 
   const returnToChoices = () => {
+    if (isPortalTransitioning) return;
+
     clearTransitionTimers();
     setRibbonStep(0);
     setWavingIndex(null);
     window.setTimeout(() => setSelectedDemo(null), SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+  };
+
+  const openSmartBarPortal = () => {
+    if (isPortalTransitioning) return;
+
+    clearTransitionTimers();
+    setIsPortalTransitioning(true);
+    setWavingIndex(ribbonStep);
+
+    transitionTimersRef.current.push(
+      window.setTimeout(() => {
+        setRibbonStep(2);
+        setWavingIndex(2);
+      }, SMARTBAR_ROOT_MESSAGE_WAVE_MS),
+    );
+
+    transitionTimersRef.current.push(
+      window.setTimeout(() => {
+        window.location.assign("/");
+      }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS + 220),
+    );
   };
 
   useEffect(() => {
@@ -373,6 +430,7 @@ export default function SmartBarTeaserV2() {
   }, [ribbonStep, selectedDemo]);
 
   const isIntro = ribbonStep === 0;
+  const isPortalTransition = ribbonStep === 2;
 
   return (
     <main
@@ -396,7 +454,7 @@ export default function SmartBarTeaserV2() {
           </div>
 
           <div className="flex items-center gap-2">
-            {!isIntro && selectedDemo ? (
+            {!isIntro && selectedDemo && !isPortalTransitioning ? (
               <button
                 type="button"
                 onClick={returnToChoices}
@@ -408,12 +466,24 @@ export default function SmartBarTeaserV2() {
               </button>
             ) : null}
 
+            <button
+              type="button"
+              onClick={openSmartBarPortal}
+              disabled={isPortalTransitioning}
+              className="inline-flex items-center justify-center rounded-full bg-[#012169] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(1,33,105,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-wait disabled:opacity-70 sm:px-3.5 sm:py-2 sm:text-sm"
+            >
+              <LogIn className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              {isPortalTransitioning ? "Opening" : "Log in"}
+            </button>
+
             <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
-              {isIntro
-                ? "SmartBar teaser"
-                : selectedDemo === "quick"
-                  ? "Quick demo"
-                  : "Full walkthrough"}
+              {isPortalTransition
+                ? "Opening SmartBar"
+                : isIntro
+                  ? "SmartBar teaser"
+                  : selectedDemo === "quick"
+                    ? "Quick demo"
+                    : "Full walkthrough"}
             </div>
           </div>
         </div>
@@ -464,6 +534,14 @@ export default function SmartBarTeaserV2() {
                     onFinish={returnToChoices}
                   />
                 ) : null}
+              </div>
+
+              <div
+                ref={(node) => {
+                  segmentRefs.current[2] = node;
+                }}
+              >
+                <TeaserPortalTransitionCard isWaving={wavingIndex === 2} />
               </div>
             </motion.div>
           </div>
