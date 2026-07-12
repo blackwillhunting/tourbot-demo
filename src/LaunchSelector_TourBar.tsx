@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, LogIn, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -71,6 +71,31 @@ const TOURBOT_AUTH_DEMO_PATH_KEY = "tourbot_demo_path";
 const TOURBOT_LOCAL_DEV_TOKEN = "local-dev";
 const TOURBOT_LOCAL_DEV_TTL_SECONDS = 3600;
 const TOURBOT_LEGACY_UNLOCK_COOKIE = "tourbot_demo_unlocked";
+const SMARTBAR_DESTINATION_HANDOFF_KEY = "smartbar_destination_dummy_handoff_v1";
+
+type SmartBarDestinationHandoff = "to-portal" | "to-demos";
+
+function writeSmartBarDestinationHandoff(value: SmartBarDestinationHandoff) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.setItem(SMARTBAR_DESTINATION_HANDOFF_KEY, value);
+  } catch {
+    // Navigation still works if session storage is unavailable.
+  }
+}
+
+function consumeSmartBarDestinationHandoff(expected: SmartBarDestinationHandoff) {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const value = window.sessionStorage.getItem(SMARTBAR_DESTINATION_HANDOFF_KEY);
+    if (value) window.sessionStorage.removeItem(SMARTBAR_DESTINATION_HANDOFF_KEY);
+    return value === expected;
+  } catch {
+    return false;
+  }
+}
 
 type TourBotAuthResponse = {
   ok?: boolean;
@@ -1198,14 +1223,6 @@ const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
     demoButtons: true,
   },
 ];
-
-const SMARTBAR_DEMOS_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
-  label: "SmartBar demos",
-  message: "**Opening demos.**",
-  supportingLine: "Choose Quick Demo or Full Walkthrough.",
-  icon: PlayCircle,
-  iconClass: "bg-[#012169] text-white ring-[#012169]/10",
-};
 
 const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
@@ -2927,9 +2944,72 @@ function SmartBarRootRestaurantPreview({
   );
 }
 
+function SmartBarRootIncomingPortalHandoffPage() {
+  return (
+    <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
+      <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[16px] bg-[#012169] text-white shadow-sm sm:h-11 sm:w-11 sm:rounded-2xl">
+              <Compass className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold tracking-tight text-slate-950 sm:text-lg">
+                SmartBar
+              </div>
+              <div className="text-[11px] font-medium leading-tight text-slate-700 sm:text-sm sm:font-normal sm:text-slate-500">
+                A search bar that does
+              </div>
+            </div>
+          </div>
+
+          <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
+            <Sparkles className="h-4 w-4 text-slate-500" />
+            Opening SmartBar
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-2.5 py-2 sm:overflow-visible sm:px-6 sm:py-5">
+        <div className="relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain py-2 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0">
+          <div className="my-auto w-full overflow-hidden rounded-[30px] bg-white/35 backdrop-blur-sm sm:my-0 sm:rounded-[36px]">
+            <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
+              <div className="mx-auto max-w-2xl">
+                <div className="mb-4 flex items-center gap-3 sm:mb-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
+                    <LogIn className="h-6 w-6 sm:h-7 sm:w-7" />
+                  </div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
+                    SmartBar access
+                  </div>
+                </div>
+
+                <div className="max-w-2xl text-base font-medium leading-7 text-slate-700 sm:text-xl sm:leading-9">
+                  <div className="font-semibold text-slate-950">
+                    <SmartBarRootThinkingText body="Opening SmartBar." />
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
+                    Your session decides whether you enter the portal or see the login challenge.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
+  const [isIncomingPortalHandoff, setIncomingPortalHandoff] = useState(() =>
+    consumeSmartBarDestinationHandoff("to-portal"),
+  );
+  const [incomingPortalMinimumElapsed, setIncomingPortalMinimumElapsed] = useState(
+    () => !isIncomingPortalHandoff,
+  );
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -2950,18 +3030,13 @@ function SmartBarRootDemoSelector() {
       message,
       sourceIndex,
     }));
-    const demosTransitionItem = {
-      kind: "message" as const,
-      message: SMARTBAR_DEMOS_TRANSITION_MESSAGE,
-      sourceIndex: SMARTBAR_ROOT_MESSAGES.length,
-    };
     const setupItems = SMARTBAR_SETUP_WALKTHROUGH_STEPS.map((_setupStep, setupIndex) => ({
       kind: "setup-step" as const,
       setupIndex,
     }));
 
     if (hasAccess) {
-      return [{ kind: "passcode" }, ...messageItems, demosTransitionItem, ...setupItems, { kind: "restaurant-preview" }];
+      return [{ kind: "passcode" }, ...messageItems, ...setupItems, { kind: "restaurant-preview" }];
     }
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [{ kind: "passcode" }];
@@ -2977,9 +3052,6 @@ function SmartBarRootDemoSelector() {
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
   const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
-  const demosTransitionStep = stageItems.findIndex(
-    (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
-  );
   const isWaving = wavingIndex !== null;
   const stageHeightTransitionClass =
     !hasAccess && gateView === "challenge" && step === 0
@@ -3002,7 +3074,7 @@ function SmartBarRootDemoSelector() {
 
     setRibbonY(-active.offsetTop);
     setRibbonHeight(active.offsetHeight);
-  }, [stageItems.length, step, isRestaurantPreviewSettled]);
+  }, [stageItems.length, step, isRestaurantPreviewSettled, isIncomingPortalHandoff]);
 
   useEffect(() => {
     const active = segmentRefs.current[step];
@@ -3035,7 +3107,7 @@ function SmartBarRootDemoSelector() {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", measureActiveSegment);
     };
-  }, [step, stageItems.length, isRestaurantPreviewSettled]);
+  }, [step, stageItems.length, isRestaurantPreviewSettled, isIncomingPortalHandoff]);
 
   useEffect(() => {
     if (hasAccess) {
@@ -3049,6 +3121,22 @@ function SmartBarRootDemoSelector() {
   useEffect(() => {
     stageScrollRef.current?.scrollTo({ top: 0 });
   }, [step]);
+
+  useEffect(() => {
+    if (!isIncomingPortalHandoff) return;
+
+    const timer = window.setTimeout(() => {
+      setIncomingPortalMinimumElapsed(true);
+    }, SMARTBAR_ROOT_MESSAGE_WAVE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isIncomingPortalHandoff]);
+
+  useEffect(() => {
+    if (!isIncomingPortalHandoff) return;
+    if (!incomingPortalMinimumElapsed || isSessionChecking) return;
+    setIncomingPortalHandoff(false);
+  }, [incomingPortalMinimumElapsed, isIncomingPortalHandoff, isSessionChecking]);
 
   const resetAccess = useCallback(() => {
     rootRunIdRef.current += 1;
@@ -3234,26 +3322,10 @@ function SmartBarRootDemoSelector() {
     setStep(useItStep >= 0 ? useItStep : 1);
   };
 
-  const goBackToDemos = async () => {
-    if (isWaving || !hasAccess || demosTransitionStep < 0) return;
+  const goBackToDemos = () => {
+    if (isWaving || !hasAccess) return;
 
-    const runId = rootRunIdRef.current + 1;
-    rootRunIdRef.current = runId;
-    setWavingIndex(step);
-
-    await wait(SMARTBAR_ROOT_MESSAGE_WAVE_MS);
-    if (rootRunIdRef.current !== runId) return;
-
-    setStep(demosTransitionStep);
-    setWavingIndex(null);
-
-    await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
-    if (rootRunIdRef.current !== runId) return;
-
-    setWavingIndex(demosTransitionStep);
-    await wait(720);
-    if (rootRunIdRef.current !== runId) return;
-
+    writeSmartBarDestinationHandoff("to-demos");
     window.location.assign("/smartbar-teaser");
   };
 
@@ -3323,6 +3395,10 @@ function SmartBarRootDemoSelector() {
       : isLaunchOverview
         ? "Live Orders"
         : "Next";
+
+  if (isIncomingPortalHandoff) {
+    return <SmartBarRootIncomingPortalHandoffPage />;
+  }
 
   return (
     <main className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen">
