@@ -2955,7 +2955,7 @@ function SmartBarRootRestaurantPreview({
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
-  const [overviewReturn] = useState(() => shouldOpenSmartBarRootOverviewFromReturn());
+  const [overviewReturn, setOverviewReturn] = useState(() => shouldOpenSmartBarRootOverviewFromReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -3119,6 +3119,7 @@ function SmartBarRootDemoSelector() {
     rootRunIdRef.current += 1;
     clearStoredTourBotDemoToken();
     cleanupResetAccessUrl();
+    setOverviewReturn(false);
     setIsSessionChecking(false);
     setHasAccess(false);
     setPasscode("");
@@ -3182,6 +3183,7 @@ function SmartBarRootDemoSelector() {
 
         if (overviewReturn) {
           cleanupResetAccessUrl();
+          setOverviewReturn(false);
           setHasAccess(true);
           setGateView("challenge");
           setStep(SMARTBAR_ROOT_OVERVIEW_STEP);
@@ -3290,6 +3292,7 @@ function SmartBarRootDemoSelector() {
 
     if (overviewReturn) {
       cleanupResetAccessUrl();
+      setOverviewReturn(false);
       setHasAccess(true);
       setGateView("challenge");
       setStep(SMARTBAR_ROOT_OVERVIEW_STEP);
