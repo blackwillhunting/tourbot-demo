@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Compass, KeyRound, LayoutDashboard, LogIn, PlayCircle, ReceiptText, Search, ShieldCheck, ShoppingCart, Sparkles, XCircle } from "lucide-react";
 import SmartBarSpeedDemo, { type SmartBarSpeedDemoVariant } from "./components/tourbar/speed-demo/SmartBarSpeedDemo";
 import SmartBarFitsAnywhereAnimation, { FITS_ANYWHERE_ANIMATION_MS } from "./components/tourbar/speed-demo/SmartBarFitsAnywhereAnimation";
 import FoodTrioDesktopIntroAnimation, { FOOD_TRIO_DESKTOP_INTRO_ANIMATION_MS } from "./components/tourbar/speed-demo/FoodTrioDesktopIntroAnimation";
@@ -1209,7 +1209,7 @@ const SMARTBAR_LOGIN_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
   label: "SmartBar access",
   message: "**Opening SmartBar.**",
   supportingLine: "Your session decides whether you enter the portal or see the login challenge.",
-  icon: KeyRound,
+  icon: LogIn,
   iconClass: "bg-[#012169] text-white ring-[#012169]/10",
 };
 
@@ -2952,8 +2952,8 @@ function SmartBarRootDemoSelector() {
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
   const [isLoginEntryTransitionPending, setLoginEntryTransitionPending] = useState(() => !hasInitialStoredAccess);
-  const [step, setStep] = useState(1);
-  const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 1));
+  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
+  const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 0));
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -2982,12 +2982,12 @@ function SmartBarRootDemoSelector() {
     }
     if (gateView === "failure") return [{ kind: "passcode" }, { kind: "failure" }];
     return [
-      { kind: "passcode" },
       {
         kind: "message",
         message: SMARTBAR_LOGIN_TRANSITION_MESSAGE,
         sourceIndex: -1,
       },
+      { kind: "passcode" },
     ];
   }, [gateView, hasAccess]);
 
@@ -3082,20 +3082,19 @@ function SmartBarRootDemoSelector() {
     if (!isLoginEntryTransitionPending || hasAccess || gateView !== "challenge") return;
 
     let isCancelled = false;
-    setStep(1);
-    setWavingIndex(1);
+    setStep(0);
+    setWavingIndex(0);
 
     const spinTimer = window.setTimeout(() => {
       if (isCancelled) return;
-      setStep(0);
-      setWavingIndex(0);
-    }, 160);
+      setStep(1);
+    }, SMARTBAR_ROOT_MESSAGE_WAVE_MS);
 
     const finishTimer = window.setTimeout(() => {
       if (isCancelled) return;
       setWavingIndex(null);
       setLoginEntryTransitionPending(false);
-    }, 160 + SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+    }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS);
 
     return () => {
       isCancelled = true;
@@ -3114,8 +3113,8 @@ function SmartBarRootDemoSelector() {
     setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
     setGateView("challenge");
     setLoginEntryTransitionPending(true);
-    setStep(1);
-    setWavingIndex(1);
+    setStep(0);
+    setWavingIndex(0);
     setRestaurantPreviewSettled(false);
   }, []);
 
@@ -3136,8 +3135,8 @@ function SmartBarRootDemoSelector() {
         setFailureMessage("That code is incomplete. Enter the full demo passcode and try again.");
         setGateView("challenge");
         setLoginEntryTransitionPending(true);
-        setStep(1);
-        setWavingIndex(1);
+        setStep(0);
+        setWavingIndex(0);
         setIsSessionChecking(false);
         return;
       }
@@ -3146,8 +3145,8 @@ function SmartBarRootDemoSelector() {
       if (!hasStoredToken) {
         setHasAccess(false);
         setLoginEntryTransitionPending(true);
-        setStep(1);
-        setWavingIndex(1);
+        setStep(0);
+        setWavingIndex(0);
         setIsSessionChecking(false);
         return;
       }
@@ -3187,8 +3186,8 @@ function SmartBarRootDemoSelector() {
         setHasAccess(false);
         setGateView("challenge");
         setLoginEntryTransitionPending(true);
-        setStep(1);
-        setWavingIndex(1);
+        setStep(0);
+        setWavingIndex(0);
       }
 
       setIsSessionChecking(false);
@@ -3224,6 +3223,8 @@ function SmartBarRootDemoSelector() {
     if (rootRunIdRef.current !== runId) return;
     setPasscode("");
     setGateView("challenge");
+    setLoginEntryTransitionPending(false);
+    setStep(1);
     setWavingIndex(null);
   };
 

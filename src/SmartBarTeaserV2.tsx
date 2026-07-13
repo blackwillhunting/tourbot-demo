@@ -11,6 +11,7 @@ import {
   Compass,
   LogIn,
   PhoneCall,
+  PlayCircle,
   ReceiptText,
 } from "lucide-react";
 import RestaurantWalkthrough, {
@@ -286,22 +287,28 @@ function TeaserIntroCard({
 
 function TeaserPortalTransitionCard({
   isWaving,
-  message = "Opening SmartBar.",
-  supportingLine = "Your session decides whether you enter the portal or see the login challenge.",
+  mode = "portal",
 }: {
   isWaving: boolean;
-  message?: string;
-  supportingLine?: string;
+  mode?: "portal" | "demos";
 }) {
+  const isDemos = mode === "demos";
+  const message = isDemos ? "Opening demos." : "Opening SmartBar.";
+  const supportingLine = isDemos
+    ? "Choose Quick Demo or Full Walkthrough."
+    : "Your session decides whether you enter the portal or see the login challenge.";
+  const Icon = isDemos ? PlayCircle : LogIn;
+  const label = isDemos ? "SmartBar demos" : "SmartBar access";
+
   return (
     <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
-            <LogIn className="h-6 w-6 sm:h-7 sm:w-7" />
+            <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
-            SmartBar access
+            {label}
           </div>
         </div>
 
@@ -325,8 +332,8 @@ function TeaserPortalTransitionCard({
 export default function SmartBarTeaserV2() {
   const [selectedDemo, setSelectedDemo] = useState<TeaserChoice | null>(null);
   const [isInitialTeaserSpinPending, setInitialTeaserSpinPending] = useState(true);
-  const [ribbonStep, setRibbonStep] = useState(2);
-  const [wavingIndex, setWavingIndex] = useState<number | null>(2);
+  const [ribbonStep, setRibbonStep] = useState(0);
+  const [wavingIndex, setWavingIndex] = useState<number | null>(0);
   const [isPortalTransitioning, setIsPortalTransitioning] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
@@ -351,7 +358,7 @@ export default function SmartBarTeaserV2() {
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
-        setRibbonStep(1);
+        setRibbonStep(2);
       }, SMARTBAR_ROOT_MESSAGE_WAVE_MS),
     );
 
@@ -366,7 +373,7 @@ export default function SmartBarTeaserV2() {
     if (isPortalTransitioning || isInitialTeaserSpinPending) return;
 
     clearTransitionTimers();
-    setRibbonStep(0);
+    setRibbonStep(1);
     setWavingIndex(null);
     window.setTimeout(() => setSelectedDemo(null), SMARTBAR_ROOT_RIBBON_GLIDE_MS);
   };
@@ -380,8 +387,8 @@ export default function SmartBarTeaserV2() {
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
-        setRibbonStep(2);
-        setWavingIndex(2);
+        setRibbonStep(0);
+        setWavingIndex(0);
       }, SMARTBAR_ROOT_MESSAGE_WAVE_MS),
     );
 
@@ -403,20 +410,20 @@ export default function SmartBarTeaserV2() {
   useEffect(() => {
     if (!isInitialTeaserSpinPending) return;
 
-    setWavingIndex(2);
+    setRibbonStep(0);
+    setWavingIndex(0);
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
-        setRibbonStep(0);
-        setWavingIndex(0);
-      }, 160),
+        setRibbonStep(1);
+      }, SMARTBAR_ROOT_MESSAGE_WAVE_MS),
     );
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
         setWavingIndex(null);
         setInitialTeaserSpinPending(false);
-      }, 160 + SMARTBAR_ROOT_RIBBON_GLIDE_MS),
+      }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS),
     );
   }, [isInitialTeaserSpinPending]);
 
@@ -458,9 +465,9 @@ export default function SmartBarTeaserV2() {
     };
   }, [ribbonStep, selectedDemo]);
 
-  const isIntro = ribbonStep === 0;
+  const isIntro = ribbonStep === 1;
   const isInitialTeaserOpening = isInitialTeaserSpinPending;
-  const isPortalTransition = ribbonStep === 2 && !isInitialTeaserOpening;
+  const isPortalTransition = ribbonStep === 0 && !isInitialTeaserOpening;
 
   return (
     <main
@@ -545,15 +552,26 @@ export default function SmartBarTeaserV2() {
                   segmentRefs.current[0] = node;
                 }}
               >
-                <TeaserIntroCard
+                <TeaserPortalTransitionCard
                   isWaving={wavingIndex === 0}
-                  onChoose={chooseDemo}
+                  mode={isInitialTeaserOpening ? "demos" : "portal"}
                 />
               </div>
 
               <div
                 ref={(node) => {
                   segmentRefs.current[1] = node;
+                }}
+              >
+                <TeaserIntroCard
+                  isWaving={wavingIndex === 1}
+                  onChoose={chooseDemo}
+                />
+              </div>
+
+              <div
+                ref={(node) => {
+                  segmentRefs.current[2] = node;
                 }}
                 className="h-[590px] sm:h-[675px]"
               >
@@ -566,18 +584,6 @@ export default function SmartBarTeaserV2() {
                     onFinish={returnToChoices}
                   />
                 ) : null}
-              </div>
-
-              <div
-                ref={(node) => {
-                  segmentRefs.current[2] = node;
-                }}
-              >
-                <TeaserPortalTransitionCard
-                  isWaving={wavingIndex === 2}
-                  message={isInitialTeaserOpening ? "Opening demos." : undefined}
-                  supportingLine={isInitialTeaserOpening ? "Choose Quick Demo or Full Walkthrough." : undefined}
-                />
               </div>
             </motion.div>
           </div>
