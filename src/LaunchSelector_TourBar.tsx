@@ -1414,6 +1414,7 @@ function SmartBarRootDemoLaunchButton({
   isComplete = false,
   isDisabled = false,
   disabledLabel = "Locked",
+  compactOnMobile = false,
 }: {
   href?: string;
   icon: ComponentType<{ className?: string }>;
@@ -1428,10 +1429,13 @@ function SmartBarRootDemoLaunchButton({
   isComplete?: boolean;
   isDisabled?: boolean;
   disabledLabel?: string;
+  compactOnMobile?: boolean;
 }) {
   const hasStatusChecklist = Boolean(statusLabel || steps?.length || note);
   const stepLabel = typeof stepNumber === "number" ? String(stepNumber).padStart(2, "0") : "";
-  const launchBaseClassName = "group relative flex h-full min-h-[132px] w-full items-start gap-3 overflow-hidden rounded-[22px] px-4 py-3 text-left shadow-[0_14px_34px_rgba(1,33,105,0.18)] ring-1 transition sm:px-5 sm:py-4";
+  const launchBaseClassName =
+    "group relative flex h-full w-full items-start gap-3 overflow-hidden rounded-[22px] px-4 py-3 text-left shadow-[0_14px_34px_rgba(1,33,105,0.18)] ring-1 transition sm:min-h-[132px] sm:px-5 sm:py-4 " +
+    (compactOnMobile ? "min-h-[104px]" : "min-h-[132px]");
   const launchStateClassName = isDisabled
     ? "cursor-not-allowed bg-slate-50 text-slate-400 shadow-none ring-slate-200/80 hover:translate-y-0"
     : isComplete
@@ -2669,6 +2673,7 @@ function SmartBarRootLaunchMessage({
                 description="Test orders."
                 stepNumber={1}
                 isComplete={useItSandboxComplete}
+                compactOnMobile
                 onSelect={() => setActiveUseItLane("sandbox")}
               />
               <SmartBarRootDemoLaunchButton
@@ -2680,6 +2685,7 @@ function SmartBarRootLaunchMessage({
                 isComplete={useItWebsiteComplete}
                 isDisabled={!useItWebsiteEnabled}
                 disabledLabel="Step 1 first"
+                compactOnMobile
                 onSelect={() => setActiveUseItLane("website")}
               />
               <SmartBarRootDemoLaunchButton
@@ -2691,6 +2697,7 @@ function SmartBarRootLaunchMessage({
                 isComplete={useItLiveBoardReady}
                 isDisabled={!useItBoardEnabled}
                 disabledLabel={useItWebsiteEnabled ? "Step 2 first" : "Locked"}
+                compactOnMobile
                 onSelect={() => setActiveUseItLane("board")}
               />
             </div>
@@ -2993,6 +3000,7 @@ function SmartBarRootDemoSelector() {
   const currentSetupIndex = isSetupStep ? current.setupIndex : 0;
   const isLastSetupStep = isSetupStep && currentSetupIndex >= SMARTBAR_SETUP_WALKTHROUGH_STEPS.length - 1;
   const setupStartStep = stageItems.findIndex((item) => item.kind === "setup-step" && item.setupIndex === 0);
+  const homeStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 0);
   const useItStep = stageItems.findIndex((item) => item.kind === "message" && item.sourceIndex === 1);
   const demosTransitionStep = stageItems.findIndex(
     (item) => item.kind === "message" && item.sourceIndex === SMARTBAR_ROOT_MESSAGES.length,
@@ -3287,6 +3295,12 @@ function SmartBarRootDemoSelector() {
     setStep(useItStep >= 0 ? useItStep : 1);
   };
 
+  const exitSetupWalkthroughToHome = () => {
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
+    setStep(homeStep >= 0 ? homeStep : 1);
+  };
+
   const goBackToDemos = async () => {
     if (isWaving || !hasAccess || demosTransitionStep < 0) return;
 
@@ -3335,7 +3349,7 @@ function SmartBarRootDemoSelector() {
     }
 
     if (isSetupStep && currentSetupIndex === 0) {
-      finishSetupWalkthrough();
+      exitSetupWalkthroughToHome();
       return;
     }
 
@@ -3399,7 +3413,7 @@ function SmartBarRootDemoSelector() {
             {hasAccess && (isRestaurantPreview || isSetupStep) && (
               <button
                 type="button"
-                onClick={isRestaurantPreview ? finishRestaurantPreview : finishSetupWalkthrough}
+                onClick={isRestaurantPreview ? finishRestaurantPreview : exitSetupWalkthroughToHome}
                 className="inline-flex items-center justify-center rounded-full bg-white/86 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-3.5 sm:py-2 sm:text-sm"
               >
                 <ArrowLeft className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
