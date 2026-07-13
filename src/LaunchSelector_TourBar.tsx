@@ -3042,7 +3042,7 @@ function SmartBarRootDemoSelector() {
 
     setRibbonY(-active.offsetTop);
     setRibbonHeight(active.offsetHeight);
-  }, [stageItems.length, step, isRestaurantPreviewSettled]);
+  }, [stageItems, step, isRestaurantPreviewSettled]);
 
   useEffect(() => {
     const active = segmentRefs.current[step];
@@ -3075,7 +3075,7 @@ function SmartBarRootDemoSelector() {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", measureActiveSegment);
     };
-  }, [step, stageItems.length, isRestaurantPreviewSettled]);
+  }, [step, stageItems, isRestaurantPreviewSettled]);
 
   useEffect(() => {
     if (hasAccess) {
