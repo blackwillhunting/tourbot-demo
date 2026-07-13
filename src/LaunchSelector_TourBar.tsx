@@ -1180,17 +1180,15 @@ type SmartBarRootStageItem =
   | { kind: "restaurant-preview" };
 
 const SMARTBAR_ROOT_MESSAGES: SmartBarRootDemoMessage[] = [
+{
+  label: "SmartBar Portal",
+  message: "**Manage SmartBar.**",
+  description: "Choose an option below.",
+  icon: LayoutDashboard,
+  iconClass: "bg-[#012169] text-white ring-[#012169]/10",
+},
   {
-    label: "SmartBar Portal",
-    message: "**Run SmartBar.**",
-    supportingLine: "Test your menu. Prepare your site. Handle live orders.",
-    description:
-      "Use Sandbox for private testing, Website Setup to get ready, and Live Orders to manage incoming tickets.",
-    icon: LayoutDashboard,
-    iconClass: "bg-[#012169] text-white ring-[#012169]/10",
-  },
-  {
-    label: "Live Orders",
+    label: "Workspace",
     message:
       "Test it, connect it, then run live orders.",
     icon: PlayCircle,
@@ -3376,7 +3374,7 @@ function SmartBarRootDemoSelector() {
         ? "Use SmartBar"
         : "Next"
       : isLaunchOverview
-        ? "Live Orders"
+        ? "Workspace"
         : "Next";
 
   return (
@@ -3538,9 +3536,9 @@ function SmartBarRootDemoSelector() {
                 type="button"
                 onClick={goBackToDemos}
                 disabled={isWaving}
-                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
+                className="inline-flex min-h-[44px] flex-[0.82] items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
               >
-                Back to demos
+                Demos
                 <ArrowRight className="ml-1.5 h-4 w-4 sm:ml-2" />
               </button>
 
@@ -3548,9 +3546,9 @@ function SmartBarRootDemoSelector() {
                 type="button"
                 onClick={goSetupWalkthrough}
                 disabled={isWaving}
-                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
+                className="inline-flex min-h-[44px] flex-[1] items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.20),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
               >
-                Setup
+                Overview
                 <ArrowRight className="ml-1.5 h-4 w-4 sm:ml-2" />
               </button>
             </>
@@ -3561,7 +3559,7 @@ function SmartBarRootDemoSelector() {
               type="button"
               onClick={goNext}
               disabled={isWaving || (!hasAccess && isSessionChecking)}
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm"
+              className={`inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_16px_34px_rgba(1,33,105,0.26),inset_0_1px_0_rgba(255,255,255,0.12)] disabled:cursor-wait disabled:opacity-70 sm:min-h-0 sm:flex-none sm:px-5 sm:py-2.5 sm:text-sm ${isLaunchOverview ? "flex-[1.28]" : "flex-1"}`}
             >
               {nextLabel}
               <ArrowRight className="ml-2 h-4 w-4" />
