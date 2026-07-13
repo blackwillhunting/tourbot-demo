@@ -510,7 +510,7 @@ export default function SmartBarTeaserV2() {
               className="inline-flex items-center justify-center rounded-full bg-[#012169] px-3 py-1.5 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(1,33,105,0.16)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-wait disabled:opacity-70 sm:px-3.5 sm:py-2 sm:text-sm"
             >
               <LogIn className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-              {isPortalTransitioning || isInitialTeaserOpening ? "Opening" : "Log in"}
+              {isPortalTransitioning || isInitialTeaserOpening ? "Opening" : "Use SmartBar"}
             </button>
 
             <div className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-slate-600 shadow-sm sm:flex">
