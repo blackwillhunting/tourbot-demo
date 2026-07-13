@@ -2726,7 +2726,7 @@ function SmartBarRootPasscodeChallenge({
 
   useEffect(() => {
     if (!isActive) return;
-    inputRefs.current[0]?.focus();
+    inputRefs.current[0]?.focus({ preventScroll: true });
   }, [isActive]);
 
   const focusBox = (index: number) => {
