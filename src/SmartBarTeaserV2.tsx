@@ -378,7 +378,7 @@ export default function SmartBarTeaserV2() {
     window.setTimeout(() => setSelectedDemo(null), SMARTBAR_ROOT_RIBBON_GLIDE_MS);
   };
 
-  const openSmartBarPortal = () => {
+  const openSmartBarDestination = (destination: string) => {
     if (isPortalTransitioning || isInitialTeaserSpinPending) return;
 
     clearTransitionTimers();
@@ -394,9 +394,17 @@ export default function SmartBarTeaserV2() {
 
     transitionTimersRef.current.push(
       window.setTimeout(() => {
-        window.location.assign("/");
+        window.location.assign(destination);
       }, SMARTBAR_ROOT_MESSAGE_WAVE_MS + SMARTBAR_ROOT_RIBBON_GLIDE_MS + 220),
     );
+  };
+
+  const openSmartBarPortal = () => {
+    openSmartBarDestination("/");
+  };
+
+  const openSmartBarOverview = () => {
+    openSmartBarDestination("/?smartbarReturn=overview");
   };
 
   useEffect(() => {
@@ -580,8 +588,8 @@ export default function SmartBarTeaserV2() {
                     key={selectedDemo}
                     chrome="content"
                     variant={selectedDemo}
-                    finishLabel="Back to demos"
-                    onFinish={returnToChoices}
+                    finishLabel="How to get started"
+                    onFinish={openSmartBarOverview}
                   />
                 ) : null}
               </div>

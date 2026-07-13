@@ -81,7 +81,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   9: {
     eyebrow: "Private sandbox",
-    copy: "Phone calls → AI-generated tickets.\nUse private sandbox to test your menu.",
+    copy: "Phone calls → AI-generated tickets.\nTest your menu in a private sandbox.",
   },
 };
 

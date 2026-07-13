@@ -278,6 +278,13 @@ function shouldOpenSmartBarRootDemoLobbyFromReturn() {
   return params.get("smartbarReturn") === "demos";
 }
 
+function shouldOpenSmartBarRootOverviewFromReturn() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("smartbarReturn") === "overview";
+}
+
 function shouldOpenSmartBarSubscriptionReturn() {
   if (typeof window === "undefined") return false;
 
@@ -1212,6 +1219,8 @@ const SMARTBAR_LOGIN_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
   icon: LogIn,
   iconClass: "bg-[#012169] text-white ring-[#012169]/10",
 };
+
+const SMARTBAR_ROOT_OVERVIEW_STEP = SMARTBAR_ROOT_MESSAGES.length + 2;
 
 const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
@@ -2946,13 +2955,16 @@ function SmartBarRootRestaurantPreview({
 function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
+  const [overviewReturn] = useState(() => shouldOpenSmartBarRootOverviewFromReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
   const [failureMessage, setFailureMessage] = useState("That code is incomplete. Enter the full demo passcode and try again.");
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
   const [isLoginEntryTransitionPending, setLoginEntryTransitionPending] = useState(() => !hasInitialStoredAccess);
-  const [step, setStep] = useState(() => (hasInitialStoredAccess ? 1 : 0));
+  const [step, setStep] = useState(() =>
+    hasInitialStoredAccess && overviewReturn ? SMARTBAR_ROOT_OVERVIEW_STEP : hasInitialStoredAccess ? 1 : 0,
+  );
   const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 0));
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
   const [ribbonY, setRibbonY] = useState(0);
@@ -3168,6 +3180,16 @@ function SmartBarRootDemoSelector() {
       if (result.accepted) {
         if (redirectToSafeSmartBarRootReturnTo()) return;
 
+        if (overviewReturn) {
+          cleanupResetAccessUrl();
+          setHasAccess(true);
+          setGateView("challenge");
+          setStep(SMARTBAR_ROOT_OVERVIEW_STEP);
+          setWavingIndex(null);
+          setIsSessionChecking(false);
+          return;
+        }
+
         if (subscriptionReturn) {
           cleanupSmartBarSubscriptionReturnUrl();
           setHasAccess(true);
@@ -3265,6 +3287,18 @@ function SmartBarRootDemoSelector() {
     }
 
     if (redirectToSafeSmartBarRootReturnTo()) return;
+
+    if (overviewReturn) {
+      cleanupResetAccessUrl();
+      setHasAccess(true);
+      setGateView("challenge");
+      setStep(SMARTBAR_ROOT_OVERVIEW_STEP);
+      await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      if (rootRunIdRef.current !== runId) return;
+      setWavingIndex(null);
+      return;
+    }
+
     if (redirectToTourBotDemoPath(loginResult.demoPath, { allowFoodRouteSteering: true })) return;
 
     cleanupResetAccessUrl();
