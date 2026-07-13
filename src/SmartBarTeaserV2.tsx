@@ -269,7 +269,7 @@ function TeaserIntroCard({
 
         <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2">
           <DemoChoiceButton
-            title="Quick Demo"
+            title="Teaser"
             description="Clean order"
             primary
             onClick={() => onChoose("quick")}
@@ -521,7 +521,7 @@ export default function SmartBarTeaserV2() {
                   : isIntro
                   ? "SmartBar teaser"
                   : selectedDemo === "quick"
-                    ? "Quick demo"
+                    ? "Teaser"
                     : "Full walkthrough"}
             </div>
           </div>
