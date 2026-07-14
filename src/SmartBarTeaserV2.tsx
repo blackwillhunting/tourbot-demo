@@ -304,8 +304,8 @@ function TeaserPortalTransitionCard({
     <div className="w-full bg-white/80 px-5 py-7 text-slate-950 sm:px-10 sm:py-10">
       <div className="mx-auto max-w-2xl">
         <div className="mb-4 flex items-center gap-3 sm:mb-5">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-14 sm:w-14">
-            <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#012169] text-white ring-1 ring-[#012169]/10 sm:h-11 sm:w-11">
+            <Icon className="h-5 w-5" />
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:text-xs sm:tracking-[0.16em]">
             {label}
@@ -321,7 +321,11 @@ function TeaserPortalTransitionCard({
             )}
           </div>
           <div className="mt-0.5 text-sm font-medium leading-5 text-slate-500 sm:text-base sm:leading-6">
-            {supportingLine}
+            {isWaving ? (
+              <TeaserThinkingText body={supportingLine} />
+            ) : (
+              supportingLine
+            )}
           </div>
         </div>
       </div>
@@ -537,7 +541,12 @@ export default function SmartBarTeaserV2() {
       </header>
 
       <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-2.5 py-2 sm:overflow-visible sm:px-6 sm:py-5">
-        <div className="relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain py-2 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0">
+        <div
+          className={[
+            "relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain py-2 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0 sm:transition-transform sm:duration-[720ms] sm:ease-out",
+            isInitialTeaserOpening && ribbonStep === 0 ? "sm:-translate-y-8" : "",
+          ].join(" ")}
+        >
           <div
             className={
               "my-auto w-full overflow-hidden rounded-[30px] transition-[height] duration-700 ease-out sm:my-0 sm:rounded-[36px] " +
