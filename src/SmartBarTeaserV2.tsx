@@ -275,7 +275,7 @@ function TeaserIntroCard({
             onClick={() => onChoose("quick")}
           />
           <DemoChoiceButton
-            title="Full Walkthrough"
+            title="Full Demo"
             description="Messy order"
             onClick={() => onChoose("full")}
           />
