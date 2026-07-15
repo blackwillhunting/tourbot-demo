@@ -544,7 +544,7 @@ export default function SmartBarTeaserV2() {
         <div
           className={[
             "relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain py-2 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0 sm:transition-transform sm:duration-[720ms] sm:ease-out",
-            isInitialTeaserOpening && ribbonStep === 0 ? "sm:-translate-y-8" : "",
+            isInitialTeaserOpening && ribbonStep === 0 ? "sm:-translate-y-[19px]" : "",
           ].join(" ")}
         >
           <div
