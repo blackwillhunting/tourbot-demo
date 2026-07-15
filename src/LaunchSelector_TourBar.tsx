@@ -1513,7 +1513,7 @@ function SmartBarRootDemoLaunchButton({
         <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
         </span>
-      ) : isDisabled ? (
+      ) : isDisabled && disabledLabel ? (
         <span className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
           {disabledLabel}
         </span>
@@ -2693,7 +2693,7 @@ function SmartBarRootLaunchMessage({
                 stepNumber={2}
                 isComplete={useItWebsiteComplete}
                 isDisabled={!useItWebsiteEnabled}
-                disabledLabel="Step 1 first"
+                disabledLabel=""
                 compactOnMobile
                 onSelect={() => setActiveUseItLane("website")}
               />
@@ -2705,7 +2705,7 @@ function SmartBarRootLaunchMessage({
                 stepNumber={3}
                 isComplete={useItLiveBoardReady}
                 isDisabled={!useItBoardEnabled}
-                disabledLabel={useItWebsiteEnabled ? "Step 2 first" : "Locked"}
+                disabledLabel=""
                 compactOnMobile
                 onSelect={() => setActiveUseItLane("board")}
               />
