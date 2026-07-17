@@ -2149,6 +2149,8 @@ type SmartBarMobileShellProps = {
   mode?: "lab" | "overlay";
   /** Demo-only underlay guard to prevent page controls from flashing through the scripted submit transition. */
   demoTransitionShield?: boolean;
+  /** Demo-only: block direct user clicks, taps, focus, and typing while preserving scripted animation. */
+  demoInteractionLocked?: boolean;
   /** Optional first-load callout shown above the footer launcher while SmartBar is at rest. */
   introCallout?: SmartBarMobileIntroCallout | null;
   /** Demo-only: render an element-owned cue directly on the rest-state SmartBar launcher capsule. */
@@ -2198,6 +2200,7 @@ type SmartBarMobileShellProps = {
 export default function SmartBarMobileShell({
   mode = "lab",
   demoTransitionShield = false,
+  demoInteractionLocked = false,
   introCallout = null,
   demoLauncherCue = null,
   demoCompanionCue = null,
@@ -2226,6 +2229,7 @@ export default function SmartBarMobileShell({
   onResetCart,
 }: SmartBarMobileShellProps) {
   const isOverlay = mode === "overlay";
+  const demoInteractionPointerClass = demoInteractionLocked ? "pointer-events-none" : "pointer-events-auto";
   const overlayBottomLiftPx = Number.isFinite(demoBottomLiftPx) ? demoBottomLiftPx : 0;
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -4431,7 +4435,8 @@ export default function SmartBarMobileShell({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
+            className={`${demoInteractionPointerClass} fixed inset-x-0 z-[10083] flex justify-center px-0`}
+            aria-hidden={demoInteractionLocked ? true : undefined}
             style={{ bottom: 76 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <div
@@ -4454,11 +4459,17 @@ export default function SmartBarMobileShell({
                   ref={entryTextareaRef}
                   value={entryDraft}
                   onChange={(event) => {
+                    if (demoInteractionLocked) return;
                     setEntryDraft(event.target.value);
                     setHasEditedEntryDraft(true);
                   }}
-                  onFocus={() => setEntryFocused(true)}
+                  onFocus={() => {
+                    if (demoInteractionLocked) return;
+                    setEntryFocused(true);
+                  }}
                   onBlur={() => setEntryFocused(false)}
+                  readOnly={demoInteractionLocked}
+                  tabIndex={demoInteractionLocked ? -1 : undefined}
                   className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-center text-[16px] font-normal leading-5 text-transparent outline-none ring-0 placeholder:text-transparent caret-transparent selection:bg-slate-900/15"
                   placeholder=""
                   spellCheck={false}
@@ -4505,7 +4516,8 @@ export default function SmartBarMobileShell({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.14, ease: "easeOut" }}
-            className="pointer-events-auto fixed inset-x-0 z-[10083] flex justify-center px-0"
+            className={`${demoInteractionPointerClass} fixed inset-x-0 z-[10083] flex justify-center px-0`}
+            aria-hidden={demoInteractionLocked ? true : undefined}
             style={{ bottom: 76 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <motion.div
@@ -4583,9 +4595,12 @@ export default function SmartBarMobileShell({
                           ref={retryTextareaRef}
                           value={retryDraft}
                           onChange={(event) => {
+                            if (demoInteractionLocked) return;
                             setRetryDraft(event.target.value);
                           }}
-                          disabled={retryCheckingLineId === selectedLine.id}
+                          disabled={demoInteractionLocked || retryCheckingLineId === selectedLine.id}
+                          readOnly={demoInteractionLocked}
+                          tabIndex={demoInteractionLocked ? -1 : undefined}
                           className={retryInputClass}
                           placeholder=""
                         />
@@ -5026,7 +5041,7 @@ export default function SmartBarMobileShell({
                           event.stopPropagation();
                           scrollSmartBarMobileCartBy(-280);
                         }}
-                        className="pointer-events-auto h-12 w-full rounded-full bg-transparent opacity-0"
+                        className={`${demoInteractionPointerClass} h-12 w-full rounded-full bg-transparent opacity-0`}
                         aria-label="Scroll cart up"
                       />
                       <button
@@ -5038,7 +5053,7 @@ export default function SmartBarMobileShell({
                           event.stopPropagation();
                           scrollSmartBarMobileCartBy(320);
                         }}
-                        className="pointer-events-auto h-14 w-full rounded-full bg-transparent opacity-0"
+                        className={`${demoInteractionPointerClass} h-14 w-full rounded-full bg-transparent opacity-0`}
                         aria-label="Scroll cart down"
                       />
                     </div>
@@ -5076,17 +5091,19 @@ export default function SmartBarMobileShell({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.99 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            role="button"
-            tabIndex={0}
+            role={demoInteractionLocked ? undefined : "button"}
+            tabIndex={demoInteractionLocked ? -1 : 0}
             aria-label="Open SmartBar entry"
-            onClick={handleCompanionClick}
+            aria-disabled={demoInteractionLocked ? true : undefined}
+            onClick={demoInteractionLocked ? undefined : handleCompanionClick}
             onKeyDown={(event) => {
+              if (demoInteractionLocked) return;
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 handleCompanionClick();
               }
             }}
-            className="pointer-events-auto fixed inset-x-0 z-[10082] flex cursor-pointer justify-center px-0"
+            className={`${demoInteractionPointerClass} fixed inset-x-0 z-[10082] flex ${demoInteractionLocked ? "cursor-default" : "cursor-pointer"} justify-center px-0`}
             style={{ bottom: 68 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
             <div
@@ -5136,8 +5153,9 @@ export default function SmartBarMobileShell({
                 type="button"
                 data-smartbar-mobile-close="true"
                 data-smartbar-mobile-close-armed={closeArmed ? "true" : undefined}
-                onClick={handleClosePillClick}
-                className={`${chromePillClass} left-0`}
+                disabled={demoInteractionLocked}
+                onClick={demoInteractionLocked ? undefined : handleClosePillClick}
+                className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} left-0`}
                 style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -5162,8 +5180,9 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && effectiveCartGuidanceStatus ? effectiveCartGuidanceStatus : undefined}
             data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
-            onClick={handleCompanionClick}
-            className={`${chromePillClass} h-[46px] min-w-0 justify-center px-4`}
+            disabled={demoInteractionLocked}
+            onClick={demoInteractionLocked ? undefined : handleCompanionClick}
+            className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} h-[46px] min-w-0 justify-center px-4`}
             style={{ ...companionPillStyle, width: launcherPillWidth, left: launcherPillLeft }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
@@ -5270,8 +5289,9 @@ export default function SmartBarMobileShell({
                 type="button"
                 data-smartbar-mobile-cart-toggle="true"
                 data-domi-demo-down-target={phase === "cart" ? "true" : undefined}
-                onClick={handleCartToggleClick}
-                className={`${chromePillClass} right-0`}
+                disabled={demoInteractionLocked}
+                onClick={demoInteractionLocked ? undefined : handleCartToggleClick}
+                className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} right-0`}
                 style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}

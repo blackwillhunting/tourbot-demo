@@ -1208,6 +1208,7 @@ function CustomerFlowScene({
           <div className="relative h-full w-full [transform:translateZ(0)]">
             <SmartBarMobileShell
               mode="overlay"
+              demoInteractionLocked
               introCallout={
                 (isCapsuleStep && !isSlideRead) || isEntryStep
                   ? {
