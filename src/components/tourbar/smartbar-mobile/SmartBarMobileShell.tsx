@@ -69,6 +69,10 @@ export type SmartBarMobileOrderLine = {
   selectedOptions?: string[];
   /** Exact backend-selected option IDs. These are authoritative for control state. */
   selectedOptionIds?: string[];
+  /** Machine-readable gray reason for non-orderable lines. */
+  grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | string;
+  /** Short user-facing reason shown on gray lines. */
+  displayReason?: string;
   optionSelectionMode?: "single" | "multi";
   retryPrompt?: string;
 };
@@ -2541,6 +2545,9 @@ export default function SmartBarMobileShell({
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
   const selectedLineMissingDetails = smartBarMobileLineMissingDetails(selectedLine);
   const selectedLineHasOptions = Boolean(selectedLine?.options?.length);
+  const selectedLineGrayReason = selectedLine?.status === "unknown"
+    ? String(selectedLine.displayReason || selectedLine.helper || "Not recognized").replace(/\s+/g, " ").trim()
+    : "";
   const selectedLineHasSummarySelections = selectedLineSelectedDetails.length > 0;
   const selectedLineNoChoicesNeeded = Boolean(
     selectedLine &&
@@ -4791,8 +4798,14 @@ export default function SmartBarMobileShell({
                       </div>
                     ) : selectedLine.status === "unknown" ? (
                       <div className="mt-4 flex min-h-0 flex-1 flex-col">
-                        <div className="mb-3 inline-flex max-w-full items-center self-start rounded-full border border-white/20 bg-slate-950/78 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.24)]">
-                          {selectedLine.retryPrompt || "Re-enter this item."}
+                        <div className="mb-3 rounded-[24px] border border-white/18 bg-slate-950/78 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.20)] ring-1 ring-white/10">
+                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Reason</div>
+                          <div className="mt-2 rounded-[18px] bg-white/92 px-3 py-3 text-sm font-black leading-5 text-slate-950">
+                            {selectedLineGrayReason || "Not recognized"}
+                          </div>
+                          <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
+                            {selectedLine.retryPrompt || "Re-enter this item."}
+                          </div>
                         </div>
                         <textarea
                           data-smartbar-mobile-retry-input="true"

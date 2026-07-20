@@ -10,6 +10,32 @@ function burgerRushMobileCompactText(value?: string | null) {
   return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
+  const raw = String(reason || "").replace(/[\s-]+/g, "_").toLowerCase();
+  if (["not_on_menu", "unavailable_food", "unsupported_food"].includes(raw)) return "not_on_menu";
+  if (["not_recognized", "unknown", "unknown_item", "unrecognized", "gibberish"].includes(raw)) return "not_recognized";
+  if (["not_sold_separately", "not_separate", "modifier_only", "dangling_modifier", "unsupported_variant", "extra_not_available"].includes(raw)) return "not_sold_separately";
+
+  const text = burgerRushMobileCompactText(title);
+  if (/\b(topping|extra|sauce|dressing|cheese|crust|modifier|addon|add-on)\b/.test(text)) return "not_sold_separately";
+  if (/\b(pizza|wing|wings|salad|drink|soda|water|coke|sprite|pepsi|cookie|brownie|dessert|taco|burger|sandwich|fries|pasta|chicken|sausage|pepperoni|ranch|mambo|buffalo)\b/.test(text)) return "not_on_menu";
+  return "not_recognized";
+}
+
+function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
+  const code = smartBarMobileGrayReasonCode(reason, title);
+  if (code === "not_sold_separately") return "Not sold separately";
+  if (code === "not_on_menu") return "Not on this menu";
+  return "Not recognized";
+}
+
+function smartBarMobileGrayRetryPrompt(reason: unknown, title?: string) {
+  const code = smartBarMobileGrayReasonCode(reason, title);
+  if (code === "not_sold_separately") return "Add this as part of a menu item instead.";
+  if (code === "not_on_menu") return "Try a different item from this menu.";
+  return "Try describing this item another way.";
+}
+
 function smartBarMobileQueryStartsFreshCart(value: string) {
   const text = burgerRushMobileCompactText(value);
   if (!text) return false;
@@ -371,10 +397,12 @@ export function smartBarMobileResultFromOrder(
           id: "fallback-unknown",
           title: fallbackQuery || "Requested item",
           status: "unknown",
-          helper: "Could not build cart from this response",
+          helper: "Not recognized",
           price: "—",
           details: [],
-          retryPrompt: "Try the order again in plain English.",
+          grayReason: "not_recognized",
+          displayReason: "Not recognized",
+          retryPrompt: "Try describing this item another way.",
         },
       ],
       estimatedTotal: "—",
@@ -389,15 +417,21 @@ export function smartBarMobileResultFromOrder(
     .reverse();
   const cannotMatchLines = (order.cannotMatchItems || [])
     .map((item, index): SmartBarMobileOrderLine => {
-      const title = item.text || item.label || item.title || item.item || "Unmatched item";
+      const looseItem = item as typeof item & Record<string, unknown>;
+      const title = String(looseItem.text || looseItem.label || looseItem.title || looseItem.item || "Unmatched item");
+      const grayReason = smartBarMobileGrayReasonCode(looseItem.grayReason || looseItem.reason, title);
+      const displayReason = String(looseItem.displayReason || smartBarMobileGrayReasonLabel(grayReason, title));
+      const suggestion = String(looseItem.suggestion || "").replace(/\s+/g, " ").trim();
       return {
         id: `cannot-match-${index}-${title}`,
         title,
         status: "unknown",
-        helper: item.reason === "not_on_menu" ? "Not on the BurgerRush menu" : "Could not match item",
+        helper: displayReason,
+        grayReason,
+        displayReason,
         price: "—",
-        details: item.suggestion ? [item.suggestion] : [],
-        retryPrompt: "Re-enter the item so SmartBar can match it.",
+        details: suggestion ? [suggestion] : [],
+        retryPrompt: smartBarMobileGrayRetryPrompt(grayReason, title),
       };
     });
   const allLines = [...matchedLines, ...cannotMatchLines];
