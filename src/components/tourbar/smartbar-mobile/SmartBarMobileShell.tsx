@@ -4607,8 +4607,12 @@ export default function SmartBarMobileShell({
                   onBlur={() => setEntryFocused(false)}
                   readOnly={demoInteractionLocked}
                   tabIndex={demoInteractionLocked ? -1 : undefined}
-                  className="relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-left text-[16px] font-normal leading-5 text-white outline-none ring-0 placeholder:text-white/40 caret-white selection:bg-white/24"
-                  style={{ caretColor: "#fff" }}
+                  className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-left text-[16px] font-normal leading-5 outline-none ring-0 placeholder:text-white/40 ${
+                    demoInteractionLocked
+                      ? "text-transparent caret-transparent selection:bg-transparent"
+                      : "text-white caret-white selection:bg-white/24"
+                  }`}
+                  style={{ caretColor: demoInteractionLocked ? "transparent" : "#fff" }}
                   placeholder=""
                   spellCheck={false}
                   autoCorrect="off"
