@@ -15,6 +15,7 @@ function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
   if (["not_on_menu", "unavailable_food", "unsupported_food"].includes(raw)) return "not_on_menu";
   if (["not_recognized", "unknown", "unknown_item", "unrecognized", "gibberish"].includes(raw)) return "not_recognized";
   if (["not_sold_separately", "not_separate", "modifier_only", "dangling_modifier", "unsupported_variant", "extra_not_available"].includes(raw)) return "not_sold_separately";
+  if (["ambiguous_item_match", "ambiguous", "multiple_matches", "multiple_match", "could_mean_more_than_one_item"].includes(raw)) return "ambiguous_item_match";
 
   const text = burgerRushMobileCompactText(title);
   if (/\b(topping|extra|sauce|dressing|cheese|crust|modifier|addon|add-on)\b/.test(text)) return "not_sold_separately";
@@ -25,6 +26,7 @@ function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
 function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
   if (code === "not_sold_separately") return "Not sold separately";
+  if (code === "ambiguous_item_match") return "Could mean more than one item";
   if (code === "not_on_menu") return "Not on this menu";
   return "Not recognized";
 }
@@ -32,6 +34,7 @@ function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
 function smartBarMobileGrayRetryPrompt(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
   if (code === "not_sold_separately") return "Add this as part of a menu item instead.";
+  if (code === "ambiguous_item_match") return "Add the missing detail, like size, so SmartBar can choose the right item.";
   if (code === "not_on_menu") return "Try a different item from this menu.";
   return "Try describing this item another way.";
 }
