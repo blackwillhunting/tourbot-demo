@@ -704,17 +704,18 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
     meta?: SmartBarMobileApplyChoiceMeta,
   ) => {
     const previousEstimatedTotal = estimatedTotalRef.current;
-    const nextLines = smartBarMobileApplyChoiceToVisibleLines(
-      orderLinesRef.current,
-      line,
-      value,
-      meta?.selected ?? true,
-    );
     const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
       carryoutOrderRef.current,
       line,
       value,
       meta?.selected ?? true,
+    );
+    const nextLines = smartBarMobileApplyChoiceToVisibleLines(
+      orderLinesRef.current,
+      line,
+      value,
+      meta?.selected ?? true,
+      optimisticCarryoutOrder,
     );
     const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "-"
       ? previousEstimatedTotal

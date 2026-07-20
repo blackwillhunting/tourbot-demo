@@ -1993,6 +1993,22 @@ function smartBarMobileDemoKey(value: string) {
 }
 
 
+function smartBarMobileOptionMatchesDetail(option: string, detail: string) {
+  const optionKey = smartBarMobileDemoKey(option);
+  const detailKey = smartBarMobileDemoKey(detail);
+  if (!optionKey || !detailKey) return false;
+  if (optionKey === detailKey) return true;
+
+  const shorter = optionKey.length <= detailKey.length ? optionKey : detailKey;
+  const longer = optionKey.length > detailKey.length ? optionKey : detailKey;
+  return shorter.length >= 4 && longer.includes(shorter);
+}
+
+function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option: string) {
+  return (line.details || []).some((detail) => smartBarMobileOptionMatchesDetail(option, detail));
+}
+
+
 function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
   return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
@@ -3321,28 +3337,29 @@ export default function SmartBarMobileShell({
     const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
     if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === line.id)) return;
 
-    const selectedOptionKey = value.trim().toLowerCase();
-    const valueAlreadySelected = (line.details || []).some((detail) => {
-      return detail.trim().toLowerCase() === selectedOptionKey;
-    });
+    const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
 
     if (!multiSelect) choiceLockedLineIdRef.current = line.id;
     setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: line.id, value });
     disarmClose();
 
-    const optionKeys = new Set((line.options || []).map((option) => option.trim().toLowerCase()));
     const cleanedDetails = (line.details || []).filter((detail) => {
-      const detailKey = detail.trim().toLowerCase();
       if (/^(choice needed|size needed)$/i.test(detail.trim())) return false;
-      if (!multiSelect && optionKeys.has(detailKey) && detailKey !== selectedOptionKey) return false;
+
+      const detailMatchesAnyOption = (line.options || []).some((option) => {
+        return smartBarMobileOptionMatchesDetail(option, detail);
+      });
+      const detailMatchesSelectedValue = smartBarMobileOptionMatchesDetail(value, detail);
+
+      if (!multiSelect && detailMatchesAnyOption && !detailMatchesSelectedValue) return false;
       return true;
     });
     const nextDetails = multiSelect && valueAlreadySelected
-      ? cleanedDetails.filter((detail) => detail.trim().toLowerCase() !== selectedOptionKey)
+      ? cleanedDetails.filter((detail) => !smartBarMobileOptionMatchesDetail(value, detail))
       : Array.from(new Set([...cleanedDetails, value]));
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
-      status: "ready",
+      status: multiSelect ? "ready" : line.status,
       helper: multiSelect ? "Reviewed and ready" : `${value} selected`,
       details: nextDetails,
       options: multiSelect ? line.options || [] : undefined,
@@ -3406,11 +3423,15 @@ export default function SmartBarMobileShell({
                 nextRequiredLineId = candidate.id;
               }
 
+              if (stillNeedsRequiredChoice || !multiSelect) {
+                return candidate;
+              }
+
               return {
                 ...candidate,
-                status: stillNeedsRequiredChoice ? candidate.status : resolvedLine.status,
-                helper: stillNeedsRequiredChoice ? candidate.helper : resolvedLine.helper,
-                details: stillNeedsRequiredChoice ? candidate.details : resolvedLine.details,
+                status: resolvedLine.status,
+                helper: resolvedLine.helper,
+                details: resolvedLine.details,
                 options: candidate.options || resolvedLine.options || line.options || [],
                 optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
               };
@@ -4617,9 +4638,7 @@ export default function SmartBarMobileShell({
                             </div>
                             <div className={bookingNavActions.length >= 3 ? "grid grid-cols-3 gap-2" : "grid grid-cols-2 gap-2"}>
                               {selectedLine.options.map((option) => {
-                                const persistedSelected = (selectedLine.details || []).some((detail) => {
-                                  return detail.trim().toLowerCase() === option.trim().toLowerCase();
-                                });
+                                const persistedSelected = smartBarMobileLineHasOptionDetail(selectedLine, option);
                                 const isSelected = persistedSelected ||
                                   (selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option);
                                 const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
