@@ -61,6 +61,8 @@ export type SmartBarMobileOrderLine = {
   price: string;
   details: string[];
   options?: string[];
+  /** Canonical selected control labels from backend qualifier-group state. */
+  selectedOptions?: string[];
   optionSelectionMode?: "single" | "multi";
   retryPrompt?: string;
 };
@@ -2005,6 +2007,10 @@ function smartBarMobileOptionMatchesDetail(option: string, detail: string) {
 }
 
 function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option: string) {
+  const canonicalSelected = line.selectedOptions || [];
+  if (canonicalSelected.some((selected) => smartBarMobileOptionMatchesDetail(option, selected))) {
+    return true;
+  }
   return (line.details || []).some((detail) => smartBarMobileOptionMatchesDetail(option, detail));
 }
 
