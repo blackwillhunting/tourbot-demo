@@ -52,8 +52,6 @@ export type SmartBarMobileOrderLine = {
   /** Index of the backend source line before visual sorting/grouping. */
   sourceLineIndex?: number;
   title: string;
-  /** Quantity supplied by the authoritative AI cart. */
-  quantity?: number;
   /** Optional demo-only title override for visual teaching rows. */
   demoDisplayTitle?: string;
   /** Optional demo-only flag that hides helper/price/remove chrome on teaching rows while preserving row size. */
@@ -75,11 +73,6 @@ export type SmartBarMobileOrderLine = {
 
 export type SmartBarMobileOrderResult = {
   lines: SmartBarMobileOrderLine[];
-  /** AI-direct responses replace the entire current cart and must not be reinterpreted. */
-  authoritativeReplacement?: boolean;
-  source?: string;
-  cartStatus?: "ready" | "needs_required_details" | "needs_review" | "has_unknowns" | string;
-  answer?: string;
   /** Demo/controlled-flow flag: keep result.lines exactly after retry instead of subtracting the selected unknown row. */
   preserveResultLinesOnRetry?: boolean;
   estimatedSubtotal?: string;
@@ -3452,28 +3445,6 @@ export default function SmartBarMobileShell({
         .then((parentResult) => {
           if (!parentResult || parentResult.lines.length === 0) return;
 
-          if (parentResult.authoritativeReplacement) {
-            setOrderLines(parentResult.lines);
-            applyOrderResultEstimates(parentResult);
-            setLineOverrides({});
-            choiceLockedLineIdRef.current = null;
-            setSelectedChoice(null);
-
-            const replacementLine = parentResult.lines.find((candidate) => (
-              smartBarMobileLinesAreSameInstance(candidate, resolvedLine)
-            ));
-            if (replacementLine?.status === "pending" && (replacementLine.options || []).length) {
-              setSelectedLineId(replacementLine.id);
-              setCartExpanded(true);
-            } else if (multiSelect && replacementLine) {
-              setSelectedLineId(replacementLine.id);
-              setCartExpanded(true);
-            } else {
-              setSelectedLineId(null);
-            }
-            return;
-          }
-
           let nextRequiredLineId: string | null = null;
           const reviewedParentResult: SmartBarMobileOrderResult = {
             ...parentResult,
@@ -3614,29 +3585,16 @@ export default function SmartBarMobileShell({
           return;
         }
 
-        if (result.authoritativeReplacement) {
-          setGenericResult(null);
-          setOrderLines(result.lines);
-          applyOrderResultEstimates(result, result.lines.length ? "" : "-");
-          if (result.lines.length === 0) {
-            setHasCart(false);
-            setEntryDraft("");
-            setHasEditedEntryDraft(false);
-            setSubmittedPromptPreview("");
-            setPhase("entry");
-          }
-        } else {
-          const replacementLines = result.preserveResultLinesOnRetry
-            ? result.lines
-            : smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
+        const replacementLines = result.preserveResultLinesOnRetry
+          ? result.lines
+          : smartBarMobileRemoveOneLineInstance(result.lines, selectedLine);
 
-          if (replacementLines.length > 0) {
-            setGenericResult(null);
-            setOrderLines(replacementLines);
-            applyOrderResultEstimates(result);
-          } else {
-            setOrderLines((current) => smartBarMobileRemoveOneLineInstance(current, selectedLine));
-          }
+        if (replacementLines.length > 0) {
+          setGenericResult(null);
+          setOrderLines(replacementLines);
+          applyOrderResultEstimates(result);
+        } else {
+          setOrderLines((current) => smartBarMobileRemoveOneLineInstance(current, selectedLine));
         }
 
         setRetryDraft("");
