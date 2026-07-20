@@ -130,8 +130,8 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
     : "block w-fit text-sky-50/82 shadow-none ring-0";
   const inputTextClass = isOverlay ? "text-[#06143A] caret-[#06143A] placeholder:text-[#06143A]/50" : "text-[#06143A] caret-[#06143A] placeholder:text-[#06143A]/50";
   const retryInputClass = isOverlay
-    ? "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/12 bg-slate-950/20 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/38 caret-white"
-    : "mt-3 h-[96px] w-full resize-none rounded-[26px] border border-white/10 bg-slate-950/28 px-4 py-3 text-center text-[16px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/28 caret-white";
+    ? "min-h-[76px] w-full shrink-0 resize-none overflow-y-auto rounded-[24px] border border-white/14 bg-slate-950/24 px-4 py-4 text-left text-[15px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/46 caret-white [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+    : "min-h-[76px] w-full shrink-0 resize-none overflow-y-auto rounded-[24px] border border-white/12 bg-slate-950/30 px-4 py-4 text-left text-[15px] font-bold leading-5 text-white outline-none ring-0 placeholder:text-white/38 caret-white [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
   const strongPills = SMARTBAR_MOBILE_STRONG_PILLS;
   const issuePillClass = checkoutReady
     ? strongPills

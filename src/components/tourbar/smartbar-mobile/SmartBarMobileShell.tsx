@@ -4797,14 +4797,14 @@ export default function SmartBarMobileShell({
                         )}
                       </div>
                     ) : selectedLine.status === "unknown" ? (
-                      <div className="mt-4 flex min-h-0 flex-1 flex-col">
-                        <div className="mb-3 rounded-[24px] border border-white/18 bg-slate-950/78 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.20)] ring-1 ring-white/10">
+                      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
+                        <div className="shrink-0 rounded-[24px] border border-white/18 bg-slate-950/78 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.20)] ring-1 ring-white/10">
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Reason</div>
                           <div className="mt-2 rounded-[18px] bg-white/92 px-3 py-3 text-sm font-black leading-5 text-slate-950">
                             {selectedLineGrayReason || "Not recognized"}
                           </div>
                           <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
-                            {selectedLine.retryPrompt || "Re-enter this item."}
+                            {selectedLine.retryPrompt || "Try another item, or add this as part of a menu item."}
                           </div>
                         </div>
                         <textarea
@@ -4819,7 +4819,9 @@ export default function SmartBarMobileShell({
                           readOnly={demoInteractionLocked}
                           tabIndex={demoInteractionLocked ? -1 : undefined}
                           className={retryInputClass}
-                          placeholder=""
+                          placeholder="Try another item or add this to a menu item..."
+                          aria-label="Retry gray item"
+                          rows={2}
                         />
                       </div>
                     ) : (
