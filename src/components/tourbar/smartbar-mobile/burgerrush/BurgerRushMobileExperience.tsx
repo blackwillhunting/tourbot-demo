@@ -493,18 +493,17 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
 
   const handleApplyLineChoice = useCallback(async (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => {
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
-    const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
-      mobileCarryoutOrderRef.current,
-      line,
-      value,
-      meta?.selected ?? true,
-    );
     const nextLines = smartBarMobileApplyChoiceToVisibleLines(
       mobileOrderLinesRef.current,
       line,
       value,
       meta?.selected ?? true,
-      optimisticCarryoutOrder,
+    );
+    const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
+      mobileCarryoutOrderRef.current,
+      line,
+      value,
+      meta?.selected ?? true,
     );
     const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "—"
       ? previousEstimatedTotal

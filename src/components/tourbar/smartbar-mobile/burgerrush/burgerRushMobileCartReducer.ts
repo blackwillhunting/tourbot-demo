@@ -761,22 +761,21 @@ function smartBarMobileChoiceDetails(
   selected = true,
 ) {
   const valueKey = smartBarMobileSelectionKey(value);
-  const optionKeys = optionLabels
-    .map((option) => smartBarMobileSelectionKey(option))
-    .filter(Boolean);
+  const optionKeys = new Set(
+    optionLabels
+      .map((option) => smartBarMobileSelectionKey(option))
+      .filter(Boolean),
+  );
 
   const cleaned = (details || []).filter((detail) => {
     const detailText = String(detail || "").trim();
     const detailKey = smartBarMobileSelectionKey(detailText);
     if (/^(choice needed|size needed)$/i.test(detailText)) return false;
 
-    const detailMatchesOption = optionKeys.some((optionKey) => smartBarMobileKeysMatch(optionKey, detailKey));
-    const detailMatchesValue = smartBarMobileKeysMatch(detailKey, valueKey);
-
     // Required qualifiers are single-choice. Optional extras are multi-select,
     // so selecting bacon must not erase cheese, sauce, or other extras.
-    if (selectionMode === "single" && detailKey && detailMatchesOption && !detailMatchesValue) return false;
-    if (selectionMode === "multi" && !selected && detailMatchesValue) return false;
+    if (selectionMode === "single" && detailKey && optionKeys.has(detailKey) && detailKey !== valueKey) return false;
+    if (selectionMode === "multi" && !selected && detailKey === valueKey) return false;
 
     return true;
   });
@@ -791,31 +790,9 @@ export function smartBarMobileApplyChoiceToVisibleLines(
   selectedLine: SmartBarMobileOrderLine,
   value: string,
   selected = true,
-  carryoutOrder?: CarryoutOrder | null,
 ) {
   const nextLines = [...lines];
   const existingIndex = smartBarMobileFindMatchingLineIndex(nextLines, selectedLine);
-
-  if (carryoutOrder) {
-    const sourceItems = Array.isArray(carryoutOrder.items)
-      ? carryoutOrder.items
-      : [...(carryoutOrder.completeItems || []), ...(carryoutOrder.pendingItems || [])];
-    const carryoutIndex = sourceItems.findIndex((line, index) => {
-      return smartBarMobileCarryoutLineMatchesVisibleLine(line, selectedLine, index);
-    });
-
-    if (carryoutIndex >= 0) {
-      const resolvedFromOrder = smartBarMobileLineFromCarryoutLine(sourceItems[carryoutIndex], carryoutIndex);
-      if (existingIndex >= 0) {
-        nextLines[existingIndex] = smartBarMobileHydrateLineFromPrevious(
-          resolvedFromOrder,
-          [nextLines[existingIndex]],
-        );
-        return nextLines;
-      }
-      return [...nextLines, resolvedFromOrder];
-    }
-  }
 
   const selectionMode = selectedLine.optionSelectionMode || (selectedLine.status === "options" ? "multi" : "single");
   const resolvedLine: SmartBarMobileOrderLine = {
@@ -890,70 +867,6 @@ function smartBarMobileRemoveSelectedOptionalItem(
   });
 }
 
-function smartBarMobileActiveChoiceGroupIndex(
-  carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
-  selectedLine: SmartBarMobileOrderLine,
-  value: string,
-) {
-  const groups = carryoutLine.qualifierGroups || [];
-  const missingQualifierIds = new Set(
-    (carryoutLine.missingQualifiers || [])
-      .map((missing) => String(missing.qualifierId || ""))
-      .filter(Boolean),
-  );
-
-  const matchingIndexes = groups
-    .map((group, index) => {
-      const groupMatchesChoice = (group.options || []).some((option) => {
-        return smartBarMobileOptionLabelMatchesValue(option, value);
-      }) || smartBarMobileGroupOptionLabels(group).some((option) => {
-        return smartBarMobileKeysMatch(
-          smartBarMobileSelectionKey(option),
-          smartBarMobileSelectionKey(value),
-        );
-      });
-      return groupMatchesChoice ? index : -1;
-    })
-    .filter((index) => index >= 0);
-
-  if (!matchingIndexes.length) return -1;
-
-  if (selectedLine.status === "pending") {
-    const missingRequiredIndex = matchingIndexes.find((index) => {
-      const group = groups[index];
-      const qualifierId = String(group.qualifierId || "");
-      const hasSelectedOption = Boolean(
-        group.selectedValue ||
-        group.selectedLabel ||
-        (group.options || []).some((option) => option.selected || option.state === "selected")
-      );
-
-      return Boolean(
-        group.required &&
-        !smartBarMobileGroupIsOptional(group) &&
-        (
-          group.missing ||
-          (qualifierId && missingQualifierIds.has(qualifierId)) ||
-          !hasSelectedOption
-        )
-      );
-    });
-
-    if (missingRequiredIndex !== undefined) return missingRequiredIndex;
-  }
-
-  if (selectedLine.status === "options") {
-    const optionalIndex = matchingIndexes.find((index) => {
-      return smartBarMobileGroupIsOptional(groups[index]);
-    });
-
-    if (optionalIndex !== undefined) return optionalIndex;
-  }
-
-  return matchingIndexes[0];
-}
-
-
 function smartBarMobileApplyChoiceToCarryoutLine(
   carryoutLine: NonNullable<CarryoutOrder["items"]>[number],
   selectedLine: SmartBarMobileOrderLine,
@@ -968,12 +881,18 @@ function smartBarMobileApplyChoiceToCarryoutLine(
   let matchedSelectionMode: "single" | "multi" = selectedLine.optionSelectionMode || (selectedLine.status === "options" ? "multi" : "single");
   let matchedGroupKind = "";
   let matchedOption: Record<string, unknown> | undefined;
-  const activeGroupIndex = smartBarMobileActiveChoiceGroupIndex(carryoutLine, selectedLine, value);
 
-  if (activeGroupIndex < 0) return carryoutLine;
+  const qualifierGroups = (carryoutLine.qualifierGroups || []).map((group) => {
+    const optionLabels = smartBarMobileGroupOptionLabels(group);
+    const groupMatchesChoice = (group.options || []).some((option) => smartBarMobileOptionLabelMatchesValue(option, value)) ||
+      optionLabels.some((option) => {
+        return smartBarMobileKeysMatch(
+          smartBarMobileSelectionKey(option),
+          smartBarMobileSelectionKey(value),
+        );
+      });
 
-  const qualifierGroups = (carryoutLine.qualifierGroups || []).map((group, groupIndex) => {
-    if (groupIndex !== activeGroupIndex) return group;
+    if (!groupMatchesChoice) return group;
 
     const qualifierId = String(group.qualifierId || "");
     if (qualifierId) matchingQualifierIds.add(qualifierId);
@@ -1011,44 +930,18 @@ function smartBarMobileApplyChoiceToCarryoutLine(
     return !qualifierId || !matchingQualifierIds.has(qualifierId);
   });
 
-  const requiredGroupOptionLabels = qualifierGroups
-    .filter((group) => Boolean(group.required && !smartBarMobileGroupIsOptional(group)))
-    .flatMap((group) => smartBarMobileGroupOptionLabels(group));
-  const selectedRequiredLabels = qualifierGroups
-    .filter((group) => Boolean(group.required && !smartBarMobileGroupIsOptional(group)))
-    .map((group) => {
-      const explicitlySelected = String(group.selectedLabel || "").replace(/\s+/g, " ").trim();
-      if (explicitlySelected) return explicitlySelected;
-
-      const selectedOption = (group.options || []).find((option) => {
-        return Boolean(option.selected || option.state === "selected");
-      });
-      const selectedOptionRecord = selectedOption as Record<string, unknown> | undefined;
-      return String(selectedOptionRecord?.label || selectedOptionRecord?.value || "").replace(/\s+/g, " ").trim();
-    })
-    .filter(Boolean);
-  const preservedKnownSelections = (carryoutLine.knownSelections || []).filter((detail) => {
-    const detailKey = smartBarMobileSelectionKey(String(detail || ""));
-    return !requiredGroupOptionLabels.some((option) => {
-      return smartBarMobileKeysMatch(smartBarMobileSelectionKey(option), detailKey);
-    });
-  });
-  const requiredAwareKnownSelections = Array.from(new Set([
-    ...preservedKnownSelections,
-    ...selectedRequiredLabels,
-  ]));
-  const knownSelections = matchedSelectionMode === "multi"
-    ? smartBarMobileChoiceDetails(
-        requiredAwareKnownSelections,
-        value,
-        selectedOptionLabels.length ? selectedOptionLabels : smartBarMobileGroupOptionLabels(
-          qualifierGroups[activeGroupIndex] ||
-          ({} as NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]),
-        ),
-        matchedSelectionMode,
-        selectedChoice,
-      )
-    : requiredAwareKnownSelections;
+  const knownSelections = smartBarMobileChoiceDetails(
+    carryoutLine.knownSelections || [],
+    value,
+    selectedOptionLabels.length ? selectedOptionLabels : smartBarMobileGroupOptionLabels(
+      (carryoutLine.qualifierGroups || []).find((group) => {
+        const qualifierId = String(group.qualifierId || "");
+        return qualifierId && matchingQualifierIds.has(qualifierId);
+      }) || ({} as NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number]),
+    ),
+    matchedSelectionMode,
+    selectedChoice,
+  );
 
   const stillMissingGroup = qualifierGroups.some((group) => Boolean(group.required && group.missing));
   const stillPending = missingQualifiers.length > 0 || stillMissingGroup;
