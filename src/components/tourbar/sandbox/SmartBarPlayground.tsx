@@ -950,7 +950,7 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
         </div>
 
         <div className={[
-          "absolute inset-x-0 bottom-0 z-20 overflow-visible [transform:translateZ(0)] transition-all duration-300",
+          "absolute inset-x-0 bottom-0 z-40 overflow-visible [transform:translateZ(0)] transition-all duration-300",
           boardIsCompact ? "top-[108px]" : "top-[306px]",
         ].join(" ")}
         >
