@@ -4609,7 +4609,7 @@ export default function SmartBarMobileShell({
                   tabIndex={demoInteractionLocked ? -1 : undefined}
                   className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-left text-[16px] font-normal leading-5 outline-none ring-0 placeholder:text-white/40 ${
                     demoInteractionLocked
-                      ? "text-transparent caret-transparent selection:bg-transparent"
+                      ? "text-white caret-transparent selection:bg-transparent"
                       : "text-white caret-white selection:bg-white/24"
                   }`}
                   style={{ caretColor: demoInteractionLocked ? "transparent" : "#fff" }}
@@ -4618,32 +4618,6 @@ export default function SmartBarMobileShell({
                   autoCorrect="off"
                   autoCapitalize="none"
                 />
-                <AnimatePresence initial={false}>
-                  {demoInteractionLocked && entryDraft.trim() && (
-                    <motion.div
-                      key="smartbar-live-entry-capsule"
-                      initial={{ opacity: 0, y: 3, scale: 0.985 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 2, scale: 0.99 }}
-                      transition={{ duration: 0.14, ease: "easeOut" }}
-                      className="pointer-events-none absolute inset-x-4 inset-y-2 z-[1] flex items-center justify-center"
-                      aria-hidden="true"
-                    >
-                      <div
-                        className={`${inputDraftCapsuleClass} max-w-full !rounded-[28px] !border-transparent !bg-transparent !text-[16px] !font-semibold !tracking-[-0.01em] !text-white !shadow-none ![text-shadow:none]`}
-                        style={{
-                          maxHeight: Math.max(42, entryComposerHeight - 24),
-                          whiteSpace: "pre-wrap",
-                          overflow: "hidden",
-                          display: "block",
-                          textAlign: "left",
-                        }}
-                      >
-                        {entryDraft}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             </div>
           </motion.section>
