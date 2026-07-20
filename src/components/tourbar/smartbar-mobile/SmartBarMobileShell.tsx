@@ -61,12 +61,8 @@ export type SmartBarMobileOrderLine = {
   price: string;
   details: string[];
   options?: string[];
-  /** Exact backend option IDs aligned by index with options. */
-  optionIds?: string[];
-  /** Canonical selected control labels retained for display and demo compatibility. */
+  /** Canonical selected control labels from backend qualifier-group state. */
   selectedOptions?: string[];
-  /** Exact backend-selected option IDs. These are authoritative for control state. */
-  selectedOptionIds?: string[];
   optionSelectionMode?: "single" | "multi";
   retryPrompt?: string;
 };
@@ -2011,12 +2007,6 @@ function smartBarMobileOptionMatchesDetail(option: string, detail: string) {
 }
 
 function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option: string) {
-  const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
-  const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
-  if (optionId && (line.selectedOptionIds || []).some((selectedId) => String(selectedId) === optionId)) {
-    return true;
-  }
-
   const canonicalSelected = line.selectedOptions || [];
   if (canonicalSelected.some((selected) => smartBarMobileOptionMatchesDetail(option, selected))) {
     return true;
@@ -3354,8 +3344,6 @@ export default function SmartBarMobileShell({
     if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === line.id)) return;
 
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
-    const optionIndex = (line.options || []).findIndex((option) => option === value);
-    const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
 
     if (!multiSelect) choiceLockedLineIdRef.current = line.id;
     setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: line.id, value });
@@ -3375,27 +3363,12 @@ export default function SmartBarMobileShell({
     const nextDetails = multiSelect && valueAlreadySelected
       ? cleanedDetails.filter((detail) => !smartBarMobileOptionMatchesDetail(value, detail))
       : Array.from(new Set([...cleanedDetails, value]));
-    const nextSelectedOptions = multiSelect
-      ? valueAlreadySelected
-        ? (line.selectedOptions || []).filter((selected) => !smartBarMobileOptionMatchesDetail(value, selected))
-        : Array.from(new Set([...(line.selectedOptions || []), value]))
-      : [value];
-    const nextSelectedOptionIds = optionId
-      ? multiSelect
-        ? valueAlreadySelected
-          ? (line.selectedOptionIds || []).filter((selectedId) => String(selectedId) !== optionId)
-          : Array.from(new Set([...(line.selectedOptionIds || []), optionId]))
-        : [optionId]
-      : line.selectedOptionIds;
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
       status: multiSelect ? "ready" : line.status,
       helper: multiSelect ? "Reviewed and ready" : `${value} selected`,
       details: nextDetails,
       options: multiSelect ? line.options || [] : undefined,
-      optionIds: multiSelect ? line.optionIds || [] : undefined,
-      selectedOptions: nextSelectedOptions,
-      ...(nextSelectedOptionIds ? { selectedOptionIds: nextSelectedOptionIds } : {}),
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
