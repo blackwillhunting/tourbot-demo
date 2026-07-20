@@ -1,4 +1,4 @@
-﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowRight,
@@ -4710,7 +4710,7 @@ export default function SmartBarMobileShell({
                           className={`inline-flex min-h-[40px] items-center justify-center rounded-[18px] px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.98] ${selectedDetailMode === "summary" ? "bg-sky-200 text-slate-950" : "bg-slate-950/82 text-white"}`}
                           aria-pressed={selectedDetailMode === "summary"}
                         >
-                          â˜° Summary
+                           Summary
                         </button>
                         <button
                           type="button"
@@ -4719,7 +4719,7 @@ export default function SmartBarMobileShell({
                           className="inline-flex min-h-[40px] items-center justify-center rounded-[18px] bg-slate-950/92 px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.98]"
                           aria-label={`Remove ${selectedLine.title}`}
                         >
-                          ðŸ—‘ Remove
+                           Remove
                         </button>
                       </div>
                     )}
