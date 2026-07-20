@@ -474,21 +474,9 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       };
     }
 
-    const selected = meta?.selected !== false;
-    const action = selected ? "Select" : "Deselect";
-    const request = `${action} "${value}" for the cart line "${line.title}". Return the complete backend-owned replacement card JSON.`;
-    const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext, {
-      type: selected ? "select_option" : "deselect_option",
-      lineId: meta?.lineId || line.id,
-      cartLineKey: meta?.cartLineKey || line.cartLineKey,
-      sourceLineItemId: meta?.sourceLineItemId || line.sourceLineItemId,
-      sourceItemId: meta?.sourceItemId || line.sourceItemId,
-      lineTitle: line.title,
-      groupId: meta?.groupId,
-      optionId: meta?.optionId,
-      optionLabel: meta?.optionLabel || value,
-      selected,
-    });
+    const action = meta?.selected === false ? "Deselect" : "Select";
+    const request = `${action} "${value}" for the cart line "${line.title}" with line id "${line.id}". Return the complete replacement cart JSON.`;
+    const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext);
 
     mobileDirectCartRef.current = result;
     mobileOrderLinesRef.current = result.lines;

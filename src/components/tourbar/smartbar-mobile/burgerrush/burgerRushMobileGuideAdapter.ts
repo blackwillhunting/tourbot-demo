@@ -6,20 +6,6 @@ import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../S
 const SMARTBAR_MOBILE_GUIDE_AI_URL = "/api/guide_ai";
 const SMARTBAR_MOBILE_AUTH_TOKEN_KEY = "tourbot_demo_token";
 
-
-export type SmartBarMobileDirectCartEvent = {
-  type: "select_option" | "deselect_option" | "toggle_option" | "remove_line" | string;
-  lineId?: string;
-  cartLineKey?: string;
-  sourceLineItemId?: string;
-  sourceItemId?: string;
-  lineTitle?: string;
-  groupId?: string;
-  optionId?: string;
-  optionLabel?: string;
-  selected?: boolean;
-};
-
 type GuideAiDirectCartResponse = GuideAiCarryoutResponse & {
   ok?: boolean;
   message?: string;
@@ -194,7 +180,6 @@ export async function smartBarMobileDirectResultFromGuideAi(
   query: string,
   currentCart: SmartBarMobileOrderResult | null,
   vendorContext?: SmartBarVendorContext | null,
-  directCartEvent?: SmartBarMobileDirectCartEvent | null,
 ): Promise<SmartBarMobileOrderResult> {
   const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
   const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
@@ -204,17 +189,15 @@ export async function smartBarMobileDirectResultFromGuideAi(
     headers: smartBarMobileBuildGuideAiHeaders(),
     body: JSON.stringify({
       mode: "commerce",
-      interpretationMode: "backend-owned-card",
-      carryoutInterpretationMode: "backend-owned-card",
+      interpretationMode: "ai-direct-cart",
+      carryoutInterpretationMode: "ai-direct-cart",
       guideConfig: {
         ...smartBarMobileBuildGuideConfig(activeVendorContext),
-        interpretationMode: "backend-owned-card",
-        carryoutInterpretationMode: "backend-owned-card",
+        interpretationMode: "ai-direct-cart",
+        carryoutInterpretationMode: "ai-direct-cart",
       },
       message: query,
       directCart: currentCart,
-      currentCard: currentCart,
-      directCartEvent: directCartEvent || null,
       clientId: activeVendorContext.clientId,
       vendorId: activeVendorContext.vendorId,
       menuProfileId: activeVendorContext.menuProfileId,
@@ -226,20 +209,15 @@ export async function smartBarMobileDirectResultFromGuideAi(
         lastUserMessage: query,
         recentUserMessages: [query],
         directCart: currentCart,
-        currentCard: currentCart,
-        directCartEvent: directCartEvent || null,
         commerceContext: {
           directCart: currentCart,
-          currentCard: currentCart,
-          directCartEvent: directCartEvent || null,
           vendorContext: activeVendorContext,
         },
       },
       visibleContext: {
         directCart: currentCart,
-        currentCard: currentCart,
         vendorContext: activeVendorContext,
-        interpretationMode: "backend-owned-card",
+        interpretationMode: "ai-direct-cart",
       },
       pageContext: {
         url: typeof window !== "undefined" ? window.location.href : "",

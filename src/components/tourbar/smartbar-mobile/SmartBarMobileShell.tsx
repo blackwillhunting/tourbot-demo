@@ -39,28 +39,6 @@ type SmartBarMobileHandoffState = "idle" | "handing_off" | "complete";
 export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unknown";
 type SmartBarMobileCartStatusFilter = SmartBarMobileOrderStatus | null;
 
-export type SmartBarMobileOrderOption = {
-  optionId?: string;
-  id?: string;
-  value?: string;
-  label: string;
-  selected?: boolean;
-  disabled?: boolean;
-  helper?: string;
-  priceDelta?: string | number;
-};
-
-export type SmartBarMobileOrderGroup = {
-  groupId?: string;
-  id?: string;
-  label?: string;
-  selectionMode?: "single" | "multi" | string;
-  requiredCount?: number;
-  selectedCount?: number;
-  missingCount?: number;
-  options: SmartBarMobileOrderOption[];
-};
-
 export type SmartBarMobileOrderLine = {
   id: string;
   /** Page target to scroll/focus when this known cart row is selected. */
@@ -92,11 +70,6 @@ export type SmartBarMobileOrderLine = {
   /** Exact backend-selected option IDs. These are authoritative for control state. */
   selectedOptionIds?: string[];
   optionSelectionMode?: "single" | "multi";
-  /** Backend-owned cards must be displayed from these values only; the shell must not infer selected state. */
-  backendControlled?: boolean;
-  optionRequiredCount?: number;
-  optionSelectedCount?: number;
-  groups?: SmartBarMobileOrderGroup[];
   retryPrompt?: string;
 };
 
@@ -2044,40 +2017,9 @@ function smartBarMobileOptionMatchesDetail(option: string, detail: string) {
   return shorter.length >= 4 && longer.includes(shorter);
 }
 
-function smartBarMobileLineUsesBackendCard(line: SmartBarMobileOrderLine) {
-  return Boolean(line.backendControlled || line.groups?.length);
-}
-
-function smartBarMobileLineOptionId(line: SmartBarMobileOrderLine, option: string) {
-  const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
-  return optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
-}
-
-function smartBarMobileLineGroupForOption(line: SmartBarMobileOrderLine, option: string) {
-  const optionId = smartBarMobileLineOptionId(line, option);
-  for (const group of line.groups || []) {
-    for (const candidate of group.options || []) {
-      const candidateId = String(candidate.optionId || candidate.id || candidate.value || "");
-      const candidateLabel = String(candidate.label || "");
-      if ((optionId && candidateId === optionId) || candidateLabel === option) {
-        return { group, option: candidate, optionId: candidateId, label: candidateLabel };
-      }
-    }
-  }
-  return { group: undefined, option: undefined, optionId, label: option };
-}
-
 function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option: string) {
-  const optionId = smartBarMobileLineOptionId(line, option);
-
-  if (smartBarMobileLineUsesBackendCard(line)) {
-    const grouped = smartBarMobileLineGroupForOption(line, option);
-    if (grouped.option && typeof grouped.option.selected === "boolean") {
-      return grouped.option.selected;
-    }
-    return Boolean(optionId && (line.selectedOptionIds || []).some((selectedId) => String(selectedId) === optionId));
-  }
-
+  const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
+  const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
   if (optionId && (line.selectedOptionIds || []).some((selectedId) => String(selectedId) === optionId)) {
     return true;
   }
@@ -2240,13 +2182,6 @@ export type SmartBarMobileApplyChoiceMeta = {
   selected: boolean;
   multiSelect: boolean;
   valueAlreadySelected: boolean;
-  groupId?: string;
-  optionId?: string;
-  optionLabel?: string;
-  lineId?: string;
-  cartLineKey?: string;
-  sourceLineItemId?: string;
-  sourceItemId?: string;
 };
 
 type SmartBarMobileShellProps = {
@@ -3428,46 +3363,6 @@ export default function SmartBarMobileShell({
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
     const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
-
-    if (smartBarMobileLineUsesBackendCard(line)) {
-      const grouped = smartBarMobileLineGroupForOption(line, value);
-      const nextSelected = !(multiSelect && valueAlreadySelected);
-      disarmClose();
-      setSelectedChoice(null);
-      choiceLockedLineIdRef.current = line.id;
-
-      Promise.resolve(onApplyLineChoice?.(line, value, {
-        selected: nextSelected,
-        multiSelect,
-        valueAlreadySelected,
-        groupId: String(grouped.group?.groupId || grouped.group?.id || ""),
-        optionId: grouped.optionId || optionId,
-        optionLabel: grouped.label || value,
-        lineId: line.id,
-        cartLineKey: line.cartLineKey,
-        sourceLineItemId: line.sourceLineItemId,
-        sourceItemId: line.sourceItemId,
-      }))
-        .then((parentResult) => {
-          choiceLockedLineIdRef.current = null;
-          if (!parentResult || parentResult.lines.length === 0) return;
-          setOrderLines(parentResult.lines);
-          applyOrderResultEstimates(parentResult);
-          setLineOverrides({});
-
-          const replacementLine = parentResult.lines.find((candidate) => (
-            smartBarMobileLinesAreSameInstance(candidate, line)
-          ));
-          if (replacementLine) {
-            setSelectedLineId(replacementLine.id);
-            setCartExpanded(true);
-          }
-        })
-        .catch(() => {
-          choiceLockedLineIdRef.current = null;
-        });
-      return;
-    }
 
     if (!multiSelect) choiceLockedLineIdRef.current = line.id;
     setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: line.id, value });
