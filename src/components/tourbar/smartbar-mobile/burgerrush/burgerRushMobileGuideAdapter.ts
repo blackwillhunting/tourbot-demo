@@ -6,6 +6,15 @@ import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../S
 const SMARTBAR_MOBILE_GUIDE_AI_URL = "/api/guide_ai";
 const SMARTBAR_MOBILE_AUTH_TOKEN_KEY = "tourbot_demo_token";
 
+type GuideAiDirectCartResponse = GuideAiCarryoutResponse & {
+  ok?: boolean;
+  message?: string;
+  directCart?: SmartBarMobileOrderResult | null;
+  visibleContext?: GuideAiCarryoutResponse["visibleContext"] & {
+    directCart?: SmartBarMobileOrderResult | null;
+  };
+};
+
 function smartBarMobileBuildGuideConfig(vendorContext?: SmartBarVendorContext | null) {
   const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
 
@@ -164,6 +173,84 @@ export async function smartBarMobileResultFromGuideAi(
   }
 
   return { ...result, carryoutOrder: order };
+}
+
+
+export async function smartBarMobileDirectResultFromGuideAi(
+  query: string,
+  currentCart: SmartBarMobileOrderResult | null,
+  vendorContext?: SmartBarVendorContext | null,
+): Promise<SmartBarMobileOrderResult> {
+  const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
+  const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
+    method: "POST",
+    credentials: "include",
+    cache: "no-store",
+    headers: smartBarMobileBuildGuideAiHeaders(),
+    body: JSON.stringify({
+      mode: "commerce",
+      interpretationMode: "ai-direct-cart",
+      carryoutInterpretationMode: "ai-direct-cart",
+      guideConfig: {
+        ...smartBarMobileBuildGuideConfig(activeVendorContext),
+        interpretationMode: "ai-direct-cart",
+        carryoutInterpretationMode: "ai-direct-cart",
+      },
+      message: query,
+      directCart: currentCart,
+      clientId: activeVendorContext.clientId,
+      vendorId: activeVendorContext.vendorId,
+      menuProfileId: activeVendorContext.menuProfileId,
+      behaviorProfileId: activeVendorContext.behaviorProfileId,
+      boardProfileId: activeVendorContext.boardProfileId,
+      vendorContext: activeVendorContext,
+      conversationContext: {
+        singleTurn: !currentCart,
+        lastUserMessage: query,
+        recentUserMessages: [query],
+        directCart: currentCart,
+        commerceContext: {
+          directCart: currentCart,
+          vendorContext: activeVendorContext,
+        },
+      },
+      visibleContext: {
+        directCart: currentCart,
+        vendorContext: activeVendorContext,
+        interpretationMode: "ai-direct-cart",
+      },
+      pageContext: {
+        url: typeof window !== "undefined" ? window.location.href : "",
+        title: typeof document !== "undefined" ? document.title : `${activeVendorContext.displayName} Carryout`,
+        sections: smartBarMobileGetPageSections(),
+        vendorContext: activeVendorContext,
+      },
+    }),
+  });
+
+  const contentType = response.headers.get("content-type") || "";
+  const body = contentType.includes("application/json")
+    ? ((await response.json().catch(() => ({}))) as GuideAiDirectCartResponse)
+    : ({ message: await response.text().catch(() => "") } as GuideAiDirectCartResponse);
+
+  if (!response.ok || body.ok === false) {
+    const message = body.answer || body.message || body.body || `HTTP ${response.status}`;
+    throw new Error(`Guide API ${response.status}: ${smartBarMobileCompact(message, 260)}`);
+  }
+
+  const directCart = body.directCart ?? body.visibleContext?.directCart ?? null;
+  if (!directCart || !Array.isArray(directCart.lines)) {
+    throw new Error(
+      `Guide API returned no AI direct cart: ${smartBarMobileCompact(
+        body.answer || body.message || body.body || "No directCart found.",
+        260,
+      )}`,
+    );
+  }
+
+  // The live ordering path stores and renders this complete AI replacement cart.
+  // It is not converted into carryoutOrder and is not merged with stale cart state.
+  return directCart;
 }
 
 export async function smartBarMobileRepriceCartFromGuideAi(
