@@ -575,18 +575,18 @@ function LaunchMessage({
         {message.demoButtons && (
           <div className="mt-7 grid gap-3 sm:mt-8 sm:grid-cols-2 sm:gap-4">
             <DemoLaunchButton
-              href="/carryout?mode=self_drive"
-              icon={ShoppingCart}
-              eyebrow="Ordering"
-              title="BurgerRush"
-              description="Food ordering demo"
-            />
-            <DemoLaunchButton
-              href="/transactional?mode=self_drive"
+              href="/transactional?mode=self_drive&demo=guided-commerce-rich-intent"
               icon={CalendarCheck}
               eyebrow="Booking"
-              title="Domi Coast"
-              description="Hotel booking demos"
+              title="Natural Language Booking"
+              description="Visitor gives lots of detail."
+            />
+            <DemoLaunchButton
+              href="/transactional?mode=self_drive&demo=guided-commerce-assisted-completion"
+              icon={Sparkles}
+              eyebrow="Booking"
+              title="Assisted Completion"
+              description="Visitor gives a vague request."
             />
           </div>
         )}
