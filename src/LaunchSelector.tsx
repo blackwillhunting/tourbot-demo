@@ -8,6 +8,7 @@ import {
   Compass,
   Hotel,
   KeyRound,
+  MessageCircle,
   MessageSquare,
   ShieldCheck,
   PlayCircle,
@@ -30,23 +31,20 @@ type WalkthroughMessage = {
 
 const launchMessages: WalkthroughMessage[] = [
   {
-    label: "Hotel booking gets messy",
-    message:
-      "Guests arrive with dates, preferences, budgets, room types, upgrades, and special requests. Most booking sites make them translate that into filters and forms.",
-    icon: Hotel,
+    label: "Say what you need",
+    message: "No forms. No filters.",
+    icon: MessageCircle,
     iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
   },
   {
-    label: "TourBot guides the booking",
-    message:
-      "**TourBot** turns the guest's plain-English request into booking progress: it asks for missing details, keeps track of choices, and moves the visitor through the flow.",
-    icon: CalendarCheck,
+    label: "TourBot finds the room",
+    message: "Just describe your trip.",
+    icon: Hotel,
     iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
   },
   {
     label: "Choose a hotel demo",
-    message:
-      "See **TourBot** handle two common hotel-booking moments.",
+    message: "See **TourBot** handle two common hotel-booking moments.",
     icon: PlayCircle,
     iconClass: "bg-slate-950 text-white ring-slate-950/10",
     demoButtons: true,
