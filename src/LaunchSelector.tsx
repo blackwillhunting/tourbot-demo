@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
-  Bot,
   CalendarCheck,
   CheckCircle,
   Compass,
@@ -13,7 +12,6 @@ import {
   ShieldCheck,
   PlayCircle,
   Route,
-  Search,
   ShoppingCart,
   Sparkles,
   XCircle,
@@ -32,51 +30,23 @@ type WalkthroughMessage = {
 
 const launchMessages: WalkthroughMessage[] = [
   {
-    label: "Visitors wander",
+    label: "Hotel booking gets messy",
     message:
-      "Usually, people land on a website, scan around, and eventually try to find what they need.",
-    icon: Search,
-    iconClass: "bg-amber-100 text-amber-700 ring-amber-200/80",
-  },
-  {
-    label: "Road maps help",
-    message:
-      "A chatbot can give a road map. That helps, but the visitor still has to interpret the answer and navigate alone.",
-    icon: Bot,
-    iconClass: "bg-slate-100 text-slate-700 ring-slate-200/80",
-  },
-  {
-    label: "TourBot guides",
-    message:
-      "**TourBot** is an AI guided-commerce agent that doesn't just tell the visitor what to do, it walks them thru it.",
-    icon: Sparkles,
-    iconClass: "bg-indigo-100 text-indigo-700 ring-indigo-200/80",
-  },
-  {
-    label: "Intent becomes motion",
-    message:
-      "**TourBot** figures out needs, optimizes options, literally navigates the site to show you, and suggests next steps.",
-    icon: Route,
-    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
-  },
-  {
-    label: "Carryout ordering sites",
-    message:
-      "**TourBot** turns “I want…” into instant checkout — fast, accurate, and easier than browsing the whole menu.",
-    icon: ShoppingCart,
-    iconClass: "bg-violet-100 text-violet-700 ring-violet-200/80",
-  },
-  {
-    label: "Choice-heavy booking sites",
-    message:
-      "**TourBot** walks shoppers through choices, stores selections, and autofills those choices into booking or checkout.",
-    icon: CalendarCheck,
+      "Guests arrive with dates, preferences, budgets, room types, upgrades, and special requests. Most booking sites make them translate that into filters and forms.",
+    icon: Hotel,
     iconClass: "bg-emerald-100 text-emerald-700 ring-emerald-200/80",
   },
   {
-    label: "Choose a demo",
+    label: "TourBot guides the booking",
     message:
-      "See **TourBot** guide a visitor.",
+      "**TourBot** turns the guest's plain-English request into booking progress: it asks for missing details, keeps track of choices, and moves the visitor through the flow.",
+    icon: CalendarCheck,
+    iconClass: "bg-sky-100 text-sky-700 ring-sky-200/80",
+  },
+  {
+    label: "Choose a hotel demo",
+    message:
+      "See **TourBot** handle two common hotel-booking moments.",
     icon: PlayCircle,
     iconClass: "bg-slate-950 text-white ring-slate-950/10",
     demoButtons: true,
