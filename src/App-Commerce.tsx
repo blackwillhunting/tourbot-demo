@@ -1859,6 +1859,18 @@ function DemoClosingCard({ onClose }: { onClose: () => void }) {
 }
 
 
+function directCommerceDemoFromUrl(): DemoScript | null {
+  if (typeof window === "undefined") return null;
+
+  const demoId = new URLSearchParams(window.location.search).get("demo");
+  if (demoId === guidedCommerceRichIntentDemo.id) return guidedCommerceRichIntentDemo;
+  if (demoId === guidedCommerceAssistedCompletionDemo.id) {
+    return guidedCommerceAssistedCompletionDemo;
+  }
+
+  return null;
+}
+
 export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = {}) {
   const [currentPage, setCurrentPage] = useState<PageId>("home");
   const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
@@ -1891,6 +1903,10 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
     if (typeof window === "undefined") return false;
     return new URLSearchParams(window.location.search).get("mode") === "self_drive";
   }, []);
+  const directDemoScript = useMemo(
+    () => (isSelfDriveEntry ? directCommerceDemoFromUrl() : null),
+    [isSelfDriveEntry],
+  );
   const isSmartBarMobileViewport = useSmartBarBookingMobileViewport();
 
   const page = PAGES[currentPage];
@@ -1913,11 +1929,19 @@ export default function AppCommerce({ tourBarMode = false }: AppCommerceProps = 
 
     const timer = window.setTimeout(() => {
       setDemoClosingOpen(false);
+
+      if (directDemoScript) {
+        setActiveDemoScript(directDemoScript);
+        setDemoPreviewOpen(false);
+        setDemoStatus("running");
+        return;
+      }
+
       setDemoPreviewOpen(true);
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [isSelfDriveEntry]);
+  }, [directDemoScript, isSelfDriveEntry]);
 
   const closeDemoPreview = () => {
     if (isSelfDriveEntry) {
