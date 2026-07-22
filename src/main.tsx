@@ -1,4 +1,4 @@
-﻿import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
+import FoodTrioMobileExperience from "./components/tourbar/smartbar-mobile/food-trio/FoodTrioMobileExperience";
 import React, { useEffect, useState, type ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -109,6 +109,15 @@ async function verifyStoredTourBotDemoToken() {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearStoredTourBotDemoToken();
+        return false;
+      }
+
+      if (response.status === 408 || response.status === 429 || response.status >= 500) {
+        return true;
+      }
+
       clearStoredTourBotDemoToken();
       return false;
     }
@@ -129,7 +138,7 @@ async function verifyStoredTourBotDemoToken() {
 
     return true;
   } catch {
-    return false;
+    return true;
   }
 }
 

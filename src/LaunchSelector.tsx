@@ -260,6 +260,15 @@ async function checkTourBotDemoSession() {
     });
 
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        clearStoredTourBotDemoToken();
+        return false;
+      }
+
+      if (response.status === 408 || response.status === 429 || response.status >= 500) {
+        return true;
+      }
+
       clearStoredTourBotDemoToken();
       return false;
     }
@@ -276,7 +285,7 @@ async function checkTourBotDemoSession() {
 
     return true;
   } catch {
-    return false;
+    return true;
   }
 }
 
