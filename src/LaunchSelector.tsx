@@ -546,7 +546,7 @@ function LaunchMessage({
               href="/transactional?mode=self_drive&demo=guided-commerce-rich-intent"
               icon={CalendarCheck}
               eyebrow="Booking"
-              title="Natural Language Booking"
+              title="Direct Completion"
               description="Visitor gives lots of detail."
             />
             <DemoLaunchButton
