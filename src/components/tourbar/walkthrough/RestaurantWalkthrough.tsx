@@ -353,17 +353,17 @@ function RestaurantWalkthroughNavigator({
   if (!isVisible) return null;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-white/92 px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4";
+    "inline-flex items-center justify-center rounded-full bg-white/92 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4";
+    "inline-flex items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4";
 
   return (
-    <div className="absolute inset-x-5 bottom-10 z-[13090] flex items-center justify-between gap-3 sm:inset-x-10">
+    <div className="absolute inset-x-4 bottom-[max(14px,env(safe-area-inset-bottom))] z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:bottom-10 sm:gap-3">
       {canGoBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center rounded-full bg-white/86 px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4"
+          className="inline-flex items-center justify-center rounded-full bg-white/86 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -921,7 +921,7 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
-  const shellStageScale = fitShellToStage ? (isCompact ? 0.84 : 0.88) : 1;
+  const shellStageScale = fitShellToStage ? (isCompact ? 0.72 : 0.88) : 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isTicketFlowStep = isTicketStep || isHandledStep;
   const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
@@ -1210,7 +1210,7 @@ function CustomerFlowScene({
       : null;
 
   return (
-    <div className="relative h-full px-5 pt-4 pb-7 sm:px-10 sm:pt-5 sm:pb-10">
+    <div className="relative h-full px-4 pt-3 pb-3 sm:px-10 sm:pt-5 sm:pb-10">
       <div className="relative z-[5] flex items-center">
         <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
       </div>
@@ -1502,7 +1502,7 @@ export default function RestaurantWalkthrough({
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = isCompact
-    ? Math.min(640, Math.max(448, Math.round(viewportHeight - 170)))
+    ? Math.min(560, Math.max(420, Math.round(viewportHeight - 188)))
     : 760;
   const cardTop = chrome === "content"
     ? 0
@@ -1522,14 +1522,14 @@ export default function RestaurantWalkthrough({
   );
   const shellViewportTop = chrome === "content"
     ? isCompact
-      ? 36
+      ? 18
       : 38
     : isCompact
       ? 70
       : 82;
   const navReserveHeight = chrome === "content"
     ? isCompact
-      ? 96
+      ? 72
       : 92
     : isCompact
       ? 92

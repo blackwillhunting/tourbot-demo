@@ -540,10 +540,10 @@ export default function SmartBarTeaserV2() {
         </div>
       </header>
 
-      <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-hidden px-2.5 py-2 sm:overflow-visible sm:px-6 sm:py-5">
+      <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-start overflow-hidden px-2.5 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
         <div
           className={[
-            "relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain py-2 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0 sm:transition-transform sm:duration-[720ms] sm:ease-out",
+            "relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-hidden py-1 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0 sm:transition-transform sm:duration-[720ms] sm:ease-out",
             isInitialTeaserOpening && ribbonStep === 0 ? "sm:-translate-y-[19px]" : "",
           ].join(" ")}
         >
@@ -590,7 +590,7 @@ export default function SmartBarTeaserV2() {
                 ref={(node) => {
                   segmentRefs.current[2] = node;
                 }}
-                className="h-[calc(100dvh-9rem-env(safe-area-inset-bottom))] min-h-[28rem] max-h-[640px] sm:h-[760px] sm:min-h-0 sm:max-h-none"
+                className="h-[min(560px,calc(100dvh-7rem-env(safe-area-inset-bottom)))] min-h-[26.25rem] sm:h-[760px] sm:min-h-0 sm:max-h-none"
               >
                 {selectedDemo ? (
                   <RestaurantWalkthrough
