@@ -232,29 +232,40 @@ const walkthroughOrderBoardOrders = [
 
 
 function useViewportSize() {
-  const [size, setSize] = useState(() => {
+  const readViewportSize = () => {
     if (typeof window === "undefined") return { width: 390, height: 844 };
+
+    const visualViewport = window.visualViewport;
     return {
-      width: window.innerWidth || document.documentElement.clientWidth || 390,
+      width:
+        visualViewport?.width ||
+        window.innerWidth ||
+        document.documentElement.clientWidth ||
+        390,
       height:
-        window.innerHeight || document.documentElement.clientHeight || 844,
+        visualViewport?.height ||
+        window.innerHeight ||
+        document.documentElement.clientHeight ||
+        844,
     };
-  });
+  };
+
+  const [size, setSize] = useState(readViewportSize);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const updateSize = () => {
-      setSize({
-        width: window.innerWidth || document.documentElement.clientWidth || 390,
-        height:
-          window.innerHeight || document.documentElement.clientHeight || 844,
-      });
-    };
+    const updateSize = () => setSize(readViewportSize());
+    const visualViewport = window.visualViewport;
 
     updateSize();
     window.addEventListener("resize", updateSize);
-    return () => window.removeEventListener("resize", updateSize);
+    visualViewport?.addEventListener("resize", updateSize);
+
+    return () => {
+      window.removeEventListener("resize", updateSize);
+      visualViewport?.removeEventListener("resize", updateSize);
+    };
   }, []);
 
   return size;
@@ -1490,7 +1501,9 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isCompact ? 690 : 760;
+  const embeddedViewportHeight = isCompact
+    ? Math.min(690, Math.max(480, Math.round(viewportHeight - 120)))
+    : 760;
   const cardTop = chrome === "content"
     ? 0
     : isCompact
