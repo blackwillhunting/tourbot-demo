@@ -858,6 +858,7 @@ function CustomerFlowScene({
   onRequestPrivateSandbox,
   finishLabel = "Finish",
   slidePhase = "done",
+  isEmbeddedPhone = false,
 }: {
   activeStep: CustomerFlowStep;
   activeStepIndex: number;
@@ -878,6 +879,7 @@ function CustomerFlowScene({
   onRequestPrivateSandbox: () => void;
   finishLabel?: string;
   slidePhase?: WalkthroughSlidePhase;
+  isEmbeddedPhone?: boolean;
 }) {
   const content =
     variant === "quick" && activeStep === 3
@@ -1204,7 +1206,12 @@ function CustomerFlowScene({
       : null;
 
   return (
-    <div className="relative h-full px-7 pt-4 pb-8 sm:px-10 sm:pt-5 sm:pb-10">
+    <div
+      className={[
+        "relative h-full px-7 pb-8 sm:px-10 sm:pt-5 sm:pb-10",
+        isEmbeddedPhone ? "pt-7" : "pt-4",
+      ].join(" ")}
+    >
       <div className="relative z-[5] flex items-center">
         <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
       </div>
@@ -1218,7 +1225,7 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.02rem] font-semibold leading-[1.07] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[0.92rem] font-semibold leading-[1.06] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
               isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
@@ -1498,7 +1505,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isEmbeddedPhone ? 640 : 760;
+  const embeddedViewportHeight = isEmbeddedPhone ? 612 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
   const mobileViewportBottomReserve = 112;
   const cardTop = chrome === "content"
@@ -1521,8 +1528,8 @@ export default function RestaurantWalkthrough({
   const progressTop = isPhoneViewport
     ? Math.max(50, cardTop - 22)
     : Math.max(104, cardTop - 42);
-  const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 20 : 38) : isPhoneViewport ? 14 : 82;
-  const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 86 : 92) : isPhoneViewport ? 142 : 108;
+  const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 28 : 38) : isPhoneViewport ? 14 : 82;
+  const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 78 : 92) : isPhoneViewport ? 142 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
@@ -1723,6 +1730,7 @@ export default function RestaurantWalkthrough({
               onRequestPrivateSandbox={requestPrivateSandbox}
               finishLabel={finishLabel}
               slidePhase={slidePhase}
+              isEmbeddedPhone={isEmbeddedPhone}
             />
           </div>
         </motion.div>
