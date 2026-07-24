@@ -2714,7 +2714,9 @@ export default function SmartBarMobileShell({
         maxCartPanelHeight,
         demoCompactCartRows
           ? Math.max(342, 148 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
-          : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
+          : demoWalkthroughCartMode
+            ? Math.max(360, 100 + lines.length * 92 + Math.max(0, lines.length - 1) * 10)
+            : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
       );
   const selectedOptionCount = selectedLine?.options?.length || 0;
   const selectedOptionRows = selectedOptionCount;
@@ -5020,7 +5022,7 @@ export default function SmartBarMobileShell({
                     <div
                       ref={cartScrollRef}
                       data-smartbar-mobile-cart-scroll="true"
-                      className={`${demoCompactCartRows ? "mt-3 space-y-2 pb-1" : "mt-4 space-y-3 pb-2"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                      className={`${demoCompactCartRows ? "mt-3 space-y-2 pb-1" : demoWalkthroughCartMode ? "mt-3.5 space-y-2.5 pb-0" : "mt-4 space-y-3 pb-2"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {visibleCartLines.map((line) => (
@@ -5053,7 +5055,7 @@ export default function SmartBarMobileShell({
                               if (!handoffLocked) selectLine(line);
                             }
                           }}
-                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
+                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[5.75rem] !px-4 !py-3.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
                             demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
                           } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
                           style={{ touchAction: "pan-y", transformOrigin: "center center" }}
