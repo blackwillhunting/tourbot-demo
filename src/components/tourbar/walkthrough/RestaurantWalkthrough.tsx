@@ -353,17 +353,17 @@ function RestaurantWalkthroughNavigator({
   if (!isVisible) return null;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)]";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[13px]";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-[12px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[13px]";
 
   return (
-    <div className="absolute inset-x-10 bottom-10 z-[13090] flex items-center justify-between gap-3">
+    <div className="absolute inset-x-6 bottom-10 z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:gap-3">
       {canGoBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center rounded-full bg-white/86 px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/86 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4 sm:text-[13px]"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -397,7 +397,7 @@ function RestaurantWalkthroughNavigator({
           <button
             type="button"
             onClick={onRerun}
-            className={secondaryButtonClass}
+            className={`${secondaryButtonClass} min-w-[6.85rem]`}
           >
             <RotateCcw className="mr-2 h-4 w-4" />
             {rerunLabel}
@@ -1218,7 +1218,7 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.42rem] font-semibold leading-[1.1] tracking-[-0.03em] text-slate-950",
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.16rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
               isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
@@ -1498,7 +1498,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isEmbeddedPhone ? 704 : 760;
+  const embeddedViewportHeight = isEmbeddedPhone ? 668 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
   const mobileViewportBottomReserve = 112;
   const cardTop = chrome === "content"

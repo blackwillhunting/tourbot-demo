@@ -545,7 +545,7 @@ export default function SmartBarTeaserV2() {
           className={[
             "relative block min-h-0 w-full max-w-[52rem] overflow-visible py-0 transition-transform duration-[720ms] ease-out",
             selectedDemo
-              ? "-translate-y-[52px] sm:translate-y-0"
+              ? "-translate-y-[34px] sm:translate-y-0"
               : isInitialTeaserOpening && ribbonStep === 0
                 ? "-translate-y-[19px]"
                 : "",
@@ -594,7 +594,7 @@ export default function SmartBarTeaserV2() {
                 ref={(node) => {
                   segmentRefs.current[2] = node;
                 }}
-                className="h-[704px] min-h-0 max-h-none sm:h-[760px]"
+                className="h-[668px] min-h-0 max-h-none sm:h-[760px]"
               >
                 {selectedDemo ? (
                   <RestaurantWalkthrough
