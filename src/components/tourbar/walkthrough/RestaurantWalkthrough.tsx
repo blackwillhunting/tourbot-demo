@@ -1204,7 +1204,7 @@ function CustomerFlowScene({
       : null;
 
   return (
-    <div className="relative h-full px-10 pt-5 pb-10">
+    <div className="relative h-full px-7 pt-4 pb-8 sm:px-10 sm:pt-5 sm:pb-10">
       <div className="relative z-[5] flex items-center">
         <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
       </div>
@@ -1451,7 +1451,9 @@ export default function RestaurantWalkthrough({
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const { width: viewportWidth, height: viewportHeight } = useViewportSize();
+  const isEmbeddedContent = chrome === "content";
   const isCompact = false;
+  const isPhoneViewport = !isEmbeddedContent && viewportWidth < 640;
   const customerFlowSteps =
     variant === "quick" ? quickCustomerFlowSteps : fullCustomerFlowSteps;
   const customerStepIndex = Math.max(0, customerFlowSteps.indexOf(customerStep));
@@ -1496,19 +1498,30 @@ export default function RestaurantWalkthrough({
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = 760;
+  const mobileCardTop = Math.max(128, Math.min(174, Math.round(viewportHeight * 0.18)));
+  const mobileViewportBottomReserve = 118;
   const cardTop = chrome === "content"
     ? 0
-    : Math.max(198, Math.round(viewportHeight * 0.24));
+    : isPhoneViewport
+      ? mobileCardTop
+      : Math.max(198, Math.round(viewportHeight * 0.24));
   const initialCardHeight = 278;
   const finalCardHeight = chrome === "content"
     ? embeddedViewportHeight
-    : Math.max(
-        initialCardHeight,
-        viewportHeight - cardTop - 36,
-      );
-  const progressTop = Math.max(104, cardTop - 42);
-  const shellViewportTop = chrome === "content" ? 38 : 82;
-  const navReserveHeight = chrome === "content" ? 92 : 108;
+    : isPhoneViewport
+      ? Math.max(
+          initialCardHeight,
+          viewportHeight - cardTop - mobileViewportBottomReserve,
+        )
+      : Math.max(
+          initialCardHeight,
+          viewportHeight - cardTop - 36,
+        );
+  const progressTop = isPhoneViewport
+    ? Math.max(88, cardTop - 36)
+    : Math.max(104, cardTop - 42);
+  const shellViewportTop = chrome === "content" ? 38 : isPhoneViewport ? 34 : 82;
+  const navReserveHeight = chrome === "content" ? 92 : isPhoneViewport ? 104 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
@@ -1606,7 +1619,6 @@ export default function RestaurantWalkthrough({
   };
 
   const showChrome = chrome === "full";
-  const isEmbeddedContent = chrome === "content";
 
   return (
     <main
