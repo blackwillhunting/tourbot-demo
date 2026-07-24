@@ -81,7 +81,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   9: {
     eyebrow: "Private sandbox",
-    copy: "Phone calls → AI-generated tickets.\nTest your menu in a private sandbox.",
+    copy: "Phone calls → AI-generated tickets.\nTest your menu in a private playground.",
   },
 };
 
@@ -838,6 +838,7 @@ function CustomerFlowScene({
   isCompact,
   shellViewportTop,
   navReserveHeight,
+  fitShellToStage = false,
   onBack,
   onNext,
   onRerun,
@@ -857,6 +858,7 @@ function CustomerFlowScene({
   isCompact: boolean;
   shellViewportTop: number;
   navReserveHeight: number;
+  fitShellToStage?: boolean;
   onBack: () => void;
   onNext: () => void;
   onRerun: () => void;
@@ -908,10 +910,36 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
+  const shellStageScale = fitShellToStage ? (isCompact ? 0.92 : 0.88) : 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isTicketFlowStep = isTicketStep || isHandledStep;
+  const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
+  const [holdBoardCaptionOffset, setHoldBoardCaptionOffset] = useState(false);
+
+  useEffect(() => {
+    if (!isBoardCaptionOffsetStep) {
+      setHoldBoardCaptionOffset(false);
+      return;
+    }
+
+    if (isSlideRead) {
+      setHoldBoardCaptionOffset(true);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHoldBoardCaptionOffset(false);
+    }, 320);
+
+    return () => window.clearTimeout(timer);
+  }, [isBoardCaptionOffsetStep, isSlideRead, runId]);
+
   const boardReadCaptionOffset =
-    isCompact && isSlideRead && (isBoardStep || isTicketStep || isHandledStep) ? 64 : 0;
+    isBoardCaptionOffsetStep && (isSlideRead || holdBoardCaptionOffset)
+      ? isCompact
+        ? 64
+        : 76
+      : 0;
   const boardViewportTop =
     (isCompact && isTicketFlowStep ? Math.max(42, shellViewportTop - 28) : shellViewportTop) +
     boardReadCaptionOffset;
@@ -1205,7 +1233,13 @@ function CustomerFlowScene({
           initial={false}
           animate={shellControls}
         >
-          <div className="relative h-full w-full [transform:translateZ(0)]">
+          <div
+            className="relative h-full w-full"
+            style={{
+              transform: `scale(${shellStageScale}) translateZ(0)`,
+              transformOrigin: "bottom center",
+            }}
+          >
             <SmartBarMobileShell
               mode="overlay"
               demoInteractionLocked
@@ -1255,7 +1289,6 @@ function CustomerFlowScene({
               demoRestCompanion={{ label: "SmartBar", showLogo: true }}
               demoSubmission={demoSubmission}
               demoMontageStage={demoMontageStage}
-              compactCartRows
               demoWalkthroughCartMode={
                 isCartStep || isDecisionStep || isSendStep
               }
@@ -1457,7 +1490,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isCompact ? 590 : 675;
+  const embeddedViewportHeight = isCompact ? 690 : 760;
   const cardTop = chrome === "content"
     ? 0
     : isCompact
@@ -1474,8 +1507,20 @@ export default function RestaurantWalkthrough({
     isCompact ? 72 : 104,
     cardTop - (isCompact ? 26 : 42),
   );
-  const shellViewportTop = isCompact ? 70 : 82;
-  const navReserveHeight = isCompact ? 92 : 108;
+  const shellViewportTop = chrome === "content"
+    ? isCompact
+      ? 42
+      : 38
+    : isCompact
+      ? 70
+      : 82;
+  const navReserveHeight = chrome === "content"
+    ? isCompact
+      ? 84
+      : 92
+    : isCompact
+      ? 92
+      : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
@@ -1668,6 +1713,7 @@ export default function RestaurantWalkthrough({
               isCompact={isCompact}
               shellViewportTop={shellViewportTop}
               navReserveHeight={navReserveHeight}
+              fitShellToStage={isEmbeddedContent}
               onBack={goBack}
               onNext={goNext}
               onRerun={rerun}

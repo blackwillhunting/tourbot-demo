@@ -144,7 +144,7 @@ export function getSmartBarMobileShellStyles(isOverlay: boolean, checkoutReady: 
       : strongPills
         ? "bg-white/[0.32] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.34)] ring-1 ring-white/30"
         : "bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.26)] ring-1 ring-white/22";
-  const lineButtonClass = "w-full rounded-2xl border p-3 text-left transition active:scale-[0.99]";
+  const lineButtonClass = "min-h-[6.75rem] w-full rounded-[24px] border px-4 py-4 text-left transition active:scale-[0.99]";
   const unknownTitleClass = isOverlay ? "italic text-slate-950/88" : "italic text-slate-950/88";
   const handoffTitleClass = isOverlay ? "italic text-sky-50" : "italic text-sky-50";
   const totalsBoxClass = isOverlay

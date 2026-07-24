@@ -16,7 +16,6 @@ import {
 import {
   getSmartBarMobileShellStyles,
   smartBarMobileHandoffRowSurfaceClass,
-  smartBarMobileRibbonPillClass,
   smartBarMobileRowSurfaceClass,
   statusClass,
 } from "./smartBarMobileStyles";
@@ -2563,7 +2562,6 @@ export default function SmartBarMobileShell({
     }
   }, [selectedLineId, selectedLineNoChoicesNeeded]);
 
-  const completeCount = lines.filter((line) => line.status === "ready").length;
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const unknownCount = lines.filter((line) => line.status === "unknown").length;
@@ -2584,7 +2582,6 @@ export default function SmartBarMobileShell({
   const visibleCartLines = cartStatusFilter
     ? lines.filter((line) => line.status === cartStatusFilter)
     : lines;
-  const filteredCartCount = visibleCartLines.length;
   const checkoutReady = !genericResult && lines.length > 0 && cartGuidanceStatus === null;
   const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
@@ -2701,16 +2698,7 @@ export default function SmartBarMobileShell({
   const demoWalkthroughHideCartChrome = Boolean(
     demoWalkthroughCleanCartSurface || demoWalkthroughDecisionPanelSwap,
   );
-  const demoCompactCartRows = Boolean(
-    compactCartRows ||
-      demoWalkthroughHideCartChrome ||
-      (demoMontageStage &&
-        !genericResult &&
-        !selectedLine &&
-        (demoMontageStage.surface === "carts" ||
-          demoMontageStage.surface === "checkout" ||
-          demoMontageStage.surface === "confirmation")),
-  );
+  const demoCompactCartRows = Boolean(compactCartRows);
   const demoCollapsedSurfaceHidden = Boolean(
     demoHideCollapsedSurface &&
       demoMontageStage &&
@@ -2724,11 +2712,9 @@ export default function SmartBarMobileShell({
     ? genericPanelHeight
     : Math.min(
         maxCartPanelHeight,
-        demoWalkthroughHideCartChrome
-          ? Math.max(292, 66 + lines.length * 50 + Math.max(0, lines.length - 1) * 6)
-          : demoCompactCartRows
-            ? Math.max(342, 228 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
-            : Math.max(388, 272 + lines.length * 98 + Math.max(0, lines.length - 1) * 10),
+        demoCompactCartRows
+          ? Math.max(342, 148 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
+          : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
       );
   const selectedOptionCount = selectedLine?.options?.length || 0;
   const selectedOptionRows = selectedOptionCount;
@@ -3826,30 +3812,6 @@ export default function SmartBarMobileShell({
     }, SMARTBAR_MOBILE_SEND_ORDER_COLLAPSE_DURATION_MS);
   };
 
-  const toggleCartStatusFilter = (status: SmartBarMobileOrderStatus, count: number) => {
-    if (handoffLocked || count <= 0) return;
-
-    setSelectedLineId(null);
-    setCartStatusFilter((current) => current === status ? null : status);
-  };
-
-  const clearCartStatusFilter = () => {
-    if (handoffLocked) return;
-
-    setSelectedLineId(null);
-    setCartStatusFilter(null);
-  };
-
-  const cartFilterButtonClass = (active: boolean, disabled = false) => [
-    "flex min-h-[42px] items-center justify-center rounded-full px-2 text-center font-black tabular-nums transition",
-    active ? "scale-[1.03] ring-2 ring-white/80 shadow-[0_10px_24px_rgba(2,6,23,0.24)]" : "ring-1 ring-white/18",
-    disabled ? "opacity-35" : "active:scale-95",
-  ].join(" ");
-
-  const unknownFilterPillClass = isOverlay
-    ? "border border-slate-400/30 bg-slate-900/86 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.28)]"
-    : "border border-slate-400/35 bg-slate-800 text-slate-50 shadow-sm";
-
   const companionLabel = (() => {
     if (demoMontageStage?.label && phase !== "rest" && !demoWalkthroughCartMode) return demoMontageStage.label;
     if (phase === "rest") {
@@ -4354,7 +4316,6 @@ export default function SmartBarMobileShell({
     issuePillClass,
     lineButtonClass,
     handoffTitleClass,
-    totalsBoxClass,
   } = getSmartBarMobileShellStyles(isOverlay, checkoutReady);
 
   const genericActions = genericResult?.actions || [];
@@ -5037,7 +4998,7 @@ export default function SmartBarMobileShell({
                     animate={{ opacity: 1, y: 0 }}
                     exit={demoWalkthroughDecisionPanelSwap ? { opacity: 0, y: 0 } : { opacity: 0, y: -8 }}
                     transition={demoWalkthroughDecisionPanelSwap ? { duration: 0 } : { duration: 0.2, ease: "easeOut" }}
-                    className={`relative flex h-full min-h-0 flex-col ${demoWalkthroughHideCartChrome ? "px-3 pb-0 pt-3" : demoCompactCartRows ? "p-3" : "p-4"}`}
+                    className={`relative flex h-full min-h-0 flex-col ${demoCompactCartRows ? "p-3" : "p-4"}`}
                   >
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -5046,81 +5007,20 @@ export default function SmartBarMobileShell({
                         </div>
                       </div>
 
-                      {!demoWalkthroughHideCartChrome && (
-                        <div className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-black ${issuePillClass}`}>
-                          {checkoutReady ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" />
-                              Complete
-                            </>
-                          ) : `${unresolvedReviewCount} open`}
-                        </div>
-                      )}
-                    </div>
-
-                    {!demoWalkthroughHideCartChrome && (
-                      <div className="mt-3 grid shrink-0 grid-cols-5 gap-1.5">
-                        <button
-                        type="button"
-                        data-smartbar-mobile-cart-view="default"
-                        onClick={clearCartStatusFilter}
-                        className={`${cartFilterButtonClass(!cartStatusFilter)} border border-white/18 bg-slate-950/88 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.26)]`}
-                        aria-label="Show original order"
-                        aria-pressed={!cartStatusFilter}
+                      <div
+                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-black uppercase tracking-[0.08em] text-white tabular-nums ring-1 ring-white/28"
+                        style={SMARTBAR_MOBILE_BLUE_CONTROL_STYLE}
+                        aria-label={`Order total ${cartTotals.totalLabel}`}
                       >
-                        <ListOrdered className="h-4.5 w-4.5" />
-                      </button>
-                      <button
-                        type="button"
-                        data-smartbar-mobile-status-filter="ready"
-                        onClick={() => toggleCartStatusFilter("ready", completeCount)}
-                        disabled={completeCount <= 0}
-                        className={`${cartFilterButtonClass(cartStatusFilter === "ready", completeCount <= 0)} ${smartBarMobileRibbonPillClass("complete", isOverlay)}`}
-                        aria-label={`Show ready items, ${completeCount}`}
-                        aria-pressed={cartStatusFilter === "ready"}
-                      >
-                        {completeCount}
-                      </button>
-                      <button
-                        type="button"
-                        data-smartbar-mobile-status-filter="pending"
-                        onClick={() => toggleCartStatusFilter("pending", blockingIssueCount)}
-                        disabled={blockingIssueCount <= 0}
-                        className={`${cartFilterButtonClass(cartStatusFilter === "pending", blockingIssueCount <= 0)} ${smartBarMobileRibbonPillClass("pending", isOverlay)}`}
-                        aria-label={`Show required items, ${blockingIssueCount}`}
-                        aria-pressed={cartStatusFilter === "pending"}
-                      >
-                        {blockingIssueCount}
-                      </button>
-                      <button
-                        type="button"
-                        data-smartbar-mobile-status-filter="options"
-                        onClick={() => toggleCartStatusFilter("options", optionCount)}
-                        disabled={optionCount <= 0}
-                        className={`${cartFilterButtonClass(cartStatusFilter === "options", optionCount <= 0)} ${smartBarMobileRibbonPillClass("extras", isOverlay)}`}
-                        aria-label={`Show optional items, ${optionCount}`}
-                        aria-pressed={cartStatusFilter === "options"}
-                      >
-                        {optionCount}
-                      </button>
-                      <button
-                        type="button"
-                        data-smartbar-mobile-status-filter="unknown"
-                        onClick={() => toggleCartStatusFilter("unknown", unknownCount)}
-                        disabled={unknownCount <= 0}
-                        className={`${cartFilterButtonClass(cartStatusFilter === "unknown", unknownCount <= 0)} ${unknownFilterPillClass}`}
-                        aria-label={`Show unknown items, ${unknownCount}`}
-                        aria-pressed={cartStatusFilter === "unknown"}
-                      >
-                        {unknownCount}
-                      </button>
+                        <span className="text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.52)]">Total</span>
+                        <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
                       </div>
-                    )}
+                    </div>
 
                     <div
                       ref={cartScrollRef}
                       data-smartbar-mobile-cart-scroll="true"
-                      className={`${demoWalkthroughHideCartChrome ? "mt-3 space-y-1.5 pb-0" : demoCompactCartRows ? "mt-2 space-y-1.5 pb-1" : "mt-3 space-y-2 pb-2"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
+                      className={`${demoCompactCartRows ? "mt-3 space-y-2 pb-1" : "mt-4 space-y-3 pb-2"} min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden`}
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {visibleCartLines.map((line) => (
@@ -5225,11 +5125,6 @@ export default function SmartBarMobileShell({
                           </div>
                         </motion.div>
                       ))}
-                      {cartStatusFilter && filteredCartCount === 0 && (
-                        <div className="rounded-[1.25rem] border border-white/14 bg-slate-950/38 px-4 py-5 text-center text-sm font-black text-white/70">
-                          Nothing in this color.
-                        </div>
-                      )}
                     </div>
 
                     <div
@@ -5262,22 +5157,6 @@ export default function SmartBarMobileShell({
                       />
                     </div>
 
-                    {!demoWalkthroughHideCartChrome && (
-                      <div className={`${totalsBoxClass} ${demoCompactCartRows ? "!mt-2 !rounded-[22px] !px-4 !py-2.5" : ""}`}>
-                        <div className="flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                          <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Subtotal</span>
-                          <span className="tabular-nums">{cartTotals.subtotalLabel}</span>
-                        </div>
-                        <div className="mt-1 flex items-center justify-between gap-4 text-[12px] font-black uppercase tracking-[0.12em]">
-                          <span className="text-white/64 [text-shadow:0_1px_2px_rgba(0,0,0,0.50)]">Est. tax</span>
-                          <span className="tabular-nums">{cartTotals.taxLabel}</span>
-                        </div>
-                        <div className={`mt-2 flex items-center justify-between gap-4 border-t pt-2 text-[17px] font-black tracking-[-0.02em] ${isOverlay ? "border-white/24" : "border-white/20"}`}>
-                          <span>Total</span>
-                          <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
-                        </div>
-                      </div>
-                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
