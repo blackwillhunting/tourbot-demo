@@ -1452,6 +1452,7 @@ export default function RestaurantWalkthrough({
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const { width: viewportWidth, height: viewportHeight } = useViewportSize();
   const isEmbeddedContent = chrome === "content";
+  const isEmbeddedPhone = isEmbeddedContent && viewportWidth < 640;
   const isCompact = false;
   const isPhoneViewport = !isEmbeddedContent && viewportWidth < 640;
   const customerFlowSteps =
@@ -1497,7 +1498,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = 760;
+  const embeddedViewportHeight = isEmbeddedPhone ? 704 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
   const mobileViewportBottomReserve = 112;
   const cardTop = chrome === "content"
@@ -1520,8 +1521,8 @@ export default function RestaurantWalkthrough({
   const progressTop = isPhoneViewport
     ? Math.max(50, cardTop - 22)
     : Math.max(104, cardTop - 42);
-  const shellViewportTop = chrome === "content" ? 38 : isPhoneViewport ? 14 : 82;
-  const navReserveHeight = chrome === "content" ? 92 : isPhoneViewport ? 142 : 108;
+  const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 20 : 38) : isPhoneViewport ? 14 : 82;
+  const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 86 : 92) : isPhoneViewport ? 142 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
