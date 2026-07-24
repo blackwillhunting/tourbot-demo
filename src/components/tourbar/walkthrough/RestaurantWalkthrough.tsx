@@ -49,27 +49,27 @@ type CustomerStepContent = {
 const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   1: {
     eyebrow: "Customer flow",
-    copy: "SmartBar is a search bar.\nAt the bottom of your site.",
+    copy: "SmartBar sits on your site.",
   },
   2: {
     eyebrow: "Customer flow",
-    copy: "Customers talk or type orders.",
+    copy: "Say or type an order.",
   },
   3: {
     eyebrow: "Customer flow",
-    copy: "SmartBar builds a cart.\nWith color codes.",
+    copy: "Cart builds with colors.",
   },
   4: {
     eyebrow: "Customer flow",
-    copy: "You tap to complete items.",
+    copy: "Tap items to finish.",
   },
   5: {
     eyebrow: "Pickup ticket",
-    copy: "Confirming generates a pickup ticket.",
+    copy: "Confirm for pickup ticket.",
   },
   6: {
     eyebrow: "Restaurant side",
-    copy: "Requests show on your order board.",
+    copy: "Orders reach the board.",
   },
   7: {
     eyebrow: "Restaurant side",
@@ -883,7 +883,7 @@ function CustomerFlowScene({
     variant === "quick" && activeStep === 3
       ? {
           eyebrow: "Customer flow",
-          copy: "SmartBar builds a cart.\nReady to send.",
+          copy: "Cart builds ready to send.",
         }
       : customerStepContent[activeStep];
   const entryPrompt =
@@ -1218,7 +1218,7 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.16rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.02rem] font-semibold leading-[1.07] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
               isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
@@ -1498,7 +1498,7 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isEmbeddedPhone ? 668 : 760;
+  const embeddedViewportHeight = isEmbeddedPhone ? 640 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
   const mobileViewportBottomReserve = 112;
   const cardTop = chrome === "content"
