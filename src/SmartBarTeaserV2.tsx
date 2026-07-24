@@ -590,7 +590,7 @@ export default function SmartBarTeaserV2() {
                 ref={(node) => {
                   segmentRefs.current[2] = node;
                 }}
-                className="h-[calc(100dvh-7.5rem-env(safe-area-inset-bottom))] min-h-[30rem] max-h-[690px] sm:h-[760px] sm:min-h-0 sm:max-h-none"
+                className="h-[calc(100dvh-9rem-env(safe-area-inset-bottom))] min-h-[28rem] max-h-[640px] sm:h-[760px] sm:min-h-0 sm:max-h-none"
               >
                 {selectedDemo ? (
                   <RestaurantWalkthrough

@@ -358,7 +358,7 @@ function RestaurantWalkthroughNavigator({
     "inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4";
 
   return (
-    <div className="absolute inset-x-5 bottom-8 z-[13090] flex items-center justify-between gap-3 sm:inset-x-10 sm:bottom-10">
+    <div className="absolute inset-x-5 bottom-10 z-[13090] flex items-center justify-between gap-3 sm:inset-x-10">
       {canGoBack ? (
         <button
           type="button"
@@ -921,7 +921,7 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
-  const shellStageScale = fitShellToStage ? (isCompact ? 0.92 : 0.88) : 1;
+  const shellStageScale = fitShellToStage ? (isCompact ? 0.84 : 0.88) : 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isTicketFlowStep = isTicketStep || isHandledStep;
   const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
@@ -1502,7 +1502,7 @@ export default function RestaurantWalkthrough({
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = isCompact
-    ? Math.min(690, Math.max(480, Math.round(viewportHeight - 120)))
+    ? Math.min(640, Math.max(448, Math.round(viewportHeight - 170)))
     : 760;
   const cardTop = chrome === "content"
     ? 0
@@ -1522,14 +1522,14 @@ export default function RestaurantWalkthrough({
   );
   const shellViewportTop = chrome === "content"
     ? isCompact
-      ? 42
+      ? 36
       : 38
     : isCompact
       ? 70
       : 82;
   const navReserveHeight = chrome === "content"
     ? isCompact
-      ? 84
+      ? 96
       : 92
     : isCompact
       ? 92
