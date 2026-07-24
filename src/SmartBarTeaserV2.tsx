@@ -484,7 +484,7 @@ export default function SmartBarTeaserV2() {
   return (
     <main
       data-smartbar-teaser-v2="true"
-      className="flex h-[100svh] flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen"
+      className="flex min-h-[100svh] flex-col overflow-x-hidden overflow-y-auto bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)] text-slate-950 sm:h-screen sm:overflow-hidden"
     >
       <header className="shrink-0 border-b border-white/70 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-1.5 sm:px-6 sm:py-3">
@@ -540,16 +540,16 @@ export default function SmartBarTeaserV2() {
         </div>
       </header>
 
-      <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-start overflow-hidden px-2.5 pt-2 pb-[max(10px,env(safe-area-inset-bottom))] sm:justify-center sm:overflow-visible sm:px-6 sm:py-5">
+      <section className="mx-auto flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-visible px-6 py-5">
         <div
           className={[
-            "relative flex min-h-0 w-full max-w-[calc(100vw-1rem)] overflow-hidden py-1 sm:block sm:max-w-[52rem] sm:overflow-visible sm:py-0 sm:transition-transform sm:duration-[720ms] sm:ease-out",
-            isInitialTeaserOpening && ribbonStep === 0 ? "sm:-translate-y-[19px]" : "",
+            "relative block min-h-0 w-full max-w-[52rem] overflow-visible py-0 transition-transform duration-[720ms] ease-out",
+            isInitialTeaserOpening && ribbonStep === 0 ? "-translate-y-[19px]" : "",
           ].join(" ")}
         >
           <div
             className={
-              "my-auto w-full overflow-hidden rounded-[30px] transition-[height] duration-700 ease-out sm:my-0 sm:rounded-[36px] " +
+              "my-0 w-full overflow-hidden rounded-[36px] transition-[height] duration-700 ease-out " +
               (isIntro
                 ? "bg-transparent backdrop-blur-0"
                 : "bg-white/35 backdrop-blur-sm")
@@ -590,7 +590,7 @@ export default function SmartBarTeaserV2() {
                 ref={(node) => {
                   segmentRefs.current[2] = node;
                 }}
-                className="h-[min(560px,calc(100dvh-7rem-env(safe-area-inset-bottom)))] min-h-[26.25rem] sm:h-[760px] sm:min-h-0 sm:max-h-none"
+                className="h-[760px] min-h-0 max-h-none"
               >
                 {selectedDemo ? (
                   <RestaurantWalkthrough

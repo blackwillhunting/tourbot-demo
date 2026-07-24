@@ -353,23 +353,23 @@ function RestaurantWalkthroughNavigator({
   if (!isVisible) return null;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-white/92 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4";
+    "inline-flex items-center justify-center rounded-full bg-white/92 px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)]";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4";
+    "inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55";
 
   return (
-    <div className="absolute inset-x-4 bottom-[max(14px,env(safe-area-inset-bottom))] z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:bottom-10 sm:gap-3">
+    <div className="absolute inset-x-10 bottom-10 z-[13090] flex items-center justify-between gap-3">
       {canGoBack ? (
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center rounded-full bg-white/86 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4"
+          className="inline-flex items-center justify-center rounded-full bg-white/86 px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </button>
       ) : (
-        <div className="hidden min-w-[6.25rem] sm:block" aria-hidden="true" />
+        <div className="min-w-[6.25rem]" aria-hidden="true" />
       )}
 
       {finalMode ? (
@@ -888,7 +888,7 @@ function CustomerFlowScene({
       : customerStepContent[activeStep];
   const entryPrompt =
     variant === "quick" ? quickCustomerEntryPrompt : customerEntryPrompt;
-  const shellDropY = isCompact ? -500 : -460;
+  const shellDropY = -460;
   const isCapsuleStep = activeStep === 1;
   const isEntryStep = activeStep === 2;
   const isCartStep = activeStep === 3;
@@ -921,9 +921,8 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
-  const shellStageScale = fitShellToStage ? (isCompact ? 0.72 : 0.88) : 1;
+  const shellStageScale = fitShellToStage ? 0.88 : 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
-  const isTicketFlowStep = isTicketStep || isHandledStep;
   const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
   const [holdBoardCaptionOffset, setHoldBoardCaptionOffset] = useState(false);
 
@@ -947,15 +946,10 @@ function CustomerFlowScene({
 
   const boardReadCaptionOffset =
     isBoardCaptionOffsetStep && (isSlideRead || holdBoardCaptionOffset)
-      ? isCompact
-        ? 64
-        : 76
+      ? 76
       : 0;
-  const boardViewportTop =
-    (isCompact && isTicketFlowStep ? Math.max(42, shellViewportTop - 28) : shellViewportTop) +
-    boardReadCaptionOffset;
-  const boardViewportBottom =
-    isCompact && isTicketFlowStep && !isSlideRead ? Math.max(48, navReserveHeight - 44) : navReserveHeight;
+  const boardViewportTop = shellViewportTop + boardReadCaptionOffset;
+  const boardViewportBottom = navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1210,7 +1204,7 @@ function CustomerFlowScene({
       : null;
 
   return (
-    <div className="relative h-full px-4 pt-3 pb-3 sm:px-10 sm:pt-5 sm:pb-10">
+    <div className="relative h-full px-10 pt-5 pb-10">
       <div className="relative z-[5] flex items-center">
         <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
       </div>
@@ -1224,8 +1218,8 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[1rem] font-semibold leading-[1.16] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
-              isCloseStep ? "mt-4 sm:mt-5" : "mt-3 sm:mt-4",
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[1.42rem] font-semibold leading-[1.1] tracking-[-0.03em] text-slate-950",
+              isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1322,7 +1316,7 @@ function CustomerFlowScene({
           key={`restaurant-walkthrough-order-board-${isTicketStep || isHandledStep ? "ticket-flow" : isCloseStep ? "closing" : "receive"}-${runId}-${isTicketStep || isHandledStep || isCloseStep ? "stable" : slidePhase}`}
           className={[
             "restaurant-walkthrough-four-tile-board absolute inset-x-0 z-[4] rounded-[28px] bg-[#e9f6ff] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] ring-1 ring-sky-100/80",
-            isCompact && isTicketFlowStep ? "overflow-visible" : "overflow-hidden",
+            "overflow-hidden",
           ].join(" ")}
           style={{ top: boardViewportTop, bottom: boardViewportBottom }}
           initial={
@@ -1370,8 +1364,8 @@ function CustomerFlowScene({
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={visibleWalkthroughOrderBoardOrders}
             className={[
-              "!min-h-0 h-full !px-2 !py-2 sm:!px-4 sm:!py-3",
-              isCompact && isTicketFlowStep ? "!overflow-visible" : "!overflow-hidden",
+              "!min-h-0 h-full !px-4 !py-3",
+              "!overflow-hidden",
             ].join(" ")}
           />
         </motion.div>
@@ -1457,7 +1451,7 @@ export default function RestaurantWalkthrough({
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
   const { width: viewportWidth, height: viewportHeight } = useViewportSize();
-  const isCompact = viewportWidth < 700;
+  const isCompact = false;
   const customerFlowSteps =
     variant === "quick" ? quickCustomerFlowSteps : fullCustomerFlowSteps;
   const customerStepIndex = Math.max(0, customerFlowSteps.indexOf(customerStep));
@@ -1501,44 +1495,25 @@ export default function RestaurantWalkthrough({
     };
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
-  const embeddedViewportHeight = isCompact
-    ? Math.min(560, Math.max(420, Math.round(viewportHeight - 188)))
-    : 760;
+  const embeddedViewportHeight = 760;
   const cardTop = chrome === "content"
     ? 0
-    : isCompact
-      ? Math.max(92, Math.round(viewportHeight * 0.12))
-      : Math.max(198, Math.round(viewportHeight * 0.24));
-  const initialCardHeight = isCompact ? 252 : 278;
+    : Math.max(198, Math.round(viewportHeight * 0.24));
+  const initialCardHeight = 278;
   const finalCardHeight = chrome === "content"
     ? embeddedViewportHeight
     : Math.max(
         initialCardHeight,
-        viewportHeight - cardTop - (isCompact ? 12 : 36),
+        viewportHeight - cardTop - 36,
       );
-  const progressTop = Math.max(
-    isCompact ? 72 : 104,
-    cardTop - (isCompact ? 26 : 42),
-  );
-  const shellViewportTop = chrome === "content"
-    ? isCompact
-      ? 18
-      : 38
-    : isCompact
-      ? 70
-      : 82;
-  const navReserveHeight = chrome === "content"
-    ? isCompact
-      ? 72
-      : 92
-    : isCompact
-      ? 92
-      : 108;
+  const progressTop = Math.max(104, cardTop - 42);
+  const shellViewportTop = chrome === "content" ? 38 : 82;
+  const navReserveHeight = chrome === "content" ? 92 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
     activeScene === 1 && customerStep === 1 && slidePhase === "read";
-  const closingCardHeight = isCompact ? 164 : 188;
+  const closingCardHeight = 188;
   const isClosingStep = activeScene === 1 && customerStep === 9;
   const cardTargetHeight = slideOneReadHeight
     ? initialCardHeight
@@ -1638,7 +1613,7 @@ export default function RestaurantWalkthrough({
       className={
         (isEmbeddedContent
           ? "relative h-full min-h-0 overflow-hidden text-slate-950 "
-          : "relative h-[100svh] min-h-[100svh] overflow-hidden text-slate-950 sm:h-screen ") +
+          : "relative min-h-[100svh] overflow-x-hidden overflow-y-auto text-slate-950 sm:h-screen sm:overflow-hidden ") +
         (showChrome
           ? "bg-[radial-gradient(circle_at_top_left,_rgba(15,23,42,0.08),_transparent_34%),linear-gradient(135deg,_#f8fafc_0%,_#eef6ff_45%,_#f8fafc_100%)]"
           : "bg-transparent")
@@ -1681,7 +1656,7 @@ export default function RestaurantWalkthrough({
       )}
 
       <motion.section
-        className="absolute left-1/2 z-[12000] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[30px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm sm:rounded-[36px]"
+        className="absolute left-1/2 z-[12000] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[36px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm"
         style={{ top: cardTop, transformOrigin: "top center" }}
         initial={
           isEmbeddedContent
