@@ -1498,8 +1498,8 @@ export default function RestaurantWalkthrough({
   }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = 760;
-  const mobileCardTop = Math.max(128, Math.min(174, Math.round(viewportHeight * 0.18)));
-  const mobileViewportBottomReserve = 118;
+  const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
+  const mobileViewportBottomReserve = 112;
   const cardTop = chrome === "content"
     ? 0
     : isPhoneViewport
@@ -1518,10 +1518,10 @@ export default function RestaurantWalkthrough({
           viewportHeight - cardTop - 36,
         );
   const progressTop = isPhoneViewport
-    ? Math.max(88, cardTop - 36)
+    ? Math.max(50, cardTop - 22)
     : Math.max(104, cardTop - 42);
-  const shellViewportTop = chrome === "content" ? 38 : isPhoneViewport ? 34 : 82;
-  const navReserveHeight = chrome === "content" ? 92 : isPhoneViewport ? 104 : 108;
+  const shellViewportTop = chrome === "content" ? 38 : isPhoneViewport ? 14 : 82;
+  const navReserveHeight = chrome === "content" ? 92 : isPhoneViewport ? 142 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
