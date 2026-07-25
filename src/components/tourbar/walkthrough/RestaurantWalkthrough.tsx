@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
+  type SmartBarMobileOrderStatus,
 } from "../smartbar-mobile/SmartBarMobileShell";
 import SmartBarOrderBoardMock from "../order-board/SmartBarOrderBoardMock";
 import MobileGuidedSocialIntro from "./MobileGuidedSocialIntro";
@@ -571,6 +572,38 @@ function decisionPanelConfigForStage(
     case "cart":
     default:
       return { surface: "carts" };
+  }
+}
+
+type WalkthroughCapsuleMessage = {
+  label: string;
+  status?: SmartBarMobileOrderStatus | null;
+};
+
+function decisionPanelCapsuleMessageForStage(
+  stage: DecisionPanelStage,
+): WalkthroughCapsuleMessage {
+  switch (stage) {
+    case "wings":
+    case "wingsSelected":
+      return { label: "red forces choices", status: "pending" };
+    case "spaghetti":
+    case "spaghettiSelected":
+    case "spaghettiBackToCart":
+      return { label: "yellow offers extras", status: "options" };
+    case "garstix":
+    case "garstixSelected":
+    case "garstixBackToCart":
+      return { label: "gray flags unknowns", status: "unknown" };
+    case "cart":
+    case "tapWings":
+    case "cartAfterWings":
+    case "tapSpaghetti":
+    case "cartAfterSpaghetti":
+    case "tapGarstix":
+    case "final":
+    default:
+      return { label: "coded by color" };
   }
 }
 
@@ -1251,7 +1284,7 @@ function CustomerFlowScene({
 
       return {
         id: `restaurant-walkthrough-cart-colors-${runId}`,
-        label: "",
+        label: isEmbeddedPhone ? "coded by color" : "",
         surface: "carts" as const,
         open: true,
         resolvedState: variant === "quick" ? ("correction" as const) : undefined,
@@ -1262,15 +1295,19 @@ function CustomerFlowScene({
       const stage = slidePhase === "read" ? "cart" : decisionPanelStage;
       const config = decisionPanelConfigForStage(stage);
 
+      const capsuleMessage = decisionPanelCapsuleMessageForStage(stage);
+
       return {
         id: `restaurant-walkthrough-decisions-${runId}-${slidePhase}-${stage}`,
-        label: "",
+        label: isEmbeddedPhone ? capsuleMessage.label : "",
         surface: config.surface,
         open: true,
         selectedOptions: config.selectedOptions,
         retryDraft: config.retryDraft,
         resolvedState: config.resolvedState,
-        status: config.cartGuidanceStatus ?? undefined,
+        status: isEmbeddedPhone
+          ? capsuleMessage.status ?? undefined
+          : config.cartGuidanceStatus ?? undefined,
       };
     }
 
@@ -1280,7 +1317,7 @@ function CustomerFlowScene({
       if (stage === "ticket") {
         return {
           id: `restaurant-walkthrough-pickup-ticket-${runId}-${slidePhase}-${stage}`,
-          label: "",
+          label: isEmbeddedPhone ? "generates ticket" : "",
           surface: "confirmation" as const,
           open: true,
           resolvedState: "correction" as const,
@@ -1289,7 +1326,7 @@ function CustomerFlowScene({
 
       return {
         id: `restaurant-walkthrough-pickup-ticket-${runId}-${slidePhase}-${stage}`,
-        label: "",
+        label: isEmbeddedPhone ? "confirms order" : "",
         surface:
           stage === "sending" ? ("checkout" as const) : ("carts" as const),
         open: true,
@@ -1303,6 +1340,7 @@ function CustomerFlowScene({
     decisionPanelStage,
     isCartStep,
     isDecisionStep,
+    isEmbeddedPhone,
     isSendStep,
     runId,
     sendStage,
@@ -1322,6 +1360,20 @@ function CustomerFlowScene({
       runKey: `restaurant-walkthrough-decision-option-${runId}-${decisionPanelStage}`,
     };
   }, [decisionPanelStage, isDecisionStep, runId, slidePhase]);
+
+  const mobileCapsuleMessage = useMemo<WalkthroughCapsuleMessage | null>(() => {
+    if (!isEmbeddedPhone) return null;
+
+    if (isEntryStep && slidePhase === "watch") {
+      return { label: "Plain English..." };
+    }
+
+    if (isCartStep && slidePhase === "watch" && !cartCueComplete) {
+      return { label: "becomes a cart" };
+    }
+
+    return null;
+  }, [cartCueComplete, isCartStep, isEmbeddedPhone, isEntryStep, slidePhase]);
 
   const decisionRowCueStage =
     isDecisionStep &&
@@ -1394,14 +1446,21 @@ function CustomerFlowScene({
                   : null
               }
               demoLauncherCue={
-                isEntryStep && slidePhase === "watch" && !entryCueComplete
+                !isEmbeddedPhone &&
+                isEntryStep &&
+                slidePhase === "watch" &&
+                !entryCueComplete
                   ? { active: true, runKey: runId, showTooltip: false }
                   : null
               }
               demoCompanionCue={
-                isCartStep && slidePhase === "watch" && !cartCueComplete
+                !isEmbeddedPhone &&
+                isCartStep &&
+                slidePhase === "watch" &&
+                !cartCueComplete
                   ? { active: true, runKey: runId }
-                  : isDecisionStep &&
+                  : !isEmbeddedPhone &&
+                      isDecisionStep &&
                       slidePhase === "watch" &&
                       (decisionPanelStage === "spaghettiBackToCart" ||
                         decisionPanelStage === "garstixBackToCart")
@@ -1409,7 +1468,8 @@ function CustomerFlowScene({
                         active: true,
                         runKey: `decision-footer-${runId}-${decisionPanelStage}`,
                       }
-                    : isSendStep &&
+                    : !isEmbeddedPhone &&
+                        isSendStep &&
                         slidePhase === "watch" &&
                         sendStage === "ready"
                       ? {
@@ -1418,7 +1478,8 @@ function CustomerFlowScene({
                         }
                       : null
               }
-              demoOptionCue={demoOptionCue}
+              demoOptionCue={isEmbeddedPhone ? null : demoOptionCue}
+              demoCompanionMessage={mobileCapsuleMessage}
               demoPresetEntryDraft={
                 isCartStep && !cartCueComplete && slidePhase !== "done"
                   ? {
@@ -1430,6 +1491,7 @@ function CustomerFlowScene({
               demoRestCompanion={{ label: "SmartBar", showLogo: true }}
               demoSubmission={demoSubmission}
               demoMontageStage={demoMontageStage}
+              demoAllowWalkthroughMontageCaption={isEmbeddedPhone}
               demoWalkthroughCartMode={
                 isCartStep || isDecisionStep || isSendStep
               }
@@ -1517,7 +1579,7 @@ function CustomerFlowScene({
         />
       )}
 
-      {variant !== "quick" && isCartStep && cartCueComplete && slidePhase === "watch" && (
+      {!isEmbeddedPhone && variant !== "quick" && isCartStep && cartCueComplete && slidePhase === "watch" && (
         <div
           ref={colorPointerOverlayRef}
           className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
@@ -1530,7 +1592,7 @@ function CustomerFlowScene({
         </div>
       )}
 
-      {decisionRowCueStage && (
+      {!isEmbeddedPhone && decisionRowCueStage && (
         <div
           ref={colorPointerOverlayRef}
           className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
@@ -1544,7 +1606,7 @@ function CustomerFlowScene({
         </div>
       )}
 
-      {isEntryStep && slidePhase === "watch" && !entryCueComplete && (
+      {!isEmbeddedPhone && isEntryStep && slidePhase === "watch" && !entryCueComplete && (
         <WalkthroughPizzaTooltipPointer
           runId={runId}
           selector='[data-smartbar-mobile-launcher="true"]'

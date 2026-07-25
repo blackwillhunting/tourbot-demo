@@ -2141,6 +2141,11 @@ type SmartBarMobileRestCompanion = {
   blank?: boolean;
 };
 
+type SmartBarMobileCompanionMessage = {
+  label: string;
+  status?: SmartBarMobileOrderStatus | null;
+};
+
 type SmartBarMobileDemoMontageSurface =
   | "carts"
   | "requirements"
@@ -2210,6 +2215,10 @@ type SmartBarMobileShellProps = {
   demoSuppressEntryFocus?: boolean;
   /** Demo-only staged surface hook for social reels. Omit in normal use. */
   demoMontageStage?: SmartBarMobileDemoMontageStage | null;
+  /** Demo-only: let walkthrough mode use the staged social-reel capsule caption instead of native cart labels. */
+  demoAllowWalkthroughMontageCaption?: boolean;
+  /** Demo-only: force the active companion capsule to speak a scripted line without changing the open surface. */
+  demoCompanionMessage?: SmartBarMobileCompanionMessage | null;
   /** Demo-only: hide the collapsed upper surface while keeping the footer controls alive. */
   demoHideCollapsedSurface?: boolean;
   /** Demo-only: force dense one-line cart rows outside the social montage state machine. */
@@ -2249,6 +2258,8 @@ export default function SmartBarMobileShell({
   demoSubmission = null,
   demoSuppressEntryFocus = false,
   demoMontageStage = null,
+  demoAllowWalkthroughMontageCaption = false,
+  demoCompanionMessage = null,
   demoHideCollapsedSurface = false,
   compactCartRows = false,
   demoBottomLiftPx = 0,
@@ -3805,7 +3816,14 @@ export default function SmartBarMobileShell({
   };
 
   const companionLabel = (() => {
-    if (demoMontageStage?.label && phase !== "rest" && !demoWalkthroughCartMode) return demoMontageStage.label;
+    if (demoCompanionMessage?.label && phase !== "rest") return demoCompanionMessage.label;
+    if (
+      demoMontageStage?.label &&
+      phase !== "rest" &&
+      (!demoWalkthroughCartMode || demoAllowWalkthroughMontageCaption)
+    ) {
+      return demoMontageStage.label;
+    }
     if (phase === "rest") {
       if (demoRestCompanion?.blank) return "";
       return demoRestCompanion?.label || "SmartBar";
@@ -4285,17 +4303,19 @@ export default function SmartBarMobileShell({
       ? "options"
       : null
     : null;
-  const companionPolicyStatus: SmartBarMobileOrderStatus | null = demoMontageStage
-    ? demoMontageStage.status ?? null
-    : phase === "cart" && genericResult
-      ? genericCompanionPolicyStatus
-      : phase === "cart"
-        ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
-          ? selectedLine.status
-          : !selectedLine
-            ? effectiveCartGuidanceStatus
-            : null
-        : null;
+  const companionPolicyStatus: SmartBarMobileOrderStatus | null = demoCompanionMessage
+    ? demoCompanionMessage.status ?? null
+    : demoMontageStage
+      ? demoMontageStage.status ?? null
+      : phase === "cart" && genericResult
+        ? genericCompanionPolicyStatus
+        : phase === "cart"
+          ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
+            ? selectedLine.status
+            : !selectedLine
+              ? effectiveCartGuidanceStatus
+              : null
+          : null;
   const companionPillStyle = smartBarMobileFooterPolicyStyle(companionPolicyStatus);
   const companionTextClass = smartBarMobileFooterPolicyTextClass(companionPolicyStatus);
   const {
