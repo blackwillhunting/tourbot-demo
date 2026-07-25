@@ -962,7 +962,6 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
             demoRestCompanion={{ label: "SmartBar", showLogo: true }}
             entryModeLabel="Say or type order"
             sendOrderNumber={sendOrderNumber}
-            compactCartRows
             demoBottomLiftPx={16}
             demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
