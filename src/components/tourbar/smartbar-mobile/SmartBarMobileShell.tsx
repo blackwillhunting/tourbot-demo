@@ -234,16 +234,6 @@ const smartBarMobileSocialMontageLines: SmartBarMobileOrderLine[] = [
 
 const smartBarMobileWalkthroughPizzaLines: SmartBarMobileOrderLine[] = [
   {
-    id: "walkthrough-pizza-ready",
-    title: "Medium Pepperoni Pizza",
-    demoDisplayTitle: "Medium Pepperoni Pizza",
-    status: "ready",
-    helper: "Ready",
-    price: "$14.99",
-    details: ["Medium", "Pepperoni"],
-    options: ["Extra cheese", "Well done", "Light sauce"],
-  },
-  {
     id: "walkthrough-pizza-wings",
     title: "Buffalo Wings",
     demoDisplayTitle: "Buffalo Wings",
@@ -2715,7 +2705,7 @@ export default function SmartBarMobileShell({
         demoCompactCartRows
           ? Math.max(342, 148 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
           : demoWalkthroughCartMode
-            ? Math.max(360, 100 + lines.length * 92 + Math.max(0, lines.length - 1) * 10)
+            ? Math.max(360, 104 + lines.length * 108 + Math.max(0, lines.length - 1) * 10)
             : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
       );
   const selectedOptionCount = selectedLine?.options?.length || 0;
@@ -3180,9 +3170,9 @@ export default function SmartBarMobileShell({
       setCartStatusFilter(null);
       if (isWalkthroughConfirmation) {
         setOrderLines(smartBarMobileWalkthroughPizzaLinesForState("correction"));
-        setOrderEstimatedSubtotal("$41.96");
-        setOrderEstimatedTax("$3.46");
-        setOrderEstimatedTotal("$45.42");
+        setOrderEstimatedSubtotal("$26.97");
+        setOrderEstimatedTax("$2.23");
+        setOrderEstimatedTotal("$29.20");
       } else {
         setOrderLines(smartBarMobileSocialMontageReadyLines);
         setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
@@ -3223,9 +3213,9 @@ export default function SmartBarMobileShell({
     if (demoMontageStage.surface === "carts") {
       if (demoWalkthroughCartMode) {
         setOrderLines(smartBarMobileWalkthroughPizzaLinesForState(demoMontageStage.resolvedState));
-        setOrderEstimatedSubtotal(demoMontageStage.resolvedState === "correction" ? "$41.96" : "$35.97");
-        setOrderEstimatedTax(demoMontageStage.resolvedState === "correction" ? "$3.46" : "$2.97");
-        setOrderEstimatedTotal(demoMontageStage.resolvedState === "correction" ? "$45.42" : "$38.94");
+        setOrderEstimatedSubtotal(demoMontageStage.resolvedState === "correction" ? "$26.97" : "$20.98");
+        setOrderEstimatedTax(demoMontageStage.resolvedState === "correction" ? "$2.23" : "$1.73");
+        setOrderEstimatedTotal(demoMontageStage.resolvedState === "correction" ? "$29.20" : "$22.71");
       } else {
         setOrderLines(smartBarMobileSocialMontageLinesForState(demoMontageStage.resolvedState));
         setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
@@ -3240,9 +3230,9 @@ export default function SmartBarMobileShell({
     if (demoMontageStage.surface === "checkout") {
       if (demoWalkthroughCartMode) {
         setOrderLines(smartBarMobileWalkthroughPizzaLinesForState("correction"));
-        setOrderEstimatedSubtotal("$41.96");
-        setOrderEstimatedTax("$3.46");
-        setOrderEstimatedTotal("$45.42");
+        setOrderEstimatedSubtotal("$26.97");
+        setOrderEstimatedTax("$2.23");
+        setOrderEstimatedTotal("$29.20");
       } else {
         setOrderLines(smartBarMobileSocialMontageReadyLines);
         setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
@@ -3263,9 +3253,9 @@ export default function SmartBarMobileShell({
             ? "extras"
             : null;
       setOrderLines(smartBarMobileWalkthroughPizzaLinesForState(walkthroughBaseState));
-      setOrderEstimatedSubtotal(walkthroughBaseState === "extras" ? "$35.97" : "$35.97");
-      setOrderEstimatedTax(walkthroughBaseState === "extras" ? "$2.97" : "$2.97");
-      setOrderEstimatedTotal(walkthroughBaseState === "extras" ? "$38.94" : "$38.94");
+      setOrderEstimatedSubtotal(walkthroughBaseState === "extras" ? "$20.98" : "$20.98");
+      setOrderEstimatedTax(walkthroughBaseState === "extras" ? "$1.73" : "$1.73");
+      setOrderEstimatedTotal(walkthroughBaseState === "extras" ? "$22.71" : "$22.71");
     } else {
       setOrderLines(smartBarMobileSocialMontageLines);
       setOrderEstimatedSubtotal(smartBarMobileSocialMontageSubtotal);
@@ -5056,7 +5046,7 @@ export default function SmartBarMobileShell({
                               if (!handoffLocked) selectLine(line);
                             }
                           }}
-                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[5.75rem] !px-4 !py-3.5" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
+                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
                             demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
                           } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
                           style={{ touchAction: "pan-y", transformOrigin: "center center" }}

@@ -21,9 +21,9 @@ import SmartBarOrderBoardMock from "../order-board/SmartBarOrderBoardMock";
 
 const totalScenes = 3;
 const slideOneCaption = "Tap to say or type your order";
-const customerEntryPrompt = "Med pep pizza spagh wings gar-stix";
+const customerEntryPrompt = "spagh wings gar-stix";
 const quickCustomerEntryPrompt =
-  "med pepproni pizza spagh w meatballs wings w ranch garlic breadstix";
+  "spagh w meatballs wings w ranch garlic breadstix";
 const fullCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const quickCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 5, 6, 7, 8, 9];
 const TUMBLER_GLIDE_MS = 720;
@@ -94,12 +94,8 @@ const walkthroughOrderBoardOrders = [
     customer: "SmartBar",
     phone: "202-555-0184",
     pickup: "ASAP",
-    itemCount: 4,
+    itemCount: 3,
     groups: [
-      {
-        title: "Pizza",
-        items: [{ quantity: 1, name: "Medium Pepperoni Pizza" }],
-      },
       {
         title: "Pasta",
         items: [{ quantity: 1, name: "Spaghetti", details: ["Meatballs"] }],
@@ -857,7 +853,6 @@ function CustomerFlowScene({
   isCompact,
   shellViewportTop,
   navReserveHeight,
-  fitShellToStage = false,
   onBack,
   onNext,
   onRerun,
@@ -931,7 +926,7 @@ function CustomerFlowScene({
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
   const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
-  const shellStageScale = fitShellToStage ? 0.88 : 1;
+  const shellStageScale = 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
   const [holdBoardCaptionOffset, setHoldBoardCaptionOffset] = useState(false);
