@@ -46,7 +46,7 @@ function MobileGuidedIntroHeader({ phase }: { phase: MobileGuidedSocialIntroPhas
 export default function MobileGuidedSocialIntro({
   runKey,
   onComplete,
-  dockLiftPx = 74,
+  dockLiftPx = 0,
 }: {
   runKey: number;
   onComplete: () => void;
@@ -67,23 +67,19 @@ export default function MobileGuidedSocialIntro({
       if (cancelled) return;
 
       setPhase("searchbar");
-      await wait(1720);
+      await wait(2100);
       if (cancelled) return;
 
       setPhase("site");
-      await wait(1560);
+      await wait(1860);
       if (cancelled) return;
 
       setPhase("smartbar");
-      await wait(1280);
+      await wait(1480);
       if (cancelled) return;
 
       setPhase("mounted");
-      await wait(1080);
-      if (cancelled) return;
-
-      setPhase("title");
-      await wait(2600);
+      await wait(720);
       if (cancelled) return;
 
       onComplete();
@@ -116,9 +112,8 @@ export default function MobileGuidedSocialIntro({
       key={`mobile-guided-social-intro-${runKey}`}
       className="absolute inset-0 z-[14000] flex items-center justify-center overflow-hidden bg-slate-950 text-white"
       initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.26, ease: "easeOut" }}
+      animate={{ opacity: 1, transition: { duration: 0.22, ease: "easeOut" } }}
+      exit={{ opacity: 0, transition: { duration: 0.06, ease: "easeOut" } }}
     >
       <section className="relative isolate h-full w-full overflow-hidden bg-[#eff8ff]">
         <MobileGuidedIntroBackground />
@@ -154,7 +149,7 @@ export default function MobileGuidedSocialIntro({
             mode="overlay"
             entryModeLabel="Ask SmartBar"
             buildingLabel="Building..."
-            introCallout={phase === "title" ? { title: "A search bar that does", startDelayMs: 180, typeDelayMs: 24 } : null}
+            introCallout={null}
             demoRestCompanion={restCompanion}
             demoBottomLiftPx={dockLiftPx}
           />
