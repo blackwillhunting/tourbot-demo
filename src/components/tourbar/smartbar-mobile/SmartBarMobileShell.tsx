@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowRight,
@@ -140,6 +140,8 @@ export type SmartBarMobileDemoSubmission = {
   typing?: boolean;
   /** Demo-only typing cadence in milliseconds per character. */
   typeDelayMs?: number;
+  /** Demo-only pause after opening the entry composer before typing begins. */
+  startDelayMs?: number;
   /** Demo-only: optional scripted typing with pauses and visible corrections. */
   typingScript?: SmartBarMobileDemoTypingStep[];
   /** Demo-only pause after typing before submit. */
@@ -1971,6 +1973,10 @@ function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option
   if (canonicalSelected.some((selected) => smartBarMobileOptionMatchesDetail(option, selected))) {
     return true;
   }
+  if (line.status === "pending") {
+    return false;
+  }
+
   return (line.details || []).some((detail) => smartBarMobileOptionMatchesDetail(option, detail));
 }
 
@@ -2198,7 +2204,7 @@ type SmartBarMobileShellProps = {
   /** Demo-only: render an element-owned cue directly on the rest-state SmartBar launcher capsule. */
   demoLauncherCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
   /** Demo-only: render an element-owned cue directly on the active companion/submit capsule. */
-  demoCompanionCue?: { active: boolean; runKey?: string | number } | null;
+  demoCompanionCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
   /** Demo-only: render a pulse cue directly on one selected option pill inside a focus panel. */
   demoOptionCue?: { active: boolean; value: string; runKey?: string | number } | null;
   /** Demo-only: preload the entry composer with a draft before a scripted submit/open-cart step. */
@@ -3047,6 +3053,7 @@ export default function SmartBarMobileShell({
       const query = demoSubmission.query || "";
       const typeDelayMs = demoSubmission.typeDelayMs ?? 24;
       const submitDelayMs = demoSubmission.submitDelayMs ?? 320;
+      const startDelayMs = demoSubmission.startDelayMs ?? 0;
 
       disarmClose();
       clearBuildTimer();
@@ -3070,6 +3077,11 @@ export default function SmartBarMobileShell({
       } else {
         entryTextareaRef.current?.focus({ preventScroll: true });
         setEntryFocused(document.activeElement === entryTextareaRef.current);
+      }
+
+      if (startDelayMs > 0) {
+        await waitFor(startDelayMs);
+        if (cancelled) return;
       }
 
       const typingScript = demoSubmission.typingScript ?? [];
@@ -5334,13 +5346,13 @@ export default function SmartBarMobileShell({
 
               {demoLauncherCue.showTooltip !== false && (
                 <motion.div
-                  className="absolute left-7 top-[-18px] whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
-                  initial={{ opacity: 0, x: -5, scale: 0.96 }}
-                  animate={{ opacity: [0, 1, 1, 0], x: [-5, 0, 0, 4], scale: [0.96, 1, 1, 0.98] }}
-                  transition={{ duration: 1.48, times: [0, 0.16, 0.78, 1], ease: "easeOut" }}
+                  className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform"
+                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                 >
                   {demoLauncherCue.label || "Tap to open"}
-                </motion.div>
+                                  <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" /></motion.div>
               )}
             </motion.div>
           )}
@@ -5376,6 +5388,16 @@ export default function SmartBarMobileShell({
                 />
                 <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
               </div>
+              {demoCompanionCue.showTooltip !== false && demoCompanionCue.label && (
+                <motion.div
+                  className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform"
+                  initial={{ opacity: 0, y: 4, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  {demoCompanionCue.label}
+                                  <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" /></motion.div>
+              )}
             </motion.div>
           )}
 
@@ -5410,6 +5432,9 @@ export default function SmartBarMobileShell({
     </div>
   );
 }
+
+
+
 
 
 
