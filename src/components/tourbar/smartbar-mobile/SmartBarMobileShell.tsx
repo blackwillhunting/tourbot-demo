@@ -2725,8 +2725,29 @@ export default function SmartBarMobileShell({
             ? Math.max(360, 104 + lines.length * 108 + Math.max(0, lines.length - 1) * 10)
             : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
       );
-  const selectedOptionCount = selectedLine?.options?.length || 0;
-  const selectedOptionRows = selectedOptionCount;
+  const selectedOptionRows = (() => {
+    const options = selectedLine?.options || [];
+    if (!options.length) return 0;
+
+    const availableWidth = Math.max(208, entryPillWidth - 32);
+    let rowCount = 1;
+    let usedWidth = 0;
+
+    options.forEach((option) => {
+      const estimatedTextWidth = Math.max(34, String(option || "").trim().length * 7.4);
+      const estimatedPillWidth = Math.min(availableWidth, Math.max(68, estimatedTextWidth + 32));
+      const nextWidth = usedWidth ? usedWidth + 8 + estimatedPillWidth : estimatedPillWidth;
+
+      if (nextWidth > availableWidth && usedWidth) {
+        rowCount += 1;
+        usedWidth = estimatedPillWidth;
+      } else {
+        usedWidth = nextWidth;
+      }
+    });
+
+    return rowCount;
+  })();
   const selectedDetailTitle = selectedLineFullTitle || smartBarMobileShortTitle(selectedLine?.demoDisplayTitle || selectedLine?.title || "");
   const selectedDetailTitleLines = selectedDetailTitle.length > 28 ? 2 : 1;
   const cartDetailHeightFromShape = (optionRows: number, titleLines: number) => {
@@ -4678,7 +4699,7 @@ export default function SmartBarMobileShell({
                   >
                     <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
                       <div className="min-w-0">
-                        <div className="inline-flex max-w-full items-center rounded-full border border-white/18 bg-white/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_12px_rgba(2,6,23,0.18)]">
+                        <div className="inline-flex max-w-full items-center rounded-full border border-white/14 bg-white/[0.08] px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] text-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_4px_12px_rgba(2,6,23,0.14)]">
                           {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
                         </div>
                         <div className={`mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
@@ -4691,26 +4712,27 @@ export default function SmartBarMobileShell({
                     </div>
 
                     {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && (
-                      <div className="mt-2 grid shrink-0 grid-cols-2 gap-2">
+                      <div className="mt-2 flex shrink-0 items-center justify-center gap-2">
                         <button
                           type="button"
                           data-smartbar-mobile-item-summary="true"
                           onClick={() => setSelectedDetailMode((current) => (current === "summary" && selectedLineHasOptions ? "choices" : "summary"))}
-                          className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[18px] px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.98] ${selectedDetailMode === "summary" ? "bg-sky-200 text-slate-950" : "bg-slate-950/82 text-white"}`}
+                          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] ${selectedDetailMode === "summary" ? "bg-sky-200 text-slate-950" : "bg-slate-950/82 text-white"}`}
                           aria-pressed={selectedDetailMode === "summary"}
+                          aria-label="Show item summary"
+                          title="Summary"
                         >
-                          <ListOrdered className="h-4 w-4 shrink-0 stroke-[2.75]" aria-hidden="true" />
-                          <span>Summary</span>
+                          <ListOrdered className="h-[18px] w-[18px] shrink-0 stroke-[2.5]" aria-hidden="true" />
                         </button>
                         <button
                           type="button"
                           data-smartbar-mobile-detail-remove="true"
                           onClick={() => removeLine(selectedLine)}
-                          className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[18px] bg-slate-950/92 px-3 py-2 text-[12px] font-black uppercase tracking-[0.08em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_8px_18px_rgba(2,6,23,0.22)] ring-1 ring-white/14 transition active:scale-[0.98]"
+                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 bg-slate-950/86 text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]"
                           aria-label={`Remove ${selectedLine.title}`}
+                          title="Remove item"
                         >
-                          <Trash2 className="h-4 w-4 shrink-0 stroke-[2.75]" aria-hidden="true" />
-                          <span>Remove</span>
+                          <Trash2 className="h-[18px] w-[18px] shrink-0 stroke-[2.5]" aria-hidden="true" />
                         </button>
                       </div>
                     )}
@@ -4807,10 +4829,10 @@ export default function SmartBarMobileShell({
                         )}
                         {!!selectedLine.options?.length && (
                           <div className="mt-1">
-                            <div className="mb-2 inline-flex max-w-full items-center rounded-full border border-white/20 bg-slate-950/78 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.24)]">
+                            <div className="mb-2.5 px-1 text-[12px] font-bold tracking-[0.02em] text-white/72">
                               {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
                             </div>
-                            <div className="grid grid-cols-1 gap-2">
+                            <div className="flex flex-wrap items-start gap-2">
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = smartBarMobileLineHasOptionDetail(selectedLine, option);
                                 const isSelected = persistedSelected ||
@@ -4828,7 +4850,7 @@ export default function SmartBarMobileShell({
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
                                     disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
-                                    className={`relative min-h-[52px] w-full min-w-0 overflow-visible rounded-[20px] px-3.5 py-3 text-left text-sm font-black shadow-lg transition ${
+                                    className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected
                                         ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
                                           ? "bg-emerald-300/98 text-slate-950 ring-2 ring-emerald-50/54"
@@ -4854,8 +4876,8 @@ export default function SmartBarMobileShell({
                                         <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169]" />
                                       </motion.span>
                                     ) : null}
-                                    <span className="flex min-w-0 max-w-full items-center justify-between gap-3 text-left">
-                                      <span className="min-w-0 flex-1 whitespace-normal break-words leading-tight">{option}</span>
+                                    <span className="flex min-w-0 max-w-full items-center justify-center gap-2.5 text-center">
+                                      <span className="min-w-0 whitespace-normal break-words leading-tight">{option}</span>
                                       {isSelected && <Check className="h-4 w-4 shrink-0" />}
                                     </span>
                                   </button>
