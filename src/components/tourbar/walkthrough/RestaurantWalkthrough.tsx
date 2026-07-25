@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -18,6 +19,7 @@ import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
 } from "../smartbar-mobile/SmartBarMobileShell";
 import SmartBarOrderBoardMock from "../order-board/SmartBarOrderBoardMock";
+import MobileGuidedSocialIntro from "./MobileGuidedSocialIntro";
 
 const totalScenes = 3;
 const slideOneCaption = "Tap to say or type your order";
@@ -1459,6 +1461,8 @@ export default function RestaurantWalkthrough({
   const [customerStep, setCustomerStep] = useState<CustomerFlowStep>(1);
   const [runId, setRunId] = useState(0);
   const [slidePhase, setSlidePhase] = useState<WalkthroughSlidePhase>("read");
+  const [mobileSocialIntroComplete, setMobileSocialIntroComplete] = useState(false);
+  const [mobileSocialIntroRunKey, setMobileSocialIntroRunKey] = useState(0);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -1471,6 +1475,18 @@ export default function RestaurantWalkthrough({
     variant === "quick" ? quickCustomerFlowSteps : fullCustomerFlowSteps;
   const customerStepIndex = Math.max(0, customerFlowSteps.indexOf(customerStep));
   const customerStepCount = customerFlowSteps.length;
+  const showMobileSocialIntro =
+    isEmbeddedPhone &&
+    activeScene === 1 &&
+    customerStep === customerFlowSteps[0] &&
+    !mobileSocialIntroComplete;
+
+  const completeMobileSocialIntro = useCallback(() => {
+    setMobileSocialIntroComplete(true);
+    setCustomerStep(customerFlowSteps[Math.min(1, customerFlowSteps.length - 1)]);
+    setSlidePhase("read");
+    setRunId((value) => value + 1);
+  }, [customerFlowSteps]);
 
   useEffect(() => {
     if (
@@ -1610,6 +1626,8 @@ export default function RestaurantWalkthrough({
     setActiveScene(1);
     setCustomerStep(customerFlowSteps[0]);
     setSlidePhase("read");
+    setMobileSocialIntroComplete(false);
+    setMobileSocialIntroRunKey((value) => value + 1);
     setRunId((value) => value + 1);
   };
 
@@ -1680,6 +1698,16 @@ export default function RestaurantWalkthrough({
         </div>
       )}
 
+      <AnimatePresence>
+        {showMobileSocialIntro && (
+          <MobileGuidedSocialIntro
+            runKey={mobileSocialIntroRunKey}
+            onComplete={completeMobileSocialIntro}
+          />
+        )}
+      </AnimatePresence>
+
+      {!showMobileSocialIntro && (
       <motion.section
         className="absolute left-1/2 z-[12000] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[36px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm"
         style={{ top: cardTop, transformOrigin: "top center" }}
@@ -1740,6 +1768,7 @@ export default function RestaurantWalkthrough({
           </div>
         </motion.div>
       </motion.section>
+      )}
     </main>
   );
 }
