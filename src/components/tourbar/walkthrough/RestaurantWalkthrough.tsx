@@ -800,7 +800,12 @@ function WalkthroughPizzaTooltipPointer({
   selector,
   tooltip,
 }: WalkthroughPizzaTooltipPointerProps) {
-  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
+  const [placement, setPlacement] = useState<{
+    ringX: number;
+    ringY: number;
+    tooltipX: number;
+    tooltipBottom: number;
+  } | null>(null);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -812,32 +817,42 @@ function WalkthroughPizzaTooltipPointer({
       if (!target || cancelled) return;
 
       const rect = target.getBoundingClientRect();
-      const targetX = rect.left + Math.min(34, Math.max(22, rect.width * 0.12));
-      const targetY = rect.top + rect.height * 0.24;
+      const viewportWidth =
+        window.innerWidth || document.documentElement.clientWidth || 390;
+      const tooltipSafeInset = 78;
+      const ringX = rect.left + Math.min(34, Math.max(24, rect.width * 0.18));
+      const ringY = rect.top + rect.height * 0.56;
+      const tooltipX = Math.min(
+        viewportWidth - tooltipSafeInset,
+        Math.max(tooltipSafeInset, ringX),
+      );
+      const tooltipBottom = Math.max(24, rect.top - 10);
 
-      setPoint({
-        x: Math.round(targetX),
-        y: Math.round(targetY),
+      setPlacement({
+        ringX: Math.round(ringX),
+        ringY: Math.round(ringY),
+        tooltipX: Math.round(tooltipX),
+        tooltipBottom: Math.round(tooltipBottom),
       });
     };
 
     frame = window.requestAnimationFrame(measure);
-    [120, 320, 620].forEach((delay) => {
+    [80, 180, 360, 640].forEach((delay) => {
       settleTimers.push(window.setTimeout(measure, delay));
     });
     window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
 
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(frame);
       settleTimers.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
     };
   }, [runId, selector]);
 
-  if (!point) return null;
-
-  const labelTop = Math.max(18, point.y - 50);
+  if (!placement) return null;
 
   return (
     <div
@@ -847,43 +862,47 @@ function WalkthroughPizzaTooltipPointer({
     >
       <motion.div
         className="fixed left-0 top-0"
-        style={{ left: point.x, top: point.y }}
+        style={{ left: placement.ringX, top: placement.ringY }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ opacity: { duration: 0.18, ease: "easeOut" } }}
+        transition={{ opacity: { duration: 0.16, ease: "easeOut" } }}
       >
-        <div className="relative h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2">
+        <div className="relative h-5 w-5 -translate-x-1/2 -translate-y-1/2">
           <motion.div
-            className="absolute inset-[-3px] rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.18),0_0_10px_rgba(56,189,248,0.18)]"
-            initial={{ scale: 0.72, opacity: 0.56 }}
-            animate={{ scale: [0.72, 1.45], opacity: [0.56, 0] }}
-            transition={{ duration: 0.58, delay: 0.46, ease: "easeOut" }}
+            className="absolute inset-[-2px] rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.18),0_0_9px_rgba(56,189,248,0.18)]"
+            initial={{ scale: 0.74, opacity: 0.5 }}
+            animate={{ scale: [0.74, 1.34], opacity: [0.5, 0] }}
+            transition={{ duration: 0.48, delay: 0.38, ease: "easeOut" }}
           />
           <motion.div
-            className="absolute inset-0 rounded-full border border-white/95 bg-cyan-50/10 shadow-[0_5px_12px_rgba(2,6,23,0.28),0_0_10px_rgba(255,255,255,0.18),0_0_14px_rgba(56,189,248,0.20),inset_0_1px_0_rgba(255,255,255,0.50)]"
-            animate={{ scale: [1, 0.88, 1] }}
-            transition={{ duration: 0.3, delay: 0.46, ease: "easeOut" }}
+            className="absolute inset-[1px] rounded-full border border-white/95 bg-cyan-50/10 shadow-[0_5px_12px_rgba(2,6,23,0.26),0_0_10px_rgba(255,255,255,0.18),0_0_14px_rgba(56,189,248,0.20),inset_0_1px_0_rgba(255,255,255,0.50)]"
+            animate={{ scale: [1, 0.9, 1] }}
+            transition={{ duration: 0.26, delay: 0.38, ease: "easeOut" }}
           />
           <motion.div
             className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-80"
-            animate={{ scale: [1, 1.14, 1], opacity: [0.8, 0.94, 0.8] }}
-            transition={{ duration: 0.3, delay: 0.46, ease: "easeOut" }}
+            animate={{ scale: [1, 1.12, 1], opacity: [0.8, 0.94, 0.8] }}
+            transition={{ duration: 0.26, delay: 0.38, ease: "easeOut" }}
           />
         </div>
       </motion.div>
 
-      <motion.div
-        className="fixed left-0 top-0 w-max max-w-[12rem] rounded-full border border-white/55 bg-slate-950/92 px-3 py-1.5 text-center text-[11px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_12px_26px_rgba(15,23,42,0.34),0_0_16px_rgba(56,189,248,0.16)] backdrop-blur-xl"
-        style={{ left: point.x, top: labelTop, transform: "translate(-50%, -100%)" }}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.98 }}
-        transition={{ duration: 0.2, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+      <div
+        className="fixed left-0 top-0 -translate-x-1/2 -translate-y-full"
+        style={{ left: placement.tooltipX, top: placement.tooltipBottom }}
       >
-        {tooltip}
-        <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/40 bg-slate-950/90" />
-      </motion.div>
+        <motion.div
+          className="relative w-max max-w-[11rem] rounded-full border border-white/55 bg-slate-950/92 px-3 py-1.5 text-center text-[11px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_12px_26px_rgba(15,23,42,0.34),0_0_16px_rgba(56,189,248,0.16)] backdrop-blur-xl"
+          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 2, scale: 0.98 }}
+          transition={{ duration: 0.18, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {tooltip}
+          <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/40 bg-slate-950/90" />
+        </motion.div>
+      </div>
     </div>
   );
 }
