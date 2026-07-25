@@ -335,6 +335,7 @@ function RestaurantWalkthroughNavigator({
   isVisible = true,
   rerunLabel = "Rerun",
   finalMode = false,
+  nextLabel = "Next",
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
@@ -347,6 +348,7 @@ function RestaurantWalkthroughNavigator({
   isVisible?: boolean;
   rerunLabel?: string;
   finalMode?: boolean;
+  nextLabel?: string;
 }) {
   if (!isVisible) return null;
 
@@ -415,7 +417,7 @@ function RestaurantWalkthroughNavigator({
             onClick={onNext}
             className={primaryButtonClass}
           >
-            Next
+            {nextLabel}
             <ArrowRight className="ml-2 h-4 w-4" />
           </button>
         </>
@@ -787,6 +789,103 @@ function WalkthroughDecisionRowTapCue({
   );
 }
 
+type WalkthroughPizzaTooltipPointerProps = {
+  runId: number;
+  selector: string;
+  tooltip: string;
+};
+
+function WalkthroughPizzaTooltipPointer({
+  runId,
+  selector,
+  tooltip,
+}: WalkthroughPizzaTooltipPointerProps) {
+  const [point, setPoint] = useState<{ x: number; y: number } | null>(null);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    let frame = 0;
+    let settleTimer: number | null = null;
+
+    const measure = () => {
+      const target = document.querySelector<HTMLElement>(selector);
+      if (!target || cancelled) return;
+
+      const rect = target.getBoundingClientRect();
+      setPoint({
+        x: rect.left + rect.width * 0.1,
+        y: rect.top + rect.height * 0.5,
+      });
+    };
+
+    frame = window.requestAnimationFrame(measure);
+    settleTimer = window.setTimeout(measure, 420);
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      if (settleTimer !== null) window.clearTimeout(settleTimer);
+    };
+  }, [runId, selector]);
+
+  if (!point) return null;
+
+  return (
+    <motion.div
+      key={`walkthrough-pizza-tooltip-pointer-${runId}-${tooltip}`}
+      aria-hidden="true"
+      className="pointer-events-none fixed left-0 top-0 z-[14120]"
+      initial={{
+        opacity: 0,
+        x: Math.max(18, point.x - 54),
+        y: Math.max(18, point.y - 26),
+        scale: 0.94,
+      }}
+      animate={{
+        opacity: 1,
+        x: point.x - 16,
+        y: point.y - 16,
+        scale: 1,
+      }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{
+        opacity: { duration: 0.22, ease: "easeOut" },
+        x: { duration: 0.48, ease: [0.22, 1, 0.36, 1] },
+        y: { duration: 0.48, ease: [0.22, 1, 0.36, 1] },
+        scale: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+      }}
+    >
+      <div className="relative h-8 w-8">
+        <motion.div
+          className="absolute inset-0 rounded-full border-2 border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.22),0_0_18px_rgba(56,189,248,0.24)]"
+          initial={{ scale: 0.75, opacity: 0.72 }}
+          animate={{ scale: [0.75, 2.05], opacity: [0.72, 0] }}
+          transition={{ duration: 0.72, delay: 0.58, ease: "easeOut" }}
+        />
+        <motion.div
+          className="absolute inset-[3px] rounded-full border-2 border-white/95 bg-cyan-50/10 shadow-[0_8px_18px_rgba(2,6,23,0.34),0_0_18px_rgba(255,255,255,0.24),0_0_24px_rgba(56,189,248,0.28),inset_0_1px_0_rgba(255,255,255,0.55)]"
+          animate={{ scale: [1, 0.9, 1] }}
+          transition={{ duration: 0.36, delay: 0.58, ease: "easeOut" }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-80"
+          animate={{ scale: [1, 1.25, 1], opacity: [0.8, 0.95, 0.8] }}
+          transition={{ duration: 0.36, delay: 0.58, ease: "easeOut" }}
+        />
+        <motion.div
+          className="absolute left-1/2 top-[-4.05rem] w-max max-w-[17rem] -translate-x-1/2 rounded-2xl border border-white/60 bg-slate-950/90 px-5 py-2.5 text-center text-[14px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_18px_38px_rgba(15,23,42,0.42),0_0_28px_rgba(56,189,248,0.24)] backdrop-blur-xl"
+          initial={{ opacity: 0, y: 6, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.22, delay: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {tooltip}
+          <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" />
+        </motion.div>
+      </div>
+    </motion.div>
+  );
+}
+
 function WalkthroughClosingSandboxCta({
   onRequestPrivateSandbox,
   onBack,
@@ -862,6 +961,7 @@ function CustomerFlowScene({
   onFinish,
   onRequestPrivateSandbox,
   finishLabel = "Finish",
+  nextLabel = "Next",
   slidePhase = "done",
   isEmbeddedPhone = false,
 }: {
@@ -883,6 +983,7 @@ function CustomerFlowScene({
   onFinish: () => void;
   onRequestPrivateSandbox: () => void;
   finishLabel?: string;
+  nextLabel?: string;
   slidePhase?: WalkthroughSlidePhase;
   isEmbeddedPhone?: boolean;
 }) {
@@ -1263,7 +1364,7 @@ function CustomerFlowScene({
               mode="overlay"
               demoInteractionLocked
               introCallout={
-                (isCapsuleStep && !isSlideRead) || isEntryStep
+                isCapsuleStep && !isSlideRead
                   ? {
                       title: slideOneCaption,
                       startDelayMs: 1120,
@@ -1422,6 +1523,14 @@ function CustomerFlowScene({
         </div>
       )}
 
+      {isEntryStep && slidePhase === "watch" && !entryCueComplete && (
+        <WalkthroughPizzaTooltipPointer
+          runId={runId}
+          selector='[data-smartbar-mobile-launcher="true"]'
+          tooltip="Pizza order"
+        />
+      )}
+
       <RestaurantWalkthroughNavigator
         canGoBack={canGoBack}
         canGoNext={canGoNext}
@@ -1432,8 +1541,9 @@ function CustomerFlowScene({
         onFinish={onFinish}
         finishLabel={finishLabel}
         isVisible={!isCloseStep && shouldShowNavigator}
-        rerunLabel={usesReadWatchDecide ? "See again" : "Rerun"}
+        rerunLabel={isEmbeddedPhone && isCapsuleStep ? "Replay" : usesReadWatchDecide ? "See again" : "Rerun"}
         finalMode={isCloseStep}
+        nextLabel={nextLabel}
       />
     </div>
   );
@@ -1483,12 +1593,22 @@ export default function RestaurantWalkthrough({
 
   const completeMobileSocialIntro = useCallback(() => {
     setMobileSocialIntroComplete(true);
-    setCustomerStep(customerFlowSteps[Math.min(1, customerFlowSteps.length - 1)]);
-    setSlidePhase("read");
+    setCustomerStep(customerFlowSteps[0]);
+    setSlidePhase("done");
     setRunId((value) => value + 1);
   }, [customerFlowSteps]);
 
   useEffect(() => {
+    if (
+      isEmbeddedPhone &&
+      activeScene === 1 &&
+      customerStep === customerFlowSteps[0] &&
+      mobileSocialIntroComplete
+    ) {
+      setSlidePhase("done");
+      return;
+    }
+
     if (
       activeScene !== 1 ||
       !customerFlowSteps.includes(customerStep)
@@ -1524,7 +1644,7 @@ export default function RestaurantWalkthrough({
       window.clearTimeout(watchTimer);
       window.clearTimeout(doneTimer);
     };
-  }, [activeScene, customerFlowSteps, customerStep, runId]);
+  }, [activeScene, customerFlowSteps, customerStep, isEmbeddedPhone, mobileSocialIntroComplete, runId]);
 
   const embeddedViewportHeight = isEmbeddedPhone ? 612 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
@@ -1551,6 +1671,11 @@ export default function RestaurantWalkthrough({
     : Math.max(104, cardTop - 42);
   const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 52 : 38) : isPhoneViewport ? 14 : 82;
   const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 54 : 92) : isPhoneViewport ? 142 : 108;
+  const isMobileIntroBeginFrame =
+    isEmbeddedPhone &&
+    activeScene === 1 &&
+    customerStep === customerFlowSteps[0] &&
+    mobileSocialIntroComplete;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
@@ -1620,7 +1745,15 @@ export default function RestaurantWalkthrough({
     }
   };
 
-  const rerun = () => setRunId((value) => value + 1);
+  const rerun = () => {
+    if (isMobileIntroBeginFrame) {
+      setMobileSocialIntroComplete(false);
+      setMobileSocialIntroRunKey((value) => value + 1);
+      setSlidePhase("read");
+    }
+
+    setRunId((value) => value + 1);
+  };
 
   const restartWalkthrough = () => {
     setActiveScene(1);
@@ -1702,6 +1835,7 @@ export default function RestaurantWalkthrough({
         {showMobileSocialIntro && (
           <MobileGuidedSocialIntro
             runKey={mobileSocialIntroRunKey}
+            dockLiftPx={74}
             onComplete={completeMobileSocialIntro}
           />
         )}
@@ -1713,7 +1847,7 @@ export default function RestaurantWalkthrough({
         style={{ top: cardTop, transformOrigin: "top center" }}
         initial={
           isEmbeddedContent
-            ? { height: initialCardHeight, opacity: 1, y: 0, scale: 1 }
+            ? { height: cardTargetHeight, opacity: 1, y: 0, scale: 1 }
             : { height: initialCardHeight, opacity: 0, y: 12, scale: 0.985 }
         }
         animate={{
@@ -1762,6 +1896,7 @@ export default function RestaurantWalkthrough({
               onFinish={finishWalkthrough}
               onRequestPrivateSandbox={requestPrivateSandbox}
               finishLabel={finishLabel}
+              nextLabel={isMobileIntroBeginFrame ? "Begin" : "Next"}
               slidePhase={slidePhase}
               isEmbeddedPhone={isEmbeddedPhone}
             />

@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import SmartBarMobileShell, {
-  type SmartBarMobileDemoSubmission,
-} from "../smartbar-mobile/SmartBarMobileShell";
+import SmartBarMobileShell from "../smartbar-mobile/SmartBarMobileShell";
 
 type MobileGuidedSocialIntroPhase =
   | "blank"
@@ -48,9 +46,11 @@ function MobileGuidedIntroHeader({ phase }: { phase: MobileGuidedSocialIntroPhas
 export default function MobileGuidedSocialIntro({
   runKey,
   onComplete,
+  dockLiftPx = 74,
 }: {
   runKey: number;
   onComplete: () => void;
+  dockLiftPx?: number;
 }) {
   const [phase, setPhase] = useState<MobileGuidedSocialIntroPhase>("blank");
 
@@ -59,35 +59,31 @@ export default function MobileGuidedSocialIntro({
 
     const run = async () => {
       setPhase("blank");
-      await wait(180);
+      await wait(260);
       if (cancelled) return;
 
       setPhase("empty");
-      await wait(790);
+      await wait(980);
       if (cancelled) return;
 
       setPhase("searchbar");
-      await wait(1010);
+      await wait(1720);
       if (cancelled) return;
 
       setPhase("site");
-      await wait(1010);
+      await wait(1560);
       if (cancelled) return;
 
       setPhase("smartbar");
-      await wait(920);
+      await wait(1280);
       if (cancelled) return;
 
       setPhase("mounted");
-      await wait(900);
+      await wait(1080);
       if (cancelled) return;
 
       setPhase("title");
-      await wait(2420);
-      if (cancelled) return;
-
-      setPhase("entry");
-      await wait(1890);
+      await wait(2600);
       if (cancelled) return;
 
       onComplete();
@@ -114,17 +110,6 @@ export default function MobileGuidedSocialIntro({
             ? { label: "SmartBar", showLogo: true }
             : null;
 
-  const demoSubmission = useMemo<SmartBarMobileDemoSubmission | null>(() => {
-    if (phase !== "entry") return null;
-
-    return {
-      id: runKey + 1,
-      query: "Type or say food orders",
-      typing: true,
-      manualSubmit: true,
-      typeDelayMs: 34,
-    };
-  }, [phase, runKey]);
 
   return (
     <motion.div
@@ -169,9 +154,9 @@ export default function MobileGuidedSocialIntro({
             mode="overlay"
             entryModeLabel="Ask SmartBar"
             buildingLabel="Building..."
-            introCallout={phase === "title" ? { title: "A search bar that shops" } : null}
+            introCallout={phase === "title" ? { title: "A search bar that does", startDelayMs: 180, typeDelayMs: 24 } : null}
             demoRestCompanion={restCompanion}
-            demoSubmission={demoSubmission}
+            demoBottomLiftPx={dockLiftPx}
           />
         </motion.div>
       </section>
