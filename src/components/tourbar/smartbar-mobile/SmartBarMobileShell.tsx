@@ -4597,7 +4597,11 @@ export default function SmartBarMobileShell({
                       ? "text-white caret-transparent selection:bg-transparent"
                       : "text-white caret-white selection:bg-white/24"
                   }`}
-                  style={{ caretColor: demoInteractionLocked ? "transparent" : "#fff" }}
+                  style={{
+                    caretColor: demoInteractionLocked ? "transparent" : "#fff",
+                    whiteSpace: "pre-wrap",
+                    overflowWrap: "break-word",
+                  }}
                   placeholder=""
                   spellCheck={false}
                   autoCorrect="off"
@@ -5432,6 +5436,7 @@ export default function SmartBarMobileShell({
     </div>
   );
 }
+
 
 
 

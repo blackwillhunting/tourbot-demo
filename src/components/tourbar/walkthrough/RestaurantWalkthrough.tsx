@@ -1,4 +1,4 @@
-﻿import {
+import {
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -1673,7 +1673,7 @@ function CustomerFlowScene({
       : null;
 
   const boardCue: RestaurantBoardCueConfig | null =
-    variant !== "quick" && isBoardStep && slidePhase === "watch"
+    isBoardStep && slidePhase === "watch"
       ? {
           label: "New ticket",
           selector: '[data-smartbar-order-board-tile="S-184"]',
@@ -1684,7 +1684,7 @@ function CustomerFlowScene({
           durationMs: 1450,
           passive: true,
         }
-      : variant !== "quick" && isTicketStep && slidePhase === "watch"
+      : isTicketStep && slidePhase === "watch"
         ? {
             label: "Open ticket",
             selector: '[data-smartbar-order-board-tile="S-184"]',
@@ -1694,7 +1694,7 @@ function CustomerFlowScene({
             delayMs: 240,
             durationMs: 1120,
           }
-        : variant !== "quick" && isHandledStep && slidePhase === "watch"
+        : isHandledStep && slidePhase === "watch"
           ? {
               label: "Mark handled",
               buttonText: "Mark handled",
@@ -2009,7 +2009,7 @@ if (
       customerStep === 1
         ? 7600
         : customerStep === 2
-          ? 6500
+          ? 8200
           : customerStep === 3
             ? 9000
             : customerStep === 4
