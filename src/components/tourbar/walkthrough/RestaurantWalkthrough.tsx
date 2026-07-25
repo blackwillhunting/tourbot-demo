@@ -349,9 +349,9 @@ function RestaurantWalkthroughNavigator({
   if (!isVisible) return null;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[13px]";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[13px]";
   const primaryButtonClass =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[13px]";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-[12px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[13px]";
   const navPositionClass = finalMode
     ? "bottom-10 sm:bottom-10"
     : "bottom-4 sm:bottom-10";
@@ -367,7 +367,7 @@ function RestaurantWalkthroughNavigator({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/86 px-3.5 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4 sm:text-[13px]"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/86 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4 sm:text-[13px]"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
@@ -432,25 +432,32 @@ type WalkthroughColorPointerTarget = {
 
 const colorPointerTargets: WalkthroughColorPointerTarget[] = [
   {
+    id: "pizza",
+    status: "ready",
+    label: "Ready",
+    fallbackTopPct: 37,
+    fallbackXPct: 50,
+  },
+  {
     id: "wings",
     status: "pending",
-    label: "Missing choice",
-    fallbackTopPct: 43,
-    fallbackXPct: 16,
+    label: "Needs choice",
+    fallbackTopPct: 48,
+    fallbackXPct: 50,
   },
   {
     id: "spaghetti",
     status: "options",
-    label: "Optional add-ons",
-    fallbackTopPct: 56,
-    fallbackXPct: 16,
+    label: "Extras",
+    fallbackTopPct: 59,
+    fallbackXPct: 50,
   },
   {
     id: "breadsticks",
     status: "unknown",
-    label: "Needs matching",
-    fallbackTopPct: 69,
-    fallbackXPct: 16,
+    label: "Unknown",
+    fallbackTopPct: 70,
+    fallbackXPct: 50,
   },
 ];
 
@@ -618,7 +625,7 @@ function WalkthroughColorPointer({
       const rowRect = row.getBoundingClientRect();
 
       setPosition({
-        x: Math.round(rowRect.left + Math.min(24, rowRect.width * 0.14) - overlayRect.left),
+        x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
         y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
       });
     };
@@ -657,13 +664,13 @@ function WalkthroughColorPointer({
         top: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
       }}
     >
-      <div className="relative h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_10px_24px_rgba(1,33,105,0.15)] ring-[3px] ring-white/72 backdrop-blur-sm sm:h-10 sm:w-10">
-        <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm sm:h-2.5 sm:w-2.5" />
+      <div className="relative h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+        <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
       </div>
 
       <motion.div
         key={`restaurant-walkthrough-color-tooltip-${activeTarget.id}`}
-        className="absolute left-0 top-[-38px] max-w-[min(12rem,calc(100vw-6rem))] -translate-x-1 whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-center text-[10px] font-black uppercase leading-none tracking-[0.11em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:left-7 sm:top-[-18px] sm:translate-x-0 sm:text-xs"
+        className="absolute left-7 top-[-18px] max-w-[min(13rem,calc(100vw-7rem))] whitespace-normal rounded-2xl bg-slate-950 px-3 py-2 text-center text-[11px] font-black uppercase leading-[1.05] tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:max-w-none sm:whitespace-nowrap sm:rounded-full sm:py-1.5 sm:text-xs"
         initial={{ opacity: 0, x: -5, scale: 0.96 }}
         animate={{ opacity: 1, x: 0, scale: 1 }}
         exit={{ opacity: 0, x: 4, scale: 0.98 }}
@@ -677,7 +684,6 @@ function WalkthroughColorPointer({
 
 type WalkthroughDecisionRowCueTarget = {
   status: "pending" | "options" | "unknown";
-  label: string;
   fallbackTopPct: number;
   fallbackXPct?: number;
 };
@@ -686,82 +692,10 @@ const decisionRowCueTargets: Record<
   "tapWings" | "tapSpaghetti" | "tapGarstix",
   WalkthroughDecisionRowCueTarget
 > = {
-  tapWings: {
-    status: "pending",
-    label: "Choose one",
-    fallbackTopPct: 43,
-    fallbackXPct: 16,
-  },
-  tapSpaghetti: {
-    status: "options",
-    label: "Review add-ons",
-    fallbackTopPct: 56,
-    fallbackXPct: 16,
-  },
-  tapGarstix: {
-    status: "unknown",
-    label: "Needs matching",
-    fallbackTopPct: 69,
-    fallbackXPct: 16,
-  },
+  tapWings: { status: "pending", fallbackTopPct: 48, fallbackXPct: 50 },
+  tapSpaghetti: { status: "options", fallbackTopPct: 59, fallbackXPct: 50 },
+  tapGarstix: { status: "unknown", fallbackTopPct: 70, fallbackXPct: 50 },
 };
-
-function WalkthroughMobileNarrationPointer({
-  runId,
-  label,
-  fallbackXPct,
-  fallbackTopPct,
-}: {
-  runId: number;
-  label: string;
-  fallbackXPct: number;
-  fallbackTopPct: number;
-}) {
-  return (
-    <motion.div
-      key={`restaurant-walkthrough-mobile-narration-${runId}-${label}`}
-      className="pointer-events-none absolute left-0 top-0 z-[13072]"
-      initial={{
-        opacity: 0,
-        left: `${fallbackXPct}%`,
-        top: `${fallbackTopPct}%`,
-        scale: 0.96,
-      }}
-      animate={{
-        opacity: [0, 1, 1, 0],
-        left: `${fallbackXPct}%`,
-        top: `${fallbackTopPct}%`,
-        scale: [0.96, 1, 1, 0.98],
-      }}
-      exit={{ opacity: 0, scale: 0.96 }}
-      transition={{
-        duration: 1.7,
-        times: [0, 0.14, 0.78, 1],
-        ease: "easeOut",
-      }}
-    >
-      <div className="relative h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_10px_24px_rgba(1,33,105,0.15)] ring-[3px] ring-white/72 backdrop-blur-sm sm:h-10 sm:w-10">
-        <motion.span
-          aria-hidden="true"
-          className="absolute inset-[-7px] rounded-full border-2 border-[#012169]/60"
-          initial={{ opacity: 0, scale: 0.72 }}
-          animate={{ opacity: [0, 0.62, 0], scale: [0.72, 1.16, 1.48] }}
-          transition={{ duration: 0.72, ease: "easeOut", times: [0, 0.32, 1] }}
-        />
-        <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm sm:h-2.5 sm:w-2.5" />
-      </div>
-
-      <motion.div
-        className="absolute left-0 top-[-38px] max-w-[min(12rem,calc(100vw-6rem))] -translate-x-1 whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-center text-[10px] font-black uppercase leading-none tracking-[0.11em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
-        initial={{ opacity: 0, x: -5, scale: 0.96 }}
-        animate={{ opacity: [0, 1, 1, 0], x: [-5, 0, 0, 4], scale: [0.96, 1, 1, 0.98] }}
-        transition={{ duration: 1.7, times: [0, 0.16, 0.78, 1], ease: "easeOut" }}
-      >
-        {label}
-      </motion.div>
-    </motion.div>
-  );
-}
 
 function WalkthroughDecisionRowTapCue({
   runId,
@@ -804,7 +738,7 @@ function WalkthroughDecisionRowTapCue({
       const rowRect = row.getBoundingClientRect();
 
       setPosition({
-        x: Math.round(rowRect.left + Math.min(24, rowRect.width * 0.14) - overlayRect.left),
+        x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
         y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
       });
     };
@@ -837,26 +771,16 @@ function WalkthroughDecisionRowTapCue({
         top: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
       }}
     >
-      <div className="relative h-9 w-9 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_10px_24px_rgba(1,33,105,0.15)] ring-[3px] ring-white/72 backdrop-blur-sm sm:h-10 sm:w-10">
+      <div className="relative h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
         <motion.span
           aria-hidden="true"
-          className="absolute inset-[-7px] rounded-full border-2 border-[#012169]/70"
+          className="absolute inset-[-9px] rounded-full border-2 border-[#012169]/70"
           initial={{ opacity: 0, scale: 0.72 }}
           animate={{ opacity: [0, 0.72, 0], scale: [0.72, 1.18, 1.52] }}
           transition={{ duration: 0.72, ease: "easeOut", times: [0, 0.32, 1] }}
         />
-        <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm sm:h-2.5 sm:w-2.5" />
+        <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
       </div>
-
-      <motion.div
-        className="absolute left-0 top-[-38px] max-w-[min(12rem,calc(100vw-6rem))] -translate-x-1 whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-center text-[10px] font-black uppercase leading-none tracking-[0.11em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
-        initial={{ opacity: 0, x: -5, scale: 0.96 }}
-        animate={{ opacity: 1, x: 0, scale: 1 }}
-        exit={{ opacity: 0, x: 4, scale: 0.98 }}
-        transition={{ duration: 0.2, ease: "easeOut" }}
-      >
-        {target.label}
-      </motion.div>
     </motion.div>
   );
 }
@@ -1031,15 +955,6 @@ function CustomerFlowScene({
       : 0;
   const boardViewportTop = shellViewportTop + boardReadCaptionOffset;
   const boardViewportBottom = navReserveHeight;
-  const mobileBoardNarration = isEmbeddedPhone && !isSlideRead
-    ? isBoardStep
-      ? { label: "Ticket received", x: 18, y: 22 }
-      : isTicketStep
-        ? { label: "Review order", x: 18, y: 16 }
-        : isHandledStep
-          ? { label: "Mark ready", x: 18, y: 84 }
-          : null
-    : null;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
@@ -1356,21 +1271,12 @@ function CustomerFlowScene({
               }
               demoLauncherCue={
                 isEntryStep && slidePhase === "watch" && !entryCueComplete
-                  ? {
-                      active: true,
-                      runKey: runId,
-                      label: "Say it naturally",
-                      showTooltip: true,
-                    }
+                  ? { active: true, runKey: runId, showTooltip: false }
                   : null
               }
               demoCompanionCue={
                 isCartStep && slidePhase === "watch" && !cartCueComplete
-                  ? {
-                      active: true,
-                      runKey: runId,
-                      label: "Plain English",
-                    }
+                  ? { active: true, runKey: runId }
                   : isDecisionStep &&
                       slidePhase === "watch" &&
                       (decisionPanelStage === "spaghettiBackToCart" ||
@@ -1378,7 +1284,6 @@ function CustomerFlowScene({
                     ? {
                         active: true,
                         runKey: `decision-footer-${runId}-${decisionPanelStage}`,
-                        label: "Back to cart",
                       }
                     : isSendStep &&
                         slidePhase === "watch" &&
@@ -1386,7 +1291,6 @@ function CustomerFlowScene({
                       ? {
                           active: true,
                           runKey: `send-order-${runId}-${sendStage}`,
-                          label: "Create ticket",
                         }
                       : null
               }
@@ -1479,20 +1383,6 @@ function CustomerFlowScene({
         </motion.div>
       )}
 
-      {mobileBoardNarration && (
-        <div
-          className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
-          style={{ top: boardViewportTop, bottom: boardViewportBottom }}
-        >
-          <WalkthroughMobileNarrationPointer
-            runId={runId}
-            label={mobileBoardNarration.label}
-            fallbackXPct={mobileBoardNarration.x}
-            fallbackTopPct={mobileBoardNarration.y}
-          />
-        </div>
-      )}
-
       {isCloseStep && !isSlideRead && (
         <WalkthroughClosingSandboxCta
           onRequestPrivateSandbox={onRequestPrivateSandbox}
@@ -1540,7 +1430,7 @@ function CustomerFlowScene({
         onFinish={onFinish}
         finishLabel={finishLabel}
         isVisible={!isCloseStep && shouldShowNavigator}
-        rerunLabel={usesReadWatchDecide ? "Retry" : "Rerun"}
+        rerunLabel={usesReadWatchDecide ? "See again" : "Rerun"}
         finalMode={isCloseStep}
       />
     </div>
