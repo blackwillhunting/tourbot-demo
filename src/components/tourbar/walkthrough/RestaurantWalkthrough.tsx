@@ -40,14 +40,6 @@ const restaurantWalkthroughHiddenTailBoardTileCss = `
 type RestaurantWalkthroughSceneNumber = 1 | 2 | 3;
 type CustomerFlowStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type WalkthroughSlidePhase = "read" | "watch" | "done";
-type MobileIntroStage =
-  | "empty"
-  | "searchbar"
-  | "site"
-  | "smartbar"
-  | "mounted"
-  | "title"
-  | "entry";
 
 type CustomerStepContent = {
   eyebrow: string;
@@ -705,27 +697,6 @@ const decisionRowCueTargets: Record<
   tapGarstix: { status: "unknown", fallbackTopPct: 70, fallbackXPct: 50 },
 };
 
-function mobileIntroRestCompanionForStage(stage: MobileIntroStage) {
-  switch (stage) {
-    case "empty":
-      return { blank: true };
-    case "searchbar":
-      return { label: "A search bar" };
-    case "site":
-      return { label: "on any site" };
-    case "smartbar":
-    case "mounted":
-    case "title":
-    case "entry":
-    default:
-      return { label: "SmartBar", showLogo: true };
-  }
-}
-
-function mobileIntroShellIsMounted(stage: MobileIntroStage) {
-  return stage === "mounted" || stage === "title" || stage === "entry";
-}
-
 function WalkthroughDecisionRowTapCue({
   runId,
   stage,
@@ -945,18 +916,15 @@ function CustomerFlowScene({
   const isSlideRead = usesReadWatchDecide && slidePhase === "read";
   const isSlideWatch = usesReadWatchDecide && slidePhase === "watch";
   const isSlideDone = !usesReadWatchDecide || slidePhase === "done";
-  const isMobileIntroStep = isEmbeddedPhone && isCapsuleStep;
   const shouldShowShell =
     !isBoardStep &&
     !isTicketStep &&
     !isHandledStep &&
     !isCloseStep &&
-    (isMobileIntroStep || !isCapsuleStep || !isSlideRead);
+    (!isCapsuleStep || !isSlideRead);
   const shouldShowBoard =
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
-  const shouldShowCopy = isMobileIntroStep
-    ? false
-    : !usesReadWatchDecide || isSlideRead || isCloseStep;
+  const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
   const shellStageScale = 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
@@ -996,31 +964,6 @@ function CustomerFlowScene({
   const [sendStage, setSendStage] = useState<"ready" | "sending" | "ticket">(
     "ready",
   );
-  const [mobileIntroStage, setMobileIntroStage] =
-    useState<MobileIntroStage>("empty");
-
-  useEffect(() => {
-    if (!isMobileIntroStep) {
-      setMobileIntroStage("empty");
-      return;
-    }
-
-    setMobileIntroStage("empty");
-    const steps: Array<[number, MobileIntroStage]> = [
-      [520, "searchbar"],
-      [1460, "site"],
-      [2400, "smartbar"],
-      [3320, "mounted"],
-      [4200, "title"],
-      [6200, "entry"],
-    ];
-
-    const timers = steps.map(([delay, stage]) =>
-      window.setTimeout(() => setMobileIntroStage(stage), delay),
-    );
-
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [isMobileIntroStep, runId]);
 
   useEffect(() => {
     setEntryCueComplete(false);
@@ -1125,21 +1068,6 @@ function CustomerFlowScene({
   }, [isSendStep, slidePhase, runId]);
 
   useEffect(() => {
-    if (isMobileIntroStep) {
-      const introMounted = mobileIntroShellIsMounted(mobileIntroStage);
-      void shellControls.start({
-        opacity: mobileIntroStage === "empty" ? 0 : 1,
-        y: introMounted ? 0 : "-36%",
-        scale: introMounted ? 1 : 1.035,
-        transition: {
-          opacity: { duration: 0.3, ease: "easeOut" },
-          y: { duration: 0.74, ease: [0.22, 1, 0.36, 1] },
-          scale: { duration: 0.74, ease: [0.22, 1, 0.36, 1] },
-        },
-      });
-      return;
-    }
-
     if (isCapsuleStep && isSlideRead) {
       shellControls.set({ opacity: 0, y: shellDropY, scale: 0.985 });
       return;
@@ -1173,11 +1101,9 @@ function CustomerFlowScene({
     isCapsuleStep,
     isCartStep,
     isDecisionStep,
-    isMobileIntroStep,
     isSendStep,
     isSlideRead,
     isSlideWatch,
-    mobileIntroStage,
     runId,
     shellControls,
     shellDropY,
@@ -1282,19 +1208,6 @@ function CustomerFlowScene({
       ? decisionPanelStage
       : null;
 
-  const mobileIntroRestCompanion = isMobileIntroStep
-    ? mobileIntroRestCompanionForStage(mobileIntroStage)
-    : null;
-  const mobileIntroCallout =
-    isMobileIntroStep &&
-    (mobileIntroStage === "title" || mobileIntroStage === "entry")
-      ? {
-          title: "A search bar that does",
-          startDelayMs: 120,
-          typeDelayMs: 22,
-        }
-      : null;
-
   return (
     <div
       className={[
@@ -1348,14 +1261,13 @@ function CustomerFlowScene({
               mode="overlay"
               demoInteractionLocked
               introCallout={
-                mobileIntroCallout ??
-                ((isCapsuleStep && !isSlideRead) || isEntryStep
+                (isCapsuleStep && !isSlideRead) || isEntryStep
                   ? {
                       title: slideOneCaption,
                       startDelayMs: 1120,
                       typeDelayMs: 34,
                     }
-                  : null)
+                  : null
               }
               demoLauncherCue={
                 isEntryStep && slidePhase === "watch" && !entryCueComplete
@@ -1391,9 +1303,7 @@ function CustomerFlowScene({
                     }
                   : null
               }
-              demoRestCompanion={
-                mobileIntroRestCompanion ?? { label: "SmartBar", showLogo: true }
-              }
+              demoRestCompanion={{ label: "SmartBar", showLogo: true }}
               demoSubmission={demoSubmission}
               demoMontageStage={demoMontageStage}
               demoWalkthroughCartMode={
