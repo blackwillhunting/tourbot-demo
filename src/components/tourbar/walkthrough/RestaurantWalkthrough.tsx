@@ -812,8 +812,8 @@ function WalkthroughPizzaTooltipPointer({
       if (!target || cancelled) return;
 
       const rect = target.getBoundingClientRect();
-      const targetX = rect.left + Math.min(44, Math.max(28, rect.width * 0.16));
-      const targetY = rect.top + rect.height * 0.42;
+      const targetX = rect.left + Math.min(34, Math.max(22, rect.width * 0.12));
+      const targetY = rect.top + rect.height * 0.24;
 
       setPoint({
         x: Math.round(targetX),
@@ -837,10 +837,7 @@ function WalkthroughPizzaTooltipPointer({
 
   if (!point) return null;
 
-  const pointerSize = 24;
-  const pointerX = point.x - pointerSize / 2;
-  const pointerY = point.y - pointerSize / 2;
-  const labelTop = Math.max(18, point.y - 34);
+  const labelTop = Math.max(18, point.y - 50);
 
   return (
     <div
@@ -850,52 +847,39 @@ function WalkthroughPizzaTooltipPointer({
     >
       <motion.div
         className="fixed left-0 top-0"
-        initial={{
-          opacity: 0,
-          x: Math.max(18, pointerX - 30),
-          y: Math.max(18, pointerY - 10),
-          scale: 0.94,
-        }}
-        animate={{
-          opacity: 1,
-          x: pointerX,
-          y: pointerY,
-          scale: 1,
-        }}
-        exit={{ opacity: 0, scale: 0.96 }}
-        transition={{
-          opacity: { duration: 0.22, ease: "easeOut" },
-          x: { duration: 0.48, ease: [0.22, 1, 0.36, 1] },
-          y: { duration: 0.48, ease: [0.22, 1, 0.36, 1] },
-          scale: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
-        }}
+        style={{ left: point.x, top: point.y }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ opacity: { duration: 0.18, ease: "easeOut" } }}
       >
-        <div className="relative h-6 w-6">
+        <div className="relative h-[18px] w-[18px] -translate-x-1/2 -translate-y-1/2">
           <motion.div
-            className="absolute inset-0 rounded-full border-2 border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.20),0_0_14px_rgba(56,189,248,0.22)]"
-            initial={{ scale: 0.72, opacity: 0.66 }}
-            animate={{ scale: [0.72, 1.72], opacity: [0.66, 0] }}
-            transition={{ duration: 0.66, delay: 0.56, ease: "easeOut" }}
+            className="absolute inset-[-3px] rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.18),0_0_10px_rgba(56,189,248,0.18)]"
+            initial={{ scale: 0.72, opacity: 0.56 }}
+            animate={{ scale: [0.72, 1.45], opacity: [0.56, 0] }}
+            transition={{ duration: 0.58, delay: 0.46, ease: "easeOut" }}
           />
           <motion.div
-            className="absolute inset-[2.5px] rounded-full border-2 border-white/95 bg-cyan-50/10 shadow-[0_7px_14px_rgba(2,6,23,0.30),0_0_14px_rgba(255,255,255,0.22),0_0_20px_rgba(56,189,248,0.24),inset_0_1px_0_rgba(255,255,255,0.55)]"
-            animate={{ scale: [1, 0.9, 1] }}
-            transition={{ duration: 0.34, delay: 0.56, ease: "easeOut" }}
+            className="absolute inset-0 rounded-full border border-white/95 bg-cyan-50/10 shadow-[0_5px_12px_rgba(2,6,23,0.28),0_0_10px_rgba(255,255,255,0.18),0_0_14px_rgba(56,189,248,0.20),inset_0_1px_0_rgba(255,255,255,0.50)]"
+            animate={{ scale: [1, 0.88, 1] }}
+            transition={{ duration: 0.3, delay: 0.46, ease: "easeOut" }}
           />
           <motion.div
-            className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-78"
-            animate={{ scale: [1, 1.18, 1], opacity: [0.78, 0.94, 0.78] }}
-            transition={{ duration: 0.34, delay: 0.56, ease: "easeOut" }}
+            className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-80"
+            animate={{ scale: [1, 1.14, 1], opacity: [0.8, 0.94, 0.8] }}
+            transition={{ duration: 0.3, delay: 0.46, ease: "easeOut" }}
           />
         </div>
       </motion.div>
 
       <motion.div
-        className="fixed left-0 top-0 w-max max-w-[13rem] -translate-x-1/2 -translate-y-full rounded-full border border-white/55 bg-slate-950/92 px-3.5 py-1.5 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.36),0_0_20px_rgba(56,189,248,0.18)] backdrop-blur-xl"
-        initial={{ opacity: 0, x: point.x, y: labelTop + 5, scale: 0.98 }}
-        animate={{ opacity: 1, x: point.x, y: labelTop, scale: 1 }}
-        exit={{ opacity: 0, y: labelTop + 4, scale: 0.98 }}
-        transition={{ duration: 0.22, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+        className="fixed left-0 top-0 w-max max-w-[12rem] rounded-full border border-white/55 bg-slate-950/92 px-3 py-1.5 text-center text-[11px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_12px_26px_rgba(15,23,42,0.34),0_0_16px_rgba(56,189,248,0.16)] backdrop-blur-xl"
+        style={{ left: point.x, top: labelTop, transform: "translate(-50%, -100%)" }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.2, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
       >
         {tooltip}
         <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/40 bg-slate-950/90" />
