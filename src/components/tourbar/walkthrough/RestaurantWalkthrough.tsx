@@ -356,9 +356,17 @@ function RestaurantWalkthroughNavigator({
     "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[13px]";
   const primaryButtonClass =
     "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-[12px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[13px]";
+  const navPositionClass = finalMode
+    ? "bottom-10 sm:bottom-10"
+    : "bottom-4 sm:bottom-10";
 
   return (
-    <div className="absolute inset-x-6 bottom-10 z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:gap-3">
+    <div
+      className={[
+        "absolute inset-x-6 z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:gap-3",
+        navPositionClass,
+      ].join(" ")}
+    >
       {canGoBack ? (
         <button
           type="button"
@@ -1209,7 +1217,7 @@ function CustomerFlowScene({
     <div
       className={[
         "relative h-full px-7 pb-8 sm:px-10 sm:pt-5 sm:pb-10",
-        isEmbeddedPhone ? "pt-7" : "pt-4",
+        isEmbeddedPhone ? "pt-9" : "pt-4",
       ].join(" ")}
     >
       <div className="relative z-[5] flex items-center">
@@ -1528,8 +1536,8 @@ export default function RestaurantWalkthrough({
   const progressTop = isPhoneViewport
     ? Math.max(50, cardTop - 22)
     : Math.max(104, cardTop - 42);
-  const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 28 : 38) : isPhoneViewport ? 14 : 82;
-  const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 78 : 92) : isPhoneViewport ? 142 : 108;
+  const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 52 : 38) : isPhoneViewport ? 14 : 82;
+  const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 54 : 92) : isPhoneViewport ? 142 : 108;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
