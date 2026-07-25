@@ -1835,7 +1835,7 @@ export default function RestaurantWalkthrough({
         {showMobileSocialIntro && (
           <MobileGuidedSocialIntro
             runKey={mobileSocialIntroRunKey}
-            dockLiftPx={0}
+            dockLiftPx={navReserveHeight}
             onComplete={completeMobileSocialIntro}
           />
         )}
