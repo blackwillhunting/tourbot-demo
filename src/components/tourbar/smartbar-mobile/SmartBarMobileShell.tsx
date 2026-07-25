@@ -2193,7 +2193,7 @@ type SmartBarMobileShellProps = {
   /** Demo-only: render an element-owned cue directly on the rest-state SmartBar launcher capsule. */
   demoLauncherCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
   /** Demo-only: render an element-owned cue directly on the active companion/submit capsule. */
-  demoCompanionCue?: { active: boolean; runKey?: string | number } | null;
+  demoCompanionCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
   /** Demo-only: render a pulse cue directly on one selected option pill inside a focus panel. */
   demoOptionCue?: { active: boolean; value: string; runKey?: string | number } | null;
   /** Demo-only: preload the entry composer with a draft before a scripted submit/open-cart step. */
@@ -4810,7 +4810,7 @@ export default function SmartBarMobileShell({
                                       <motion.span
                                         key={`smartbar-demo-option-cue-${selectedLine.id}-${smartBarMobileDemoKey(option)}-${demoOptionCue.runKey ?? "cue"}`}
                                         aria-hidden="true"
-                                        className="pointer-events-none absolute -right-1 -top-1 z-20 h-8 w-8 rounded-full border-2 border-[#012169] bg-white/72 shadow-[0_12px_24px_rgba(1,33,105,0.20)] ring-4 ring-white/70"
+                                        className="pointer-events-none absolute -right-1 -top-1 z-20 h-7 w-7 rounded-full border-2 border-[#012169] bg-white/72 shadow-[0_10px_22px_rgba(1,33,105,0.18)] ring-[3px] ring-white/70"
                                         initial={{ opacity: 0, scale: 0.72 }}
                                         animate={{ opacity: [0, 1, 0.9, 0], scale: [0.72, 1.05, 1.2, 1.5] }}
                                         transition={{ duration: 1.02, times: [0, 0.16, 0.58, 1], ease: "easeOut" }}
@@ -5298,9 +5298,9 @@ export default function SmartBarMobileShell({
                 ease: "easeOut",
               }}
             >
-              <div className="relative h-11 w-11 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+              <div className="relative h-9 w-9 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_10px_24px_rgba(1,33,105,0.15)] ring-[3px] ring-white/72 backdrop-blur-sm sm:h-10 sm:w-10">
                 <motion.span
-                  className="absolute inset-[-8px] rounded-full border-2 border-[#012169]/34"
+                  className="absolute inset-[-7px] rounded-full border-2 border-[#012169]/34"
                   initial={{ opacity: 0, scale: 0.62 }}
                   animate={{ opacity: [0, 0, 0.72, 0], scale: [0.62, 0.62, 1.55, 2.05] }}
                   transition={{
@@ -5309,12 +5309,12 @@ export default function SmartBarMobileShell({
                     ease: "easeOut",
                   }}
                 />
-                <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+                <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm sm:h-2.5 sm:w-2.5" />
               </div>
 
               {demoLauncherCue.showTooltip !== false && (
                 <motion.div
-                  className="absolute left-7 top-[-18px] whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:text-xs"
+                  className="absolute left-0 top-[-34px] -translate-x-1 whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase leading-none tracking-[0.11em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:left-7 sm:top-[-18px] sm:translate-x-0 sm:text-xs"
                   initial={{ opacity: 0, x: -5, scale: 0.96 }}
                   animate={{ opacity: [0, 1, 1, 0], x: [-5, 0, 0, 4], scale: [0.96, 1, 1, 0.98] }}
                   transition={{ duration: 1.48, times: [0, 0.16, 0.78, 1], ease: "easeOut" }}
@@ -5343,9 +5343,9 @@ export default function SmartBarMobileShell({
                 ease: "easeOut",
               }}
             >
-              <div className="relative h-11 w-11 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+              <div className="relative h-9 w-9 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_10px_24px_rgba(1,33,105,0.15)] ring-[3px] ring-white/72 backdrop-blur-sm sm:h-10 sm:w-10">
                 <motion.span
-                  className="absolute inset-[-8px] rounded-full border-2 border-[#012169]/34"
+                  className="absolute inset-[-7px] rounded-full border-2 border-[#012169]/34"
                   initial={{ opacity: 0, scale: 0.62 }}
                   animate={{ opacity: [0, 0, 0.72, 0], scale: [0.62, 0.62, 1.55, 2.05] }}
                   transition={{
@@ -5354,8 +5354,19 @@ export default function SmartBarMobileShell({
                     ease: "easeOut",
                   }}
                 />
-                <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+                <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm sm:h-2.5 sm:w-2.5" />
               </div>
+
+              {demoCompanionCue.showTooltip !== false && demoCompanionCue.label && (
+                <motion.div
+                  className="absolute left-0 top-[-34px] -translate-x-1 whitespace-nowrap rounded-full bg-slate-950 px-3 py-1.5 text-[10px] font-black uppercase leading-none tracking-[0.11em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:left-7 sm:top-[-18px] sm:translate-x-0 sm:text-xs"
+                  initial={{ opacity: 0, x: -5, scale: 0.96 }}
+                  animate={{ opacity: [0, 1, 1, 0], x: [-5, 0, 0, 4], scale: [0.96, 1, 1, 0.98] }}
+                  transition={{ duration: 1.48, times: [0, 0.16, 0.78, 1], ease: "easeOut" }}
+                >
+                  {demoCompanionCue.label}
+                </motion.div>
+              )}
             </motion.div>
           )}
 
