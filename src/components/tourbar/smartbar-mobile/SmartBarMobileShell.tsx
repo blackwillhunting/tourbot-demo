@@ -5005,7 +5005,8 @@ export default function SmartBarMobileShell({
                     <div className="flex shrink-0 items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="block w-fit text-xl font-black tracking-tight text-[#06143A]">
-                          Review order
+                          <span className="sm:hidden">Order</span>
+                          <span className="hidden sm:inline">Review order</span>
                         </div>
                       </div>
 

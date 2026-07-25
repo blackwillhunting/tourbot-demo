@@ -65,7 +65,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   5: {
     eyebrow: "Pickup ticket",
-    copy: "Confirm for pickup ticket.",
+    copy: "Confirm pickup ticket.",
   },
   6: {
     eyebrow: "Restaurant side",
@@ -81,7 +81,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   9: {
     eyebrow: "Private sandbox",
-    copy: "Phone calls → AI-generated tickets.\nTest your menu in a private playground.",
+    copy: "Phone calls → AI tickets.\nPrivate menu playground.",
   },
 };
 
@@ -394,10 +394,10 @@ function RestaurantWalkthroughNavigator({
           <button
             type="button"
             onClick={onFinish}
-            className={primaryButtonClass}
+            className={`${primaryButtonClass} min-w-[7.6rem]`}
           >
-            {finishLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <span className="whitespace-nowrap">{finishLabel}</span>
+            <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
           </button>
         </>
       ) : (
@@ -805,9 +805,9 @@ function WalkthroughClosingSandboxCta({
   void onRequestPrivateSandbox;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-white/92 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-sm";
+    "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-sm";
   const primaryButtonClass =
-    "inline-flex items-center justify-center rounded-full bg-[#012169] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] sm:px-4 sm:text-sm";
+    "inline-flex min-w-[7.6rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] sm:px-4 sm:text-sm";
 
   return (
     <motion.div
@@ -838,8 +838,8 @@ function WalkthroughClosingSandboxCta({
         </button>
 
         <button type="button" onClick={onFinish} className={primaryButtonClass}>
-          {finishLabel}
-          <ArrowRight className="ml-2 h-4 w-4" />
+          <span className="whitespace-nowrap">{finishLabel}</span>
+          <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
         </button>
       </motion.div>
     </motion.div>
@@ -1220,9 +1220,11 @@ function CustomerFlowScene({
         isEmbeddedPhone ? "pt-9" : "pt-4",
       ].join(" ")}
     >
-      <div className="relative z-[5] flex items-center">
-        <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
-      </div>
+      {!isEmbeddedPhone && (
+        <div className="relative z-[5] flex items-center">
+          <CustomerFlowStepDots activeIndex={activeStepIndex} count={stepCount} />
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {shouldShowCopy && (
@@ -1233,8 +1235,8 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[0.92rem] font-semibold leading-[1.06] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
-              isCloseStep ? "mt-5" : "mt-4",
+              "relative z-[5] max-w-2xl whitespace-pre-line text-[0.84rem] font-semibold leading-[1.02] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
+              isEmbeddedPhone ? "mt-0" : isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
