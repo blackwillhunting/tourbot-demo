@@ -260,9 +260,9 @@ function TeaserIntroCard({
 
           <div className="mt-6 sm:mt-7">
             {isWaving ? (
-              <TeaserThinkingText body="Customers say what they want. SmartBar sends your staff a ready ticket." />
+              <TeaserThinkingText body="Customers say what they want. SmartBar sends a ready ticket." />
             ) : (
-              "Customers say what they want. SmartBar sends your staff a ready ticket."
+              "Customers say what they want. SmartBar sends a ready ticket."
             )}
           </div>
         </div>
