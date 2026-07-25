@@ -432,25 +432,32 @@ type WalkthroughColorPointerTarget = {
 
 const colorPointerTargets: WalkthroughColorPointerTarget[] = [
   {
+    id: "pizza",
+    status: "ready",
+    label: "Ready",
+    fallbackTopPct: 37,
+    fallbackXPct: 50,
+  },
+  {
     id: "wings",
     status: "pending",
     label: "Needs choice",
-    fallbackTopPct: 45,
-    fallbackXPct: 24,
+    fallbackTopPct: 48,
+    fallbackXPct: 50,
   },
   {
     id: "spaghetti",
     status: "options",
     label: "Extras",
-    fallbackTopPct: 57,
-    fallbackXPct: 24,
+    fallbackTopPct: 59,
+    fallbackXPct: 50,
   },
   {
     id: "breadsticks",
     status: "unknown",
     label: "Unknown",
-    fallbackTopPct: 69,
-    fallbackXPct: 24,
+    fallbackTopPct: 70,
+    fallbackXPct: 50,
   },
 ];
 
@@ -563,61 +570,6 @@ function decisionPanelConfigForStage(
   }
 }
 
-function mobilePillCaptionForCustomerStep({
-  activeStep,
-  decisionPanelStage,
-  sendStage,
-}: {
-  activeStep: CustomerFlowStep;
-  decisionPanelStage: DecisionPanelStage;
-  sendStage: "ready" | "sending" | "ticket";
-}): string | null {
-  switch (activeStep) {
-    case 1:
-      return "Start here";
-    case 2:
-      return "Say it naturally";
-    case 3:
-      return "Color status";
-    case 4:
-      switch (decisionPanelStage) {
-        case "wings":
-        case "wingsSelected":
-          return "Choose sauce";
-        case "spaghetti":
-        case "spaghettiSelected":
-          return "Choose add-ons";
-        case "garstix":
-        case "garstixSelected":
-          return "Match item";
-        case "spaghettiBackToCart":
-        case "garstixBackToCart":
-          return "Back to cart";
-        case "final":
-          return "Ready to send";
-        default:
-          return "Fix details";
-      }
-    case 5:
-      return sendStage === "ticket" ? "Pickup ticket" : "Create ticket";
-    default:
-      return null;
-  }
-}
-
-function mobileBoardCaptionForCustomerStep(activeStep: CustomerFlowStep): string | null {
-  switch (activeStep) {
-    case 6:
-      return "Ticket received";
-    case 7:
-      return "Review order";
-    case 8:
-      return "Mark handled";
-    default:
-      return null;
-  }
-}
-
 function WalkthroughColorPointer({
   runId,
   overlayRef,
@@ -673,7 +625,7 @@ function WalkthroughColorPointer({
       const rowRect = row.getBoundingClientRect();
 
       setPosition({
-        x: Math.round(rowRect.left + 24 - overlayRect.left),
+        x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
         y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
       });
     };
@@ -715,6 +667,17 @@ function WalkthroughColorPointer({
       <div className="relative h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
         <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
       </div>
+
+      <motion.div
+        key={`restaurant-walkthrough-color-tooltip-${activeTarget.id}`}
+        className="absolute left-7 top-[-18px] max-w-[min(13rem,calc(100vw-7rem))] whitespace-normal rounded-2xl bg-slate-950 px-3 py-2 text-center text-[11px] font-black uppercase leading-[1.05] tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:max-w-none sm:whitespace-nowrap sm:rounded-full sm:py-1.5 sm:text-xs"
+        initial={{ opacity: 0, x: -5, scale: 0.96 }}
+        animate={{ opacity: 1, x: 0, scale: 1 }}
+        exit={{ opacity: 0, x: 4, scale: 0.98 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
+      >
+        {activeTarget.label}
+      </motion.div>
     </motion.div>
   );
 }
@@ -775,7 +738,7 @@ function WalkthroughDecisionRowTapCue({
       const rowRect = row.getBoundingClientRect();
 
       setPosition({
-        x: Math.round(rowRect.left + 24 - overlayRect.left),
+        x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
         y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
       });
     };
@@ -958,12 +921,10 @@ function CustomerFlowScene({
     !isTicketStep &&
     !isHandledStep &&
     !isCloseStep &&
-    (!isCapsuleStep || !isSlideRead || isEmbeddedPhone);
+    (!isCapsuleStep || !isSlideRead);
   const shouldShowBoard =
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
-  const shouldShowCopy = isEmbeddedPhone
-    ? isCloseStep
-    : !usesReadWatchDecide || isSlideRead || isCloseStep;
+  const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
   const shellStageScale = 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
@@ -989,7 +950,7 @@ function CustomerFlowScene({
   }, [isBoardCaptionOffsetStep, isSlideRead, runId]);
 
   const boardReadCaptionOffset =
-    !isEmbeddedPhone && isBoardCaptionOffsetStep && (isSlideRead || holdBoardCaptionOffset)
+    isBoardCaptionOffsetStep && (isSlideRead || holdBoardCaptionOffset)
       ? 76
       : 0;
   const boardViewportTop = shellViewportTop + boardReadCaptionOffset;
@@ -1247,17 +1208,6 @@ function CustomerFlowScene({
       ? decisionPanelStage
       : null;
 
-  const mobilePillCaption = isEmbeddedPhone
-    ? mobilePillCaptionForCustomerStep({
-        activeStep,
-        decisionPanelStage,
-        sendStage,
-      })
-    : null;
-  const mobileBoardCaption = isEmbeddedPhone
-    ? mobileBoardCaptionForCustomerStep(activeStep)
-    : null;
-
   return (
     <div
       className={[
@@ -1311,7 +1261,7 @@ function CustomerFlowScene({
               mode="overlay"
               demoInteractionLocked
               introCallout={
-                !isEmbeddedPhone && ((isCapsuleStep && !isSlideRead) || isEntryStep)
+                (isCapsuleStep && !isSlideRead) || isEntryStep
                   ? {
                       title: slideOneCaption,
                       startDelayMs: 1120,
@@ -1353,12 +1303,7 @@ function CustomerFlowScene({
                     }
                   : null
               }
-              demoRestCompanion={
-                isEmbeddedPhone && mobilePillCaption
-                  ? { label: mobilePillCaption, showLogo: false }
-                  : { label: "SmartBar", showLogo: true }
-              }
-              demoCompanionLabelOverride={mobilePillCaption}
+              demoRestCompanion={{ label: "SmartBar", showLogo: true }}
               demoSubmission={demoSubmission}
               demoMontageStage={demoMontageStage}
               demoWalkthroughCartMode={
@@ -1372,7 +1317,7 @@ function CustomerFlowScene({
                     ? `restaurant-customer-entry-rest-${runId}`
                     : null
               }
-              entryModeLabel={isEmbeddedPhone ? "Say it naturally" : "Say or type order"}
+              entryModeLabel="Say or type order"
             />
           </div>
         </motion.div>
@@ -1400,11 +1345,6 @@ function CustomerFlowScene({
           }}
         >
           <style>{restaurantWalkthroughHiddenTailBoardTileCss}</style>
-          {mobileBoardCaption && (
-            <div className="pointer-events-none absolute left-3 top-3 z-[6] rounded-full bg-white/92 px-3 py-1.5 text-[12px] font-black leading-none text-[#012169] shadow-[0_8px_18px_rgba(15,23,42,0.08)] ring-1 ring-white/80">
-              {mobileBoardCaption}
-            </div>
-          )}
           <SmartBarOrderBoardMock
             demoMode={
               isTicketStep || isHandledStep || isCloseStep

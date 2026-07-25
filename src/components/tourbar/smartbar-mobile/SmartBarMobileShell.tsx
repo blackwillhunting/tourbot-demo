@@ -2194,8 +2194,6 @@ type SmartBarMobileShellProps = {
   demoLauncherCue?: { active: boolean; label?: string; runKey?: string | number; showTooltip?: boolean } | null;
   /** Demo-only: render an element-owned cue directly on the active companion/submit capsule. */
   demoCompanionCue?: { active: boolean; runKey?: string | number } | null;
-  /** Demo-only: override the center companion pill label for guided walkthrough narration. */
-  demoCompanionLabelOverride?: string | null;
   /** Demo-only: render a pulse cue directly on one selected option pill inside a focus panel. */
   demoOptionCue?: { active: boolean; value: string; runKey?: string | number } | null;
   /** Demo-only: preload the entry composer with a draft before a scripted submit/open-cart step. */
@@ -2243,7 +2241,6 @@ export default function SmartBarMobileShell({
   introCallout = null,
   demoLauncherCue = null,
   demoCompanionCue = null,
-  demoCompanionLabelOverride = null,
   demoOptionCue = null,
   demoPresetEntryDraft = null,
   demoRestCompanion = null,
@@ -3808,7 +3805,6 @@ export default function SmartBarMobileShell({
   };
 
   const companionLabel = (() => {
-    if (demoCompanionLabelOverride && phase !== "rest") return demoCompanionLabelOverride;
     if (demoMontageStage?.label && phase !== "rest" && !demoWalkthroughCartMode) return demoMontageStage.label;
     if (phase === "rest") {
       if (demoRestCompanion?.blank) return "";
