@@ -1,5 +1,4 @@
-import {
-  useCallback,
+﻿import {
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -17,10 +16,8 @@ import {
 } from "lucide-react";
 import SmartBarMobileShell, {
   type SmartBarMobileDemoSubmission,
-  type SmartBarMobileOrderStatus,
 } from "../smartbar-mobile/SmartBarMobileShell";
 import SmartBarOrderBoardMock from "../order-board/SmartBarOrderBoardMock";
-import MobileGuidedSocialIntro from "./MobileGuidedSocialIntro";
 
 const totalScenes = 3;
 const slideOneCaption = "Tap to say or type your order";
@@ -56,7 +53,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   2: {
     eyebrow: "Customer flow",
-    copy: "Say or type an order.",
+    copy: "Use mic or type.",
   },
   3: {
     eyebrow: "Customer flow",
@@ -84,7 +81,7 @@ const customerStepContent: Record<CustomerFlowStep, CustomerStepContent> = {
   },
   9: {
     eyebrow: "Private sandbox",
-    copy: "Phone calls → AI tickets.\nPrivate menu playground.",
+    copy: "Voice orders become AI-generated tickets.",
   },
 };
 
@@ -334,9 +331,8 @@ function RestaurantWalkthroughNavigator({
   onFinish,
   finishLabel = "Finish",
   isVisible = true,
-  rerunLabel = "Rerun",
+  rerunLabel = "Retry",
   finalMode = false,
-  nextLabel = "Next",
 }: {
   canGoBack: boolean;
   canGoNext: boolean;
@@ -349,14 +345,13 @@ function RestaurantWalkthroughNavigator({
   isVisible?: boolean;
   rerunLabel?: string;
   finalMode?: boolean;
-  nextLabel?: string;
 }) {
   if (!isVisible) return null;
 
   const secondaryButtonClass =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[13px]";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-white/80 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-[14px]";
   const primaryButtonClass =
-    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-[12px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[13px]";
+    "inline-flex items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-55 sm:px-4 sm:text-[14px]";
   const navPositionClass = finalMode
     ? "bottom-10 sm:bottom-10"
     : "bottom-4 sm:bottom-10";
@@ -364,7 +359,7 @@ function RestaurantWalkthroughNavigator({
   return (
     <div
       className={[
-        "absolute inset-x-6 z-[13090] flex items-center justify-between gap-2.5 sm:inset-x-10 sm:gap-3",
+        "absolute inset-x-4 z-[13090] flex items-center justify-between gap-2 sm:inset-x-10 sm:gap-3",
         navPositionClass,
       ].join(" ")}
     >
@@ -372,9 +367,9 @@ function RestaurantWalkthroughNavigator({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/86 px-3.5 py-2 text-[12px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4 sm:text-[13px]"
+          className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-white/86 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.07)] ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 sm:px-4 sm:text-[14px]"
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </button>
       ) : (
@@ -388,7 +383,7 @@ function RestaurantWalkthroughNavigator({
             onClick={onRestart}
             className={secondaryButtonClass}
           >
-            <RotateCcw className="mr-2 h-4 w-4" />
+            <RotateCcw className="mr-1.5 h-4 w-4" />
             Restart
           </button>
 
@@ -398,7 +393,7 @@ function RestaurantWalkthroughNavigator({
             className={`${primaryButtonClass} min-w-[7.6rem]`}
           >
             <span className="whitespace-nowrap">{finishLabel}</span>
-            <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
+            <ArrowRight className="ml-1.5 h-4 w-4 shrink-0" />
           </button>
         </>
       ) : (
@@ -406,9 +401,9 @@ function RestaurantWalkthroughNavigator({
           <button
             type="button"
             onClick={onRerun}
-            className={`${secondaryButtonClass} min-w-[6.85rem]`}
+            className={`${secondaryButtonClass} min-w-[5.35rem]`}
           >
-            <RotateCcw className="mr-2 h-4 w-4" />
+            <RotateCcw className="mr-1.5 h-4 w-4" />
             {rerunLabel}
           </button>
 
@@ -418,8 +413,8 @@ function RestaurantWalkthroughNavigator({
             onClick={onNext}
             className={primaryButtonClass}
           >
-            {nextLabel}
-            <ArrowRight className="ml-2 h-4 w-4" />
+            Next
+            <ArrowRight className="ml-1.5 h-4 w-4" />
           </button>
         </>
       )}
@@ -427,44 +422,199 @@ function RestaurantWalkthroughNavigator({
   );
 }
 
+
+
+type WalkthroughTooltipTargetKind =
+  | "center-pill"
+  | "composer"
+  | "typed-order"
+  | "row"
+  | "decision-options"
+  | "cart-total"
+  | "send-button"
+  | "ticket";
+
+type WalkthroughTooltipPlacement =
+  | "top"
+  | "bottom"
+  | "top-left"
+  | "bottom-left"
+  | "left"
+  | "right";
+
+type WalkthroughTooltipActiveRowStatus = "pending" | "options" | "unknown";
+type WalkthroughTooltipRowStatus = WalkthroughTooltipActiveRowStatus | "ready";
+
+type WalkthroughTooltipBeat = {
+  beat: number;
+  visibleState: string;
+  target: WalkthroughTooltipTargetKind;
+  matchText?: string;
+  rowStatus?: WalkthroughTooltipRowStatus;
+  tooltip: string;
+  placement: WalkthroughTooltipPlacement;
+  centerPill: string;
+  fallbackTopPct: number;
+  fallbackXPct: number;
+};
+
+const WALKTHROUGH_TOOLTIP_BEATS: WalkthroughTooltipBeat[] = [
+  {
+    beat: 4,
+    visibleState: "Cart opens with red/yellow/gray rows",
+    target: "row",
+    matchText: "Buffalo Wings",
+    rowStatus: "pending",
+    tooltip: "Missing choice",
+    placement: "top",
+    centerPill: "Tap red entries",
+    fallbackTopPct: 48,
+    fallbackXPct: 50,
+  },
+  {
+    beat: 5,
+    visibleState: "Red row decision panel opens",
+    target: "decision-options",
+    matchText: "Buffalo Wings",
+    rowStatus: "pending",
+    tooltip: "Choose one",
+    placement: "top-left",
+    centerPill: "Pick one",
+    fallbackTopPct: 56,
+    fallbackXPct: 24,
+  },
+  {
+    beat: 7,
+    visibleState: "Yellow row highlighted",
+    target: "row",
+    matchText: "Spaghetti",
+    rowStatus: "options",
+    tooltip: "Optional add-ons",
+    placement: "top",
+    centerPill: "Review add-ons",
+    fallbackTopPct: 59,
+    fallbackXPct: 50,
+  },
+  {
+    beat: 8,
+    visibleState: "Yellow extras panel opens",
+    target: "decision-options",
+    matchText: "Spaghetti",
+    rowStatus: "options",
+    tooltip: "Accept or skip",
+    placement: "top-left",
+    centerPill: "Back to cart",
+    fallbackTopPct: 56,
+    fallbackXPct: 24,
+  },
+  {
+    beat: 10,
+    visibleState: "Gray gar-stix row highlighted",
+    target: "row",
+    matchText: "gar-stix",
+    rowStatus: "unknown",
+    tooltip: "Needs matching",
+    placement: "top",
+    centerPill: "Fix gray entries",
+    fallbackTopPct: 70,
+    fallbackXPct: 50,
+  },
+  {
+    beat: 11,
+    visibleState: "Gray correction panel opens",
+    target: "decision-options",
+    matchText: "gar-stix",
+    rowStatus: "unknown",
+    tooltip: "SmartBar asks",
+    placement: "top-left",
+    centerPill: "Back to cart",
+    fallbackTopPct: 56,
+    fallbackXPct: 24,
+  },
+  {
+    beat: 13,
+    visibleState: "All rows green and ready to send",
+    target: "send-button",
+    tooltip: "Ready to send",
+    placement: "top",
+    centerPill: "Send order",
+    fallbackTopPct: 82,
+    fallbackXPct: 50,
+  },
+];
+function walkthroughTooltipBeat(beat: number) {
+  return WALKTHROUGH_TOOLTIP_BEATS.find((item) => item.beat === beat);
+}
+
+function walkthroughTooltipActiveRowStatus(
+  rowStatus?: WalkthroughTooltipRowStatus,
+): WalkthroughTooltipActiveRowStatus {
+  if (rowStatus === "options") return "options";
+  if (rowStatus === "unknown") return "unknown";
+  return "pending";
+}
 type WalkthroughColorPointerTarget = {
   id: string;
-  status: "ready" | "pending" | "options" | "unknown";
+  matchText: string;
+  status: "pending" | "options" | "unknown";
   label: string;
   fallbackTopPct: number;
   fallbackXPct?: number;
 };
 
-const colorPointerTargets: WalkthroughColorPointerTarget[] = [
-  {
-    id: "pizza",
-    status: "ready",
-    label: "Ready",
-    fallbackTopPct: 37,
-    fallbackXPct: 50,
-  },
-  {
-    id: "wings",
-    status: "pending",
-    label: "Needs choice",
-    fallbackTopPct: 48,
-    fallbackXPct: 50,
-  },
-  {
-    id: "spaghetti",
-    status: "options",
-    label: "Extras",
-    fallbackTopPct: 59,
-    fallbackXPct: 50,
-  },
-  {
-    id: "breadsticks",
-    status: "unknown",
-    label: "Unknown",
-    fallbackTopPct: 70,
-    fallbackXPct: 50,
-  },
-];
+const colorPointerTargets: WalkthroughColorPointerTarget[] = [4, 7, 10]
+  .map((beatNumber) => walkthroughTooltipBeat(beatNumber))
+  .filter((beat): beat is WalkthroughTooltipBeat => Boolean(beat))
+  .map((beat) => ({
+    id: `tooltip-beat-${beat.beat}`,
+    matchText: beat.matchText ?? "",
+    status: walkthroughTooltipActiveRowStatus(beat.rowStatus),
+    label: beat.tooltip,
+    fallbackTopPct: beat.fallbackTopPct,
+    fallbackXPct: beat.fallbackXPct,
+  }));
+function normalizeWalkthroughRowText(value: string) {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function findWalkthroughCartRowByText(
+  root: HTMLElement | null | undefined,
+  matchText: string,
+  fallbackStatus?: "pending" | "options" | "unknown",
+) {
+  const selector = '[data-smartbar-mobile-cart-line="true"]';
+
+  const scopedRows = root
+    ? Array.from(root.querySelectorAll<HTMLElement>(selector))
+    : [];
+
+  const documentRows = Array.from(
+    document.querySelectorAll<HTMLElement>(selector),
+  );
+
+  const rows = (scopedRows.length > 0 ? scopedRows : documentRows).filter((row) => {
+    const rect = row.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+
+  const normalizedMatch = normalizeWalkthroughRowText(matchText);
+
+  const textMatch =
+    rows.find((row) =>
+      normalizeWalkthroughRowText(row.textContent ?? "").includes(normalizedMatch),
+    ) ?? null;
+
+  const statusMatch =
+    rows.find((row) =>
+      fallbackStatus
+        ? row.getAttribute("data-smartbar-mobile-line-status") === fallbackStatus
+        : false,
+    ) ?? null;
+
+  const result = textMatch ?? statusMatch ?? null;
+return result;
+}
+
 
 type DecisionPanelStage =
   | "cart"
@@ -575,38 +725,6 @@ function decisionPanelConfigForStage(
   }
 }
 
-type WalkthroughCapsuleMessage = {
-  label: string;
-  status?: SmartBarMobileOrderStatus | null;
-};
-
-function decisionPanelCapsuleMessageForStage(
-  stage: DecisionPanelStage,
-): WalkthroughCapsuleMessage {
-  switch (stage) {
-    case "wings":
-    case "wingsSelected":
-      return { label: "red forces choices", status: "pending" };
-    case "spaghetti":
-    case "spaghettiSelected":
-    case "spaghettiBackToCart":
-      return { label: "yellow offers extras", status: "options" };
-    case "garstix":
-    case "garstixSelected":
-    case "garstixBackToCart":
-      return { label: "gray flags unknowns", status: "unknown" };
-    case "cart":
-    case "tapWings":
-    case "cartAfterWings":
-    case "tapSpaghetti":
-    case "cartAfterSpaghetti":
-    case "tapGarstix":
-    case "final":
-    default:
-      return { label: "coded by color" };
-  }
-}
-
 function WalkthroughColorPointer({
   runId,
   overlayRef,
@@ -616,12 +734,9 @@ function WalkthroughColorPointer({
 }) {
   const [activeTargetIndex, setActiveTargetIndex] = useState(0);
   const activeTarget = colorPointerTargets[activeTargetIndex];
-  const [position, setPosition] = useState<{
-    x: number | string;
-    y: number | string;
-  }>(() => ({
-    x: `${colorPointerTargets[0].fallbackXPct ?? 50}%`,
-    y: `${colorPointerTargets[0].fallbackTopPct}%`,
+  const [position, setPosition] = useState<{ x: number; y: number }>(() => ({
+    x: 180,
+    y: 320,
   }));
 
   useEffect(() => {
@@ -646,24 +761,25 @@ function WalkthroughColorPointer({
       if (cancelled) return;
 
       const overlay = overlayRef.current;
-      const row = document.querySelector<HTMLElement>(
-        `[data-smartbar-mobile-cart-line="true"][data-smartbar-mobile-line-status="${activeTarget.status}"]`,
-      );
+      const row = findWalkthroughCartRowByText(overlay, activeTarget.matchText, activeTarget.status);
 
-      if (!overlay || !row) {
+      const overlayRect = overlay?.getBoundingClientRect();
+
+      if (row && overlayRect) {
+        const rowRect = row.getBoundingClientRect();
         setPosition({
-          x: `${activeTarget.fallbackXPct ?? 50}%`,
-          y: `${activeTarget.fallbackTopPct}%`,
+          x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
+          y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
         });
         return;
       }
 
-      const overlayRect = overlay.getBoundingClientRect();
-      const rowRect = row.getBoundingClientRect();
+      const fallbackWidth = overlayRect?.width ?? 360;
+      const fallbackHeight = overlayRect?.height ?? 640;
 
       setPosition({
-        x: Math.round(rowRect.left + rowRect.width * 0.5 - overlayRect.left),
-        y: Math.round(rowRect.top + rowRect.height * 0.5 - overlayRect.top),
+        x: Math.round(fallbackWidth * ((activeTarget.fallbackXPct ?? 50) / 100)),
+        y: Math.round(fallbackHeight * (activeTarget.fallbackTopPct / 100)),
       });
     };
 
@@ -671,56 +787,55 @@ function WalkthroughColorPointer({
     const timers = [80, 240, 560].map((delay) =>
       window.setTimeout(measure, delay),
     );
+
     window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
 
     return () => {
       cancelled = true;
       window.cancelAnimationFrame(frame);
       timers.forEach((timer) => window.clearTimeout(timer));
       window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
     };
   }, [activeTarget, overlayRef, runId]);
 
   return (
     <motion.div
       key={`restaurant-walkthrough-color-pointer-${runId}`}
+      aria-hidden="true"
       className="pointer-events-none absolute left-0 top-0 z-[13070]"
-      initial={{
-        opacity: 0,
-        left: position.x,
-        top: position.y,
-      }}
-      animate={{
-        opacity: activeTargetIndex >= colorPointerTargets.length ? 0 : 1,
-        left: position.x,
-        top: position.y,
-      }}
+      initial={{ opacity: 0, left: position.x, top: position.y }}
+      animate={{ opacity: 1, left: position.x, top: position.y }}
       transition={{
         opacity: { duration: 0.22, ease: "easeOut" },
         left: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
         top: { duration: 0.42, ease: [0.22, 1, 0.36, 1] },
       }}
     >
-      <div className="relative h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/58 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+      <div className="relative h-8 w-8 -translate-x-1/2 -translate-y-1/2">
+        <div className="absolute inset-0 rounded-full border-2 border-[#012169]/70 bg-white/62 shadow-[0_0_0_1px_rgba(1,33,105,0.12),0_12px_28px_rgba(1,33,105,0.16),0_0_22px_rgba(56,189,248,0.22)] ring-4 ring-white/72 backdrop-blur-sm" />
+        <div className="absolute inset-[3px] rounded-full border-2 border-white/95 bg-cyan-50/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]" />
         <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
-      </div>
 
-      <motion.div
-        key={`restaurant-walkthrough-color-tooltip-${activeTarget.id}`}
-        className="absolute left-7 top-[-18px] max-w-[min(13rem,calc(100vw-7rem))] whitespace-normal rounded-2xl bg-slate-950 px-3 py-2 text-center text-[11px] font-black uppercase leading-[1.05] tracking-[0.12em] text-white shadow-[0_14px_30px_rgba(15,23,42,0.20)] ring-1 ring-white/10 sm:max-w-none sm:whitespace-nowrap sm:rounded-full sm:py-1.5 sm:text-xs"
-        initial={{ opacity: 0, x: -5, scale: 0.96 }}
-        animate={{ opacity: 1, x: 0, scale: 1 }}
-        exit={{ opacity: 0, x: 4, scale: 0.98 }}
-        transition={{ duration: 0.22, ease: "easeOut" }}
-      >
-        {activeTarget.label}
-      </motion.div>
+        <motion.div
+          key={`restaurant-walkthrough-attached-tooltip-${activeTarget.id}`}
+          className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform"
+          initial={{ opacity: 0, y: 4, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
+          {activeTarget.label}
+          <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" />
+        </motion.div>
+      </div>
     </motion.div>
   );
 }
-
 type WalkthroughDecisionRowCueTarget = {
+  matchText: string;
   status: "pending" | "options" | "unknown";
+  label: string;
   fallbackTopPct: number;
   fallbackXPct?: number;
 };
@@ -729,11 +844,157 @@ const decisionRowCueTargets: Record<
   "tapWings" | "tapSpaghetti" | "tapGarstix",
   WalkthroughDecisionRowCueTarget
 > = {
-  tapWings: { status: "pending", fallbackTopPct: 48, fallbackXPct: 50 },
-  tapSpaghetti: { status: "options", fallbackTopPct: 59, fallbackXPct: 50 },
-  tapGarstix: { status: "unknown", fallbackTopPct: 70, fallbackXPct: 50 },
+  tapWings: {
+    matchText: walkthroughTooltipBeat(5)?.matchText ?? "Buffalo Wings",
+    status: "pending",
+    label: walkthroughTooltipBeat(5)?.tooltip ?? "Choose one",
+    fallbackTopPct: walkthroughTooltipBeat(5)?.fallbackTopPct ?? 48,
+    fallbackXPct: walkthroughTooltipBeat(5)?.fallbackXPct ?? 50,
+  },
+  tapSpaghetti: {
+    matchText: walkthroughTooltipBeat(8)?.matchText ?? "Spaghetti",
+    status: "options",
+    label: walkthroughTooltipBeat(8)?.tooltip ?? "Accept or skip",
+    fallbackTopPct: walkthroughTooltipBeat(8)?.fallbackTopPct ?? 59,
+    fallbackXPct: walkthroughTooltipBeat(8)?.fallbackXPct ?? 50,
+  },
+  tapGarstix: {
+    matchText: walkthroughTooltipBeat(11)?.matchText ?? "gar-stix",
+    status: "unknown",
+    label: walkthroughTooltipBeat(11)?.tooltip ?? "SmartBar asks",
+    fallbackTopPct: walkthroughTooltipBeat(11)?.fallbackTopPct ?? 70,
+    fallbackXPct: walkthroughTooltipBeat(11)?.fallbackXPct ?? 50,
+  },
 };
 
+
+function walkthroughReadyToSendRows(root: HTMLElement | null | undefined) {
+  const selector = '[data-smartbar-mobile-cart-line="true"]';
+
+  const scopedRows = root
+    ? Array.from(root.querySelectorAll<HTMLElement>(selector))
+    : [];
+
+  const documentRows = Array.from(
+    document.querySelectorAll<HTMLElement>(selector),
+  );
+
+  return (scopedRows.length > 0 ? scopedRows : documentRows).filter((row) => {
+    const rect = row.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+}
+
+function walkthroughReadyToSendAllRowsReady(root: HTMLElement | null | undefined) {
+  const rows = walkthroughReadyToSendRows(root);
+
+  return (
+    rows.length >= 3 &&
+    rows.every((row) => row.getAttribute("data-smartbar-mobile-line-status") === "ready")
+  );
+}
+
+function WalkthroughReadyToSendCue({
+  runId,
+  overlayRef,
+  suppressed,
+}: {
+  runId: number;
+  overlayRef: RefObject<HTMLDivElement | null>;
+  suppressed?: boolean;
+}) {
+  const [shown, setShown] = useState(false);
+  const [active, setActive] = useState(false);
+  const [position, setPosition] = useState({ x: 180, y: 320 });
+
+  useEffect(() => {
+    setShown(false);
+    setActive(false);
+    setPosition({ x: 180, y: 320 });
+  }, [runId]);
+
+  useEffect(() => {
+    if (!active) return;
+
+    const timer = window.setTimeout(() => {
+      setActive(false);
+    }, 1350);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [active]);
+
+  useLayoutEffect(() => {
+    if (suppressed || shown || active) return;
+
+    let cancelled = false;
+    let showTimer: number | null = null;
+
+    const check = () => {
+      if (cancelled || shown || active) return;
+
+      const overlay = overlayRef.current;
+      if (!walkthroughReadyToSendAllRowsReady(overlay)) return;
+
+      const overlayRect = overlay?.getBoundingClientRect();
+      const width = overlayRect?.width ?? 360;
+      const height = overlayRect?.height ?? 640;
+
+      showTimer = window.setTimeout(() => {
+        if (cancelled) return;
+
+        setPosition({
+          x: Math.round(width * 0.5),
+          y: Math.round(height * 0.82),
+        });
+        setShown(true);
+        setActive(true);
+      }, 520);
+    };
+
+    const frame = window.requestAnimationFrame(check);
+    const timers = [160, 360, 620, 920].map((delay) =>
+      window.setTimeout(check, delay),
+    );
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      timers.forEach((timer) => window.clearTimeout(timer));
+      if (showTimer !== null) window.clearTimeout(showTimer);
+    };
+  }, [active, overlayRef, runId, shown, suppressed]);
+
+  if (!active) return null;
+
+  return (
+    <motion.div
+      key={`restaurant-walkthrough-ready-to-send-cue-${runId}`}
+      className="pointer-events-none absolute left-0 top-0 z-[13074]"
+      initial={{ opacity: 0, left: position.x, top: position.y, scale: 0.94 }}
+      animate={{ opacity: 1, left: position.x, top: position.y, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{
+        opacity: { duration: 0.16, ease: "easeOut" },
+        scale: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+        left: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+        top: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+      }}
+    >
+      <div className="relative h-8 w-8 -translate-x-1/2 -translate-y-1/2">
+        <div className="absolute inset-0 rounded-full border-2 border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.22),0_0_18px_rgba(56,189,248,0.24)]" />
+        <div className="absolute inset-[3px] rounded-full border-2 border-white/95 bg-cyan-50/10 shadow-[0_8px_18px_rgba(2,6,23,0.34),0_0_18px_rgba(255,255,255,0.24),0_0_24px_rgba(56,189,248,0.28),inset_0_1px_0_rgba(255,255,255,0.55)]" />
+        <div className="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-70" />
+
+        <div className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform">
+          {walkthroughTooltipBeat(13)?.tooltip ?? "Ready to send"}
+          <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 function WalkthroughDecisionRowTapCue({
   runId,
   stage,
@@ -759,9 +1020,7 @@ function WalkthroughDecisionRowTapCue({
       if (cancelled) return;
 
       const overlay = overlayRef.current;
-      const row = document.querySelector<HTMLElement>(
-        `[data-smartbar-mobile-cart-line="true"][data-smartbar-mobile-line-status="${target.status}"]`,
-      );
+      const row = findWalkthroughCartRowByText(overlay, target.matchText, target.status);
 
       if (!overlay || !row) {
         setPosition({
@@ -817,129 +1076,180 @@ function WalkthroughDecisionRowTapCue({
           transition={{ duration: 0.72, ease: "easeOut", times: [0, 0.32, 1] }}
         />
         <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+
+        <div className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform">
+          {target.label}
+          <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" />
+        </div>
       </div>
     </motion.div>
   );
 }
 
-type WalkthroughPizzaTooltipPointerProps = {
-  runId: number;
-  selector: string;
-  tooltip: string;
+
+type RestaurantBoardCueConfig = {
+  label: string;
+  selector?: string;
+  buttonText?: string;
+  targetXPct?: number;
+  targetYPct?: number;
+  fallbackXPct: number;
+  fallbackTopPct: number;
+  delayMs: number;
+  durationMs: number;
+  passive?: boolean;
 };
 
-function WalkthroughPizzaTooltipPointer({
-  runId,
-  selector,
-  tooltip,
-}: WalkthroughPizzaTooltipPointerProps) {
-  const [placement, setPlacement] = useState<{
-    ringX: number;
-    ringY: number;
-    tooltipX: number;
-    tooltipBottom: number;
-  } | null>(null);
+function findRestaurantBoardButtonByText(text: string) {
+  if (typeof document === "undefined") return null;
 
-  useLayoutEffect(() => {
-    let cancelled = false;
-    let frame = 0;
-    const settleTimers: number[] = [];
-
-    const measure = () => {
-      const target = document.querySelector<HTMLElement>(selector);
-      if (!target || cancelled) return;
-
-      const rect = target.getBoundingClientRect();
-      const viewportWidth =
-        window.innerWidth || document.documentElement.clientWidth || 390;
-      const tooltipSafeInset = 78;
-      const ringX = rect.left + Math.min(34, Math.max(24, rect.width * 0.18));
-      const ringY = rect.top + rect.height * 0.56;
-      const tooltipX = Math.min(
-        viewportWidth - tooltipSafeInset,
-        Math.max(tooltipSafeInset, ringX),
-      );
-      const tooltipBottom = Math.max(24, rect.top - 10);
-
-      setPlacement({
-        ringX: Math.round(ringX),
-        ringY: Math.round(ringY),
-        tooltipX: Math.round(tooltipX),
-        tooltipBottom: Math.round(tooltipBottom),
-      });
-    };
-
-    frame = window.requestAnimationFrame(measure);
-    [80, 180, 360, 640].forEach((delay) => {
-      settleTimers.push(window.setTimeout(measure, delay));
-    });
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
-
-    return () => {
-      cancelled = true;
-      window.cancelAnimationFrame(frame);
-      settleTimers.forEach((timer) => window.clearTimeout(timer));
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
-    };
-  }, [runId, selector]);
-
-  if (!placement) return null;
+  const normalizedNeedle = normalizeWalkthroughRowText(text);
+  const candidates = Array.from(
+    document.querySelectorAll<HTMLElement>('button,[role="button"]'),
+  );
 
   return (
-    <div
-      key={`walkthrough-pizza-tooltip-pointer-${runId}-${tooltip}`}
-      aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[14120]"
-    >
-      <motion.div
-        className="fixed left-0 top-0"
-        style={{ left: placement.ringX, top: placement.ringY }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ opacity: { duration: 0.16, ease: "easeOut" } }}
-      >
-        <div className="relative h-5 w-5 -translate-x-1/2 -translate-y-1/2">
-          <motion.div
-            className="absolute inset-[-2px] rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(15,23,42,0.18),0_0_9px_rgba(56,189,248,0.18)]"
-            initial={{ scale: 0.74, opacity: 0.5 }}
-            animate={{ scale: [0.74, 1.34], opacity: [0.5, 0] }}
-            transition={{ duration: 0.48, delay: 0.38, ease: "easeOut" }}
-          />
-          <motion.div
-            className="absolute inset-[1px] rounded-full border border-white/95 bg-cyan-50/10 shadow-[0_5px_12px_rgba(2,6,23,0.26),0_0_10px_rgba(255,255,255,0.18),0_0_14px_rgba(56,189,248,0.20),inset_0_1px_0_rgba(255,255,255,0.50)]"
-            animate={{ scale: [1, 0.9, 1] }}
-            transition={{ duration: 0.26, delay: 0.38, ease: "easeOut" }}
-          />
-          <motion.div
-            className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white opacity-80"
-            animate={{ scale: [1, 1.12, 1], opacity: [0.8, 0.94, 0.8] }}
-            transition={{ duration: 0.26, delay: 0.38, ease: "easeOut" }}
-          />
-        </div>
-      </motion.div>
-
-      <div
-        className="fixed left-0 top-0 -translate-x-1/2 -translate-y-full"
-        style={{ left: placement.tooltipX, top: placement.tooltipBottom }}
-      >
-        <motion.div
-          className="relative w-max max-w-[11rem] rounded-full border border-white/55 bg-slate-950/92 px-3 py-1.5 text-center text-[11px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_12px_26px_rgba(15,23,42,0.34),0_0_16px_rgba(56,189,248,0.16)] backdrop-blur-xl"
-          initial={{ opacity: 0, y: 4, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 2, scale: 0.98 }}
-          transition={{ duration: 0.18, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {tooltip}
-          <div className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/40 bg-slate-950/90" />
-        </motion.div>
-      </div>
-    </div>
+    candidates.find((candidate) => {
+      const rect = candidate.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+      return normalizeWalkthroughRowText(candidate.textContent ?? "").includes(
+        normalizedNeedle,
+      );
+    }) ?? null
   );
 }
 
+function RestaurantBoardCue({
+  runId,
+  overlayRef,
+  cue,
+}: {
+  runId: number;
+  overlayRef: RefObject<HTMLDivElement | null>;
+  cue: RestaurantBoardCueConfig;
+}) {
+  const [active, setActive] = useState(false);
+  const [position, setPosition] = useState({ x: 180, y: 180 });
+
+  useEffect(() => {
+    setActive(false);
+    setPosition({ x: 180, y: 180 });
+  }, [runId, cue.label]);
+
+  useLayoutEffect(() => {
+    let cancelled = false;
+    let hideTimer: number | null = null;
+
+    const measure = () => {
+      if (cancelled) return;
+
+      const overlay = overlayRef.current;
+      const overlayRect = overlay?.getBoundingClientRect();
+      const fallbackWidth = overlayRect?.width ?? 360;
+      const fallbackHeight = overlayRect?.height ?? 640;
+
+      let target: HTMLElement | null = null;
+
+      if (cue.selector && typeof document !== "undefined") {
+        target = document.querySelector<HTMLElement>(cue.selector);
+      }
+
+      if (!target && cue.buttonText) {
+        target = findRestaurantBoardButtonByText(cue.buttonText);
+      }
+
+      const targetRect = target?.getBoundingClientRect();
+
+      if (
+        overlayRect &&
+        targetRect &&
+        targetRect.width > 0 &&
+        targetRect.height > 0
+      ) {
+        setPosition({
+          x: Math.round(targetRect.left + targetRect.width * (cue.targetXPct ?? 0.5) - overlayRect.left),
+          y: Math.round(targetRect.top + targetRect.height * (cue.targetYPct ?? 0.5) - overlayRect.top),
+        });
+        return;
+      }
+
+      setPosition({
+        x: Math.round(fallbackWidth * (cue.fallbackXPct / 100)),
+        y: Math.round(fallbackHeight * (cue.fallbackTopPct / 100)),
+      });
+    };
+
+    const showTimer = window.setTimeout(() => {
+      if (cancelled) return;
+
+      measure();
+      setActive(true);
+
+      hideTimer = window.setTimeout(() => {
+        if (!cancelled) setActive(false);
+      }, cue.durationMs);
+    }, cue.delayMs);
+
+    const measureTimers = [cue.delayMs + 80, cue.delayMs + 240, cue.delayMs + 520].map(
+      (delay) => window.setTimeout(measure, delay),
+    );
+
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(showTimer);
+      measureTimers.forEach((timer) => window.clearTimeout(timer));
+      if (hideTimer !== null) window.clearTimeout(hideTimer);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+    };
+  }, [cue, overlayRef, runId]);
+
+  if (!active) return null;
+
+  return (
+    <motion.div
+      key={`restaurant-board-cue-${runId}-${cue.label}`}
+      aria-hidden="true"
+      className="pointer-events-none absolute left-0 top-0 z-[13076]"
+      initial={{ opacity: 0, left: position.x, top: position.y, scale: 0.94 }}
+      animate={{ opacity: 1, left: position.x, top: position.y, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      transition={{
+        opacity: { duration: 0.16, ease: "easeOut" },
+        scale: { duration: 0.2, ease: [0.22, 1, 0.36, 1] },
+        left: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+        top: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+      }}
+    >
+      <div className="relative h-11 w-11 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#012169] bg-white/62 shadow-[0_12px_28px_rgba(1,33,105,0.16)] ring-4 ring-white/72 backdrop-blur-sm">
+        <motion.span
+          aria-hidden="true"
+          className="absolute inset-[-9px] rounded-full border-2 border-[#012169]/70"
+          initial={{ opacity: 0, scale: 0.72 }}
+          animate={
+            cue.passive
+              ? { opacity: [0, 0.48, 0], scale: [0.78, 1.12, 1.36] }
+              : { opacity: [0, 0.72, 0], scale: [0.72, 1.18, 1.52] }
+          }
+          transition={{
+            duration: cue.passive ? 0.95 : 0.72,
+            ease: "easeOut",
+            times: [0, 0.32, 1],
+          }}
+        />
+        <span className="absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#012169] shadow-sm" />
+
+        <div className="absolute left-1/2 top-[-3.55rem] w-max max-w-[14.5rem] -translate-x-1/2 origin-bottom rounded-[18px] border border-white/60 bg-slate-950/90 px-4 py-2 text-center text-[12px] font-black leading-tight tracking-[-0.01em] text-white shadow-[0_16px_34px_rgba(15,23,42,0.42),0_0_24px_rgba(56,189,248,0.22)] backdrop-blur-xl will-change-transform">
+          {cue.label}
+          <div className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-white/45 bg-slate-950/88" />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 function WalkthroughClosingSandboxCta({
   onRequestPrivateSandbox,
   onBack,
@@ -956,26 +1266,26 @@ function WalkthroughClosingSandboxCta({
   void onRequestPrivateSandbox;
 
   const secondaryButtonClass =
-    "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-sm";
+    "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-white/92 px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-[0_8px_20px_rgba(15,23,42,0.08)] ring-1 ring-slate-200/75 transition hover:-translate-y-0.5 hover:bg-white hover:text-slate-950 hover:shadow-[0_12px_26px_rgba(15,23,42,0.12)] sm:px-4 sm:text-sm";
   const primaryButtonClass =
-    "inline-flex min-w-[7.6rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] sm:px-4 sm:text-sm";
+    "inline-flex w-full min-w-0 shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-[#012169] px-3 py-2 text-[13px] font-semibold text-white shadow-[0_12px_28px_rgba(1,33,105,0.22),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] sm:w-auto sm:min-w-[7.6rem] sm:px-4 sm:text-sm";
 
   return (
     <motion.div
-      className="relative z-[5] mt-3 flex max-w-2xl flex-col items-start gap-2 sm:mt-3"
+      className="relative z-[5] mt-3 flex w-full max-w-[calc(100vw-2rem)] flex-col items-stretch gap-2 sm:mt-3 sm:max-w-2xl sm:items-start"
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -5 }}
       transition={{ duration: 0.22, ease: "easeOut" }}
     >
       <motion.div
-        className="flex w-full flex-nowrap items-center justify-start gap-2 pt-0 sm:gap-3"
+        className="flex w-full flex-wrap items-center justify-start gap-2 pt-0 sm:flex-nowrap sm:gap-3"
         initial={{ opacity: 0, y: 5 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08, duration: 0.22, ease: "easeOut" }}
       >
         <button type="button" onClick={onBack} className={secondaryButtonClass}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
           Back
         </button>
 
@@ -988,7 +1298,7 @@ function WalkthroughClosingSandboxCta({
           Restart
         </button>
 
-        <button type="button" onClick={onFinish} className={primaryButtonClass}>
+        <button type="button" onClick={onFinish} className={`${primaryButtonClass} flex-[1_1_100%] sm:flex-none`}>
           <span className="whitespace-nowrap">{finishLabel}</span>
           <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
         </button>
@@ -1015,7 +1325,6 @@ function CustomerFlowScene({
   onFinish,
   onRequestPrivateSandbox,
   finishLabel = "Finish",
-  nextLabel = "Next",
   slidePhase = "done",
   isEmbeddedPhone = false,
 }: {
@@ -1037,7 +1346,6 @@ function CustomerFlowScene({
   onFinish: () => void;
   onRequestPrivateSandbox: () => void;
   finishLabel?: string;
-  nextLabel?: string;
   slidePhase?: WalkthroughSlidePhase;
   isEmbeddedPhone?: boolean;
 }) {
@@ -1081,12 +1389,12 @@ function CustomerFlowScene({
     (!isCapsuleStep || !isSlideRead);
   const shouldShowBoard =
     (isBoardStep && !isSlideRead) || isTicketStep || isHandledStep;
-  const shouldShowCopy = !usesReadWatchDecide || isSlideRead || isCloseStep;
+  const shouldShowCopy = (isCapsuleStep && isSlideRead) || isCloseStep;
   const shouldShowNavigator = !usesReadWatchDecide || isSlideDone;
   const shellStageScale = 1;
   const visibleWalkthroughOrderBoardOrders = walkthroughOrderBoardOrders;
   const isBoardCaptionOffsetStep = isBoardStep || isTicketStep || isHandledStep;
-  const [holdBoardCaptionOffset, setHoldBoardCaptionOffset] = useState(false);
+  const [, setHoldBoardCaptionOffset] = useState(false);
 
   useEffect(() => {
     if (!isBoardCaptionOffsetStep) {
@@ -1106,14 +1414,12 @@ function CustomerFlowScene({
     return () => window.clearTimeout(timer);
   }, [isBoardCaptionOffsetStep, isSlideRead, runId]);
 
-  const boardReadCaptionOffset =
-    isBoardCaptionOffsetStep && (isSlideRead || holdBoardCaptionOffset)
-      ? 76
-      : 0;
+  const boardReadCaptionOffset = 0;
   const boardViewportTop = shellViewportTop + boardReadCaptionOffset;
   const boardViewportBottom = navReserveHeight;
   const shellControls = useAnimationControls();
   const colorPointerOverlayRef = useRef<HTMLDivElement | null>(null);
+  const boardPointerOverlayRef = useRef<HTMLDivElement | null>(null);
   const [entryCueComplete, setEntryCueComplete] = useState(false);
   const [cartCueComplete, setCartCueComplete] = useState(false);
   const [decisionPanelStage, setDecisionPanelStage] =
@@ -1275,6 +1581,7 @@ function CustomerFlowScene({
       typing: true,
       manualSubmit: true,
       typeDelayMs: isCompact ? 34 : 38,
+      startDelayMs: 1100,
     };
   }, [entryCueComplete, entryPrompt, isCompact, isEntryStep, runId]);
 
@@ -1284,7 +1591,7 @@ function CustomerFlowScene({
 
       return {
         id: `restaurant-walkthrough-cart-colors-${runId}`,
-        label: isEmbeddedPhone ? "coded by color" : "",
+        label: "",
         surface: "carts" as const,
         open: true,
         resolvedState: variant === "quick" ? ("correction" as const) : undefined,
@@ -1295,19 +1602,15 @@ function CustomerFlowScene({
       const stage = slidePhase === "read" ? "cart" : decisionPanelStage;
       const config = decisionPanelConfigForStage(stage);
 
-      const capsuleMessage = decisionPanelCapsuleMessageForStage(stage);
-
       return {
         id: `restaurant-walkthrough-decisions-${runId}-${slidePhase}-${stage}`,
-        label: isEmbeddedPhone ? capsuleMessage.label : "",
+        label: "",
         surface: config.surface,
         open: true,
         selectedOptions: config.selectedOptions,
         retryDraft: config.retryDraft,
         resolvedState: config.resolvedState,
-        status: isEmbeddedPhone
-          ? capsuleMessage.status ?? undefined
-          : config.cartGuidanceStatus ?? undefined,
+        status: config.cartGuidanceStatus ?? undefined,
       };
     }
 
@@ -1317,7 +1620,7 @@ function CustomerFlowScene({
       if (stage === "ticket") {
         return {
           id: `restaurant-walkthrough-pickup-ticket-${runId}-${slidePhase}-${stage}`,
-          label: isEmbeddedPhone ? "generates ticket" : "",
+          label: "",
           surface: "confirmation" as const,
           open: true,
           resolvedState: "correction" as const,
@@ -1326,7 +1629,7 @@ function CustomerFlowScene({
 
       return {
         id: `restaurant-walkthrough-pickup-ticket-${runId}-${slidePhase}-${stage}`,
-        label: isEmbeddedPhone ? "confirms order" : "",
+        label: "",
         surface:
           stage === "sending" ? ("checkout" as const) : ("carts" as const),
         open: true,
@@ -1340,7 +1643,6 @@ function CustomerFlowScene({
     decisionPanelStage,
     isCartStep,
     isDecisionStep,
-    isEmbeddedPhone,
     isSendStep,
     runId,
     sendStage,
@@ -1361,20 +1663,6 @@ function CustomerFlowScene({
     };
   }, [decisionPanelStage, isDecisionStep, runId, slidePhase]);
 
-  const mobileCapsuleMessage = useMemo<WalkthroughCapsuleMessage | null>(() => {
-    if (!isEmbeddedPhone) return null;
-
-    if (isEntryStep && slidePhase === "watch") {
-      return { label: "Plain English..." };
-    }
-
-    if (isCartStep && slidePhase === "watch" && !cartCueComplete) {
-      return { label: "becomes a cart" };
-    }
-
-    return null;
-  }, [cartCueComplete, isCartStep, isEmbeddedPhone, isEntryStep, slidePhase]);
-
   const decisionRowCueStage =
     isDecisionStep &&
     slidePhase === "watch" &&
@@ -1384,6 +1672,38 @@ function CustomerFlowScene({
       ? decisionPanelStage
       : null;
 
+  const boardCue: RestaurantBoardCueConfig | null =
+    variant !== "quick" && isBoardStep && slidePhase === "watch"
+      ? {
+          label: "New ticket",
+          selector: '[data-smartbar-order-board-tile="S-184"]',
+          targetXPct: 0.76,
+          fallbackXPct: 50,
+          fallbackTopPct: 22,
+          delayMs: 3050,
+          durationMs: 1450,
+          passive: true,
+        }
+      : variant !== "quick" && isTicketStep && slidePhase === "watch"
+        ? {
+            label: "Open ticket",
+            selector: '[data-smartbar-order-board-tile="S-184"]',
+            targetXPct: 0.76,
+            fallbackXPct: 50,
+            fallbackTopPct: 22,
+            delayMs: 240,
+            durationMs: 1120,
+          }
+        : variant !== "quick" && isHandledStep && slidePhase === "watch"
+          ? {
+              label: "Mark handled",
+              buttonText: "Mark handled",
+              fallbackXPct: 50,
+              fallbackTopPct: 82,
+              delayMs: 620,
+              durationMs: 1450,
+            }
+          : null;
   return (
     <div
       className={[
@@ -1406,7 +1726,10 @@ function CustomerFlowScene({
                 : `restaurant-walkthrough-customer-copy-${activeStep}-${isSlideRead ? "read" : "active"}`
             }
             className={[
-              "relative z-[5] max-w-2xl whitespace-pre-line text-[0.84rem] font-semibold leading-[1.02] tracking-[-0.03em] text-slate-950 sm:text-[1.42rem] sm:leading-[1.1]",
+              "relative z-[5] max-w-[calc(100vw-2rem)] whitespace-nowrap font-semibold leading-[1.04] tracking-[-0.03em] text-slate-950 sm:max-w-2xl sm:text-[1.42rem] sm:leading-[1.1]",
+              isCloseStep
+                ? "text-[clamp(0.86rem,3.45vw,1.02rem)]"
+                : "text-[clamp(0.98rem,4vw,1.18rem)]",
               isEmbeddedPhone ? "mt-0" : isCloseStep ? "mt-5" : "mt-4",
             ].join(" ")}
             initial={{ opacity: 0, y: 5 }}
@@ -1437,7 +1760,7 @@ function CustomerFlowScene({
               mode="overlay"
               demoInteractionLocked
               introCallout={
-                isCapsuleStep && !isSlideRead
+                (isCapsuleStep && !isSlideRead) || isEntryStep
                   ? {
                       title: slideOneCaption,
                       startDelayMs: 1120,
@@ -1446,40 +1769,33 @@ function CustomerFlowScene({
                   : null
               }
               demoLauncherCue={
-                !isEmbeddedPhone &&
-                isEntryStep &&
-                slidePhase === "watch" &&
-                !entryCueComplete
-                  ? { active: true, runKey: runId, showTooltip: false }
+                isEntryStep && slidePhase === "watch" && !entryCueComplete
+                  ? {
+                      active: true,
+                      label: "Start Order",
+                      runKey: `start-order-${runId}`,
+                    }
                   : null
               }
               demoCompanionCue={
-                !isEmbeddedPhone &&
-                isCartStep &&
-                slidePhase === "watch" &&
-                !cartCueComplete
-                  ? { active: true, runKey: runId }
-                  : !isEmbeddedPhone &&
-                      isDecisionStep &&
+                isCartStep && slidePhase === "watch" && !cartCueComplete
+                  ? {
+                      active: true,
+                      label: "Build Cart",
+                      runKey: `build-cart-${runId}`,
+                    }
+                  : isDecisionStep &&
                       slidePhase === "watch" &&
                       (decisionPanelStage === "spaghettiBackToCart" ||
                         decisionPanelStage === "garstixBackToCart")
                     ? {
                         active: true,
                         runKey: `decision-footer-${runId}-${decisionPanelStage}`,
+                        showTooltip: false,
                       }
-                    : !isEmbeddedPhone &&
-                        isSendStep &&
-                        slidePhase === "watch" &&
-                        sendStage === "ready"
-                      ? {
-                          active: true,
-                          runKey: `send-order-${runId}-${sendStage}`,
-                        }
-                      : null
+                    : null
               }
-              demoOptionCue={isEmbeddedPhone ? null : demoOptionCue}
-              demoCompanionMessage={mobileCapsuleMessage}
+              demoOptionCue={demoOptionCue}
               demoPresetEntryDraft={
                 isCartStep && !cartCueComplete && slidePhase !== "done"
                   ? {
@@ -1491,7 +1807,6 @@ function CustomerFlowScene({
               demoRestCompanion={{ label: "SmartBar", showLogo: true }}
               demoSubmission={demoSubmission}
               demoMontageStage={demoMontageStage}
-              demoAllowWalkthroughMontageCaption={isEmbeddedPhone}
               demoWalkthroughCartMode={
                 isCartStep || isDecisionStep || isSendStep
               }
@@ -1503,7 +1818,7 @@ function CustomerFlowScene({
                     ? `restaurant-customer-entry-rest-${runId}`
                     : null
               }
-              entryModeLabel="Say or type order"
+              entryModeLabel="Use mic or type"
             />
           </div>
         </motion.div>
@@ -1548,7 +1863,7 @@ function CustomerFlowScene({
                 : undefined
             }
             demoAutoOpenDelayMs={860}
-            demoShowAutoOpenCue={isTicketStep}
+            demoShowAutoOpenCue={false}
             demoContainedSheet={isTicketStep || (isHandledStep && isSlideWatch)}
             demoInitialOpenOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
             demoAutoMarkEnteredOrderId={isHandledStep && isSlideWatch ? "S-184" : undefined}
@@ -1558,7 +1873,7 @@ function CustomerFlowScene({
                 : undefined
             }
             demoAutoMarkEnteredDelayMs={2100}
-            demoShowAutoMarkEnteredCue={isHandledStep}
+            demoShowAutoMarkEnteredCue={false}
             demoMarkEnteredLabel={isHandledStep ? "Mark handled" : undefined}
             demoOrders={visibleWalkthroughOrderBoardOrders}
             className={[
@@ -1569,6 +1884,19 @@ function CustomerFlowScene({
         </motion.div>
       )}
 
+      {boardCue && (
+        <div
+          ref={boardPointerOverlayRef}
+          className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
+          style={{ top: boardViewportTop, bottom: boardViewportBottom }}
+        >
+          <RestaurantBoardCue
+            runId={runId}
+            overlayRef={boardPointerOverlayRef}
+            cue={boardCue}
+          />
+        </div>
+      )}
       {isCloseStep && !isSlideRead && (
         <WalkthroughClosingSandboxCta
           onRequestPrivateSandbox={onRequestPrivateSandbox}
@@ -1579,7 +1907,7 @@ function CustomerFlowScene({
         />
       )}
 
-      {!isEmbeddedPhone && variant !== "quick" && isCartStep && cartCueComplete && slidePhase === "watch" && (
+      {variant !== "quick" && isCartStep && cartCueComplete && slidePhase === "watch" && (
         <div
           ref={colorPointerOverlayRef}
           className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
@@ -1592,7 +1920,12 @@ function CustomerFlowScene({
         </div>
       )}
 
-      {!isEmbeddedPhone && decisionRowCueStage && (
+      <WalkthroughReadyToSendCue
+        runId={runId}
+        overlayRef={colorPointerOverlayRef}
+        suppressed={Boolean(decisionRowCueStage)}
+      />
+{decisionRowCueStage && (
         <div
           ref={colorPointerOverlayRef}
           className="pointer-events-none absolute inset-x-0 z-[13050] overflow-visible"
@@ -1606,14 +1939,6 @@ function CustomerFlowScene({
         </div>
       )}
 
-      {!isEmbeddedPhone && isEntryStep && slidePhase === "watch" && !entryCueComplete && (
-        <WalkthroughPizzaTooltipPointer
-          runId={runId}
-          selector='[data-smartbar-mobile-launcher="true"]'
-          tooltip="Pizza order"
-        />
-      )}
-
       <RestaurantWalkthroughNavigator
         canGoBack={canGoBack}
         canGoNext={canGoNext}
@@ -1624,9 +1949,8 @@ function CustomerFlowScene({
         onFinish={onFinish}
         finishLabel={finishLabel}
         isVisible={!isCloseStep && shouldShowNavigator}
-        rerunLabel={isEmbeddedPhone && isCapsuleStep ? "Replay" : usesReadWatchDecide ? "See again" : "Rerun"}
+        rerunLabel={usesReadWatchDecide ? "Retry" : "Retry"}
         finalMode={isCloseStep}
-        nextLabel={nextLabel}
       />
     </div>
   );
@@ -1654,8 +1978,6 @@ export default function RestaurantWalkthrough({
   const [customerStep, setCustomerStep] = useState<CustomerFlowStep>(1);
   const [runId, setRunId] = useState(0);
   const [slidePhase, setSlidePhase] = useState<WalkthroughSlidePhase>("read");
-  const [mobileSocialIntroComplete, setMobileSocialIntroComplete] = useState(false);
-  const [mobileSocialIntroRunKey, setMobileSocialIntroRunKey] = useState(0);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -1668,31 +1990,11 @@ export default function RestaurantWalkthrough({
     variant === "quick" ? quickCustomerFlowSteps : fullCustomerFlowSteps;
   const customerStepIndex = Math.max(0, customerFlowSteps.indexOf(customerStep));
   const customerStepCount = customerFlowSteps.length;
-  const showMobileSocialIntro =
-    isEmbeddedPhone &&
-    activeScene === 1 &&
-    customerStep === customerFlowSteps[0] &&
-    !mobileSocialIntroComplete;
 
-  const completeMobileSocialIntro = useCallback(() => {
-    setMobileSocialIntroComplete(true);
-    setCustomerStep(customerFlowSteps[0]);
-    setSlidePhase("done");
-    setRunId((value) => value + 1);
-  }, [customerFlowSteps]);
+
 
   useEffect(() => {
-    if (
-      isEmbeddedPhone &&
-      activeScene === 1 &&
-      customerStep === customerFlowSteps[0] &&
-      mobileSocialIntroComplete
-    ) {
-      setSlidePhase("done");
-      return;
-    }
-
-    if (
+if (
       activeScene !== 1 ||
       !customerFlowSteps.includes(customerStep)
     ) {
@@ -1727,7 +2029,7 @@ export default function RestaurantWalkthrough({
       window.clearTimeout(watchTimer);
       window.clearTimeout(doneTimer);
     };
-  }, [activeScene, customerFlowSteps, customerStep, isEmbeddedPhone, mobileSocialIntroComplete, runId]);
+  }, [activeScene, customerFlowSteps, customerStep, runId]);
 
   const embeddedViewportHeight = isEmbeddedPhone ? 612 : 760;
   const mobileCardTop = Math.max(82, Math.min(112, Math.round(viewportHeight * 0.12)));
@@ -1754,11 +2056,6 @@ export default function RestaurantWalkthrough({
     : Math.max(104, cardTop - 42);
   const shellViewportTop = chrome === "content" ? (isEmbeddedPhone ? 52 : 38) : isPhoneViewport ? 14 : 82;
   const navReserveHeight = chrome === "content" ? (isEmbeddedPhone ? 54 : 92) : isPhoneViewport ? 142 : 108;
-  const isMobileIntroBeginFrame =
-    isEmbeddedPhone &&
-    activeScene === 1 &&
-    customerStep === customerFlowSteps[0] &&
-    mobileSocialIntroComplete;
 
   const activeSegmentIndex = activeScene - 1;
   const slideOneReadHeight =
@@ -1828,22 +2125,12 @@ export default function RestaurantWalkthrough({
     }
   };
 
-  const rerun = () => {
-    if (isMobileIntroBeginFrame) {
-      setMobileSocialIntroComplete(false);
-      setMobileSocialIntroRunKey((value) => value + 1);
-      setSlidePhase("read");
-    }
-
-    setRunId((value) => value + 1);
-  };
+  const rerun = () => setRunId((value) => value + 1);
 
   const restartWalkthrough = () => {
     setActiveScene(1);
     setCustomerStep(customerFlowSteps[0]);
     setSlidePhase("read");
-    setMobileSocialIntroComplete(false);
-    setMobileSocialIntroRunKey((value) => value + 1);
     setRunId((value) => value + 1);
   };
 
@@ -1914,23 +2201,12 @@ export default function RestaurantWalkthrough({
         </div>
       )}
 
-      <AnimatePresence>
-        {showMobileSocialIntro && (
-          <MobileGuidedSocialIntro
-            runKey={mobileSocialIntroRunKey}
-            dockLiftPx={navReserveHeight}
-            onComplete={completeMobileSocialIntro}
-          />
-        )}
-      </AnimatePresence>
-
-      {!showMobileSocialIntro && (
-      <motion.section
+<motion.section
         className="absolute left-1/2 z-[12000] w-[min(52rem,calc(100vw-1.5rem))] -translate-x-1/2 overflow-hidden rounded-[36px] bg-white/88 text-slate-950 shadow-[0_22px_60px_rgba(15,23,42,0.08)] ring-1 ring-white/80 backdrop-blur-sm"
         style={{ top: cardTop, transformOrigin: "top center" }}
         initial={
           isEmbeddedContent
-            ? { height: cardTargetHeight, opacity: 1, y: 0, scale: 1 }
+            ? { height: initialCardHeight, opacity: 1, y: 0, scale: 1 }
             : { height: initialCardHeight, opacity: 0, y: 12, scale: 0.985 }
         }
         animate={{
@@ -1979,14 +2255,39 @@ export default function RestaurantWalkthrough({
               onFinish={finishWalkthrough}
               onRequestPrivateSandbox={requestPrivateSandbox}
               finishLabel={finishLabel}
-              nextLabel={isMobileIntroBeginFrame ? "Begin" : "Next"}
               slidePhase={slidePhase}
               isEmbeddedPhone={isEmbeddedPhone}
             />
           </div>
         </motion.div>
       </motion.section>
-      )}
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
