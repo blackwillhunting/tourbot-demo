@@ -27,6 +27,8 @@ const quickCustomerEntryPrompt =
 const fullCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 const quickCustomerFlowSteps: readonly CustomerFlowStep[] = [1, 2, 3, 5, 6, 7, 8, 9];
 const TUMBLER_GLIDE_MS = 720;
+const SMARTBAR_PLAYGROUND_DEEP_LINK =
+  "https://smartbar.getn2ai.com/?smartbarReturn=playground";
 
 const restaurantWalkthroughHiddenTailBoardTileCss = `
 .restaurant-walkthrough-four-tile-board *:has(> [data-smartbar-order-board-tile="S-180"]),
@@ -2135,6 +2137,11 @@ if (
   };
 
   const finishWalkthrough = () => {
+    if (!isEmbeddedContent) {
+      window.location.assign(SMARTBAR_PLAYGROUND_DEEP_LINK);
+      return;
+    }
+
     if (onFinish) {
       onFinish();
       return;
