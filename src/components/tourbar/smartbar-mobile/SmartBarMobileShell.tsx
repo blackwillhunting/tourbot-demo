@@ -2259,7 +2259,7 @@ export default function SmartBarMobileShell({
   demoOptionCue = null,
   demoPresetEntryDraft = null,
   demoRestCompanion = null,
-  entryModeLabel = "Type order",
+  entryModeLabel = "Use phone mic or type",
   buildingLabel = "Building cart...",
   demoSubmission = null,
   demoSuppressEntryFocus = false,
