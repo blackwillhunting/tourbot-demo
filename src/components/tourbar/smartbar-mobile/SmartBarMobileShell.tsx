@@ -2554,6 +2554,14 @@ export default function SmartBarMobileShell({
   const selectedLineGrayReason = selectedLine?.status === "unknown"
     ? String(selectedLine.displayReason || selectedLine.helper || "Not recognized").replace(/\s+/g, " ").trim()
     : "";
+  const selectedLineGrayPrompt = selectedLine?.status === "unknown"
+    ? String(selectedLine.retryPrompt || "Clarify this item or enter something else from the menu.").replace(/\s+/g, " ").trim()
+    : "";
+  const selectedLineGrayPlaceholder = selectedLine?.grayReason === "not_sold_separately"
+    ? "Tell us which menu item this belongs with..."
+    : selectedLine?.grayReason === "not_on_menu"
+      ? "Enter another menu item..."
+      : "Clarify or replace this item...";
   const selectedLineHasSummarySelections = selectedLineSelectedDetails.length > 0;
   const selectedLineNoChoicesNeeded = Boolean(
     selectedLine &&
@@ -4700,18 +4708,18 @@ export default function SmartBarMobileShell({
                     <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
                       <div className="min-w-0">
                         <div className="inline-flex max-w-full items-center rounded-full border border-white/14 bg-white/[0.08] px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] text-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_4px_12px_rgba(2,6,23,0.14)]">
-                          {selectedLine.status === "unknown" ? "Retry item" : "Item details"}
+                          {selectedLine.status === "unknown" ? "Clarify item" : "Item details"}
                         </div>
-                        <div className={`mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight ${selectedLine.status === "unknown" ? "italic" : ""}`}>
+                        <div className="mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight">
                           {selectedLineFullTitle || smartBarMobileShortTitle(selectedLine.title)}
                         </div>
                       </div>
                       <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
-                        {statusLabel(selectedLine.status)}
+                        {selectedLine.status === "unknown" ? "Needs context" : statusLabel(selectedLine.status)}
                       </div>
                     </div>
 
-                    {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && (
+                    {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && selectedLine.status !== "unknown" && (
                       <div className="mt-2 flex shrink-0 items-center justify-center gap-2">
                         <button
                           type="button"
@@ -4787,32 +4795,41 @@ export default function SmartBarMobileShell({
                         )}
                       </div>
                     ) : selectedLine.status === "unknown" ? (
-                      <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3">
-                        <div className="shrink-0 rounded-[24px] border border-white/18 bg-slate-950/78 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.20)] ring-1 ring-white/10">
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Reason</div>
-                          <div className="mt-2 rounded-[18px] bg-white/92 px-3 py-3 text-sm font-black leading-5 text-slate-950">
-                            {selectedLineGrayReason || "Not recognized"}
+                      <div
+                        className="mt-3 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                        style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
+                      >
+                        <div className="shrink-0 rounded-[22px] border border-white/46 bg-white/58 px-4 py-3.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.66),0_8px_18px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/8 backdrop-blur-md">
+                          <div className="text-[15px] font-black leading-5 tracking-[-0.01em]">
+                            {selectedLineGrayReason || "We couldn't match this to a menu item."}
                           </div>
-                          <div className="mt-2 text-[11px] font-black uppercase tracking-[0.12em] text-white/70">
-                            {selectedLine.retryPrompt || "Try another item, or add this as part of a menu item."}
+                          <div className="mt-1.5 text-[13px] font-semibold leading-[1.35rem] text-slate-700">
+                            {selectedLineGrayPrompt}
                           </div>
                         </div>
-                        <textarea
-                          data-smartbar-mobile-retry-input="true"
-                          ref={retryTextareaRef}
-                          value={retryDraft}
-                          onChange={(event) => {
-                            if (demoInteractionLocked) return;
-                            setRetryDraft(event.target.value);
-                          }}
-                          disabled={demoInteractionLocked || retryCheckingLineId === selectedLine.id}
-                          readOnly={demoInteractionLocked}
-                          tabIndex={demoInteractionLocked ? -1 : undefined}
-                          className={retryInputClass}
-                          placeholder="Try another item or add this to a menu item..."
-                          aria-label="Retry gray item"
-                          rows={2}
-                        />
+                        <div className="relative shrink-0">
+                          <Pencil
+                            className="pointer-events-none absolute left-4 top-4 z-10 h-4 w-4 text-slate-500"
+                            strokeWidth={2.4}
+                            aria-hidden="true"
+                          />
+                          <textarea
+                            data-smartbar-mobile-retry-input="true"
+                            ref={retryTextareaRef}
+                            value={retryDraft}
+                            onChange={(event) => {
+                              if (demoInteractionLocked) return;
+                              setRetryDraft(event.target.value);
+                            }}
+                            disabled={demoInteractionLocked || retryCheckingLineId === selectedLine.id}
+                            readOnly={demoInteractionLocked}
+                            tabIndex={demoInteractionLocked ? -1 : undefined}
+                            className={`${retryInputClass} !min-h-[72px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-3.5 !pl-11 !pr-4 !text-[15px] !font-bold !leading-5 !text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 disabled:!opacity-70`}
+                            placeholder={selectedLineGrayPlaceholder}
+                            aria-label="Clarify gray item"
+                            rows={2}
+                          />
+                        </div>
                       </div>
                     ) : (
                       <div

@@ -956,11 +956,6 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
         >
           <SmartBarMobileShell
             mode="overlay"
-            introCallout={{
-              title: boardOrders.length ? "Tap to say or type another order" : "Tap to say or type your order",
-            }}
-            demoRestCompanion={{ label: "SmartBar", showLogo: true }}
-            entryModeLabel="Say or type order"
             sendOrderNumber={sendOrderNumber}
             demoBottomLiftPx={16}
             demoSubmission={forcedCartSubmission}
