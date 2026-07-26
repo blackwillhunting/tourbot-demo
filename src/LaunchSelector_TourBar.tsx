@@ -94,6 +94,7 @@ type TourBotAuthResult = {
 };
 
 type SmartBarVendorAction = "sandbox_request" | "website_setup_request" | "website_install_finished" | "ghost_test_ready";
+type SmartBarUseItLane = "sandbox" | "website" | "board" | "playground";
 
 function isLocalDemoAuthBypassEnabled() {
   if (typeof window === "undefined") return false;
@@ -283,6 +284,13 @@ function shouldOpenSmartBarRootOverviewFromReturn() {
 
   const params = new URLSearchParams(window.location.search);
   return params.get("smartbarReturn") === "overview";
+}
+
+function shouldOpenSmartBarRootPlaygroundFromReturn() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("smartbarReturn") === "playground";
 }
 
 function shouldOpenSmartBarSubscriptionReturn() {
@@ -1221,6 +1229,7 @@ const SMARTBAR_LOGIN_TRANSITION_MESSAGE: SmartBarRootDemoMessage = {
 };
 
 const SMARTBAR_ROOT_OVERVIEW_STEP = SMARTBAR_ROOT_MESSAGES.length + 2;
+const SMARTBAR_ROOT_USE_IT_STEP = 2;
 
 const SMARTBAR_ROOT_THINKING_WIGGLE_DURATION = 1.35;
 const SMARTBAR_ROOT_THINKING_WIGGLE_STAGGER = 0.018;
@@ -2527,11 +2536,11 @@ function SmartBarRootLaunchMessage({
   message: SmartBarRootDemoMessage;
   step: number;
   isWaving: boolean;
-  initialUseItLane?: "board" | null;
+  initialUseItLane?: SmartBarUseItLane | null;
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
-  const [activeUseItLane, setActiveUseItLane] = useState<"sandbox" | "website" | "board" | "playground" | null>(() => initialUseItLane);
+  const [activeUseItLane, setActiveUseItLane] = useState<SmartBarUseItLane | null>(() => initialUseItLane);
   const [activeVendorContext, setActiveVendorContext] = useState(() => getStoredSmartBarVendorContext());
 
   const handleVendorContextUpdate = useCallback((nextVendorContext: SmartBarVendorContext) => {
@@ -2556,7 +2565,7 @@ function SmartBarRootLaunchMessage({
   }, [handleVendorContextUpdate]);
 
   useEffect(() => {
-    if (activeUseItLane !== "website" && activeUseItLane !== "board") return;
+    if (activeUseItLane !== "website" && activeUseItLane !== "board" && activeUseItLane !== "playground") return;
 
     void refreshActiveVendorContext();
 
@@ -2577,6 +2586,38 @@ function SmartBarRootLaunchMessage({
   }, [activeUseItLane, refreshActiveVendorContext]);
 
   if (activeUseItLane === "playground") {
+    const playgroundHasMenuProfile = Boolean(
+      String(activeVendorContext?.clientId || "").trim() &&
+      String(activeVendorContext?.vendorId || "").trim() &&
+      String(activeVendorContext?.menuProfileId || "").trim() &&
+      String(activeVendorContext?.behaviorProfileId || "").trim(),
+    );
+
+    if (!playgroundHasMenuProfile) {
+      return (
+        <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
+          <div className="mx-auto max-w-2xl rounded-[28px] bg-white/90 px-5 py-7 text-center shadow-[0_20px_55px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/80 sm:px-8 sm:py-9">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+              <ShieldCheck className="h-6 w-6" />
+            </div>
+            <div className="mt-4 text-lg font-bold tracking-tight text-slate-950">
+              Playground isn&apos;t available yet
+            </div>
+            <div className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-600">
+              This passcode is not connected to a complete SmartBar menu profile. Connect the restaurant&apos;s menu before placing test orders.
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveUseItLane("sandbox")}
+              className="mt-5 inline-flex items-center justify-center rounded-full bg-[#012169] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f]"
+            >
+              Back to Sandbox
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
         <SmartBarPlayground onBack={() => setActiveUseItLane("sandbox")} vendorContext={activeVendorContext} />
@@ -2956,6 +2997,7 @@ function SmartBarRootDemoSelector() {
   const hasInitialStoredAccess = useMemo(() => hasOptimisticSmartBarRootAccess(), []);
   const [subscriptionReturn] = useState(() => shouldOpenSmartBarSubscriptionReturn());
   const [overviewReturn, setOverviewReturn] = useState(() => shouldOpenSmartBarRootOverviewFromReturn());
+  const [playgroundReturn] = useState(() => shouldOpenSmartBarRootPlaygroundFromReturn());
   const [hasAccess, setHasAccess] = useState(() => hasInitialStoredAccess);
   const [isSessionChecking, setIsSessionChecking] = useState(() => hasInitialStoredAccess);
   const [passcode, setPasscode] = useState("");
@@ -2963,7 +3005,13 @@ function SmartBarRootDemoSelector() {
   const [gateView, setGateView] = useState<"challenge" | "failure">("challenge");
   const [isLoginEntryTransitionPending, setLoginEntryTransitionPending] = useState(() => !hasInitialStoredAccess);
   const [step, setStep] = useState(() =>
-    hasInitialStoredAccess && overviewReturn ? SMARTBAR_ROOT_OVERVIEW_STEP : hasInitialStoredAccess ? 1 : 0,
+    hasInitialStoredAccess && overviewReturn
+      ? SMARTBAR_ROOT_OVERVIEW_STEP
+      : hasInitialStoredAccess && subscriptionReturn
+        ? SMARTBAR_ROOT_USE_IT_STEP
+        : hasInitialStoredAccess
+          ? 1
+          : 0,
   );
   const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 0));
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
@@ -3181,6 +3229,16 @@ function SmartBarRootDemoSelector() {
       if (result.accepted) {
         if (redirectToSafeSmartBarRootReturnTo()) return;
 
+        if (playgroundReturn) {
+          cleanupResetAccessUrl();
+          setHasAccess(true);
+          setGateView("challenge");
+          setStep(useItStep >= 0 ? useItStep : SMARTBAR_ROOT_USE_IT_STEP);
+          setWavingIndex(null);
+          setIsSessionChecking(false);
+          return;
+        }
+
         if (overviewReturn) {
           cleanupResetAccessUrl();
           setOverviewReturn(false);
@@ -3289,6 +3347,17 @@ function SmartBarRootDemoSelector() {
     }
 
     if (redirectToSafeSmartBarRootReturnTo()) return;
+
+    if (playgroundReturn) {
+      cleanupResetAccessUrl();
+      setHasAccess(true);
+      setGateView("challenge");
+      setStep(SMARTBAR_ROOT_USE_IT_STEP);
+      await wait(SMARTBAR_ROOT_RIBBON_GLIDE_MS);
+      if (rootRunIdRef.current !== runId) return;
+      setWavingIndex(null);
+      return;
+    }
 
     if (overviewReturn) {
       cleanupResetAccessUrl();
@@ -3545,7 +3614,15 @@ function SmartBarRootDemoSelector() {
                       message={item.message}
                       step={item.sourceIndex}
                       isWaving={wavingIndex === index}
-                      initialUseItLane={subscriptionReturn && item.sourceIndex === 1 ? "board" : null}
+                      initialUseItLane={
+                        item.sourceIndex === 1
+                          ? playgroundReturn
+                            ? "playground"
+                            : subscriptionReturn
+                              ? "board"
+                              : null
+                          : null
+                      }
                     />
                   )}
 
