@@ -2249,6 +2249,42 @@ type SmartBarMobileShellProps = {
   onResetCart?: () => void;
 };
 
+function SmartBarPickupConfirmationCard({
+  orderNumber,
+  isDemo = false,
+}: {
+  orderNumber: string;
+  isDemo?: boolean;
+}) {
+  return (
+    <div
+      data-smartbar-mobile-social-montage-stage={isDemo ? "confirmation" : undefined}
+      className="overflow-hidden rounded-[24px] border border-white/14 bg-slate-950/68 px-5 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_26px_rgba(2,6,23,0.18)] ring-1 ring-white/10"
+    >
+      <div className="flex items-center justify-center gap-2">
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-200 text-emerald-950 shadow-[0_5px_14px_rgba(52,211,153,0.20)] ring-1 ring-white/50">
+          <Check className="h-3.5 w-3.5 stroke-[3]" />
+        </span>
+        <span className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-100/90">
+          Order sent
+        </span>
+      </div>
+
+      <div className="mt-3 text-[3.35rem] font-black leading-none tracking-[-0.045em] text-white sm:text-[3.75rem]">
+        {orderNumber}
+      </div>
+      <div className="mt-1.5 text-[13px] font-bold tracking-[-0.01em] text-white/86">
+        Show at pickup
+      </div>
+
+      <div className="mx-auto mt-3.5 h-px max-w-[220px] bg-white/14" />
+      <div className="mx-auto mt-3 max-w-[250px] text-[12px] font-semibold leading-4 text-white/58">
+        Restaurant received your order.
+      </div>
+    </div>
+  );
+}
+
 export default function SmartBarMobileShell({
   mode = "lab",
   demoTransitionShield = false,
@@ -3238,26 +3274,8 @@ export default function SmartBarMobileShell({
         eyebrow: isWalkthroughConfirmation ? "Pickup ticket" : "Order sent",
         title: `SmartBar Order ${sendOrderNumber}`,
         statusLabel: isWalkthroughConfirmation ? "Pickup ticket" : "Confirmation",
-        height: 268,
-        content: (
-          <div
-            data-smartbar-mobile-social-montage-stage="confirmation"
-            className="rounded-[28px] border border-white/18 bg-slate-950/72 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_28px_rgba(2,6,23,0.20)] ring-1 ring-white/12"
-          >
-            <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200/88">
-              {isWalkthroughConfirmation ? "Pickup ticket generated" : "Order sent"}
-            </div>
-            <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{sendOrderNumber}</div>
-            <div className="mx-auto mt-3 max-w-[240px] rounded-full bg-white/92 px-4 py-2 text-sm font-black text-slate-950 shadow-sm">
-              Show this number at pickup.
-            </div>
-            <div className="mx-auto mt-3 max-w-[260px] text-sm font-semibold leading-5 text-white/72">
-              {isWalkthroughConfirmation
-                ? "SmartBar generates a pickup ticket from the confirmed cart."
-                : "Your order was sent to the restaurant as a SmartBar ticket."}
-            </div>
-          </div>
-        ),
+        height: 220,
+        content: <SmartBarPickupConfirmationCard orderNumber={sendOrderNumber} isDemo />,
       });
       return;
     }
@@ -3838,19 +3856,8 @@ export default function SmartBarMobileShell({
           eyebrow: "Order sent",
           title: `SmartBar Order ${resolvedOrderNumber}`,
           statusLabel: "Order sent",
-          height: 268,
-          content: (
-            <div className="rounded-[28px] border border-white/18 bg-slate-950/72 px-4 py-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_14px_28px_rgba(2,6,23,0.20)] ring-1 ring-white/12">
-              <div className="text-[11px] font-black uppercase tracking-[0.24em] text-sky-200/88">Order sent</div>
-              <div className="mt-3 text-5xl font-black leading-none tracking-tight text-white">{resolvedOrderNumber}</div>
-              <div className="mx-auto mt-3 max-w-[240px] rounded-full bg-white/92 px-4 py-2 text-sm font-black text-slate-950 shadow-sm">
-                Show this number at pickup.
-              </div>
-              <div className="mx-auto mt-3 max-w-[260px] text-sm font-semibold leading-5 text-white/72">
-                Your order was sent to the restaurant as a SmartBar ticket.
-              </div>
-            </div>
-          ),
+          height: 220,
+          content: <SmartBarPickupConfirmationCard orderNumber={resolvedOrderNumber} />,
         });
         setHandoffState("idle");
         setCartExpanded(true);
