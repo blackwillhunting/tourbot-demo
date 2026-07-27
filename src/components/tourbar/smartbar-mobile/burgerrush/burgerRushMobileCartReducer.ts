@@ -891,7 +891,26 @@ export function smartBarMobileRemoveVisibleLine(
 
   const nextLines = [...lines];
   nextLines.splice(removeIndex, 1);
-  return nextLines;
+
+  // Unmatched rows do not receive backend lineItemIds, so their source index
+  // is their occurrence identity. Rebase the remaining unmatched rows after a
+  // deletion so a later trash click still targets the correct occurrence.
+  let cannotMatchIndex = 0;
+  return nextLines.map((line) => {
+    if (line.sourceBucket !== "cannot_match") return line;
+
+    const sourceLineIndex = cannotMatchIndex;
+    cannotMatchIndex += 1;
+    const cartLineKey = `cannot-match::source-${sourceLineIndex}`;
+
+    return {
+      ...line,
+      id: cartLineKey,
+      cartLineKey,
+      sourceLineItemId: `cannot-match-${sourceLineIndex}`,
+      sourceLineIndex,
+    };
+  });
 }
 
 function smartBarMobileCarryoutLineMatchesVisibleLine(
@@ -905,7 +924,7 @@ function smartBarMobileCarryoutLineMatchesVisibleLine(
     visibleSourceIndex === carryoutIndex;
 
   const visibleSourceLineItemId = smartBarMobileSelectionKey(String(visibleLine.sourceLineItemId || ""));
-  const carryoutLineItemId = smartBarMobileSelectionKey(String(carryoutLine.lineItemId || ""));
+  const carryoutLineItemId = smartBarMobileSelectionKey(String(carryoutLine.lineItemId || carryoutLine.id || ""));
   const visibleSourceItemId = smartBarMobileSelectionKey(String(visibleLine.sourceItemId || ""));
   const carryoutItemId = smartBarMobileSelectionKey(String(carryoutLine.id || ""));
   const itemMatches = Boolean(visibleSourceItemId && carryoutItemId && visibleSourceItemId === carryoutItemId);
@@ -933,21 +952,47 @@ export function smartBarMobileRemoveLineFromCarryoutOrder(
   const sourceItems = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const removeIndex = sourceItems.findIndex((line, index) => smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove, index));
   const items = [...sourceItems];
-  if (removeIndex >= 0) {
-    items.splice(removeIndex, 1);
+  const cannotMatchItems = [...(order.cannotMatchItems || [])];
+
+  if (lineToRemove.sourceBucket === "cannot_match") {
+    const sourceIndex = lineToRemove.sourceLineIndex;
+    if (typeof sourceIndex === "number" && sourceIndex >= 0 && sourceIndex < cannotMatchItems.length) {
+      cannotMatchItems.splice(sourceIndex, 1);
+    } else {
+      const targetTitle = smartBarMobileSelectionKey(lineToRemove.title);
+      const matchingIndexes = cannotMatchItems
+        .map((item, index) => {
+          const itemTitle = smartBarMobileSelectionKey(String(item.text || item.label || item.title || item.item || ""));
+          return itemTitle === targetTitle ? index : -1;
+        })
+        .filter((index) => index >= 0);
+
+      // A title is safe only when it identifies exactly one unmatched row.
+      if (matchingIndexes.length === 1) cannotMatchItems.splice(matchingIndexes[0], 1);
+    }
+  } else {
+    const removeIndex = sourceItems.findIndex((line, index) => (
+      smartBarMobileCarryoutLineMatchesVisibleLine(line, lineToRemove, index)
+    ));
+    if (removeIndex >= 0) items.splice(removeIndex, 1);
   }
+
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
+  const status = pendingItems.length
+    ? "needs_qualifier"
+    : cannotMatchItems.length
+      ? items.length ? "partial_match" : "cannot_match"
+      : "ready_cart";
 
   return {
     ...order,
     items,
     completeItems,
     pendingItems,
-    cannotMatchItems: order.cannotMatchItems || [],
-    status: pendingItems.length ? "needs_qualifier" : items.length ? "ready_cart" : "ready_cart",
+    cannotMatchItems,
+    status,
     currentStep: smartBarMobileNextCurrentStep(order, pendingItems),
   };
 }

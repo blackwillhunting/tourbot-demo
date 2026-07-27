@@ -757,45 +757,26 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
     }
   }, [activeVendorContext]);
 
-  const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
+  const handleRemoveLine = useCallback((line: SmartBarMobileOrderLine) => {
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
     const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "-";
-    const optimisticCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
+    const nextCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
       carryoutOrderRef.current,
       line,
     );
 
     orderLinesRef.current = nextLines;
     estimatedTotalRef.current = nextEstimatedTotal;
-    carryoutOrderRef.current = optimisticCarryoutOrder;
+    carryoutOrderRef.current = nextCarryoutOrder;
 
-    const optimisticResult = {
+    // Deletion is authoritative local cart state. Repricing through guide_ai
+    // here can echo an older cart and visibly restore the row that was just
+    // removed. Remaining line prices already determine the updated total.
+    return {
       lines: nextLines,
       estimatedTotal: nextEstimatedTotal,
     };
-
-    if (!nextLines.length || !optimisticCarryoutOrder) return optimisticResult;
-
-    try {
-      const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
-        optimisticCarryoutOrder,
-        `removed ${line.title}`,
-        activeVendorContext,
-      );
-
-      orderLinesRef.current = repricedResult.lines;
-      estimatedTotalRef.current = repricedResult.estimatedTotal || nextEstimatedTotal;
-      carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
-
-      return {
-        ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || nextEstimatedTotal,
-      };
-    } catch (error) {
-      console.warn("SmartBar playground reprice failed after remove", error);
-      return optimisticResult;
-    }
-  }, [activeVendorContext]);
+  }, []);
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
     setCartOpen(true);
