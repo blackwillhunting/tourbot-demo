@@ -9,6 +9,7 @@ import {
   Compass,
   ListOrdered,
   Package,
+  Plus,
   Sparkles,
   Trash2,
   X,
@@ -4332,6 +4333,11 @@ export default function SmartBarMobileShell({
 
   const showCartToggle = handoffState === "idle" && hasCart && (phase === "entry" || phase === "cart");
   const cartToggleShowsUp = phase === "entry" || !cartExpanded;
+  const cartToggleShowsAdd =
+    phase === "cart" &&
+    cartExpanded &&
+    !selectedLine &&
+    !genericResult;
   const genericCompanionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
     ? /previewing|choose room|add room|tap packages|tap when done|review packages/i.test(genericResult.statusLabel || "")
       ? "options"
@@ -5457,10 +5463,16 @@ export default function SmartBarMobileShell({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                aria-label={phase === "cart" ? "Return to entry" : "Reopen cart"}
+                aria-label={
+                  cartToggleShowsAdd
+                    ? "Add more items"
+                    : phase === "cart" ? "Return to entry" : "Reopen cart"
+                }
               >
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
-                  {cartToggleShowsUp ? (
+                  {cartToggleShowsAdd ? (
+                    <Plus className="h-5 w-5" />
+                  ) : cartToggleShowsUp ? (
                     <ChevronUp className="h-5 w-5" />
                   ) : (
                     <ChevronDown className="h-5 w-5" />
