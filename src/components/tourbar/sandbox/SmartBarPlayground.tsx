@@ -551,10 +551,16 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
   const [, setCartOpen] = useState(false);
   const [boardExpanded, setBoardExpanded] = useState(true);
   const [activeBoardOrder, setActiveBoardOrder] = useState<SmartBarOrderBoardItem | null>(null);
+  const [pickupConfirmationOpen, setPickupConfirmationOpen] = useState(false);
 
   const handleCartOpenChange = useCallback((open: boolean) => {
     setCartOpen(open);
     setBoardExpanded(!open);
+  }, []);
+
+  const handlePickupConfirmationOpenChange = useCallback((open: boolean) => {
+    setPickupConfirmationOpen(open);
+    if (!open) setActiveBoardOrder(null);
   }, []);
 
   useEffect(() => {
@@ -922,32 +928,36 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
 
-        <div className={[
-          "absolute inset-x-3 top-3 z-30 overflow-hidden rounded-[28px] bg-white/58 shadow-[0_16px_36px_rgba(14,116,144,0.12)] ring-1 ring-white/80 transition-all duration-300",
-          boardIsCompact ? "h-[92px]" : "h-[286px]",
-        ].join(" ")}
-        >
-          <SmartBarOrderBoardMock
-            demoOrders={boardOrders}
-            demoSocialPortrait
-            demoCompactBoard
-            demoFourTileBoard
-            demoFlatBoardTiles={boardIsCompact}
-            demoMaxVisibleOrders={4}
-            demoAnimateIncomingOrders
-            demoPlaygroundSheet
-            demoHeaderEyebrow="What the restaurant sees"
-            demoHeaderTitle="Orders arrive here"
-            demoHeaderDescription="Received on the restaurant’s tablet or phone."
-            onDemoOpenOrder={setActiveBoardOrder}
-            className={boardIsCompact ? "!min-h-0 h-full overflow-hidden !px-3 !py-1.5" : "!min-h-0 h-full overflow-hidden !px-3 !py-3"}
-            onDemoEntered={handleBoardEntered}
-          />
-        </div>
+        {pickupConfirmationOpen ? (
+          <div className={[
+            "absolute inset-x-3 top-3 z-30 overflow-hidden rounded-[28px] bg-white/58 shadow-[0_16px_36px_rgba(14,116,144,0.12)] ring-1 ring-white/80 transition-all duration-300",
+            boardIsCompact ? "h-[92px]" : "h-[286px]",
+          ].join(" ")}
+          >
+            <SmartBarOrderBoardMock
+              demoOrders={boardOrders}
+              demoSocialPortrait
+              demoCompactBoard
+              demoFourTileBoard
+              demoFlatBoardTiles={boardIsCompact}
+              demoMaxVisibleOrders={4}
+              demoAnimateIncomingOrders
+              demoPlaygroundSheet
+              demoHeaderEyebrow="What the restaurant sees"
+              demoHeaderTitle="Orders arrive here"
+              demoHeaderDescription="Received on the restaurant’s tablet or phone."
+              onDemoOpenOrder={setActiveBoardOrder}
+              className={boardIsCompact ? "!min-h-0 h-full overflow-hidden !px-3 !py-1.5" : "!min-h-0 h-full overflow-hidden !px-3 !py-3"}
+              onDemoEntered={handleBoardEntered}
+            />
+          </div>
+        ) : null}
 
         <div className={[
           "absolute inset-x-0 bottom-0 z-40 overflow-visible [transform:translateZ(0)] transition-all duration-300",
-          boardIsCompact ? "top-[108px]" : "top-[306px]",
+          pickupConfirmationOpen
+            ? boardIsCompact ? "top-[108px]" : "top-[306px]"
+            : "top-0",
         ].join(" ")}
         >
           <SmartBarMobileShell
@@ -961,12 +971,13 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
             onRemoveLine={handleRemoveLine}
             onCartReady={handleCartReady}
             onCartOpenChange={handleCartOpenChange}
+            onPickupConfirmationOpenChange={handlePickupConfirmationOpenChange}
             onOrderSent={handleOrderSent}
             onResetCart={handleResetCart}
           />
         </div>
 
-        {activeBoardOrder ? (
+        {pickupConfirmationOpen && activeBoardOrder ? (
           <SmartBarOrderSheet
             order={activeBoardOrder}
             onClose={() => setActiveBoardOrder(null)}

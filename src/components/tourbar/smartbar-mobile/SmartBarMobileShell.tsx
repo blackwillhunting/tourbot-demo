@@ -2209,6 +2209,8 @@ type SmartBarMobileShellProps = {
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
   /** Notifies contained demos when the cart/review surface opens or closes. */
   onCartOpenChange?: (open: boolean) => void;
+  /** Notifies contained demos only while the sent-order pickup confirmation is visible. */
+  onPickupConfirmationOpenChange?: (open: boolean) => void;
   onOrderSent?: () => string | Promise<string | void> | void;
   onResetCart?: () => void;
 };
@@ -2279,6 +2281,7 @@ export default function SmartBarMobileShell({
   onGenericAction,
   onCartReady,
   onCartOpenChange,
+  onPickupConfirmationOpenChange,
   onOrderSent,
   onResetCart,
 }: SmartBarMobileShellProps) {
@@ -2330,6 +2333,15 @@ export default function SmartBarMobileShell({
   const [adaptiveRailOffset, setAdaptiveRailOffset] = useState(0);
   const [introTypedTitle, setIntroTypedTitle] = useState("");
   const [introCalloutDismissed, setIntroCalloutDismissed] = useState(false);
+  const pickupConfirmationOpen =
+    phase === "cart" &&
+    genericResult?.surfaceKind === "info" &&
+    genericResult.statusLabel === "Order sent";
+
+  useEffect(() => {
+    onPickupConfirmationOpenChange?.(pickupConfirmationOpen);
+  }, [onPickupConfirmationOpenChange, pickupConfirmationOpen]);
+
   const [stableViewportWidth] = useState(() => {
     if (typeof window === "undefined") return 390;
 
