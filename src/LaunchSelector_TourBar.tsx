@@ -2532,11 +2532,15 @@ function SmartBarRootLaunchMessage({
   step,
   isWaving,
   initialUseItLane = null,
+  onMainMenu,
+  onUseItLaneChange,
 }: {
   message: SmartBarRootDemoMessage;
   step: number;
   isWaving: boolean;
   initialUseItLane?: SmartBarUseItLane | null;
+  onMainMenu?: () => void;
+  onUseItLaneChange?: (lane: SmartBarUseItLane | null) => void;
 }) {
   const Icon = message.icon;
   const isStoryIcon = message.storyIcon === true;
@@ -2547,6 +2551,11 @@ function SmartBarRootLaunchMessage({
     setActiveVendorContext(nextVendorContext);
     saveStoredSmartBarVendorContext(nextVendorContext, nextVendorContext.demoPath);
   }, []);
+
+  const handleMainMenu = useCallback(() => {
+    setActiveUseItLane(null);
+    onMainMenu?.();
+  }, [onMainMenu]);
 
   const refreshActiveVendorContext = useCallback(async () => {
     try {
@@ -2563,6 +2572,10 @@ function SmartBarRootLaunchMessage({
       handleVendorContextUpdate(sessionResult.vendorContext);
     }
   }, [handleVendorContextUpdate]);
+
+  useEffect(() => {
+    onUseItLaneChange?.(activeUseItLane);
+  }, [activeUseItLane, onUseItLaneChange]);
 
   useEffect(() => {
     if (activeUseItLane !== "website" && activeUseItLane !== "board" && activeUseItLane !== "playground") return;
@@ -2620,7 +2633,11 @@ function SmartBarRootLaunchMessage({
 
     return (
       <div className={`w-full ${step % 2 === 0 ? "bg-white/80 text-slate-950" : "bg-sky-50/85 text-slate-950"} px-3 py-4 sm:px-5 sm:py-5`}>
-        <SmartBarPlayground onBack={() => setActiveUseItLane("sandbox")} vendorContext={activeVendorContext} />
+        <SmartBarPlayground
+          onBack={() => setActiveUseItLane("sandbox")}
+          onMainMenu={handleMainMenu}
+          vendorContext={activeVendorContext}
+        />
       </div>
     );
   }
@@ -3015,6 +3032,7 @@ function SmartBarRootDemoSelector() {
   );
   const [wavingIndex, setWavingIndex] = useState<number | null>(() => (hasInitialStoredAccess ? null : 0));
   const [isRestaurantPreviewSettled, setRestaurantPreviewSettled] = useState(false);
+  const [reportedUseItLane, setReportedUseItLane] = useState<SmartBarUseItLane | null>(null);
   const [ribbonY, setRibbonY] = useState(0);
   const [ribbonHeight, setRibbonHeight] = useState<number | null>(null);
   const segmentRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -3408,6 +3426,13 @@ function SmartBarRootDemoSelector() {
     setStep(homeStep >= 0 ? homeStep : 1);
   };
 
+  const returnToMainMenu = () => {
+    rootRunIdRef.current += 1;
+    setWavingIndex(null);
+    setReportedUseItLane(null);
+    setStep(homeStep >= 0 ? homeStep : 1);
+  };
+
   const goBackToDemos = async () => {
     if (isWaving || !hasAccess || demosTransitionStep < 0) return;
 
@@ -3623,6 +3648,8 @@ function SmartBarRootDemoSelector() {
                               : null
                           : null
                       }
+                      onMainMenu={item.sourceIndex === 1 ? returnToMainMenu : undefined}
+                      onUseItLaneChange={item.sourceIndex === 1 ? setReportedUseItLane : undefined}
                     />
                   )}
 
@@ -3647,7 +3674,7 @@ function SmartBarRootDemoSelector() {
           </div>
         </div>
 
-        {!isRestaurantPreview && (
+        {!isRestaurantPreview && reportedUseItLane !== "playground" && (
           <div className="mt-2 flex w-full max-w-[calc(100vw-1rem)] shrink-0 flex-row items-center justify-center gap-2 pb-3 sm:mt-5 sm:max-w-[52rem] sm:items-center sm:justify-between sm:gap-3 sm:pb-4">
           <button
             type="button"

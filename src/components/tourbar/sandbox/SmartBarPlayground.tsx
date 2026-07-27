@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LayoutGrid } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileApplyChoiceMeta,
@@ -328,6 +328,7 @@ async function updatePersistentSmartBarTicketScore(
 
 type SmartBarPlaygroundProps = {
   onBack: () => void;
+  onMainMenu: () => void;
   vendorContext?: SmartBarVendorContext | null;
 };
 
@@ -530,7 +531,7 @@ function createBoardOrderFromResult(
   };
 }
 
-export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPlaygroundProps) {
+export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }: SmartBarPlaygroundProps) {
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const estimatedTotalRef = useRef("-");
@@ -915,7 +916,7 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
 
   return (
     <div className="mx-auto mt-0 w-full max-w-[430px]">
-      <div className="mb-2 flex items-center px-1">
+      <div className="mb-2 flex items-center gap-2 px-1">
         <button
           type="button"
           onClick={onBack}
@@ -923,6 +924,14 @@ export default function SmartBarPlayground({ onBack, vendorContext }: SmartBarPl
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
           Back
+        </button>
+        <button
+          type="button"
+          onClick={onMainMenu}
+          className="inline-flex items-center rounded-full bg-white/68 px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:bg-white/88 hover:text-slate-950"
+        >
+          <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+          Main Menu
         </button>
       </div>
 
