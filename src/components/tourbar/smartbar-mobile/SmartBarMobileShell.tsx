@@ -5076,40 +5076,43 @@ export default function SmartBarMobileShell({
                       style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                     >
                       {visibleCartLines.map((line) => (
-                        <motion.div
+                        <div
                           key={smartBarMobileLineInstanceKey(line)}
-                          role="button"
-                          tabIndex={0}
-                          data-smartbar-mobile-cart-line="true"
-                          data-smartbar-mobile-line-title-key={smartBarMobileDemoKey(line.title)}
-                          data-smartbar-mobile-line-status={line.status}
-                          data-smartbar-mobile-line-target={line.targetId || line.sourceItemId || undefined}
-                          animate={
-                            handoffLocked || demoMontageStage?.shakeLineId
-                              ? { x: 0, y: 0, scale: 1, opacity: 1 }
-                              : smartBarMobileRowAnimate(line.status)
-                          }
-                          transition={
-                            handoffLocked
-                              ? { type: "spring", stiffness: 520, damping: 36 }
-                              : demoMontageStage?.shakeLineId
-                                ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
-                                : smartBarMobileRowTransition(line.status)
-                          }
-                          onClick={() => {
-                            if (!handoffLocked) selectLine(line);
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              if (!handoffLocked) selectLine(line);
-                            }
-                          }}
-                          className={`${lineButtonClass} relative overflow-hidden ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
-                            demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
-                          } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
-                          style={{ touchAction: "pan-y", transformOrigin: "center center" }}
+                          className="relative"
                         >
+                          <motion.div
+                            role="button"
+                            tabIndex={0}
+                            data-smartbar-mobile-cart-line="true"
+                            data-smartbar-mobile-line-title-key={smartBarMobileDemoKey(line.title)}
+                            data-smartbar-mobile-line-status={line.status}
+                            data-smartbar-mobile-line-target={line.targetId || line.sourceItemId || undefined}
+                            animate={
+                              handoffLocked || demoMontageStage?.shakeLineId
+                                ? { x: 0, y: 0, scale: 1, opacity: 1 }
+                                : smartBarMobileRowAnimate(line.status)
+                            }
+                            transition={
+                              handoffLocked
+                                ? { type: "spring", stiffness: 520, damping: 36 }
+                                : demoMontageStage?.shakeLineId
+                                  ? { duration: 0.22, ease: [0.22, 1, 0.36, 1] }
+                                  : smartBarMobileRowTransition(line.status)
+                            }
+                            onClick={() => {
+                              if (!handoffLocked) selectLine(line);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                if (!handoffLocked) selectLine(line);
+                              }
+                            }}
+                            className={`${lineButtonClass} relative overflow-hidden ${!handoffLocked && !line.demoHideMeta && !demoCompactCartRows ? "!pr-14" : ""} ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
+                              demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
+                            } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
+                            style={{ touchAction: "pan-y", transformOrigin: "center center" }}
+                          >
                           {demoMontageStage?.shakeLineId === line.id ? (
                             <>
                               <motion.div
@@ -5156,26 +5159,26 @@ export default function SmartBarMobileShell({
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
                               {!line.demoHideMeta ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
-                              {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && (
-                                <button
-                                  type="button"
-                                  data-smartbar-mobile-remove-line="true"
-                                  onPointerDown={(event) => {
-                                    event.stopPropagation();
-                                  }}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    removeLine(line);
-                                  }}
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300/50 bg-slate-900/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_5px_12px_rgba(2,6,23,0.30)] ring-1 ring-white/18 transition active:scale-95"
-                                  aria-label={`Remove ${line.title}`}
-                                >
-                                  <Trash2 className="h-4 w-4 stroke-[2.75]" />
-                                </button>
-                              )}
                             </div>
                           </div>
-                        </motion.div>
+                          </motion.div>
+
+                          {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && (
+                            <button
+                              type="button"
+                              data-smartbar-mobile-remove-line="true"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                removeLine(line);
+                              }}
+                              className="pointer-events-auto absolute bottom-4 right-4 z-[90] inline-flex h-8 w-8 touch-manipulation items-center justify-center rounded-full border border-slate-300/50 bg-slate-900/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_5px_12px_rgba(2,6,23,0.30)] ring-1 ring-white/18 transition active:scale-95"
+                              aria-label={`Remove ${line.title}`}
+                            >
+                              <Trash2 className="pointer-events-none h-4 w-4 stroke-[2.75]" />
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
 
