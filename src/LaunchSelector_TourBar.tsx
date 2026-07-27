@@ -1430,6 +1430,7 @@ function SmartBarRootDemoLaunchButton({
   onSelect,
   stepNumber,
   isComplete = false,
+  isInProgress = false,
   isDisabled = false,
   disabledLabel = "Locked",
   compactOnMobile = false,
@@ -1445,6 +1446,7 @@ function SmartBarRootDemoLaunchButton({
   onSelect?: () => void;
   stepNumber?: number;
   isComplete?: boolean;
+  isInProgress?: boolean;
   isDisabled?: boolean;
   disabledLabel?: string;
   compactOnMobile?: boolean;
@@ -1458,14 +1460,16 @@ function SmartBarRootDemoLaunchButton({
     ? "cursor-not-allowed bg-slate-50 text-slate-400 shadow-none ring-slate-200/80 hover:translate-y-0"
     : isComplete
       ? "bg-emerald-600 text-white ring-emerald-500/20 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_20px_46px_rgba(22,101,52,0.24)]"
+      : isInProgress
+        ? "bg-emerald-600 text-white ring-emerald-500/20 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_20px_46px_rgba(22,101,52,0.24)]"
       : "bg-[#012169] text-white ring-transparent hover:-translate-y-0.5 hover:bg-[#0b2f7f] hover:shadow-[0_20px_46px_rgba(1,33,105,0.26)]";
   const iconClassName = isDisabled
     ? "bg-white text-slate-400 ring-slate-200"
-    : isComplete
+    : isComplete || isInProgress
       ? "bg-white/18 text-white ring-white/18 group-hover:bg-white/24"
       : "bg-[#eaf3ff]/18 text-white ring-white/16 group-hover:bg-white/22";
-  const eyebrowClassName = isDisabled ? "text-slate-400" : isComplete ? "text-emerald-50/86" : "text-sky-100/82";
-  const descriptionClassName = isDisabled ? "text-slate-400" : isComplete ? "text-emerald-50/90" : "text-sky-100/86";
+  const eyebrowClassName = isDisabled ? "text-slate-400" : isComplete || isInProgress ? "text-emerald-50/86" : "text-sky-100/82";
+  const descriptionClassName = isDisabled ? "text-slate-400" : isComplete || isInProgress ? "text-emerald-50/90" : "text-sky-100/86";
   const launchClassName = `${launchBaseClassName} ${launchStateClassName}`;
   const content = (
     <>
@@ -1521,6 +1525,10 @@ function SmartBarRootDemoLaunchButton({
       {isComplete ? (
         <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
+        </span>
+      ) : isInProgress ? (
+        <span className="absolute right-4 top-4 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 shadow-sm ring-1 ring-emerald-100">
+          In progress
         </span>
       ) : isDisabled && disabledLabel ? (
         <span className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
@@ -2653,20 +2661,29 @@ function SmartBarRootLaunchMessage({
   const useItOnboardingStatus = String(useItVendorContext.onboardingStatus || "").trim().toLowerCase();
   const useItSandboxRequestStatus = String(useItVendorContext.sandboxRequestStatus || "").trim().toLowerCase();
   const useItSandboxStatus = String(useItVendorContext.sandboxStatus || "").trim().toLowerCase();
+  const useItWebsiteSetupRequestStatus = String(useItVendorContext.websiteSetupRequestStatus || "").trim().toLowerCase();
   const useItGhostTestStatus = String(useItVendorContext.ghostTestStatus || "").trim().toLowerCase();
   const useItWebsiteModeStatus = String(useItVendorContext.websiteModeStatus || "").trim().toLowerCase();
+  const useItQueryReadyOverride =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("sandboxReady") === "1";
   const useItVendorReady = useItVendorContext.isReadyForOrders === true || useItOnboardingStatus === "ready";
   const useItSandboxComplete =
+    useItQueryReadyOverride ||
     useItVendorReady ||
     Boolean(useItVendorContext.sandboxRequestedUtc) ||
     ["pending", "requested", "complete", "ready"].includes(useItSandboxRequestStatus) ||
     ["requested", "ready"].includes(useItSandboxStatus);
+  const useItWebsiteRequested =
+    Boolean(useItVendorContext.websiteSetupRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(useItWebsiteSetupRequestStatus) ||
+    ["requested", "installed_pending_verification", "ghost_test_ready_for_review", "ready", "live"].includes(useItWebsiteModeStatus);
   const useItLiveBoardReady = smartBarLiveOrderBoardIsEnabled(useItVendorContext);
   const useItWebsiteComplete =
     useItLiveBoardReady ||
     useItGhostTestStatus === "approved" ||
     useItWebsiteModeStatus === "live";
-  const useItWebsiteEnabled = useItSandboxComplete;
+  const useItWebsiteEnabled = useItSandboxComplete || useItWebsiteRequested;
   const useItBoardEnabled = useItWebsiteComplete;
 
   return (
@@ -2756,6 +2773,7 @@ function SmartBarRootLaunchMessage({
                 description="Prepare site."
                 stepNumber={2}
                 isComplete={useItWebsiteComplete}
+                isInProgress={useItWebsiteRequested && !useItWebsiteComplete}
                 isDisabled={!useItWebsiteEnabled}
                 disabledLabel=""
                 compactOnMobile
