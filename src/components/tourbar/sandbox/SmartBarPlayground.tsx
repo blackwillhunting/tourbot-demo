@@ -341,7 +341,7 @@ function smartBarPlaygroundRetryKey(value: string) {
 }
 
 function smartBarPlaygroundRetryLineInstanceKey(line: SmartBarMobileOrderLine) {
-  return smartBarPlaygroundRetryKey(String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || ""));
+  return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "").trim();
 }
 
 function smartBarPlaygroundRetryLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
@@ -364,12 +364,15 @@ function smartBarPlaygroundRetryFallbackLine(query: string, meta?: SmartBarMobil
   return {
     id: meta?.replaceLineId || `retry-unmatched-${key}`,
     cartLineKey: meta?.replaceLineId || `retry-unmatched-${key}`,
+    sourceLineItemId: meta?.replaceSourceLineItemId,
+    sourceLineIndex: meta?.replaceSourceLineIndex,
+    sourceBucket: meta?.replaceSourceBucket,
     title,
     status: "unknown",
-    helper: "Not on the BurgerRush menu",
+    helper: "Not on this menu",
     price: "-",
     details: [],
-    retryPrompt: "Try the item again with a BurgerRush menu name.",
+    retryPrompt: "Try again using an item name from this menu.",
   };
 }
 
