@@ -2598,6 +2598,11 @@ function SmartBarRootLaunchMessage({
     };
   }, [activeUseItLane, refreshActiveVendorContext]);
 
+  const handlePlaygroundSetupRequest = useCallback(async () => {
+    const nextVendorContext = await submitSmartBarVendorAction("website_setup_request", activeVendorContext);
+    handleVendorContextUpdate(nextVendorContext);
+  }, [activeVendorContext, handleVendorContextUpdate]);
+
   if (activeUseItLane === "playground") {
     const playgroundHasMenuProfile = Boolean(
       String(activeVendorContext?.clientId || "").trim() &&
@@ -2636,6 +2641,7 @@ function SmartBarRootLaunchMessage({
         <SmartBarPlayground
           onBack={() => setActiveUseItLane("sandbox")}
           onMainMenu={handleMainMenu}
+          onRequestSetup={handlePlaygroundSetupRequest}
           vendorContext={activeVendorContext}
         />
       </div>

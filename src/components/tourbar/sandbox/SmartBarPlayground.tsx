@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, LayoutGrid } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, LayoutGrid } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileApplyChoiceMeta,
@@ -330,6 +330,7 @@ async function updatePersistentSmartBarTicketScore(
 type SmartBarPlaygroundProps = {
   onBack: () => void;
   onMainMenu: () => void;
+  onRequestSetup: () => Promise<void>;
   vendorContext?: SmartBarVendorContext | null;
 };
 
@@ -535,7 +536,12 @@ function createBoardOrderFromResult(
   };
 }
 
-export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }: SmartBarPlaygroundProps) {
+export default function SmartBarPlayground({
+  onBack,
+  onMainMenu,
+  onRequestSetup,
+  vendorContext,
+}: SmartBarPlaygroundProps) {
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const estimatedTotalRef = useRef("-");
@@ -559,6 +565,38 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
   const [boardExpanded, setBoardExpanded] = useState(true);
   const [activeBoardOrder, setActiveBoardOrder] = useState<SmartBarOrderBoardItem | null>(null);
   const [pickupConfirmationOpen, setPickupConfirmationOpen] = useState(false);
+  const [nextStepConfirmOpen, setNextStepConfirmOpen] = useState(false);
+  const [nextStepSubmitting, setNextStepSubmitting] = useState(false);
+  const [nextStepRequested, setNextStepRequested] = useState(false);
+  const [nextStepError, setNextStepError] = useState("");
+
+  const websiteSetupRequestStatus = String(activeVendorContext.websiteSetupRequestStatus || "").trim().toLowerCase();
+  const websiteModeStatus = String(activeVendorContext.websiteModeStatus || "").trim().toLowerCase();
+  const nextStepAlreadyRequested =
+    nextStepRequested ||
+    Boolean(activeVendorContext.websiteSetupRequestedUtc) ||
+    ["pending", "requested", "complete", "ready"].includes(websiteSetupRequestStatus) ||
+    ["requested", "installed_pending_verification", "ghost_test_ready_for_review", "ready", "live"].includes(websiteModeStatus);
+
+  const restaurantName = String(activeVendorContext.displayName || "").trim() || "your restaurant";
+
+  const handleRequestSetup = useCallback(async () => {
+    if (nextStepSubmitting || nextStepAlreadyRequested) return;
+
+    setNextStepSubmitting(true);
+    setNextStepError("");
+
+    try {
+      await onRequestSetup();
+      setNextStepRequested(true);
+      setNextStepConfirmOpen(false);
+    } catch (error) {
+      const reason = error instanceof Error && error.message ? error.message : "unknown_error";
+      setNextStepError(`Request could not be sent: ${reason}`);
+    } finally {
+      setNextStepSubmitting(false);
+    }
+  }, [nextStepAlreadyRequested, nextStepSubmitting, onRequestSetup]);
 
   const handleCartOpenChange = useCallback((open: boolean) => {
     setCartOpen(open);
@@ -954,25 +992,101 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
   const boardIsCompact = !boardExpanded || forceProductionCart;
 
   return (
-    <div className="mx-auto mt-0 w-full max-w-[430px]">
-      <div className="mb-2 flex items-center gap-2 px-1">
+    <div className="relative mx-auto mt-0 w-full max-w-[430px]">
+      <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center rounded-full bg-white/82 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+          >
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onMainMenu}
+            className="inline-flex items-center rounded-full bg-white/68 px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:bg-white/88 hover:text-slate-950"
+          >
+            <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
+            Main Menu
+          </button>
+        </div>
+
         <button
           type="button"
-          onClick={onBack}
-          className="inline-flex items-center rounded-full bg-white/82 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:text-slate-950"
+          aria-expanded={nextStepConfirmOpen}
+          aria-controls="smartbar-next-step-panel"
+          disabled={nextStepAlreadyRequested}
+          onClick={() => {
+            setNextStepError("");
+            setNextStepConfirmOpen((open) => !open);
+          }}
+          className={[
+            "inline-flex shrink-0 items-center justify-center rounded-full px-3 py-2 text-xs font-bold shadow-[0_8px_20px_rgba(5,150,105,0.24)] ring-1 transition",
+            nextStepAlreadyRequested
+              ? "cursor-default bg-emerald-100 text-emerald-700 ring-emerald-200"
+              : "bg-emerald-600 text-white ring-emerald-500 hover:-translate-y-0.5 hover:bg-emerald-700",
+          ].join(" ")}
         >
-          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={onMainMenu}
-          className="inline-flex items-center rounded-full bg-white/68 px-3 py-2 text-xs font-semibold text-slate-500 shadow-sm ring-1 ring-slate-200/80 transition hover:-translate-y-0.5 hover:bg-white/88 hover:text-slate-950"
-        >
-          <LayoutGrid className="mr-1.5 h-3.5 w-3.5" />
-          Main Menu
+          {nextStepAlreadyRequested ? (
+            <>
+              <Check className="mr-1.5 h-3.5 w-3.5" />
+              Request sent
+            </>
+          ) : (
+            <>
+              Get SmartBar
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </>
+          )}
         </button>
       </div>
+
+      {nextStepConfirmOpen && !nextStepAlreadyRequested ? (
+        <div
+          id="smartbar-next-step-panel"
+          role="dialog"
+          aria-label="Request SmartBar setup"
+          className="absolute right-1 top-11 z-[120] w-[320px] max-w-[calc(100%_-_8px)] rounded-[22px] bg-white/95 p-4 shadow-[0_20px_55px_rgba(15,23,42,0.22)] ring-1 ring-slate-200 backdrop-blur-xl"
+        >
+          <div className="text-base font-black tracking-tight text-slate-950">
+            Ready for the next step?
+          </div>
+          <div className="mt-1.5 text-sm font-medium leading-5 text-slate-600">
+            Ask us to contact you about launching SmartBar for{" "}
+            <span className="font-bold text-slate-800">{restaurantName}</span>.
+          </div>
+
+          {nextStepError ? (
+            <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 ring-1 ring-rose-200">
+              {nextStepError}
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={nextStepSubmitting}
+              onClick={() => void handleRequestSetup()}
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(5,150,105,0.24)] transition hover:-translate-y-0.5 hover:bg-emerald-700 disabled:cursor-wait disabled:opacity-70"
+            >
+              {nextStepSubmitting ? "Sending..." : "Yes, contact me"}
+            </button>
+            <button
+              type="button"
+              disabled={nextStepSubmitting}
+              onClick={() => {
+                setNextStepError("");
+                setNextStepConfirmOpen(false);
+              }}
+              className="inline-flex items-center justify-center rounded-full bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-200 hover:text-slate-900 disabled:opacity-60"
+            >
+              Not yet
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
