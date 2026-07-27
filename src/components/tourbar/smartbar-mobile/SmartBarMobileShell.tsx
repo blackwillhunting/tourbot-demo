@@ -3863,7 +3863,8 @@ export default function SmartBarMobileShell({
       if (demoRestCompanion?.blank) return "";
       return demoRestCompanion?.label || "SmartBar";
     }
-    if (closeArmed) return "Tap again...";
+    if (pickupConfirmationOpen) return "Tap X to close";
+    if (closeArmed) return "Tap X again";
     if (handoffState === "handing_off") return "Sending...";
     if (handoffState === "complete") return "Sent";
     if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
@@ -3990,6 +3991,11 @@ export default function SmartBarMobileShell({
 
   const handleClosePillClick = () => {
     if (phase === "rest" || handoffLocked) return;
+
+    if (pickupConfirmationOpen) {
+      resetToRest();
+      return;
+    }
 
     if (closeArmed) {
       resetToRest();
@@ -5317,7 +5323,7 @@ export default function SmartBarMobileShell({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                aria-label={closeArmed ? "Tap again to close SmartBar" : "Close SmartBar"}
+                aria-label={closeArmed ? "Tap X again to close SmartBar" : "Close SmartBar"}
               >
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
                   <X className="h-5 w-5" />
