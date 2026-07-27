@@ -259,7 +259,7 @@ export async function smartBarMobileRepriceCartFromGuideAi(
   vendorContext?: SmartBarVendorContext | null,
 ): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
   const query = [
-    "Reprice the current BurgerRush carryout cart.",
+    "Reprice the current carryout cart for the active restaurant menu profile.",
     "Do not add, remove, rename, or reinterpret items.",
     "Use the provided carryoutOrder as the cart source of truth.",
     "Return the same cart with authoritative item prices, subtotal, estimated tax, and estimated total.",

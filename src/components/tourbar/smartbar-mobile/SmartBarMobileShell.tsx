@@ -50,6 +50,8 @@ export type SmartBarMobileOrderLine = {
   sourceItemId?: string;
   /** Index of the backend source line before visual sorting/grouping. */
   sourceLineIndex?: number;
+  /** Backend collection that owns this occurrence. */
+  sourceBucket?: "items" | "cannot_match";
   title: string;
   /** Quantity supplied by the authoritative AI cart. */
   quantity?: number;
@@ -125,6 +127,10 @@ export type SmartBarMobileSubmitMeta = {
   intent?: "replace_unknown";
   replaceLineId?: string;
   replaceLineTitle?: string;
+  replaceCartLineKey?: string;
+  replaceSourceLineItemId?: string;
+  replaceSourceLineIndex?: number;
+  replaceSourceBucket?: "items" | "cannot_match";
 };
 
 export type SmartBarMobileDemoTypingStep =
@@ -2041,15 +2047,8 @@ function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
 }
 
 function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
-  return [
-    line.cartLineKey,
-    line.id,
-    line.sourceLineItemId,
-    line.sourceItemId,
-    smartBarMobileDemoKey(line.title),
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
+  const instanceKey = smartBarMobileLineInstanceKey(line).trim();
+  return instanceKey ? [instanceKey] : [];
 }
 
 function smartBarMobileReviewedOptionLineKeyPatch(line: SmartBarMobileOrderLine): Record<string, true> {
@@ -2066,57 +2065,22 @@ function smartBarMobileHasReviewedOptionLineKey(
   return smartBarMobileReviewedOptionLineKeys(line).some((key) => reviewedKeys[key]);
 }
 
-function smartBarMobileLineComparableTitle(line: SmartBarMobileOrderLine) {
-  return smartBarMobileDemoKey(String(line.title || "").replace(/^\s*\d+\s*[x]\s*/i, ""));
-}
-
-function smartBarMobileLineSourceItemKey(line: SmartBarMobileOrderLine) {
-  return smartBarMobileDemoKey(String(line.sourceItemId || line.targetId || ""));
-}
-
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
-  const leftExactKeys = [left.cartLineKey, left.id]
-    .map((value) => smartBarMobileDemoKey(String(value || "")))
-    .filter(Boolean);
-  const rightExactKeys = [right.cartLineKey, right.id]
-    .map((value) => smartBarMobileDemoKey(String(value || "")))
-    .filter(Boolean);
-
-  if (leftExactKeys.some((leftKey) => rightExactKeys.includes(leftKey))) return true;
-
-  const leftLineItemKey = smartBarMobileDemoKey(String(left.sourceLineItemId || ""));
-  const rightLineItemKey = smartBarMobileDemoKey(String(right.sourceLineItemId || ""));
-  const lineItemMatches = Boolean(leftLineItemKey && rightLineItemKey && leftLineItemKey === rightLineItemKey);
-  const leftItemKey = smartBarMobileLineSourceItemKey(left);
-  const rightItemKey = smartBarMobileLineSourceItemKey(right);
-  const leftTitleKey = smartBarMobileLineComparableTitle(left);
-  const rightTitleKey = smartBarMobileLineComparableTitle(right);
-  const sourceIndexMatches = left.sourceLineIndex !== undefined &&
-    right.sourceLineIndex !== undefined &&
-    left.sourceLineIndex === right.sourceLineIndex;
-
-  // Backend repricing can move a line from pending -> complete, which changes
-  // sourceBucket/lineItemId. Treat the item identity + visible title as the
-  // durable match so the freshly selected green line is not overwritten by the
-  // older red/pending shell instance on the first add-on edit.
-  if (lineItemMatches && (leftItemKey === rightItemKey || leftTitleKey === rightTitleKey || sourceIndexMatches)) {
-    return true;
+  const leftCartLineKey = String(left.cartLineKey || "").trim();
+  const rightCartLineKey = String(right.cartLineKey || "").trim();
+  if (leftCartLineKey || rightCartLineKey) {
+    return Boolean(leftCartLineKey && rightCartLineKey && leftCartLineKey === rightCartLineKey);
   }
 
-  if (leftItemKey && rightItemKey && leftItemKey === rightItemKey) {
-    if (!leftTitleKey || !rightTitleKey || leftTitleKey === rightTitleKey) return true;
-    if (sourceIndexMatches) return true;
+  const leftLineItemId = String(left.sourceLineItemId || "").trim();
+  const rightLineItemId = String(right.sourceLineItemId || "").trim();
+  if (leftLineItemId || rightLineItemId) {
+    return Boolean(leftLineItemId && rightLineItemId && leftLineItemId === rightLineItemId);
   }
 
-  if (leftTitleKey && rightTitleKey && leftTitleKey === rightTitleKey) {
-    if (sourceIndexMatches) return true;
-
-    const leftPrice = smartBarMobileDemoKey(String(left.price || ""));
-    const rightPrice = smartBarMobileDemoKey(String(right.price || ""));
-    return Boolean(!leftPrice || !rightPrice || leftPrice === rightPrice);
-  }
-
-  return false;
+  const leftId = String(left.id || "").trim();
+  const rightId = String(right.id || "").trim();
+  return Boolean(leftId && rightId && leftId === rightId);
 }
 
 function smartBarMobileRemoveOneLineInstance(
@@ -2562,9 +2526,10 @@ export default function SmartBarMobileShell({
 
   const lines = useMemo(() => {
     return orderLines.map((line) => {
+      const lineInstanceKey = smartBarMobileLineInstanceKey(line);
       const mergedLine: SmartBarMobileOrderLine = {
         ...line,
-        ...(lineOverrides[line.id] || {}),
+        ...(lineOverrides[lineInstanceKey] || {}),
       };
       if (smartBarMobileHasReviewedOptionLineKey(mergedLine, reviewedOptionLineKeys) && mergedLine.status === "options") {
         return {
@@ -2581,8 +2546,9 @@ export default function SmartBarMobileShell({
   }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
 
   const selectedLine = selectedLineId
-    ? lines.find((line) => line.id === selectedLineId) || null
+    ? lines.find((line) => smartBarMobileLineInstanceKey(line) === selectedLineId) || null
     : null;
+  const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
   const selectedLineFullTitle = smartBarMobileLineFullTitle(selectedLine);
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
   const selectedLineMissingDetails = smartBarMobileLineMissingDetails(selectedLine);
@@ -3432,7 +3398,7 @@ export default function SmartBarMobileShell({
         smartBarMobileLineMissingDetails(line).length === 0,
     );
 
-    setSelectedLineId(line.id);
+    setSelectedLineId(smartBarMobileLineInstanceKey(line));
     setSelectedDetailMode(lineHasNoChoicesNeeded ? "summary" : "choices");
     setCartExpanded(true);
 
@@ -3448,14 +3414,15 @@ export default function SmartBarMobileShell({
 
   const applyLineChoice = (line: SmartBarMobileOrderLine, value: string) => {
     const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
-    if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === line.id)) return;
+    const lineInstanceKey = smartBarMobileLineInstanceKey(line);
+    if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === lineInstanceKey)) return;
 
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
     const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
 
-    if (!multiSelect) choiceLockedLineIdRef.current = line.id;
-    setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: line.id, value });
+    if (!multiSelect) choiceLockedLineIdRef.current = lineInstanceKey;
+    setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: lineInstanceKey, value });
     disarmClose();
 
     const cleanedDetails = (line.details || []).filter((detail) => {
@@ -3515,8 +3482,8 @@ export default function SmartBarMobileShell({
 
     setLineOverrides((current) => ({
       ...current,
-      [line.id]: {
-        ...(current[line.id] || {}),
+      [lineInstanceKey]: {
+        ...(current[lineInstanceKey] || {}),
         status: resolvedLine.status,
         helper: resolvedLine.helper,
         details: resolvedLine.details,
@@ -3535,7 +3502,7 @@ export default function SmartBarMobileShell({
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
-      setSelectedLineId((current) => (multiSelect && current === line.id ? line.id : null));
+      setSelectedLineId((current) => (multiSelect && current === lineInstanceKey ? lineInstanceKey : null));
       setCartExpanded(true);
 
       parentResultPromise
@@ -3553,10 +3520,10 @@ export default function SmartBarMobileShell({
               smartBarMobileLinesAreSameInstance(candidate, resolvedLine)
             ));
             if (replacementLine?.status === "pending" && (replacementLine.options || []).length) {
-              setSelectedLineId(replacementLine.id);
+              setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
               setCartExpanded(true);
             } else if (multiSelect && replacementLine) {
-              setSelectedLineId(replacementLine.id);
+              setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
               setCartExpanded(true);
             } else {
               setSelectedLineId(null);
@@ -3572,7 +3539,7 @@ export default function SmartBarMobileShell({
 
               const stillNeedsRequiredChoice = candidate.status === "pending";
               if (stillNeedsRequiredChoice && (candidate.options || []).length) {
-                nextRequiredLineId = candidate.id;
+                nextRequiredLineId = smartBarMobileLineInstanceKey(candidate);
               }
 
               if (stillNeedsRequiredChoice || !multiSelect) {
@@ -3596,7 +3563,7 @@ export default function SmartBarMobileShell({
             setSelectedLineId(nextRequiredLineId);
             setCartExpanded(true);
           } else if (multiSelect) {
-            setSelectedLineId((current) => (current === line.id ? line.id : current));
+            setSelectedLineId((current) => (current === lineInstanceKey ? lineInstanceKey : current));
           }
         })
         .catch(() => {
@@ -3664,21 +3631,25 @@ export default function SmartBarMobileShell({
 
     retryTextareaRef.current?.blur();
     disarmClose();
-    setRetryCheckingLineId(selectedLine.id);
+    setRetryCheckingLineId(selectedLineInstanceKey);
 
     const replacementPromise = onSubmitPrompt
       ? Promise.resolve(
           onSubmitPrompt(submittedRetry, {
             intent: "replace_unknown",
-            replaceLineId: selectedLine.id,
+            replaceLineId: selectedLineInstanceKey,
             replaceLineTitle: selectedLine.title,
+            replaceCartLineKey: selectedLine.cartLineKey,
+            replaceSourceLineItemId: selectedLine.sourceLineItemId,
+            replaceSourceLineIndex: selectedLine.sourceLineIndex,
+            replaceSourceBucket: selectedLine.sourceBucket,
           }),
         )
       : Promise.resolve<SmartBarMobileOrderResult>({
           lines: [
             {
               ...selectedLine,
-              id: `${selectedLine.id}-retry`,
+              id: `${selectedLineInstanceKey}-retry`,
               title: submittedRetry,
               status: "ready",
               helper: "Re-entered and matched",
@@ -3736,14 +3707,15 @@ export default function SmartBarMobileShell({
         setCartExpanded(true);
       })
       .catch(() => {
+        const lineInstanceKey = smartBarMobileLineInstanceKey(selectedLine);
         setLineOverrides((current) => ({
           ...current,
-          [selectedLine.id]: {
-            ...(current[selectedLine.id] || {}),
+          [lineInstanceKey]: {
+            ...(current[lineInstanceKey] || {}),
             status: "unknown",
             helper: "Still could not match item",
             details: [submittedRetry],
-            retryPrompt: "Try the item again with a BurgerRush menu name.",
+            retryPrompt: "Try again using an item name from this menu.",
           } as DemoLineOverride,
         }));
       })
@@ -3890,14 +3862,14 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
     if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      return retryCheckingLineId === selectedLine.id
+      return retryCheckingLineId === selectedLineInstanceKey
         ? "Checking..."
-        : retryDraft.trim() ? "Tap to retry" : "Retry gray entry";
+        : retryDraft.trim() ? "Tap to retry" : "Clarify this item";
     }
     if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
     if (phase === "cart" && selectedLine) return "Back to cart";
     if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Retry gray entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Review unmatched items";
     if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Review yellow entries";
     if (phase === "cart") return "Send order";
     if (checkoutReady) return `Ready to send - ${cartTotals.totalLabel}`;
@@ -4833,12 +4805,12 @@ export default function SmartBarMobileShell({
                               if (demoInteractionLocked) return;
                               setRetryDraft(event.target.value);
                             }}
-                            disabled={demoInteractionLocked || retryCheckingLineId === selectedLine.id}
+                            disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
                             readOnly={demoInteractionLocked}
                             tabIndex={demoInteractionLocked ? -1 : undefined}
                             className={`${retryInputClass} !min-h-[72px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-3.5 !pl-11 !pr-4 !text-[15px] !font-bold !leading-5 !text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 disabled:!opacity-70`}
                             placeholder={selectedLineGrayPlaceholder}
-                            aria-label="Clarify gray item"
+                            aria-label="Clarify unmatched item"
                             rows={2}
                           />
                         </div>
@@ -4865,9 +4837,9 @@ export default function SmartBarMobileShell({
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = smartBarMobileLineHasOptionDetail(selectedLine, option);
                                 const isSelected = persistedSelected ||
-                                  (selectedChoice?.lineId === selectedLine.id && selectedChoice.value === option);
+                                  (selectedChoice?.lineId === selectedLineInstanceKey && selectedChoice.value === option);
                                 const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
-                                const isLocked = !isMultiSelect && selectedChoice?.lineId === selectedLine.id && !isSelected;
+                                const isLocked = !isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey && !isSelected;
 
                                 return (
                                   <button
@@ -4878,7 +4850,7 @@ export default function SmartBarMobileShell({
                                     data-smartbar-mobile-option-selected={isSelected ? "true" : undefined}
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
-                                    disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLine.id)}
+                                    disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey)}
                                     className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected
                                         ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
