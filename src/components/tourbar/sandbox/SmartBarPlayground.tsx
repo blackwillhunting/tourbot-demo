@@ -30,6 +30,7 @@ import SmartBarOrderBoardMock, { SmartBarOrderSheet, type SmartBarOrderBoardItem
 const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const SMARTBAR_TICKET_SCORE_URL = "/api/smartbar-tickets/score";
+const SMARTBAR_PLAYGROUND_BOARD_REFRESH_DELAY_MS = 650;
 
 type SmartBarTicketCreateResponse = {
   ok?: boolean;
@@ -545,6 +546,12 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
   const pendingTicketIdRef = useRef(formatPlaygroundTicketId(184));
   const boardOrderIdsRef = useRef(new Set<string>());
   const loadBoardTicketsRequestRef = useRef(0);
+  const pendingBoardOrderRef = useRef<{
+    order: SmartBarOrderBoardItem;
+    ticketId: string;
+    fallbackTicketId: string;
+  } | null>(null);
+  const boardRefreshTimerRef = useRef<number | null>(null);
 
   const [boardOrders, setBoardOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
@@ -558,9 +565,47 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
     setBoardExpanded(!open);
   }, []);
 
+  const commitPendingBoardOrder = useCallback(() => {
+    const pendingBoardOrder = pendingBoardOrderRef.current;
+    if (!pendingBoardOrder) return;
+
+    pendingBoardOrderRef.current = null;
+    setBoardOrders((current) => [
+      pendingBoardOrder.order,
+      ...current.filter((order) => (
+        order.id !== pendingBoardOrder.ticketId &&
+        order.id !== pendingBoardOrder.fallbackTicketId
+      )),
+    ]);
+  }, []);
+
   const handlePickupConfirmationOpenChange = useCallback((open: boolean) => {
+    if (boardRefreshTimerRef.current !== null) {
+      window.clearTimeout(boardRefreshTimerRef.current);
+      boardRefreshTimerRef.current = null;
+    }
+
     setPickupConfirmationOpen(open);
-    if (!open) setActiveBoardOrder(null);
+
+    if (!open) {
+      setActiveBoardOrder(null);
+      commitPendingBoardOrder();
+      return;
+    }
+
+    if (pendingBoardOrderRef.current) {
+      boardRefreshTimerRef.current = window.setTimeout(() => {
+        boardRefreshTimerRef.current = null;
+        commitPendingBoardOrder();
+      }, SMARTBAR_PLAYGROUND_BOARD_REFRESH_DELAY_MS);
+    }
+  }, [commitPendingBoardOrder]);
+
+  useEffect(() => () => {
+    if (boardRefreshTimerRef.current !== null) {
+      window.clearTimeout(boardRefreshTimerRef.current);
+      boardRefreshTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
@@ -837,7 +882,11 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
     };
 
     setSendOrderNumber(ticketId);
-    setBoardOrders((current) => [boardOrder, ...current.filter((order) => order.id !== ticketId && order.id !== fallbackTicketId)]);
+    pendingBoardOrderRef.current = {
+      order: boardOrder,
+      ticketId,
+      fallbackTicketId,
+    };
     setBoardExpanded(true);
 
     return ticketId;
