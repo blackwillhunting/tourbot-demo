@@ -3869,8 +3869,8 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
     if (phase === "cart" && selectedLine) return "Back to cart";
     if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Review unmatched items";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Review yellow entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Tap gray entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Tap yellow entries";
     if (phase === "cart") return "Send order";
     if (checkoutReady) return `Ready to send - ${cartTotals.totalLabel}`;
     return `${unresolvedReviewCount} need attention - ${cartTotals.totalLabel}`;
