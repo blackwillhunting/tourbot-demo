@@ -952,6 +952,9 @@ export default function SmartBarPlayground({ onBack, onMainMenu, vendorContext }
             demoMaxVisibleOrders={4}
             demoAnimateIncomingOrders
             demoPlaygroundSheet
+            demoHeaderEyebrow="What the restaurant sees"
+            demoHeaderTitle="Orders arrive here"
+            demoHeaderDescription="Received on the restaurant’s tablet or phone."
             onDemoOpenOrder={setActiveBoardOrder}
             className={boardIsCompact ? "!min-h-0 h-full overflow-hidden !px-3 !py-1.5" : "!min-h-0 h-full overflow-hidden !px-3 !py-3"}
             onDemoEntered={handleBoardEntered}
