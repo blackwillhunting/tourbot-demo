@@ -1526,10 +1526,6 @@ function SmartBarRootDemoLaunchButton({
         <span className="absolute right-4 top-4 grid h-6 w-6 place-items-center rounded-full bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-100">
           <Check className="h-3.5 w-3.5" strokeWidth={3} />
         </span>
-      ) : isInProgress ? (
-        <span className="absolute right-4 top-4 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 shadow-sm ring-1 ring-emerald-100">
-          In progress
-        </span>
       ) : isDisabled && disabledLabel ? (
         <span className="absolute right-4 top-4 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 ring-1 ring-slate-200">
           {disabledLabel}
