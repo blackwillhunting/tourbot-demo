@@ -135,12 +135,42 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
   const nested = smartBarVendorRecord(source.vendorContext);
   const merged = { ...source, ...nested };
 
-  const clientId = smartBarVendorPickString(merged, ["clientId", "client_id", "ClientId", "ClientID"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.clientId;
-  const vendorId = smartBarVendorPickString(merged, ["vendorId", "vendor_id", "VendorId", "VendorID"]) || `${clientId}-main`;
-  const displayName = smartBarVendorPickString(merged, ["displayName", "display_name", "clientName", "client_name", "name", "label", "DisplayName", "ClientName"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.displayName;
-  const demoPath = smartBarVendorNormalizePath(smartBarVendorPickString(merged, ["demoPath", "demo_path", "DemoPath", "route", "path"])) || smartBarVendorNormalizePath(demoPathFallback) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.demoPath;
-  const menuProfileId = smartBarVendorPickString(merged, ["menuProfileId", "menu_profile_id", "MenuProfileId"]) || `${clientId}-menu-v1`;
-  const behaviorProfileId = smartBarVendorPickString(merged, ["behaviorProfileId", "behavior_profile_id", "BehaviorProfileId"]) || `${clientId}-smartbar-v1`;
+  const sourceKeySet = new Set(Object.keys(source).map((key) => key.toLowerCase()));
+  const hasExplicitAssignmentPayload = [
+    "vendorcontext",
+    "clientid",
+    "client_id",
+    "vendorid",
+    "vendor_id",
+    "menuprofileid",
+    "menu_profile_id",
+    "behaviorprofileid",
+    "behavior_profile_id",
+  ].some((key) => sourceKeySet.has(key));
+  const useStandalonePrototypeDefaults = !hasExplicitAssignmentPayload;
+
+  // BurgerRush remains available as the standalone prototype context. Once an
+  // authenticated payload supplies vendor/profile fields, however, preserve
+  // missing assignments as empty so an unconfigured passcode stays blocked.
+  const clientId =
+    smartBarVendorPickString(merged, ["clientId", "client_id", "ClientId", "ClientID"]) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.clientId : "");
+  const vendorId =
+    smartBarVendorPickString(merged, ["vendorId", "vendor_id", "VendorId", "VendorID"]) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.vendorId : "");
+  const displayName =
+    smartBarVendorPickString(merged, ["displayName", "display_name", "clientName", "client_name", "name", "label", "DisplayName", "ClientName"]) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.displayName : "");
+  const demoPath =
+    smartBarVendorNormalizePath(smartBarVendorPickString(merged, ["demoPath", "demo_path", "DemoPath", "route", "path"])) ||
+    smartBarVendorNormalizePath(demoPathFallback) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.demoPath : "/");
+  const menuProfileId =
+    smartBarVendorPickString(merged, ["menuProfileId", "menu_profile_id", "MenuProfileId"]) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.menuProfileId : "");
+  const behaviorProfileId =
+    smartBarVendorPickString(merged, ["behaviorProfileId", "behavior_profile_id", "BehaviorProfileId"]) ||
+    (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.behaviorProfileId : "");
   const boardProfileId = smartBarVendorPickString(merged, ["boardProfileId", "board_profile_id", "BoardProfileId"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.boardProfileId;
   const timezone = smartBarVendorPickString(merged, ["timezone", "timeZone", "time_zone", "Timezone", "TimeZone"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.timezone;
   const onboardingStatus = smartBarVendorPickString(merged, ["onboardingStatus", "onboarding_status", "OnboardingStatus"]);
