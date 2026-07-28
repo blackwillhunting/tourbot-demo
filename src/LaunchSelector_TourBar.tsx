@@ -99,12 +99,9 @@ type SmartBarUseItLane = "sandbox" | "website" | "board" | "playground";
 function smartBarVendorContextHasPlaygroundProfile(
   vendorContext?: Partial<SmartBarVendorContext> | null,
 ) {
-  return Boolean(
-    String(vendorContext?.clientId || "").trim() &&
-    String(vendorContext?.vendorId || "").trim() &&
-    String(vendorContext?.menuProfileId || "").trim() &&
-    String(vendorContext?.behaviorProfileId || "").trim(),
-  );
+  // The assigned menu profile is the Playground access boundary. Supporting
+  // metadata may be absent on older valid restaurant passcodes.
+  return Boolean(String(vendorContext?.menuProfileId || "").trim());
 }
 
 function isLocalDemoAuthBypassEnabled() {
