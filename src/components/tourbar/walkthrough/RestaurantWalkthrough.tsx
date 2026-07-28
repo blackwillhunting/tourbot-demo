@@ -2137,7 +2137,9 @@ if (
   };
 
   const finishWalkthrough = () => {
-    if (!isEmbeddedContent) {
+    const finishOpensPlayground = /\bplayground\b/i.test(finishLabel);
+
+    if (finishOpensPlayground || !isEmbeddedContent) {
       window.location.assign(SMARTBAR_PLAYGROUND_DEEP_LINK);
       return;
     }
