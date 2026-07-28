@@ -1744,7 +1744,7 @@ function SmartBarRootWebsiteModeReadiness({
       ? "bg-amber-200 text-[#012169]"
       : status === "Finished" || status === "Ready" || status === "Ready for review" || status === "Approved" || status === "Live"
         ? "bg-emerald-100 text-emerald-700"
-        : status === "I'm finished"
+        : status === "Done"
           ? "bg-[#012169] text-white"
           : "bg-slate-100 text-slate-500";
 
@@ -1810,7 +1810,7 @@ function SmartBarRootWebsiteModeReadiness({
       number: 2,
       title: "Install code",
       detail: "Add one script tag.",
-      status: installWasFinished ? "Finished" : websiteWasRequested ? "I'm finished" : "Waiting",
+      status: installWasFinished ? "Finished" : websiteWasRequested ? "Done" : "Waiting",
       active: websiteWasRequested,
       action: websiteWasRequested && !installWasFinished,
       actionType: "finished",
@@ -1878,7 +1878,7 @@ function SmartBarRootWebsiteModeReadiness({
                 disabled={websiteActionSubmitting !== null}
                 className="inline-flex items-center justify-center rounded-full bg-[#012169] px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(1,33,105,0.18)] transition hover:-translate-y-0.5 hover:bg-[#0b2f7f] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {websiteActionSubmitting === "website_install_finished" ? "Sending..." : "I'm finished"}
+                {websiteActionSubmitting === "website_install_finished" ? "Sending..." : "Done"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             ) : step.action && step.actionType === "ghostReady" ? (
