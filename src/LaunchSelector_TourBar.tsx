@@ -96,6 +96,17 @@ type TourBotAuthResult = {
 type SmartBarVendorAction = "sandbox_request" | "website_setup_request" | "website_install_finished" | "ghost_test_ready";
 type SmartBarUseItLane = "sandbox" | "website" | "board" | "playground";
 
+function smartBarVendorContextHasPlaygroundProfile(
+  vendorContext?: Partial<SmartBarVendorContext> | null,
+) {
+  return Boolean(
+    String(vendorContext?.clientId || "").trim() &&
+    String(vendorContext?.vendorId || "").trim() &&
+    String(vendorContext?.menuProfileId || "").trim() &&
+    String(vendorContext?.behaviorProfileId || "").trim(),
+  );
+}
+
 function isLocalDemoAuthBypassEnabled() {
   if (typeof window === "undefined") return false;
 
@@ -1581,11 +1592,12 @@ function SmartBarRootSandboxReadiness({
   const vendorIsReadyForOrders = vendorContext?.isReadyForOrders === true || vendorOnboardingStatus === "ready";
   const vendorSandboxRequestStatus = String(vendorContext?.sandboxRequestStatus || "").trim().toLowerCase();
   const vendorSandboxStatus = String(vendorContext?.sandboxStatus || "").trim().toLowerCase();
+  const vendorHasPlaygroundProfile = smartBarVendorContextHasPlaygroundProfile(vendorContext);
   const vendorSandboxRequested =
     Boolean(vendorContext?.sandboxRequestedUtc) ||
     ["pending", "requested", "complete", "ready"].includes(vendorSandboxRequestStatus) ||
     ["requested", "ready"].includes(vendorSandboxStatus);
-  const sandboxReadyOverride = queryReadyOverride || vendorIsReadyForOrders;
+  const sandboxReadyOverride = queryReadyOverride || vendorIsReadyForOrders || vendorHasPlaygroundProfile;
   const sandboxIsRequested = sandboxReadyOverride || vendorSandboxRequested || sandboxRequested;
 
   const submitSandboxRequest = async () => {
@@ -2542,12 +2554,7 @@ function SmartBarRootLaunchMessage({
   }, [activeVendorContext, handleVendorContextUpdate]);
 
   if (activeUseItLane === "playground") {
-    const playgroundHasMenuProfile = Boolean(
-      String(activeVendorContext?.clientId || "").trim() &&
-      String(activeVendorContext?.vendorId || "").trim() &&
-      String(activeVendorContext?.menuProfileId || "").trim() &&
-      String(activeVendorContext?.behaviorProfileId || "").trim(),
-    );
+    const playgroundHasMenuProfile = smartBarVendorContextHasPlaygroundProfile(activeVendorContext);
 
     if (!playgroundHasMenuProfile) {
       return (
@@ -2598,9 +2605,11 @@ function SmartBarRootLaunchMessage({
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("sandboxReady") === "1";
   const useItVendorReady = useItVendorContext.isReadyForOrders === true || useItOnboardingStatus === "ready";
+  const useItHasPlaygroundProfile = smartBarVendorContextHasPlaygroundProfile(useItVendorContext);
   const useItSandboxComplete =
     useItQueryReadyOverride ||
     useItVendorReady ||
+    useItHasPlaygroundProfile ||
     Boolean(useItVendorContext.sandboxRequestedUtc) ||
     ["pending", "requested", "complete", "ready"].includes(useItSandboxRequestStatus) ||
     ["requested", "ready"].includes(useItSandboxStatus);
