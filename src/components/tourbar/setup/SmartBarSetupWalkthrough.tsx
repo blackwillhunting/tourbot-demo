@@ -28,9 +28,9 @@ export const SMARTBAR_SETUP_WALKTHROUGH_STEPS: SmartBarSetupWalkthroughStep[] = 
     message: "SmartBar reads your public menu, choices, modifiers, hours, and ordering rules.",
   },
   {
-    title: "Sandbox Testing",
+    title: "Playground Testing",
     eyebrow: "Step 2 of 5",
-    message: "Test private orders in a sandbox before anything appears on your live site.",
+    message: "Test private orders in the Playground before anything appears on your live site.",
   },
   {
     title: "Ghost Mode Setup",
@@ -127,7 +127,7 @@ function MenuScanIcon({ isActive }: { isActive: boolean }) {
   );
 }
 
-function SandboxIcon({ isActive }: { isActive: boolean }) {
+function PlaygroundIcon({ isActive }: { isActive: boolean }) {
   return (
     <AnimatedTile isActive={isActive}>
       <SoftPulse isActive={isActive} className="left-8 top-7 h-16 w-16" />
@@ -251,7 +251,7 @@ function SetupIcon({ index, isActive }: { index: number; isActive: boolean }) {
     case 0:
       return <MenuScanIcon isActive={isActive} />;
     case 1:
-      return <SandboxIcon isActive={isActive} />;
+      return <PlaygroundIcon isActive={isActive} />;
     case 2:
       return <GhostModeIcon isActive={isActive} />;
     case 3:
