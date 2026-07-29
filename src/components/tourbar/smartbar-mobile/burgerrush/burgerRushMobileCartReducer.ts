@@ -176,6 +176,31 @@ function smartBarMobileGroupOptionIds(group: NonNullable<NonNullable<CarryoutOrd
   return ids;
 }
 
+function smartBarMobileGroupOptionQuantities(
+  group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number],
+) {
+  return (group.options || []).map((option) => {
+    if (!(option.selected || option.state === "selected")) return 0;
+    const parsed = Number(option.quantity);
+    return Number.isFinite(parsed) ? Math.max(1, Math.min(2, Math.floor(parsed))) : 1;
+  });
+}
+
+function smartBarMobileGroupOptionMaximums(
+  group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number],
+) {
+  const groupMaximum = Number(group.maxQuantityPerOption);
+  const fallback = group.allowRepeatedOptions && Number.isFinite(groupMaximum)
+    ? Math.max(1, Math.min(2, Math.floor(groupMaximum)))
+    : 1;
+  return (group.options || []).map((option) => {
+    const parsed = Number(option.maxQuantity);
+    return Number.isFinite(parsed)
+      ? Math.max(1, Math.min(2, Math.floor(parsed)))
+      : fallback;
+  });
+}
+
 
 function smartBarMobileSelectedOptionLabelsFromLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
   const labels: string[] = [];
@@ -316,7 +341,11 @@ function smartBarMobileGroupSelectedCount(
       ? 1
       : 0;
   }
-  return (group.options || []).filter((option) => option.selected || option.state === "selected").length;
+  return (group.options || []).reduce((count, option) => {
+    if (!(option.selected || option.state === "selected")) return count;
+    const parsed = Number(option.quantity);
+    return count + (Number.isFinite(parsed) ? Math.max(1, Math.floor(parsed)) : 1);
+  }, 0);
 }
 
 function smartBarMobileGroupNeedsReview(
@@ -326,13 +355,6 @@ function smartBarMobileGroupNeedsReview(
   const minimum = smartBarMobileGroupMinimumSelections(group);
   const maximum = smartBarMobileGroupMaximumSelections(group);
   return selectedCount < minimum || (maximum !== undefined && selectedCount > maximum);
-}
-
-function smartBarMobileGroupAtLimit(
-  group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number],
-) {
-  const maximum = smartBarMobileGroupMaximumSelections(group);
-  return maximum !== undefined && smartBarMobileGroupSelectedCount(group) >= maximum;
 }
 
 function smartBarMobileOptionLabelMatchesValue(option: unknown, value: string) {
@@ -500,6 +522,12 @@ function smartBarMobileLineFromCarryoutLine(
   const optionSelectionMode = smartBarMobileOptionSelectionModeFromLine(line, status);
   const optionLimits = smartBarMobileOptionLimitsFromLine(line, status);
   const activeGroup = smartBarMobileActiveOptionGroupFromLine(line, status);
+  const optionQuantities = activeGroup
+    ? smartBarMobileGroupOptionQuantities(activeGroup)
+    : [];
+  const optionMaxQuantities = activeGroup
+    ? smartBarMobileGroupOptionMaximums(activeGroup)
+    : [];
   const selectedOptions = activeGroup
     ? smartBarMobileSelectedOptionLabelsFromGroup(activeGroup)
     : smartBarMobileSelectedOptionLabelsFromLine(line);
@@ -535,7 +563,7 @@ function smartBarMobileLineFromCarryoutLine(
     helper: smartBarMobileHelperForLine(line, status),
     price: priceSuppressed ? "" : smartBarMobilePriceFromLine(line),
     details: details.length ? details : status === "pending" ? ["Choice needed"] : ["Ready"],
-    ...(options.length ? { options, optionIds } : {}),
+    ...(options.length ? { options, optionIds, optionQuantities, optionMaxQuantities } : {}),
     selectedOptions,
     selectedOptionIds,
     ...(optionSelectionMode ? { optionSelectionMode } : {}),
@@ -788,6 +816,8 @@ function smartBarMobileHydrateLineFromPrevious(
     selectionRules: line.selectionRules?.length ? line.selectionRules : previous.selectionRules,
     options: line.options?.length ? line.options : previous.options,
     optionIds: line.optionIds?.length ? line.optionIds : previous.optionIds,
+    optionQuantities: line.optionQuantities?.length ? line.optionQuantities : previous.optionQuantities,
+    optionMaxQuantities: line.optionMaxQuantities?.length ? line.optionMaxQuantities : previous.optionMaxQuantities,
     selectedOptions: line.selectedOptions !== undefined ? line.selectedOptions : previous.selectedOptions,
     selectedOptionIds: line.selectedOptionIds !== undefined ? line.selectedOptionIds : previous.selectedOptionIds,
     price: line.price && line.price !== "—" ? line.price : previous.price,
@@ -1214,6 +1244,7 @@ export function smartBarMobileApplyChoiceToVisibleLines(
   value: string,
   selected = true,
   carryoutOrder?: CarryoutOrder | null,
+  optionQuantity?: number,
 ) {
   const nextLines = [...lines];
   const existingIndex = nextLines.findIndex((line) => smartBarMobileLinesMatch(line, selectedLine));
@@ -1264,26 +1295,43 @@ export function smartBarMobileApplyChoiceToVisibleLines(
   const selectionMode = selectedLine.optionSelectionMode || (selectedLine.status === "options" ? "multi" : "single");
   const minimum = smartBarMobileSelectionBound(selectedLine.optionMinSelections) ?? (selectedLine.status === "pending" ? 1 : 0);
   const maximum = smartBarMobileSelectionBound(selectedLine.optionMaxSelections);
-  const selectedCountBefore = (selectedLine.selectedOptions || []).length;
-  const alreadySelected = (selectedLine.selectedOptions || []).some((option) => smartBarMobileOptionLabelMatchesValue({ label: option }, value));
-  if (selectionMode === "multi" && selected && !alreadySelected && maximum !== undefined && selectedCountBefore >= maximum) {
-    return nextLines;
-  }
   const optionIndex = (selectedLine.options || []).findIndex((option) => smartBarMobileOptionLabelMatchesValue({ label: option }, value));
   const optionId = optionIndex >= 0 ? String(selectedLine.optionIds?.[optionIndex] || "") : "";
+  const currentQuantities = (selectedLine.options || []).map((_, index) => {
+    const parsed = Number(selectedLine.optionQuantities?.[index]);
+    const optionSelected = (selectedLine.selectedOptionIds || []).includes(String(selectedLine.optionIds?.[index] || "")) ||
+      (selectedLine.selectedOptions || []).some((option) => smartBarMobileOptionLabelMatchesValue({ label: option }, selectedLine.options?.[index] || ""));
+    return optionSelected
+      ? Number.isFinite(parsed) ? Math.max(1, Math.min(2, Math.floor(parsed))) : 1
+      : 0;
+  });
+  const maximumForOption = optionIndex >= 0
+    ? Math.max(1, Math.min(2, Number(selectedLine.optionMaxQuantities?.[optionIndex]) || 1))
+    : 1;
+  const currentQuantity = optionIndex >= 0 ? currentQuantities[optionIndex] || 0 : 0;
+  const desiredQuantity = selected
+    ? Math.max(1, Math.min(maximumForOption, Math.floor(optionQuantity || currentQuantity || 1)))
+    : 0;
+  const selectedCountBefore = currentQuantities.reduce((sum, quantity) => sum + quantity, 0);
+  const selectedCountAfter = selectedCountBefore - currentQuantity + desiredQuantity;
+  if (selectionMode === "multi" && maximum !== undefined && selectedCountAfter > maximum) {
+    return nextLines;
+  }
+  const nextOptionQuantities = currentQuantities.map((quantity, index) => (
+    index === optionIndex ? desiredQuantity : quantity
+  ));
   const selectedOptionIds = optionId
     ? selectionMode === "multi"
-      ? selected
+      ? desiredQuantity > 0
         ? Array.from(new Set([...(selectedLine.selectedOptionIds || []), optionId]))
         : (selectedLine.selectedOptionIds || []).filter((selectedId) => String(selectedId) !== optionId)
       : [optionId]
     : selectedLine.selectedOptionIds;
   const nextSelectedOptions = selectionMode === "multi"
-    ? selected
+    ? desiredQuantity > 0
       ? Array.from(new Set([...(selectedLine.selectedOptions || []), value]))
       : (selectedLine.selectedOptions || []).filter((option) => !smartBarMobileOptionLabelMatchesValue({ label: option }, value))
     : [value];
-  const selectedCountAfter = nextSelectedOptions.length;
   const stillPending = selectedCountAfter < minimum || (maximum !== undefined && selectedCountAfter > maximum);
   const resolvedLine: SmartBarMobileOrderLine = {
     ...selectedLine,
@@ -1295,6 +1343,8 @@ export function smartBarMobileApplyChoiceToVisibleLines(
     details: smartBarMobileChoiceDetails(selectedLine.details, value, selectedLine.options || [], selectionMode, selected),
     options: selectedLine.options || [],
     optionIds: selectedLine.optionIds || [],
+    optionQuantities: nextOptionQuantities,
+    optionMaxQuantities: selectedLine.optionMaxQuantities || [],
     selectedOptions: nextSelectedOptions,
     ...(selectedOptionIds ? { selectedOptionIds } : {}),
     optionSelectionMode: selectionMode,
@@ -1430,6 +1480,7 @@ function smartBarMobileApplyChoiceToCarryoutLine(
   value: string,
   carryoutIndex: number,
   selectedChoice = true,
+  optionQuantity?: number,
 ) {
   if (!smartBarMobileCarryoutLineMatchesVisibleLine(carryoutLine, selectedLine, carryoutIndex)) return carryoutLine;
 
@@ -1443,11 +1494,30 @@ function smartBarMobileApplyChoiceToCarryoutLine(
 
   if (activeGroupIndex < 0) return carryoutLine;
   const activeGroupBefore = groups[activeGroupIndex];
-  const activeOptionWasSelected = (activeGroupBefore.options || []).some((option) => (
-    smartBarMobileOptionLabelMatchesValue(option, value) &&
-      Boolean(option.selected || option.state === "selected")
+  const activeOptionBefore = (activeGroupBefore.options || []).find((option) => (
+    smartBarMobileOptionLabelMatchesValue(option, value)
   ));
-  if (selectedChoice && !activeOptionWasSelected && smartBarMobileGroupAtLimit(activeGroupBefore)) {
+  const activeOptionWasSelected = Boolean(
+    activeOptionBefore?.selected || activeOptionBefore?.state === "selected"
+  );
+  const activeQuantityBefore = activeOptionWasSelected
+    ? Math.max(1, Math.min(2, Number(activeOptionBefore?.quantity) || 1))
+    : 0;
+  const activeMaximum = Math.max(
+    1,
+    Math.min(
+      2,
+      Number(activeOptionBefore?.maxQuantity || activeGroupBefore.maxQuantityPerOption) || 1,
+    ),
+  );
+  const desiredQuantity = selectedChoice
+    ? Math.max(1, Math.min(activeMaximum, Math.floor(optionQuantity || activeQuantityBefore || 1)))
+    : 0;
+  const groupMaximum = smartBarMobileGroupMaximumSelections(activeGroupBefore);
+  const projectedCount = smartBarMobileGroupSelectedCount(activeGroupBefore) -
+    activeQuantityBefore +
+    desiredQuantity;
+  if (groupMaximum !== undefined && projectedCount > groupMaximum) {
     return carryoutLine;
   }
 
@@ -1469,7 +1539,7 @@ function smartBarMobileApplyChoiceToCarryoutLine(
         const selectedNow = smartBarMobileOptionLabelMatchesValue(optionRecord, value);
         const selected = groupSelectionMode === "multi"
           ? selectedNow
-            ? selectedChoice
+            ? desiredQuantity > 0
             : Boolean(optionRecord.selected || optionRecord.state === "selected")
           : selectedNow;
 
@@ -1479,6 +1549,11 @@ function smartBarMobileApplyChoiceToCarryoutLine(
           ...optionRecord,
           selected,
           state: selected ? "selected" : "available",
+          quantity: selected
+            ? selectedNow
+              ? desiredQuantity
+              : Math.max(1, Math.min(2, Number(optionRecord.quantity) || 1))
+            : 0,
         };
       }),
     };
@@ -1490,6 +1565,18 @@ function smartBarMobileApplyChoiceToCarryoutLine(
     return {
       ...nextGroup,
       selectedCount,
+      selectedOptionQuantities: Object.fromEntries(
+        (nextGroup.options || [])
+          .filter((option) => option.selected || option.state === "selected")
+          .map((option) => {
+            const optionRecord = option as Record<string, unknown>;
+            return [
+              String(optionRecord.value || optionRecord.id || optionRecord.label || ""),
+              Math.max(1, Math.min(2, Number(optionRecord.quantity) || 1)),
+            ];
+          })
+          .filter(([optionId]) => Boolean(optionId)),
+      ),
       missingCount,
       overLimitCount,
       missing: missingCount > 0 || overLimitCount > 0,
@@ -1627,6 +1714,7 @@ function smartBarMobileApplyChoiceToBundleParent(
   value: string,
   parentIndex: number,
   selectedChoice: boolean,
+  optionQuantity?: number,
 ): CarryoutLine {
   if (
     String(parent.lineItemId || parent.id || "").trim() !==
@@ -1647,6 +1735,7 @@ function smartBarMobileApplyChoiceToBundleParent(
       value,
       parentIndex,
       selectedChoice,
+      optionQuantity,
     ) as CarryoutBundleComponent;
   });
   const bundleStatus = smartBarMobileBundleStatus(bundleComponents);
@@ -1691,6 +1780,7 @@ export function smartBarMobileApplyChoiceToCarryoutOrder(
   selectedLine: SmartBarMobileOrderLine,
   value: string,
   selected = true,
+  optionQuantity?: number,
 ): CarryoutOrder | null {
   if (!order) return order;
 
@@ -1699,8 +1789,8 @@ export function smartBarMobileApplyChoiceToCarryoutOrder(
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
   const items = sourceItems.map((line, index) => (
     selectedLine.bundleParentSourceLineItemId
-      ? smartBarMobileApplyChoiceToBundleParent(line, selectedLine, value, index, selected)
-      : smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index, selected)
+      ? smartBarMobileApplyChoiceToBundleParent(line, selectedLine, value, index, selected, optionQuantity)
+      : smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index, selected, optionQuantity)
   ));
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));

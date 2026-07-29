@@ -78,6 +78,10 @@ export type SmartBarMobileOrderLine = {
   selectedOptions?: string[];
   /** Exact backend-selected option IDs. These are authoritative for control state. */
   selectedOptionIds?: string[];
+  /** Selected portion count aligned by index with options. Zero means unselected. */
+  optionQuantities?: number[];
+  /** Per-option repeat cap aligned by index with options. */
+  optionMaxQuantities?: number[];
   /** Machine-readable gray reason for non-orderable lines. */
   grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | "selection_limit_exceeded" | string;
   /** Short user-facing reason shown on gray lines. */
@@ -183,7 +187,7 @@ export type SmartBarMobileDemoSubmission = {
   manualSubmit?: boolean;
 };
 
-type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionSelectionMode" | "retryPrompt">>;
+type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionQuantities" | "optionMaxQuantities" | "optionSelectionMode" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
   {
@@ -2018,6 +2022,20 @@ function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option
   return (line.details || []).some((detail) => smartBarMobileOptionLabelsEqual(option, detail));
 }
 
+function smartBarMobileLineOptionQuantity(line: SmartBarMobileOrderLine, option: string) {
+  const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
+  if (optionIndex < 0 || !smartBarMobileLineHasOptionDetail(line, option)) return 0;
+  const parsed = Number(line.optionQuantities?.[optionIndex]);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(2, Math.floor(parsed))) : 1;
+}
+
+function smartBarMobileLineOptionMaximum(line: SmartBarMobileOrderLine, option: string) {
+  const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
+  if (optionIndex < 0) return 1;
+  const parsed = Number(line.optionMaxQuantities?.[optionIndex]);
+  return Number.isFinite(parsed) ? Math.max(1, Math.min(2, Math.floor(parsed))) : 1;
+}
+
 function smartBarMobileSelectionBound(value: unknown) {
   if (value === null || value === undefined || value === "") return undefined;
   const parsed = Number(value);
@@ -2028,7 +2046,10 @@ function smartBarMobileLineSelectionCount(line: SmartBarMobileOrderLine) {
   if (line.optionSelectionMode !== "multi" && line.status !== "options") {
     return (line.selectedOptions || []).length || (line.options || []).some((option) => smartBarMobileLineHasOptionDetail(line, option)) ? 1 : 0;
   }
-  return (line.options || []).filter((option) => smartBarMobileLineHasOptionDetail(line, option)).length;
+  return (line.options || []).reduce(
+    (count, option) => count + smartBarMobileLineOptionQuantity(line, option),
+    0,
+  );
 }
 
 function smartBarMobileLineMinimumSelections(line: SmartBarMobileOrderLine) {
@@ -2317,6 +2338,8 @@ export type SmartBarMobileApplyChoiceMeta = {
   selected: boolean;
   multiSelect: boolean;
   valueAlreadySelected: boolean;
+  /** Final requested portion count for this option. */
+  quantity?: number;
 };
 
 type SmartBarMobileShellProps = {
@@ -3669,7 +3692,11 @@ export default function SmartBarMobileShell({
     }
   };
 
-  const applyLineChoice = (line: SmartBarMobileOrderLine, value: string) => {
+  const applyLineChoice = (
+    line: SmartBarMobileOrderLine,
+    value: string,
+    requestedQuantity?: number,
+  ) => {
     const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
     const lineInstanceKey = smartBarMobileLineInstanceKey(line);
     if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === lineInstanceKey)) return;
@@ -3677,10 +3704,18 @@ export default function SmartBarMobileShell({
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
     const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
-    if (multiSelect && !valueAlreadySelected && smartBarMobileLineAtSelectionLimit(line)) return;
+    const currentQuantity = smartBarMobileLineOptionQuantity(line, value);
+    const maximumForOption = smartBarMobileLineOptionMaximum(line, value);
+    const nextQuantity = requestedQuantity === undefined
+      ? valueAlreadySelected ? 0 : 1
+      : Math.max(1, Math.min(maximumForOption, Math.floor(requestedQuantity)));
+    const nextSelectedCount = smartBarMobileLineSelectionCount(line) - currentQuantity + nextQuantity;
+    const maximum = smartBarMobileLineMaximumSelections(line);
+    if (multiSelect && maximum !== undefined && nextSelectedCount > maximum) return;
+    if (multiSelect && nextQuantity > 0 && !valueAlreadySelected && smartBarMobileLineAtSelectionLimit(line)) return;
 
     if (!multiSelect) choiceLockedLineIdRef.current = lineInstanceKey;
-    setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: lineInstanceKey, value });
+    setSelectedChoice(multiSelect && nextQuantity === 0 ? null : { lineId: lineInstanceKey, value });
     disarmClose();
 
     const cleanedDetails = (line.details || []).filter((detail) => {
@@ -3694,24 +3729,26 @@ export default function SmartBarMobileShell({
       if (!multiSelect && detailMatchesAnyOption && !detailMatchesSelectedValue) return false;
       return true;
     });
-    const nextDetails = multiSelect && valueAlreadySelected
+    const nextDetails = multiSelect && nextQuantity === 0
       ? cleanedDetails.filter((detail) => !smartBarMobileOptionLabelsEqual(value, detail))
       : Array.from(new Set([...cleanedDetails, value]));
     const nextSelectedOptions = multiSelect
-      ? valueAlreadySelected
+      ? nextQuantity === 0
         ? (line.selectedOptions || []).filter((selected) => !smartBarMobileOptionLabelsEqual(value, selected))
         : Array.from(new Set([...(line.selectedOptions || []), value]))
       : [value];
     const nextSelectedOptionIds = optionId
       ? multiSelect
-        ? valueAlreadySelected
+        ? nextQuantity === 0
           ? (line.selectedOptionIds || []).filter((selectedId) => String(selectedId) !== optionId)
           : Array.from(new Set([...(line.selectedOptionIds || []), optionId]))
         : [optionId]
       : line.selectedOptionIds;
-    const nextSelectedCount = nextSelectedOptions.length;
+    const nextOptionQuantities = (line.options || []).map((option, index) => {
+      if (index === optionIndex) return nextQuantity;
+      return smartBarMobileLineOptionQuantity(line, option);
+    });
     const minimum = smartBarMobileLineMinimumSelections(line);
-    const maximum = smartBarMobileLineMaximumSelections(line);
     const stillPending = nextSelectedCount < minimum ||
       (maximum !== undefined && nextSelectedCount > maximum);
     const resolvedLine: SmartBarMobileOrderLine = {
@@ -3725,15 +3762,18 @@ export default function SmartBarMobileShell({
       details: nextDetails,
       options: multiSelect ? line.options || [] : undefined,
       optionIds: multiSelect ? line.optionIds || [] : undefined,
+      optionQuantities: multiSelect ? nextOptionQuantities : undefined,
+      optionMaxQuantities: multiSelect ? line.optionMaxQuantities || [] : undefined,
       selectedOptions: nextSelectedOptions,
       ...(nextSelectedOptionIds ? { selectedOptionIds: nextSelectedOptionIds } : {}),
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
     const parentResultPromise = onApplyLineChoice
       ? Promise.resolve(onApplyLineChoice(resolvedLine, value, {
-          selected: !(multiSelect && valueAlreadySelected),
+          selected: nextQuantity > 0,
           multiSelect,
           valueAlreadySelected,
+          quantity: nextQuantity > 0 ? nextQuantity : undefined,
         }))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
@@ -3755,6 +3795,8 @@ export default function SmartBarMobileShell({
         helper: resolvedLine.helper,
         details: resolvedLine.details,
         options: line.options || [],
+        optionQuantities: resolvedLine.optionQuantities,
+        optionMaxQuantities: resolvedLine.optionMaxQuantities,
         optionSelectionMode: resolvedLine.optionSelectionMode,
       },
     }));
@@ -3820,6 +3862,8 @@ export default function SmartBarMobileShell({
                 helper: resolvedLine.helper,
                 details: resolvedLine.details,
                 options: candidate.options || resolvedLine.options || line.options || [],
+                optionQuantities: candidate.optionQuantities || resolvedLine.optionQuantities,
+                optionMaxQuantities: candidate.optionMaxQuantities || resolvedLine.optionMaxQuantities,
                 optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
               };
             }),
@@ -5163,10 +5207,21 @@ export default function SmartBarMobileShell({
                                 const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
                                 const selectionLimitReached = isMultiSelect && !isSelected && smartBarMobileLineAtSelectionLimit(selectedLine);
                                 const isLocked = selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey && !isSelected);
+                                const optionQuantity = smartBarMobileLineOptionQuantity(selectedLine, option);
+                                const optionMaximum = smartBarMobileLineOptionMaximum(selectedLine, option);
+                                const showDoubleControl = isMultiSelect && isSelected && optionMaximum === 2;
+                                const totalSelectionCount = smartBarMobileLineSelectionCount(selectedLine);
+                                const maximumSelections = smartBarMobileLineMaximumSelections(selectedLine);
+                                const doubleWouldExceedLimit = optionQuantity === 1 &&
+                                  maximumSelections !== undefined &&
+                                  totalSelectionCount >= maximumSelections;
 
                                 return (
-                                  <button
+                                  <div
                                     key={option}
+                                    className="inline-flex max-w-full items-stretch"
+                                  >
+                                  <button
                                     type="button"
                                     data-smartbar-mobile-option="true"
                                     data-smartbar-mobile-option-key={smartBarMobileDemoKey(option)}
@@ -5175,7 +5230,7 @@ export default function SmartBarMobileShell({
                                     onClick={() => applyLineChoice(selectedLine, option)}
                                     disabled={Boolean(selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey))}
                                     aria-disabled={isLocked}
-                                    className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
+                                    className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible ${showDoubleControl ? "rounded-l-full pl-4 pr-3" : "rounded-full px-4"} py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected
                                         ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS
                                           ? "bg-emerald-300/98 text-slate-950 ring-2 ring-emerald-50/54"
@@ -5206,6 +5261,34 @@ export default function SmartBarMobileShell({
                                       {isSelected && <Check className="h-4 w-4 shrink-0" />}
                                     </span>
                                   </button>
+                                  {showDoubleControl ? (
+                                    <button
+                                      type="button"
+                                      data-smartbar-mobile-option-quantity="true"
+                                      data-smartbar-mobile-option-quantity-value={optionQuantity}
+                                      onClick={() => applyLineChoice(
+                                        selectedLine,
+                                        option,
+                                        optionQuantity === 2 ? 1 : 2,
+                                      )}
+                                      disabled={doubleWouldExceedLimit}
+                                      aria-label={
+                                        optionQuantity === 2
+                                          ? `Change ${option} to single`
+                                          : `Double ${option}`
+                                      }
+                                      className={`min-h-[44px] shrink-0 rounded-r-full border-l border-emerald-950/18 px-3 py-2.5 text-[12px] font-black leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
+                                        optionQuantity === 2
+                                          ? "bg-emerald-200 text-emerald-950 ring-2 ring-emerald-50/54"
+                                          : doubleWouldExceedLimit
+                                            ? "bg-emerald-200/55 text-emerald-950/45"
+                                            : "bg-emerald-200 text-emerald-950 hover:bg-emerald-100"
+                                      }`}
+                                    >
+                                      {optionQuantity === 2 ? "2×" : "+ Double"}
+                                    </button>
+                                  ) : null}
+                                  </div>
                                 );
                               })}
                             </div>

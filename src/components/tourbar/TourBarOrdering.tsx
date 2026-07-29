@@ -29,6 +29,10 @@ export type CarryoutQualifierOption = {
   selected?: boolean;
   state?: string;
   priceDelta?: number | null;
+  /** Number of portions selected for this option; zero when unselected. */
+  quantity?: number;
+  /** Per-option cap supplied by the menu profile/runtime. */
+  maxQuantity?: number;
 };
 
 export type CarryoutSelectionRule = {
@@ -53,6 +57,10 @@ export type CarryoutQualifierGroup = {
   selectedCount?: number;
   missingCount?: number;
   overLimitCount?: number;
+  allowRepeatedOptions?: boolean;
+  maxQuantityPerOption?: number;
+  repeatPriceMode?: "same_as_option" | string;
+  selectedOptionQuantities?: Record<string, number>;
   /** Transport-only reservation for later conditional selection limits. */
   selectionRules?: CarryoutSelectionRule[];
   selectedValue?: string;

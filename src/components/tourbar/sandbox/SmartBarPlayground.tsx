@@ -837,6 +837,7 @@ export default function SmartBarPlayground({
       line,
       value,
       meta?.selected ?? true,
+      meta?.quantity,
     );
     const nextLines = smartBarMobileApplyChoiceToVisibleLines(
       orderLinesRef.current,
@@ -844,6 +845,7 @@ export default function SmartBarPlayground({
       value,
       meta?.selected ?? true,
       optimisticCarryoutOrder,
+      meta?.quantity,
     );
     const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "-"
       ? previousEstimatedTotal
@@ -863,7 +865,7 @@ export default function SmartBarPlayground({
     try {
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
-        `${meta?.selected === false ? "deselected" : "selected"} ${value} for ${line.title}`,
+        `${meta?.selected === false ? "deselected" : meta?.quantity === 2 ? "doubled" : "selected"} ${value} for ${line.title}`,
         activeVendorContext,
       );
 
