@@ -259,10 +259,10 @@ export async function smartBarMobileRepriceCartFromGuideAi(
   vendorContext?: SmartBarVendorContext | null,
 ): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
   const query = [
-    "Reprice the current carryout cart for the active restaurant menu profile.",
-    "Do not add, remove, rename, or reinterpret items.",
-    "Use the provided carryoutOrder as the cart source of truth.",
-    "Return the same cart with authoritative item prices, subtotal, estimated tax, and estimated total.",
+    // "Review cart" is an existing deterministic backend control intent. It
+    // reprices the carried cart without sending the chip edit back through the
+    // ordinary AI order interpreter, which can restore stale required state.
+    "Review the current cart.",
     reason ? `Cart change: ${reason}.` : "",
   ].filter(Boolean).join(" ");
 
