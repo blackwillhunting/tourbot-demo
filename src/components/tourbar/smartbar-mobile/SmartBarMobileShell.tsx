@@ -4075,6 +4075,15 @@ export default function SmartBarMobileShell({
   const handleCartToggleClick = () => {
     if (handoffLocked) return;
 
+    if (phase === "cart" && selectedLine) {
+      retryTextareaRef.current?.blur();
+      disarmClose();
+      setSelectedLineId(null);
+      setSelectedDetailMode("choices");
+      setCartExpanded(true);
+      return;
+    }
+
     if (phase === "cart") {
       returnToEntryFromCart();
       return;
@@ -5524,6 +5533,7 @@ export default function SmartBarMobileShell({
               <motion.button
                 type="button"
                 data-smartbar-mobile-cart-toggle="true"
+                data-smartbar-mobile-detail-close={phase === "cart" && selectedLine ? "true" : undefined}
                 data-domi-demo-down-target={phase === "cart" ? "true" : undefined}
                 disabled={demoInteractionLocked}
                 onClick={demoInteractionLocked ? undefined : handleCartToggleClick}
@@ -5534,7 +5544,9 @@ export default function SmartBarMobileShell({
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={
-                  cartToggleShowsAdd
+                  phase === "cart" && selectedLine
+                    ? "Back to cart"
+                    : cartToggleShowsAdd
                     ? "Add more items"
                     : phase === "cart" ? "Return to entry" : "Reopen cart"
                 }
