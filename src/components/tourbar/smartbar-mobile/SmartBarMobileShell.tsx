@@ -2098,8 +2098,20 @@ function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
 }
 
 function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
-  const instanceKey = smartBarMobileLineInstanceKey(line).trim();
-  return instanceKey ? [instanceKey] : [];
+  const keys = [
+    ["cart-line", line.cartLineKey],
+    ["source-line", line.sourceLineItemId],
+    ["ui-line", line.id],
+  ] as const;
+
+  return keys.reduce<string[]>((reviewKeys, [namespace, value]) => {
+    const normalizedValue = String(value || "").trim();
+    if (!normalizedValue) return reviewKeys;
+
+    const reviewKey = `${namespace}:${normalizedValue}`;
+    if (!reviewKeys.includes(reviewKey)) reviewKeys.push(reviewKey);
+    return reviewKeys;
+  }, []);
 }
 
 function smartBarMobileReviewedOptionLineKeyPatch(line: SmartBarMobileOrderLine): Record<string, true> {
@@ -2119,14 +2131,14 @@ function smartBarMobileHasReviewedOptionLineKey(
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
   const leftCartLineKey = String(left.cartLineKey || "").trim();
   const rightCartLineKey = String(right.cartLineKey || "").trim();
-  if (leftCartLineKey || rightCartLineKey) {
-    return Boolean(leftCartLineKey && rightCartLineKey && leftCartLineKey === rightCartLineKey);
+  if (leftCartLineKey && rightCartLineKey && leftCartLineKey === rightCartLineKey) {
+    return true;
   }
 
   const leftLineItemId = String(left.sourceLineItemId || "").trim();
   const rightLineItemId = String(right.sourceLineItemId || "").trim();
-  if (leftLineItemId || rightLineItemId) {
-    return Boolean(leftLineItemId && rightLineItemId && leftLineItemId === rightLineItemId);
+  if (leftLineItemId && rightLineItemId && leftLineItemId === rightLineItemId) {
+    return true;
   }
 
   const leftId = String(left.id || "").trim();
