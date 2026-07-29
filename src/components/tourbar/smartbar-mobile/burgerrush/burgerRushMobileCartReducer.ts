@@ -16,6 +16,7 @@ function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
   if (["not_recognized", "unknown", "unknown_item", "unrecognized", "gibberish"].includes(raw)) return "not_recognized";
   if (["not_sold_separately", "not_separate", "modifier_only", "dangling_modifier", "unsupported_variant", "extra_not_available"].includes(raw)) return "not_sold_separately";
   if (["ambiguous_item_match", "ambiguous", "multiple_matches", "multiple_match", "could_mean_more_than_one_item"].includes(raw)) return "ambiguous_item_match";
+  if (["selection_limit_exceeded", "selection_limit", "too_many_choices", "too_many_options", "maximum_exceeded"].includes(raw)) return "selection_limit_exceeded";
 
   // A shared UI cannot infer menu policy from food words. The active menu
   // profile must supply a reason when it knows why a line did not match.
@@ -27,6 +28,7 @@ function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
   if (code === "not_sold_separately") return "Not sold separately";
   if (code === "ambiguous_item_match") return "Could mean more than one item";
+  if (code === "selection_limit_exceeded") return "Too many choices";
   if (code === "not_on_menu") return "Not on this menu";
   return "Not recognized";
 }
@@ -35,6 +37,7 @@ function smartBarMobileGrayRetryPrompt(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
   if (code === "not_sold_separately") return "Add this as part of a menu item instead.";
   if (code === "ambiguous_item_match") return "Add the missing detail, like size, so SmartBar can choose the right item.";
+  if (code === "selection_limit_exceeded") return "Remove the extra choice or choose fewer options.";
   if (code === "not_on_menu") return "Try a different item from this menu.";
   return "Try describing this item another way.";
 }
@@ -541,6 +544,9 @@ export function smartBarMobileResultFromOrder(
       const grayReason = smartBarMobileGrayReasonCode(looseItem.grayReason || looseItem.reason, title);
       const displayReason = String(looseItem.displayReason || smartBarMobileGrayReasonLabel(grayReason, title));
       const suggestion = String(looseItem.suggestion || "").replace(/\s+/g, " ").trim();
+      const retryPrompt = String(
+        looseItem.retryPrompt || suggestion || smartBarMobileGrayRetryPrompt(grayReason, title),
+      ).replace(/\s+/g, " ").trim();
       const cartLineKey = `cannot-match::source-${index}`;
       return {
         id: cartLineKey,
@@ -555,7 +561,7 @@ export function smartBarMobileResultFromOrder(
         displayReason,
         price: "—",
         details: suggestion ? [suggestion] : [],
-        retryPrompt: smartBarMobileGrayRetryPrompt(grayReason, title),
+        retryPrompt,
       };
     });
   const allLines = [...matchedLines, ...cannotMatchLines];
