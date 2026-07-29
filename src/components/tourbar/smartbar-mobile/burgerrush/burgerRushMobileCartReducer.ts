@@ -12,6 +12,7 @@ function smartBarMobileCompactText(value?: string | null) {
 
 function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
   const raw = String(reason || "").replace(/[\s-]+/g, "_").toLowerCase();
+  if (["unavailable_now", "outside_availability_window", "outside_hours"].includes(raw)) return "unavailable_now";
   if (["not_on_menu", "unavailable_food", "unsupported_food"].includes(raw)) return "not_on_menu";
   if (["not_recognized", "unknown", "unknown_item", "unrecognized", "gibberish"].includes(raw)) return "not_recognized";
   if (["not_sold_separately", "not_separate", "modifier_only", "dangling_modifier", "unsupported_variant", "extra_not_available"].includes(raw)) return "not_sold_separately";
@@ -26,6 +27,7 @@ function smartBarMobileGrayReasonCode(reason: unknown, title?: string) {
 
 function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
+  if (code === "unavailable_now") return "Not available right now";
   if (code === "not_sold_separately") return "Not sold separately";
   if (code === "ambiguous_item_match") return "Could mean more than one item";
   if (code === "selection_limit_exceeded") return "Too many choices";
@@ -35,6 +37,7 @@ function smartBarMobileGrayReasonLabel(reason: unknown, title?: string) {
 
 function smartBarMobileGrayRetryPrompt(reason: unknown, title?: string) {
   const code = smartBarMobileGrayReasonCode(reason, title);
+  if (code === "unavailable_now") return "Choose another item or try again during its available hours.";
   if (code === "not_sold_separately") return "Add this as part of a menu item instead.";
   if (code === "ambiguous_item_match") return "Add the missing detail, like size, so SmartBar can choose the right item.";
   if (code === "selection_limit_exceeded") return "Remove the extra choice or choose fewer options.";
