@@ -5448,7 +5448,7 @@ export default function SmartBarMobileShell({
                             }}
                             className={`${lineButtonClass} relative overflow-hidden ${!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && line.bundleDisplayRole !== "component" ? "!pr-14" : ""} ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : line.bundleDisplayRole === "component" ? "!min-h-[4.25rem] !rounded-[18px] !px-3.5 !py-2.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
                               demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
-                            } ${line.bundleDisplayRole === "dimmed_parent" || line.bundleDisplayRole === "dimmed_other" ? "pointer-events-none opacity-30 saturate-50" : handoffLocked ? "cursor-default" : "cursor-pointer"} ${line.bundleDisplayRole === "component" ? "mx-[6%] w-auto" : ""}`}
+                            } ${line.bundleDisplayRole === "dimmed_parent" || line.bundleDisplayRole === "dimmed_other" ? "pointer-events-none opacity-30 saturate-50" : handoffLocked ? "cursor-default" : "cursor-pointer"} ${line.bundleDisplayRole === "component" ? "!mx-[6%] !w-[88%]" : ""}`}
                             style={{ touchAction: "pan-y", transformOrigin: "center center" }}
                           >
                           {demoMontageStage?.shakeLineId === line.id ? (
