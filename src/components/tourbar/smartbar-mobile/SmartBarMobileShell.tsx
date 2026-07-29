@@ -39,6 +39,13 @@ type SmartBarMobileHandoffState = "idle" | "handing_off" | "complete";
 export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unknown";
 type SmartBarMobileCartStatusFilter = SmartBarMobileOrderStatus | null;
 
+export type SmartBarMobileSelectionRule = {
+  /** Reserved for a later conditional-limit phase; not evaluated in this shell. */
+  when?: Record<string, unknown>;
+  minSelections?: number;
+  maxSelections?: number | null;
+};
+
 export type SmartBarMobileOrderLine = {
   id: string;
   /** Page target to scroll/focus when this known cart row is selected. */
@@ -76,6 +83,11 @@ export type SmartBarMobileOrderLine = {
   /** Short user-facing reason shown on gray lines. */
   displayReason?: string;
   optionSelectionMode?: "single" | "multi";
+  optionGroupLabel?: string;
+  optionMinSelections?: number;
+  optionMaxSelections?: number | null;
+  /** Transport-only reservation for future conditional selection limits. */
+  selectionRules?: SmartBarMobileSelectionRule[];
   retryPrompt?: string;
 };
 
@@ -1987,6 +1999,44 @@ function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option
   return (line.details || []).some((detail) => smartBarMobileOptionMatchesDetail(option, detail));
 }
 
+function smartBarMobileSelectionBound(value: unknown) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined;
+}
+
+function smartBarMobileLineSelectionCount(line: SmartBarMobileOrderLine) {
+  if (line.optionSelectionMode !== "multi" && line.status !== "options") {
+    return (line.selectedOptions || []).length || (line.options || []).some((option) => smartBarMobileLineHasOptionDetail(line, option)) ? 1 : 0;
+  }
+  return (line.options || []).filter((option) => smartBarMobileLineHasOptionDetail(line, option)).length;
+}
+
+function smartBarMobileLineMinimumSelections(line: SmartBarMobileOrderLine) {
+  return smartBarMobileSelectionBound(line.optionMinSelections) ?? (line.status === "pending" ? 1 : 0);
+}
+
+function smartBarMobileLineMaximumSelections(line: SmartBarMobileOrderLine) {
+  const explicit = smartBarMobileSelectionBound(line.optionMaxSelections);
+  if (explicit !== undefined) return Math.max(smartBarMobileLineMinimumSelections(line), explicit);
+  return line.optionSelectionMode === "multi" || line.status === "options" ? undefined : 1;
+}
+
+function smartBarMobileLineAtSelectionLimit(line: SmartBarMobileOrderLine) {
+  const maximum = smartBarMobileLineMaximumSelections(line);
+  return maximum !== undefined && smartBarMobileLineSelectionCount(line) >= maximum;
+}
+
+function smartBarMobileLineSelectionInstruction(line: SmartBarMobileOrderLine) {
+  const minimum = smartBarMobileLineMinimumSelections(line);
+  const maximum = smartBarMobileLineMaximumSelections(line);
+  if (maximum !== undefined && minimum === maximum) return `Choose ${maximum}`;
+  if (minimum > 0 && maximum !== undefined) return `Choose ${minimum}–${maximum}`;
+  if (maximum !== undefined) return `Choose up to ${maximum}`;
+  if (minimum > 0) return `Choose at least ${minimum}`;
+  return line.optionGroupLabel || "Choose extras";
+}
+
 function smartBarMobileUniqueText(values: string[]) {
   const seen: Record<string, true> = {};
   const result: string[] = [];
@@ -3433,6 +3483,7 @@ export default function SmartBarMobileShell({
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
     const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
+    if (multiSelect && !valueAlreadySelected && smartBarMobileLineAtSelectionLimit(line)) return;
 
     if (!multiSelect) choiceLockedLineIdRef.current = lineInstanceKey;
     setSelectedChoice(multiSelect && valueAlreadySelected ? null : { lineId: lineInstanceKey, value });
@@ -3464,10 +3515,19 @@ export default function SmartBarMobileShell({
           : Array.from(new Set([...(line.selectedOptionIds || []), optionId]))
         : [optionId]
       : line.selectedOptionIds;
+    const nextSelectedCount = nextSelectedOptions.length;
+    const minimum = smartBarMobileLineMinimumSelections(line);
+    const maximum = smartBarMobileLineMaximumSelections(line);
+    const stillPending = nextSelectedCount < minimum ||
+      (maximum !== undefined && nextSelectedCount > maximum);
     const resolvedLine: SmartBarMobileOrderLine = {
       ...line,
-      status: multiSelect ? "ready" : line.status,
-      helper: multiSelect ? "Reviewed and ready" : `${value} selected`,
+      status: multiSelect ? (stillPending ? "pending" : "ready") : line.status,
+      helper: multiSelect
+        ? stillPending
+          ? `${Math.max(0, minimum - nextSelectedCount)} more required`
+          : "Reviewed and ready"
+        : `${value} selected`,
       details: nextDetails,
       options: multiSelect ? line.options || [] : undefined,
       optionIds: multiSelect ? line.optionIds || [] : undefined,
@@ -4855,7 +4915,7 @@ export default function SmartBarMobileShell({
                         {!!selectedLine.options?.length && (
                           <div className="mt-1">
                             <div className="mb-2.5 px-1 text-[12px] font-bold tracking-[0.02em] text-white/72">
-                              {selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options" ? "Choose extras" : "Choose one"}
+                              {smartBarMobileLineSelectionInstruction(selectedLine)}
                             </div>
                             <div className="flex flex-wrap items-start gap-2">
                               {selectedLine.options.map((option) => {
@@ -4863,7 +4923,8 @@ export default function SmartBarMobileShell({
                                 const isSelected = persistedSelected ||
                                   (selectedChoice?.lineId === selectedLineInstanceKey && selectedChoice.value === option);
                                 const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
-                                const isLocked = !isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey && !isSelected;
+                                const selectionLimitReached = isMultiSelect && !isSelected && smartBarMobileLineAtSelectionLimit(selectedLine);
+                                const isLocked = selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey && !isSelected);
 
                                 return (
                                   <button
@@ -4874,7 +4935,8 @@ export default function SmartBarMobileShell({
                                     data-smartbar-mobile-option-selected={isSelected ? "true" : undefined}
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
-                                    disabled={Boolean(!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey)}
+                                    disabled={Boolean(selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey))}
+                                    aria-disabled={isLocked}
                                     className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected
                                         ? SMARTBAR_MOBILE_STRONG_ACTION_PILLS

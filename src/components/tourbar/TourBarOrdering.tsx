@@ -30,6 +30,13 @@ export type CarryoutQualifierOption = {
   priceDelta?: number | null;
 };
 
+export type CarryoutSelectionRule = {
+  /** Reserved for future conditional limits; not evaluated by this client yet. */
+  when?: Record<string, unknown>;
+  minSelections?: number;
+  maxSelections?: number | null;
+};
+
 export type CarryoutQualifierGroup = {
   kind?: string;
   qualifierId?: string;
@@ -40,6 +47,13 @@ export type CarryoutQualifierGroup = {
   required?: boolean;
   missing?: boolean;
   selectionMode?: "single" | "multi" | string;
+  minSelections?: number;
+  maxSelections?: number | null;
+  selectedCount?: number;
+  missingCount?: number;
+  overLimitCount?: number;
+  /** Transport-only reservation for later conditional selection limits. */
+  selectionRules?: CarryoutSelectionRule[];
   selectedValue?: string;
   selectedLabel?: string;
   options?: CarryoutQualifierOption[];
@@ -306,10 +320,10 @@ function allLines(order: CarryoutOrder | null) {
 function lineIsPending(line: CarryoutLine) {
   const status = String(line.status || "").toLowerCase();
   return Boolean(
-    status.includes("pending") ||
+      status.includes("pending") ||
       status.includes("need") ||
       line.missingQualifiers?.length ||
-      line.qualifierGroups?.some((group) => group.missing),
+      line.qualifierGroups?.some((group) => group.missing || groupNeedsSelectionReview(group)),
   );
 }
 
@@ -385,6 +399,68 @@ function groupAllowsMultipleSelections(group: CarryoutQualifierGroup) {
   return selectionMode === "multi" || kind === "modifier" || kind === "upgrade";
 }
 
+function normalizedSelectionBound(value: unknown) {
+  if (value === null || value === undefined || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : undefined;
+}
+
+function groupMinimumSelections(group: CarryoutQualifierGroup) {
+  const explicit = normalizedSelectionBound(group.minSelections);
+  return explicit ?? (group.required ? 1 : 0);
+}
+
+function groupMaximumSelections(group: CarryoutQualifierGroup) {
+  const explicit = normalizedSelectionBound(group.maxSelections);
+  if (explicit !== undefined) return Math.max(groupMinimumSelections(group), explicit);
+  return groupAllowsMultipleSelections(group) ? undefined : 1;
+}
+
+function groupSelectedCount(group: CarryoutQualifierGroup) {
+  if (!groupAllowsMultipleSelections(group)) {
+    return group.selectedValue || group.selectedLabel || (group.options || []).some(optionHasRawSelection) ? 1 : 0;
+  }
+
+  return (group.options || []).filter(optionHasRawSelection).length;
+}
+
+function groupMissingCount(group: CarryoutQualifierGroup) {
+  return Math.max(0, groupMinimumSelections(group) - groupSelectedCount(group));
+}
+
+function groupOverLimitCount(group: CarryoutQualifierGroup) {
+  const maximum = groupMaximumSelections(group);
+  return maximum === undefined ? 0 : Math.max(0, groupSelectedCount(group) - maximum);
+}
+
+function groupNeedsSelectionReview(group: CarryoutQualifierGroup) {
+  return groupMissingCount(group) > 0 || groupOverLimitCount(group) > 0;
+}
+
+function groupAtSelectionLimit(group: CarryoutQualifierGroup) {
+  const maximum = groupMaximumSelections(group);
+  return maximum !== undefined && groupSelectedCount(group) >= maximum;
+}
+
+function groupSelectionInstruction(group: CarryoutQualifierGroup) {
+  const minimum = groupMinimumSelections(group);
+  const maximum = groupMaximumSelections(group);
+
+  if (maximum !== undefined && minimum === maximum) {
+    return `Choose ${maximum}`;
+  }
+  if (minimum > 0 && maximum !== undefined) {
+    return `Choose ${minimum}–${maximum}`;
+  }
+  if (maximum !== undefined) {
+    return `Choose up to ${maximum}`;
+  }
+  if (minimum > 0) {
+    return `Choose at least ${minimum}`;
+  }
+  return group.label || "Options";
+}
+
 function firstRawSelectedOption(group: CarryoutQualifierGroup) {
   return (group.options || []).find(optionHasRawSelection);
 }
@@ -400,11 +476,7 @@ function groupSelectedLabel(group: CarryoutQualifierGroup) {
 }
 
 function groupHasSelection(group: CarryoutQualifierGroup) {
-  if (groupAllowsMultipleSelections(group)) {
-    return (group.options || []).some(optionHasRawSelection);
-  }
-
-  return Boolean(groupSelectedValue(group) || groupSelectedLabel(group));
+  return groupSelectedCount(group) > 0;
 }
 
 function mergeQualifierGroups(
@@ -472,7 +544,16 @@ function mergeQualifierGroups(
     }),
   };
 
-  return merged;
+  const selectedCount = groupSelectedCount(merged);
+  const missingCount = groupMissingCount(merged);
+  const overLimitCount = groupOverLimitCount(merged);
+  return {
+    ...merged,
+    selectedCount,
+    missingCount,
+    overLimitCount,
+    missing: missingCount > 0 || overLimitCount > 0,
+  };
 }
 
 
@@ -744,12 +825,46 @@ function selectedOptionLabels(group: CarryoutQualifierGroup) {
 }
 
 function withSelectedOption(group: CarryoutQualifierGroup, option: CarryoutQualifierOption) {
+  if (groupAllowsMultipleSelections(group)) {
+    const optionWasSelected = optionIsSelected(group, option);
+    if (!optionWasSelected && groupAtSelectionLimit(group)) return group;
+
+    const nextGroup: CarryoutQualifierGroup = {
+      ...group,
+      selectedValue: "",
+      selectedLabel: "",
+      options: (group.options || []).map((candidate) => {
+        const selected = optionMatchesOption(candidate, option)
+          ? !optionWasSelected
+          : optionIsSelected(group, candidate);
+        return {
+          ...candidate,
+          selected,
+          state: selected ? "selected" : "available",
+        };
+      }),
+    };
+    const selectedCount = groupSelectedCount(nextGroup);
+    const missingCount = groupMissingCount(nextGroup);
+    const overLimitCount = groupOverLimitCount(nextGroup);
+    return {
+      ...nextGroup,
+      selectedCount,
+      missingCount,
+      overLimitCount,
+      missing: missingCount > 0 || overLimitCount > 0,
+    };
+  }
+
   const selectedValue = option.value || option.label || "";
   const selectedLabel = option.label || option.value || "";
 
   return {
     ...group,
     missing: false,
+    selectedCount: 1,
+    missingCount: 0,
+    overLimitCount: 0,
     selectedValue,
     selectedLabel,
     options: (group.options || []).map((candidate) => {
@@ -781,6 +896,7 @@ function updateLineWithLocalSelection(
     const alreadySelected =
       currentModifiers.some((modifier) => valuesEqual(modifier.label, option.label) || valuesEqual((modifier as { modifierId?: string }).modifierId, optionId)) ||
       Array.from(knownSelectionsBefore).some((selection) => valuesEqual(selection, selectedLabel) || valuesEqual(selection, selectedValue));
+    if (!alreadySelected && groupAtSelectionLimit(group)) return line;
     nextLine.modifiers = alreadySelected
       ? currentModifiers.filter((modifier) => !(valuesEqual(modifier.label, option.label) || valuesEqual((modifier as { modifierId?: string }).modifierId, optionId)))
       : [
@@ -794,13 +910,7 @@ function updateLineWithLocalSelection(
 
     nextLine.qualifierGroups = (nextLine.qualifierGroups || []).map((candidate) => {
       if (!groupMatchesGroup(candidate, group)) return candidate;
-      return {
-        ...candidate,
-        options: (candidate.options || []).map((candidateOption) => {
-          const candidateSelected = optionMatchesOption(candidateOption, option) ? !alreadySelected : optionIsSelected(candidate, candidateOption);
-          return { ...candidateOption, selected: candidateSelected, state: candidateSelected ? "selected" : "available" };
-        }),
-      };
+      return withSelectedOption(candidate, option);
     });
 
     const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
@@ -819,6 +929,7 @@ function updateLineWithLocalSelection(
     const alreadySelected =
       currentUpgrades.some((upgrade) => valuesEqual(upgrade.label, option.label) || valuesEqual((upgrade as { id?: string }).id, optionId)) ||
       Array.from(knownSelectionsBefore).some((selection) => valuesEqual(selection, selectedLabel) || valuesEqual(selection, selectedValue));
+    if (!alreadySelected && groupAtSelectionLimit(group)) return line;
     nextLine.upgrades = alreadySelected
       ? currentUpgrades.filter((upgrade) => !(valuesEqual(upgrade.label, option.label) || valuesEqual((upgrade as { id?: string }).id, optionId)))
       : [
@@ -832,13 +943,7 @@ function updateLineWithLocalSelection(
 
     nextLine.qualifierGroups = (nextLine.qualifierGroups || []).map((candidate) => {
       if (!groupMatchesGroup(candidate, group)) return candidate;
-      return {
-        ...candidate,
-        options: (candidate.options || []).map((candidateOption) => {
-          const candidateSelected = optionMatchesOption(candidateOption, option) ? !alreadySelected : optionIsSelected(candidate, candidateOption);
-          return { ...candidateOption, selected: candidateSelected, state: candidateSelected ? "selected" : "available" };
-        }),
-      };
+      return withSelectedOption(candidate, option);
     });
 
     const knownSelections = new Set((nextLine.knownSelections || []).filter(Boolean));
@@ -865,11 +970,14 @@ function updateLineWithLocalSelection(
   }
 
   nextLine.qualifierGroups = updatedGroups;
-  nextLine.missingQualifiers = (nextLine.missingQualifiers || []).filter((missing) => {
-    if (group.qualifierId && missing.qualifierId === group.qualifierId) return false;
-    if (group.label && missing.label === group.label) return false;
-    return true;
-  });
+  const updatedGroup = updatedGroups.find((candidate) => groupMatchesGroup(candidate, group));
+  if (!updatedGroup || !groupNeedsSelectionReview(updatedGroup)) {
+    nextLine.missingQualifiers = (nextLine.missingQualifiers || []).filter((missing) => {
+      if (group.qualifierId && missing.qualifierId === group.qualifierId) return false;
+      if (group.label && missing.label === group.label) return false;
+      return true;
+    });
+  }
 
   const groupOptionLabels = (group.options || [])
     .flatMap((candidate) => [candidate.label, candidate.value])
@@ -884,7 +992,7 @@ function updateLineWithLocalSelection(
 
   const stillPending = Boolean(
     nextLine.missingQualifiers?.length ||
-      nextLine.qualifierGroups?.some((candidate) => candidate.missing && candidate.options?.every((option) => !optionIsSelected(candidate, option))),
+      nextLine.qualifierGroups?.some((candidate) => candidate.missing || groupNeedsSelectionReview(candidate)),
   );
 
   nextLine.status = stillPending ? "needs_qualifier" : "ready";
@@ -1092,7 +1200,7 @@ function lineHasOptionalChoices(entry: ReviewItem) {
   return entry.groups.some(
     (group) =>
       !group.required &&
-      !group.missing &&
+      groupMinimumSelections(group) === 0 &&
       (group.options || []).length > 0,
   );
 }
@@ -1166,7 +1274,9 @@ function groupWithLineSelections(group: CarryoutQualifierGroup, line: CarryoutLi
     })),
   ].filter((option) => option.label || option.value);
 
-  selectedCartOptions.forEach(addOption);
+  selectedCartOptions
+    .filter((selectedOption) => (group.options || []).some((groupOption) => optionMatchesOption(groupOption, selectedOption)))
+    .forEach(addOption);
 
   return {
     ...group,
@@ -1196,7 +1306,7 @@ function groupsForCartPanel(item: ReviewItem, kind: "required" | "optional") {
     return syncCartPanelGroupsToLine(
       item,
       item.groups.filter(
-        (group) => !group.required && !group.missing && (group.options || []).length > 0,
+        (group) => !group.required && groupMinimumSelections(group) === 0 && (group.options || []).length > 0,
       ),
       kind,
     );
@@ -1912,6 +2022,7 @@ export function OrderReview({
     const optionWasSelected = panelKind === "optional"
       ? optionMatchesCartLineSelection(panelItem.line, option)
       : optionIsSelected(group, option);
+    if (!optionWasSelected && groupAtSelectionLimit(group)) return;
     const confirmKey = cartPanelOptionConfirmKey(panelItem, group, option);
 
     // Instant visual confirmation: the chosen required option turns green before
@@ -2385,13 +2496,13 @@ export function OrderReview({
             {panelGroups.length > 0 && (
               <div className="mt-3 space-y-3">
                 {panelGroups.map((group, groupIndex) => {
-                  const selectedValue = groupSelectedValue(group);
-                  const isMissing = Boolean(group.missing && !selectedValue);
+                  const isMissing = Boolean(group.missing || groupNeedsSelectionReview(group));
+                  const atLimit = groupAtSelectionLimit(group);
                   return (
                     <div key={`${panelItem.key}-${group.qualifierId || group.label || group.targetId}`} className="space-y-2">
-                      {panelGroups.length > 1 && !blueGlassSurface && (
+                      {(panelGroups.length > 1 || groupAllowsMultipleSelections(group) || groupMaximumSelections(group) !== undefined) && (
                         <div className={`text-[11px] font-bold uppercase tracking-[0.12em] md:text-[10px] ${appearance === "light" ? "text-slate-600" : "text-white/45 md:text-slate-500"}`}>
-                          {group.label || "Choices"}
+                          {groupSelectionInstruction(group)}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
@@ -2400,6 +2511,7 @@ export function OrderReview({
                           const selected = confirmedNow || (panelKind === "optional"
                             ? optionMatchesCartLineSelection(panelItem.line, option)
                             : optionIsSelected(group, option));
+                          const selectionDisabled = !selected && atLimit;
                           const displayLabel = compactQualifierOptionLabel(option, group, panelItem);
                           return (
                             <button
@@ -2412,7 +2524,9 @@ export function OrderReview({
                               data-tourbar-qualifier-label={option.label || option.value || ""}
                               onClick={() => handlePanelOptionSelect(panelItem, panelKind, group, option)}
                               aria-pressed={selected}
-                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${blueGlassSurface ? blueGlassOptionButtonClass(selected) : optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
+                              disabled={selectionDisabled}
+                              aria-disabled={selectionDisabled}
+                              className={`whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold shadow-sm transition md:py-1.5 md:text-xs ${selectionDisabled ? "cursor-not-allowed opacity-45" : ""} ${blueGlassSurface ? blueGlassOptionButtonClass(selected) : optionButtonClass(selected, panelKind === "required", isMissing, appearance)}`}
                             >
                               {selected ? "✓ " : ""}
                               {displayLabel}
@@ -2875,10 +2989,3 @@ export default function TourBarOrdering({
     />
   );
 }
-
-
-
-
-
-
-
