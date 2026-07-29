@@ -3940,7 +3940,7 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLineInstanceKey
         ? "Checking..."
-        : retryDraft.trim() ? "Tap to retry" : "Clarify this item";
+        : retryDraft.trim() ? "Tap to retry" : "Clarify or exit";
     }
     if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
     if (phase === "cart" && selectedLine) return "Back to cart";
@@ -4006,7 +4006,16 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      submitRetry();
+      if (retryDraft.trim()) {
+        submitRetry();
+      } else {
+        retryTextareaRef.current?.blur();
+        disarmClose();
+        setRetryDraft("");
+        setSelectedLineId(null);
+        setSelectedDetailMode("choices");
+        setCartExpanded(true);
+      }
       return;
     }
 
@@ -5413,7 +5422,7 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-send-order={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && effectiveCartGuidanceStatus ? effectiveCartGuidanceStatus : undefined}
-            data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && selectedLine.status !== "unknown" ? "true" : undefined}
+            data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && (selectedLine.status !== "unknown" || !retryDraft.trim()) ? "true" : undefined}
             data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
             disabled={demoInteractionLocked}
             onClick={demoInteractionLocked ? undefined : handleCompanionClick}
