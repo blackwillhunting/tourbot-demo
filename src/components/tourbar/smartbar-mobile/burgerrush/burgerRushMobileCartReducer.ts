@@ -103,6 +103,12 @@ function smartBarMobileSelectionKey(value: string) {
     .trim();
 }
 
+function smartBarMobileExactSelectionMatch(left: unknown, right: unknown) {
+  const leftKey = smartBarMobileSelectionKey(String(left || ""));
+  const rightKey = smartBarMobileSelectionKey(String(right || ""));
+  return Boolean(leftKey && rightKey && leftKey === rightKey);
+}
+
 function smartBarMobileDetailAlreadyCovers(details: string[], value: string) {
   const key = smartBarMobileSelectionKey(value);
   if (!key) return true;
@@ -173,10 +179,7 @@ function smartBarMobileSelectedOptionLabelsFromLine(line: NonNullable<CarryoutOr
   const add = (rawValue: unknown) => {
     const value = String(rawValue || "").replace(/\s+/g, " ").trim();
     if (!value) return;
-    if (labels.some((existing) => smartBarMobileKeysMatch(
-      smartBarMobileSelectionKey(existing),
-      smartBarMobileSelectionKey(value),
-    ))) return;
+    if (labels.some((existing) => smartBarMobileExactSelectionMatch(existing, value))) return;
     labels.push(value);
   };
 
@@ -186,11 +189,9 @@ function smartBarMobileSelectedOptionLabelsFromLine(line: NonNullable<CarryoutOr
     const selectedValue = String(group.selectedValue || "").trim();
     if (selectedValue && !group.selectedLabel) {
       const selectedOption = (group.options || []).find((option) => {
-        const optionValue = String(option.value || option.label || "").trim();
-        return Boolean(optionValue && smartBarMobileKeysMatch(
-          smartBarMobileSelectionKey(optionValue),
-          smartBarMobileSelectionKey(selectedValue),
-        ));
+        const optionRecord = option as typeof option & { id?: string };
+        return [optionRecord.value, optionRecord.id, optionRecord.label]
+          .some((candidate) => smartBarMobileExactSelectionMatch(candidate, selectedValue));
       });
       add(selectedOption?.label || selectedOption?.value || selectedValue);
     }
@@ -332,12 +333,8 @@ function smartBarMobileGroupAtLimit(
 
 function smartBarMobileOptionLabelMatchesValue(option: unknown, value: string) {
   const optionRecord = option as Record<string, unknown>;
-  const candidates = [optionRecord.label, optionRecord.value, optionRecord.id]
-    .map((candidate) => smartBarMobileSelectionKey(String(candidate || "")))
-    .filter(Boolean);
-  const valueKey = smartBarMobileSelectionKey(value);
-
-  return Boolean(valueKey && candidates.some((candidate) => smartBarMobileKeysMatch(candidate, valueKey)));
+  return [optionRecord.label, optionRecord.value, optionRecord.id]
+    .some((candidate) => smartBarMobileExactSelectionMatch(candidate, value));
 }
 
 function smartBarMobileOptionalGroupsForLine(line: NonNullable<CarryoutOrder["items"]>[number]) {
@@ -580,16 +577,6 @@ export function smartBarMobileResultFromOrder(
     estimatedTax,
     estimatedTotal,
   };
-}
-
-function smartBarMobileKeysMatch(leftKey: string, rightKey: string) {
-  if (!leftKey || !rightKey) return false;
-  if (leftKey === rightKey) return true;
-
-  const shorter = leftKey.length <= rightKey.length ? leftKey : rightKey;
-  const longer = leftKey.length > rightKey.length ? leftKey : rightKey;
-
-  return shorter.length >= 4 && longer.includes(shorter);
 }
 
 function smartBarMobileLinesMatch(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
@@ -1143,8 +1130,8 @@ function smartBarMobileChoiceDetails(
     const detailKey = smartBarMobileSelectionKey(detailText);
     if (/^(choice needed|size needed)$/i.test(detailText)) return false;
 
-    const detailMatchesOption = optionKeys.some((optionKey) => smartBarMobileKeysMatch(optionKey, detailKey));
-    const detailMatchesValue = smartBarMobileKeysMatch(detailKey, valueKey);
+    const detailMatchesOption = optionKeys.some((optionKey) => optionKey === detailKey);
+    const detailMatchesValue = Boolean(detailKey && detailKey === valueKey);
 
     // Required qualifiers are single-choice. Optional extras are multi-select,
     // so selecting bacon must not erase cheese, sauce, or other extras.
@@ -1252,7 +1239,7 @@ function smartBarMobileAddSelectedOptionalItem(
   const existing = current || [];
   const alreadySelected = existing.some((item) => {
     const selectedId = String(item[idField] || item.id || item.value || "").trim();
-    return Boolean(selectedId && smartBarMobileKeysMatch(smartBarMobileSelectionKey(selectedId), smartBarMobileSelectionKey(optionId)));
+    return smartBarMobileExactSelectionMatch(selectedId, optionId);
   });
 
   if (alreadySelected) return existing;
@@ -1287,7 +1274,7 @@ function smartBarMobileRemoveSelectedOptionalItem(
     const selectedLabel = String(item.label || item.name || "").replace(/\s+/g, " ").trim();
     const selectedKey = smartBarMobileSelectionKey(selectedId || selectedLabel);
 
-    return !smartBarMobileKeysMatch(selectedKey, optionKey);
+    return selectedKey !== optionKey;
   });
 }
 
@@ -1308,10 +1295,7 @@ function smartBarMobileActiveChoiceGroupIndex(
       const groupMatchesChoice = (group.options || []).some((option) => {
         return smartBarMobileOptionLabelMatchesValue(option, value);
       }) || smartBarMobileGroupOptionLabels(group).some((option) => {
-        return smartBarMobileKeysMatch(
-          smartBarMobileSelectionKey(option),
-          smartBarMobileSelectionKey(value),
-        );
+        return smartBarMobileExactSelectionMatch(option, value);
       });
       return groupMatchesChoice ? index : -1;
     })
@@ -1456,9 +1440,8 @@ function smartBarMobileApplyChoiceToCarryoutLine(
     })
     .filter(Boolean);
   const preservedKnownSelections = (carryoutLine.knownSelections || []).filter((detail) => {
-    const detailKey = smartBarMobileSelectionKey(String(detail || ""));
     return !requiredGroupOptionLabels.some((option) => {
-      return smartBarMobileKeysMatch(smartBarMobileSelectionKey(option), detailKey);
+      return smartBarMobileExactSelectionMatch(option, detail);
     });
   });
   const requiredAwareKnownSelections = Array.from(new Set([
