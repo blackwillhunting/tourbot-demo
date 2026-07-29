@@ -1,4 +1,8 @@
-import type { CarryoutOrder } from "../../TourBarOrdering";
+import type {
+  CarryoutBundleComponent,
+  CarryoutLine,
+  CarryoutOrder,
+} from "../../TourBarOrdering";
 import type {
   SmartBarMobileOrderLine,
   SmartBarMobileOrderResult,
@@ -430,6 +434,13 @@ function smartBarMobileOptionLimitsFromLine(
 }
 
 function smartBarMobileStatusForLine(line: NonNullable<CarryoutOrder["items"]>[number]): SmartBarMobileOrderStatus {
+  const componentStatuses = (line.bundleComponents || []).map((component) => (
+    smartBarMobileStatusForLine(component)
+  ));
+  if (componentStatuses.includes("unknown")) return "unknown";
+  if (componentStatuses.includes("pending")) return "pending";
+  if (componentStatuses.includes("options")) return "options";
+
   const rawStatus = String(line.status || "").toLowerCase();
   const priceStatus = String((line as NonNullable<CarryoutOrder["items"]>[number] & { priceStatus?: string }).priceStatus || "").toLowerCase();
   const hasMissingQualifiers = Boolean(
@@ -446,6 +457,13 @@ function smartBarMobileHelperForLine(
   line: NonNullable<CarryoutOrder["items"]>[number],
   status: SmartBarMobileOrderStatus,
 ) {
+  if (line.bundleComponents?.length) {
+    if (status === "unknown") return "Check included items";
+    if (status === "pending") return "Finish included items";
+    if (status === "options") return "Review included options";
+    return "All included items ready";
+  }
+
   if (status === "pending") {
     const missing = line.missingQualifiers?.[0]?.label ||
       line.qualifierGroups?.find((group) => group.missing || smartBarMobileGroupNeedsReview(group))?.label;
@@ -459,8 +477,23 @@ function smartBarMobileHelperForLine(
 function smartBarMobileLineFromCarryoutLine(
   line: NonNullable<CarryoutOrder["items"]>[number],
   index: number,
+  bundleContext?: {
+    parentCartLineKey: string;
+    parentSourceLineItemId: string;
+    slotId: string;
+  },
 ): SmartBarMobileOrderLine {
   const status = smartBarMobileStatusForLine(line);
+  const rawBundleOwnStatus = String(line.bundleOwnStatus || "").toLowerCase();
+  const bundleOwnStatus: SmartBarMobileOrderStatus | undefined = line.bundleComponents?.length
+    ? rawBundleOwnStatus.includes("unknown")
+      ? "unknown"
+      : rawBundleOwnStatus.includes("pending") || rawBundleOwnStatus.includes("need")
+        ? "pending"
+        : rawBundleOwnStatus.includes("option")
+          ? "options"
+          : "ready"
+    : undefined;
   const details = smartBarMobileValuesFromLine(line);
   const options = smartBarMobileOptionsFromLine(line, status);
   const optionIds = smartBarMobileOptionIdsFromLine(line, status);
@@ -477,6 +510,17 @@ function smartBarMobileLineFromCarryoutLine(
   const sourceItemId = String(line.id || "");
   const targetId = String((line as typeof line & { targetId?: string }).targetId || sourceItemId || "");
   const cartLineKey = `${sourceLineItemId}::source-${index}`;
+  const priceSuppressed = Boolean(
+    bundleContext ||
+      (line as NonNullable<CarryoutOrder["items"]>[number] & { priceSuppressed?: boolean }).priceSuppressed
+  );
+  const bundleComponents = (line.bundleComponents || []).map((component, componentIndex) => (
+    smartBarMobileLineFromCarryoutLine(component, componentIndex, {
+      parentCartLineKey: cartLineKey,
+      parentSourceLineItemId: sourceLineItemId,
+      slotId: String(component.slotId || `component-${componentIndex + 1}`),
+    })
+  ));
 
   return {
     id: cartLineKey,
@@ -489,13 +533,30 @@ function smartBarMobileLineFromCarryoutLine(
     title: `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`,
     status,
     helper: smartBarMobileHelperForLine(line, status),
-    price: smartBarMobilePriceFromLine(line),
+    price: priceSuppressed ? "" : smartBarMobilePriceFromLine(line),
     details: details.length ? details : status === "pending" ? ["Choice needed"] : ["Ready"],
     ...(options.length ? { options, optionIds } : {}),
     selectedOptions,
     selectedOptionIds,
     ...(optionSelectionMode ? { optionSelectionMode } : {}),
     ...optionLimits,
+    ...(bundleComponents.length
+      ? {
+          isExpandableBundle: true,
+          bundleOwnStatus,
+          bundleComponents,
+        }
+      : {}),
+    ...(bundleContext
+      ? {
+          bundleParentCartLineKey: bundleContext.parentCartLineKey,
+          bundleParentSourceLineItemId: bundleContext.parentSourceLineItemId,
+          bundleSlotId: bundleContext.slotId,
+          priceSuppressed: true,
+        }
+      : priceSuppressed
+        ? { priceSuppressed: true }
+        : {}),
   };
 }
 
@@ -844,6 +905,7 @@ function smartBarMobileCarryoutLineIsPending(line: NonNullable<CarryoutOrder["it
   return Boolean(
     status.includes("pending") ||
       status.includes("need") ||
+      line.bundleComponents?.some(smartBarMobileCarryoutLineIsPending) ||
       line.missingQualifiers?.length ||
       line.qualifierGroups?.some((group) => group.missing || smartBarMobileGroupNeedsReview(group)),
   );
@@ -1160,6 +1222,28 @@ export function smartBarMobileApplyChoiceToVisibleLines(
     const sourceItems = Array.isArray(carryoutOrder.items)
       ? carryoutOrder.items
       : [...(carryoutOrder.completeItems || []), ...(carryoutOrder.pendingItems || [])];
+    const bundleParentSourceLineItemId = String(selectedLine.bundleParentSourceLineItemId || "").trim();
+    if (bundleParentSourceLineItemId) {
+      const parentCarryoutIndex = sourceItems.findIndex((line) => (
+        String(line.lineItemId || line.id || "").trim() === bundleParentSourceLineItemId
+      ));
+      const parentVisibleIndex = nextLines.findIndex((line) => (
+        String(line.sourceLineItemId || "").trim() === bundleParentSourceLineItemId
+      ));
+
+      if (parentCarryoutIndex >= 0 && parentVisibleIndex >= 0) {
+        const resolvedParent = smartBarMobileLineFromCarryoutLine(
+          sourceItems[parentCarryoutIndex],
+          parentCarryoutIndex,
+        );
+        nextLines[parentVisibleIndex] = smartBarMobileHydrateLineFromPrevious(
+          resolvedParent,
+          [nextLines[parentVisibleIndex]],
+        );
+        return nextLines;
+      }
+    }
+
     const carryoutIndex = sourceItems.findIndex((line, index) => {
       return smartBarMobileCarryoutLineMatchesVisibleLine(line, selectedLine, index);
     });
@@ -1489,6 +1573,101 @@ function smartBarMobileApplyChoiceToCarryoutLine(
   };
 }
 
+function smartBarMobileBundleComponentItemSelection(
+  component: CarryoutBundleComponent,
+  value: string,
+  selectedChoice: boolean,
+): CarryoutBundleComponent | null {
+  const selectionGroup = (component.qualifierGroups || []).find((group) => (
+    String(group.kind || "").toLowerCase() === "bundle_component"
+  ));
+  if (!selectionGroup || !selectedChoice) return null;
+
+  const option = (selectionGroup.options || []).find((candidate) => (
+    smartBarMobileOptionLabelMatchesValue(candidate, value)
+  ));
+  const optionRecord = option as (Record<string, unknown> & { label?: string; value?: string; id?: string }) | undefined;
+  const selectedItemId = String(optionRecord?.value || optionRecord?.id || "").trim();
+  if (!selectedItemId) return null;
+
+  const allowedItemIds = component.allowedItemIds || [];
+  if (allowedItemIds.length && !allowedItemIds.includes(selectedItemId)) return null;
+
+  return {
+    ...component,
+    id: selectedItemId,
+    selectedItemId,
+    title: String(optionRecord?.label || value || component.label || selectedItemId).trim(),
+    status: "pending",
+    knownSelections: [],
+    qualifiers: [],
+    modifiers: [],
+    upgrades: [],
+    missingQualifiers: [],
+    qualifierGroups: [],
+    priceLabel: undefined,
+    lineSubtotal: undefined,
+    priceSuppressed: true,
+  };
+}
+
+function smartBarMobileBundleStatus(
+  components: CarryoutBundleComponent[],
+) {
+  const statuses = components.map((component) => smartBarMobileStatusForLine(component));
+  if (statuses.includes("unknown")) return "unknown";
+  if (statuses.includes("pending")) return "pending";
+  if (statuses.includes("options")) return "options";
+  return "ready";
+}
+
+function smartBarMobileApplyChoiceToBundleParent(
+  parent: CarryoutLine,
+  selectedLine: SmartBarMobileOrderLine,
+  value: string,
+  parentIndex: number,
+  selectedChoice: boolean,
+): CarryoutLine {
+  if (
+    String(parent.lineItemId || parent.id || "").trim() !==
+    String(selectedLine.bundleParentSourceLineItemId || "").trim()
+  ) {
+    return parent;
+  }
+
+  const bundleComponents: CarryoutBundleComponent[] = (parent.bundleComponents || []).map((component) => {
+    if (String(component.slotId || "") !== String(selectedLine.bundleSlotId || "")) return component;
+
+    const selectedItem = smartBarMobileBundleComponentItemSelection(component, value, selectedChoice);
+    if (selectedItem) return selectedItem;
+
+    return smartBarMobileApplyChoiceToCarryoutLine(
+      component,
+      selectedLine,
+      value,
+      parentIndex,
+      selectedChoice,
+    ) as CarryoutBundleComponent;
+  });
+  const bundleStatus = smartBarMobileBundleStatus(bundleComponents);
+  const unresolvedComponents = bundleComponents.filter((component) => (
+    smartBarMobileStatusForLine(component) === "pending"
+  ));
+
+  return {
+    ...parent,
+    status: bundleStatus,
+    bundleComponents,
+    missingQualifiers: unresolvedComponents.map((component) => ({
+      qualifierId: `bundle-component:${component.slotId}`,
+      label:
+        component.missingQualifiers?.[0]?.label ||
+        `Finish ${String(component.label || component.title || "included item").toLowerCase()}`,
+      targetId: component.targetId || parent.targetId,
+    })),
+  };
+}
+
 function smartBarMobileNextCurrentStep(order: CarryoutOrder, pendingItems: NonNullable<CarryoutOrder["items"]>) {
   const nextPending = pendingItems[0];
   if (!nextPending) return undefined;
@@ -1518,7 +1697,11 @@ export function smartBarMobileApplyChoiceToCarryoutOrder(
   const sourceItems = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
-  const items = sourceItems.map((line, index) => smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index, selected));
+  const items = sourceItems.map((line, index) => (
+    selectedLine.bundleParentSourceLineItemId
+      ? smartBarMobileApplyChoiceToBundleParent(line, selectedLine, value, index, selected)
+      : smartBarMobileApplyChoiceToCarryoutLine(line, selectedLine, value, index, selected)
+  ));
   const pendingItems = items.filter(smartBarMobileCarryoutLineIsPending);
   const completeItems = items.filter((line) => !smartBarMobileCarryoutLineIsPending(line));
   const nextCurrentStep = smartBarMobileNextCurrentStep(order, pendingItems);

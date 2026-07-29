@@ -400,6 +400,16 @@ function formatPlaygroundTicketId(sequence: number) {
 }
 
 function boardDetailsForLine(line: SmartBarMobileOrderLine) {
+  if (line.bundleComponents?.length) {
+    return line.bundleComponents.map((component) => {
+      const title = String(component.demoDisplayTitle || component.title || component.bundleSlotId || "Included item").trim();
+      const selections = (component.details || [])
+        .map((detail) => String(detail || "").trim())
+        .filter((detail) => detail && !/^(ready|choice needed)$/i.test(detail));
+      return selections.length ? `${title}: ${selections.join(", ")}` : title;
+    });
+  }
+
   const details = (line.details || []).filter(Boolean);
   if (details.length) return details;
   if (line.helper) return [line.helper];

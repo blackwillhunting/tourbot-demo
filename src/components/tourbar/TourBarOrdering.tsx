@@ -19,6 +19,7 @@ export type TourBarOrderingFocusTarget = {
 };
 
 export type CarryoutQualifierOption = {
+  id?: string;
   label?: string;
   value?: string;
   qualifierId?: string;
@@ -74,6 +75,17 @@ export type CarryoutLine = {
   upgrades?: Array<{ label?: string; priceDelta?: number | null }>;
   missingQualifiers?: Array<{ qualifierId?: string; label?: string; targetId?: string }>;
   qualifierGroups?: CarryoutQualifierGroup[];
+  bundleOwnStatus?: string;
+  /** Nested, price-suppressed completion rows owned by one aggregate bundle line. */
+  bundleComponents?: CarryoutBundleComponent[];
+};
+
+export type CarryoutBundleComponent = CarryoutLine & {
+  slotId: string;
+  label?: string;
+  allowedItemIds?: string[];
+  selectedItemId?: string | null;
+  priceSuppressed?: boolean;
 };
 
 export type CannotMatchItem = {

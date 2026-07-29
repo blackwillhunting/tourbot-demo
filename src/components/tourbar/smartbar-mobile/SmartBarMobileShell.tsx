@@ -89,6 +89,20 @@ export type SmartBarMobileOrderLine = {
   /** Transport-only reservation for future conditional selection limits. */
   selectionRules?: SmartBarMobileSelectionRule[];
   retryPrompt?: string;
+  /** True when this cart line is the one priced aggregate for nested bundle components. */
+  isExpandableBundle?: boolean;
+  /** Parent-only state before nested component statuses are rolled up. */
+  bundleOwnStatus?: SmartBarMobileOrderStatus;
+  /** Price-suppressed component rows shown only while their aggregate bundle is expanded. */
+  bundleComponents?: SmartBarMobileOrderLine[];
+  /** Qualified path back to the aggregate bundle that owns this component. */
+  bundleParentCartLineKey?: string;
+  bundleParentSourceLineItemId?: string;
+  bundleSlotId?: string;
+  /** Component rows never display or contribute their standalone menu price. */
+  priceSuppressed?: boolean;
+  /** Render-only role used while an expandable bundle temporarily unpacks in the cart. */
+  bundleDisplayRole?: "component" | "dimmed_parent" | "dimmed_other";
 };
 
 export type SmartBarMobileOrderResult = {
@@ -1629,6 +1643,16 @@ const SMARTBAR_MOBILE_BLUE_CONTROL_STYLE: CSSProperties = {
   WebkitBackdropFilter: "blur(18px) saturate(120%)",
 };
 
+const SMARTBAR_MOBILE_GREEN_CONTROL_STYLE: CSSProperties = {
+  background:
+    "linear-gradient(180deg, rgba(52,211,153,0.99) 0%, rgba(16,185,129,0.99) 52%, rgba(5,150,105,0.99) 100%)",
+  borderColor: "rgba(209,250,229,0.82)",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(6,95,70,0.46), 0 16px 38px rgba(5,150,105,0.26), 0 5px 14px rgba(2,6,23,0.18)",
+  backdropFilter: "blur(18px) saturate(125%)",
+  WebkitBackdropFilter: "blur(18px) saturate(125%)",
+};
+
 const SMARTBAR_MOBILE_FOOTER_RED_STYLE: CSSProperties = {
   background:
     "linear-gradient(180deg, rgba(239,68,68,0.98) 0%, rgba(220,38,38,0.98) 52%, rgba(153,27,27,0.99) 100%)",
@@ -2092,6 +2116,86 @@ function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
   return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
 
+function smartBarMobileFindLineInTree(
+  lines: SmartBarMobileOrderLine[],
+  lineId: string | null,
+): SmartBarMobileOrderLine | null {
+  if (!lineId) return null;
+
+  for (const line of lines) {
+    if (smartBarMobileLineInstanceKey(line) === lineId) return line;
+    const nested = smartBarMobileFindLineInTree(line.bundleComponents || [], lineId);
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+function smartBarMobileMapLineTree(
+  lines: SmartBarMobileOrderLine[],
+  mapLine: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderLine,
+): SmartBarMobileOrderLine[] {
+  return lines.map((line) => {
+    const mapped = mapLine(line);
+    const bundleComponents = mapped.bundleComponents?.length
+      ? smartBarMobileMapLineTree(mapped.bundleComponents, mapLine)
+      : mapped.bundleComponents;
+
+    return bundleComponents === mapped.bundleComponents
+      ? mapped
+      : { ...mapped, bundleComponents };
+  });
+}
+
+function smartBarMobileReplaceLineInTree(
+  lines: SmartBarMobileOrderLine[],
+  replacement: SmartBarMobileOrderLine,
+) {
+  return smartBarMobileMapLineTree(lines, (line) => (
+    smartBarMobileLinesAreSameInstance(line, replacement) ? replacement : line
+  ));
+}
+
+function smartBarMobileBundleIsComplete(line?: SmartBarMobileOrderLine | null) {
+  const components = line?.bundleComponents || [];
+  return Boolean(components.length && components.every((component) => component.status === "ready"));
+}
+
+function smartBarMobileRollupBundleTree(lines: SmartBarMobileOrderLine[]): SmartBarMobileOrderLine[] {
+  return lines.map((line) => {
+    const bundleComponents = line.bundleComponents?.length
+      ? smartBarMobileRollupBundleTree(line.bundleComponents)
+      : line.bundleComponents;
+    if (!bundleComponents?.length) return line;
+
+    const statuses = [
+      line.bundleOwnStatus || "ready",
+      ...bundleComponents.map((component) => component.status),
+    ];
+    const status: SmartBarMobileOrderStatus = statuses.includes("unknown")
+      ? "unknown"
+      : statuses.includes("pending")
+        ? "pending"
+        : statuses.includes("options")
+          ? "options"
+          : "ready";
+    const helper = status === "unknown"
+      ? "Check included items"
+      : status === "pending"
+        ? "Finish included items"
+        : status === "options"
+          ? "Review included options"
+          : "All included items ready";
+
+    return {
+      ...line,
+      status,
+      helper,
+      bundleComponents,
+    };
+  });
+}
+
 function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
   const keys = [
     ["cart-line", line.cartLineKey],
@@ -2360,6 +2464,10 @@ export default function SmartBarMobileShell({
   const choiceLockedLineIdRef = useRef<string | null>(null);
   const adaptiveRailReturnTimerRef = useRef<number | null>(null);
   const adaptiveRailOffsetRef = useRef(0);
+  const expandedBundleCompletionRef = useRef<{ lineId: string | null; complete: boolean }>({
+    lineId: null,
+    complete: false,
+  });
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
 
@@ -2384,6 +2492,7 @@ export default function SmartBarMobileShell({
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
   const [closeArmed, setCloseArmed] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [expandedBundleLineId, setExpandedBundleLineId] = useState<string | null>(null);
   const [selectedDetailMode, setSelectedDetailMode] = useState<"choices" | "summary">("choices");
   const [cartStatusFilter, setCartStatusFilter] = useState<SmartBarMobileCartStatusFilter>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
@@ -2613,7 +2722,7 @@ export default function SmartBarMobileShell({
       );
 
   const lines = useMemo(() => {
-    return orderLines.map((line) => {
+    const overriddenLines = smartBarMobileMapLineTree(orderLines, (line) => {
       const lineInstanceKey = smartBarMobileLineInstanceKey(line);
       const mergedLine: SmartBarMobileOrderLine = {
         ...line,
@@ -2631,11 +2740,11 @@ export default function SmartBarMobileShell({
 
       return mergedLine;
     });
+    return smartBarMobileRollupBundleTree(overriddenLines);
   }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
 
-  const selectedLine = selectedLineId
-    ? lines.find((line) => smartBarMobileLineInstanceKey(line) === selectedLineId) || null
-    : null;
+  const selectedLine = smartBarMobileFindLineInTree(lines, selectedLineId);
+  const expandedBundleLine = smartBarMobileFindLineInTree(lines, expandedBundleLineId);
   const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
   const selectedLineFullTitle = smartBarMobileLineFullTitle(selectedLine);
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
@@ -2669,6 +2778,37 @@ export default function SmartBarMobileShell({
     }
   }, [selectedLineId, selectedLineNoChoicesNeeded]);
 
+  const expandedBundleCompletionKey = (expandedBundleLine?.bundleComponents || [])
+    .map((component) => `${smartBarMobileLineInstanceKey(component)}:${component.status}`)
+    .join("|");
+
+  useEffect(() => {
+    if (!expandedBundleLineId || !expandedBundleLine) {
+      expandedBundleCompletionRef.current = { lineId: null, complete: false };
+      if (expandedBundleLineId && !expandedBundleLine) setExpandedBundleLineId(null);
+      return;
+    }
+
+    const complete = smartBarMobileBundleIsComplete(expandedBundleLine);
+    const previous = expandedBundleCompletionRef.current;
+    if (previous.lineId !== expandedBundleLineId) {
+      expandedBundleCompletionRef.current = { lineId: expandedBundleLineId, complete };
+      return;
+    }
+
+    expandedBundleCompletionRef.current = { lineId: expandedBundleLineId, complete };
+    if (previous.complete || !complete) return;
+
+    const timer = window.setTimeout(() => {
+      setSelectedLineId(null);
+      setSelectedDetailMode("choices");
+      setExpandedBundleLineId(null);
+      setCartExpanded(true);
+    }, 420);
+
+    return () => window.clearTimeout(timer);
+  }, [expandedBundleCompletionKey, expandedBundleLine, expandedBundleLineId]);
+
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
   const optionCount = lines.filter((line) => line.status === "options").length;
   const unknownCount = lines.filter((line) => line.status === "unknown").length;
@@ -2686,9 +2826,27 @@ export default function SmartBarMobileShell({
   const effectiveCartGuidanceStatus: SmartBarMobileOrderStatus | null =
     walkthroughGuidanceStatusOverride ?? cartGuidanceStatus;
   const unresolvedReviewCount = blockingIssueCount + unknownCount + optionCount;
-  const visibleCartLines = cartStatusFilter
+  const statusFilteredCartLines = cartStatusFilter
     ? lines.filter((line) => line.status === cartStatusFilter)
     : lines;
+  const visibleCartLines: SmartBarMobileOrderLine[] = expandedBundleLineId
+    ? statusFilteredCartLines.flatMap<SmartBarMobileOrderLine>((line) => {
+        const lineKey = smartBarMobileLineInstanceKey(line);
+        if (lineKey !== expandedBundleLineId) {
+          return [{ ...line, bundleDisplayRole: "dimmed_other" as const }];
+        }
+
+        return [
+          { ...line, bundleDisplayRole: "dimmed_parent" as const },
+          ...(line.bundleComponents || []).map((component) => ({
+            ...component,
+            price: "",
+            priceSuppressed: true,
+            bundleDisplayRole: "component" as const,
+          })),
+        ];
+      })
+    : statusFilteredCartLines;
   const checkoutReady = !genericResult && lines.length > 0 && cartGuidanceStatus === null;
   const handoffLocked = handoffState !== "idle";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
@@ -3481,6 +3639,15 @@ export default function SmartBarMobileShell({
     disarmClose();
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
+    if (line.isExpandableBundle && line.bundleComponents?.length) {
+      setSelectedLineId(null);
+      setSelectedDetailMode("choices");
+      setCartStatusFilter(null);
+      setExpandedBundleLineId(smartBarMobileLineInstanceKey(line));
+      setCartExpanded(true);
+      return;
+    }
+
     const lineHasNoChoicesNeeded = Boolean(
       line.status === "ready" &&
         !line.options?.length &&
@@ -3594,7 +3761,7 @@ export default function SmartBarMobileShell({
 
     window.setTimeout(() => {
       const optimisticResult: SmartBarMobileOrderResult = {
-        lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, resolvedLine) ? resolvedLine : candidate),
+        lines: smartBarMobileReplaceLineInTree(lines, resolvedLine),
       };
 
       setOrderLines(optimisticResult.lines);
@@ -3616,9 +3783,10 @@ export default function SmartBarMobileShell({
             choiceLockedLineIdRef.current = null;
             setSelectedChoice(null);
 
-            const replacementLine = parentResult.lines.find((candidate) => (
-              smartBarMobileLinesAreSameInstance(candidate, resolvedLine)
-            ));
+            const replacementLine = smartBarMobileFindLineInTree(
+              parentResult.lines,
+              lineInstanceKey,
+            );
             if (replacementLine?.status === "pending" && (replacementLine.options || []).length) {
               setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
               setCartExpanded(true);
@@ -3634,7 +3802,7 @@ export default function SmartBarMobileShell({
           let nextRequiredLineId: string | null = null;
           const reviewedParentResult: SmartBarMobileOrderResult = {
             ...parentResult,
-            lines: parentResult.lines.map((candidate) => {
+            lines: smartBarMobileMapLineTree(parentResult.lines, (candidate) => {
               if (!smartBarMobileLinesAreSameInstance(candidate, resolvedLine)) return candidate;
 
               const stillNeedsRequiredChoice = candidate.status === "pending";
@@ -3836,6 +4004,7 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
+    setExpandedBundleLineId(null);
     setCartStatusFilter(null);
     setCartExpanded(true);
     setEntryDraft("");
@@ -3852,6 +4021,7 @@ export default function SmartBarMobileShell({
     clearBuildTimer();
     disarmClose();
     setSelectedLineId(null);
+    setExpandedBundleLineId(null);
     setCartExpanded(true);
     setPhase("cart");
   };
@@ -3884,6 +4054,7 @@ export default function SmartBarMobileShell({
     onResetCart?.();
     disarmClose();
     setSelectedLineId(null);
+    setExpandedBundleLineId(null);
     setCartStatusFilter(null);
     setCartExpanded(true);
   };
@@ -3901,6 +4072,7 @@ export default function SmartBarMobileShell({
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
+    setExpandedBundleLineId(null);
     setCartStatusFilter(null);
     setCartExpanded(true);
     setHandoffState("handing_off");
@@ -3961,6 +4133,9 @@ export default function SmartBarMobileShell({
         : hasCart ? "Updating..." : buildingStatusLabel;
     }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
+    if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return "Mark reviewed";
+    if (phase === "cart" && expandedBundleLineId && selectedLine) return "Back to special";
+    if (phase === "cart" && expandedBundleLineId) return "Finish included items";
     if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLineInstanceKey
@@ -4054,7 +4229,7 @@ export default function SmartBarMobileShell({
           optionSelectionMode: selectedLine.optionSelectionMode || "multi",
         };
         const reviewedResult: SmartBarMobileOrderResult = {
-          lines: lines.map((candidate) => smartBarMobileLinesAreSameInstance(candidate, selectedLine) ? reviewedLine : candidate),
+          lines: smartBarMobileReplaceLineInTree(lines, reviewedLine),
         };
 
         setReviewedOptionLineKeys((current) => ({
@@ -4072,6 +4247,8 @@ export default function SmartBarMobileShell({
       setCartExpanded(true);
       return;
     }
+
+    if (phase === "cart" && expandedBundleLineId) return;
 
     if (phase === "cart" && effectiveCartGuidanceStatus) {
       setSelectedLineId(null);
@@ -4108,6 +4285,17 @@ export default function SmartBarMobileShell({
 
   const handleCartToggleClick = () => {
     if (handoffLocked) return;
+
+    if (phase === "cart" && expandedBundleLineId) {
+      retryTextareaRef.current?.blur();
+      disarmClose();
+      setRetryDraft("");
+      setSelectedLineId(null);
+      setSelectedDetailMode("choices");
+      setExpandedBundleLineId(null);
+      setCartExpanded(true);
+      return;
+    }
 
     if (phase === "cart" && selectedLine) {
       retryTextareaRef.current?.blur();
@@ -4151,6 +4339,7 @@ export default function SmartBarMobileShell({
     disarmClose();
     setHandoffState("idle");
     setSelectedLineId(null);
+    setExpandedBundleLineId(null);
     setLineOverrides({});
     setCartExpanded(true);
     setSubmittedPromptPreview(action.label);
@@ -4275,6 +4464,7 @@ export default function SmartBarMobileShell({
       disarmClose();
       setHandoffState("idle");
       setSelectedLineId(null);
+      setExpandedBundleLineId(null);
       setLineOverrides({});
       setMeasuredGenericPanelHeight(null);
       setCartExpanded(false);
@@ -4447,6 +4637,7 @@ export default function SmartBarMobileShell({
   const cartToggleShowsAdd =
     phase === "cart" &&
     cartExpanded &&
+    !expandedBundleLineId &&
     !selectedLine &&
     !genericResult;
   const genericCompanionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
@@ -4463,6 +4654,8 @@ export default function SmartBarMobileShell({
         : phase === "cart"
           ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
             ? selectedLine.status
+            : expandedBundleLineId && expandedBundleLine
+              ? expandedBundleLine.status
             : !selectedLine
               ? effectiveCartGuidanceStatus
               : null
@@ -5218,6 +5411,8 @@ export default function SmartBarMobileShell({
                             data-smartbar-mobile-line-title-key={smartBarMobileDemoKey(line.title)}
                             data-smartbar-mobile-line-status={line.status}
                             data-smartbar-mobile-line-target={line.targetId || line.sourceItemId || undefined}
+                            data-smartbar-mobile-bundle-component={line.bundleDisplayRole === "component" ? "true" : undefined}
+                            data-smartbar-mobile-bundle-dimmed={line.bundleDisplayRole === "dimmed_parent" || line.bundleDisplayRole === "dimmed_other" ? "true" : undefined}
                             animate={
                               handoffLocked || demoMontageStage?.shakeLineId
                                 ? { x: 0, y: 0, scale: 1, opacity: 1 }
@@ -5231,17 +5426,29 @@ export default function SmartBarMobileShell({
                                   : smartBarMobileRowTransition(line.status)
                             }
                             onClick={() => {
-                              if (!handoffLocked) selectLine(line);
+                              if (
+                                !handoffLocked &&
+                                line.bundleDisplayRole !== "dimmed_parent" &&
+                                line.bundleDisplayRole !== "dimmed_other"
+                              ) {
+                                selectLine(line);
+                              }
                             }}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
                                 event.preventDefault();
-                                if (!handoffLocked) selectLine(line);
+                                if (
+                                  !handoffLocked &&
+                                  line.bundleDisplayRole !== "dimmed_parent" &&
+                                  line.bundleDisplayRole !== "dimmed_other"
+                                ) {
+                                  selectLine(line);
+                                }
                               }
                             }}
-                            className={`${lineButtonClass} relative overflow-hidden ${!handoffLocked && !line.demoHideMeta && !demoCompactCartRows ? "!pr-14" : ""} ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
+                            className={`${lineButtonClass} relative overflow-hidden ${!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && line.bundleDisplayRole !== "component" ? "!pr-14" : ""} ${demoCompactCartRows ? "!min-h-[3.1rem] !rounded-[20px] !px-3.5 !py-2" : line.demoHideMeta ? "!min-h-[2.35rem] !px-3 !py-1.5" : line.bundleDisplayRole === "component" ? "!min-h-[5.8rem] !rounded-[22px] !px-4 !py-3.5" : demoWalkthroughCartMode ? "!min-h-[6.75rem] !px-4 !py-4" : ""} ${handoffLocked ? smartBarMobileHandoffRowSurfaceClass(isOverlay) : smartBarMobileRowSurfaceClass(line.status, isOverlay)} ${
                               demoMontageStage?.shakeLineId === line.id ? "z-[80]" : ""
-                            } ${handoffLocked ? "cursor-default" : "cursor-pointer"}`}
+                            } ${line.bundleDisplayRole === "dimmed_parent" || line.bundleDisplayRole === "dimmed_other" ? "pointer-events-none opacity-30 saturate-50" : handoffLocked ? "cursor-default" : "cursor-pointer"} ${line.bundleDisplayRole === "component" ? "ml-[6%] w-[94%]" : ""}`}
                             style={{ touchAction: "pan-y", transformOrigin: "center center" }}
                           >
                           {demoMontageStage?.shakeLineId === line.id ? (
@@ -5289,12 +5496,12 @@ export default function SmartBarMobileShell({
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
-                              {!line.demoHideMeta ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
+                              {!line.demoHideMeta && !line.priceSuppressed && line.bundleDisplayRole !== "component" ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
                             </div>
                           </div>
                           </motion.div>
 
-                          {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && (
+                          {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && !line.bundleDisplayRole && (
                             <button
                               type="button"
                               data-smartbar-mobile-remove-line="true"
@@ -5567,18 +5774,29 @@ export default function SmartBarMobileShell({
               <motion.button
                 type="button"
                 data-smartbar-mobile-cart-toggle="true"
+                data-smartbar-mobile-bundle-close={expandedBundleLineId ? "true" : undefined}
                 data-smartbar-mobile-detail-close={phase === "cart" && selectedLine ? "true" : undefined}
                 data-domi-demo-down-target={phase === "cart" ? "true" : undefined}
                 disabled={demoInteractionLocked}
                 onClick={demoInteractionLocked ? undefined : handleCartToggleClick}
                 className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} right-0`}
-                style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{
+                  ...(expandedBundleLineId
+                    ? SMARTBAR_MOBILE_FOOTER_RED_STYLE
+                    : cartToggleShowsAdd
+                      ? SMARTBAR_MOBILE_GREEN_CONTROL_STYLE
+                      : SMARTBAR_MOBILE_BLUE_CONTROL_STYLE),
+                  width: cartTogglePillSize,
+                  height: cartTogglePillSize,
+                }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={
-                  phase === "cart" && selectedLine
+                  expandedBundleLineId
+                    ? "Close included items"
+                    : phase === "cart" && selectedLine
                     ? "Back to cart"
                     : cartToggleShowsAdd
                     ? "Add more items"
@@ -5586,7 +5804,9 @@ export default function SmartBarMobileShell({
                 }
               >
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
-                  {cartToggleShowsAdd ? (
+                  {expandedBundleLineId ? (
+                    <X className="h-5 w-5" />
+                  ) : cartToggleShowsAdd ? (
                     <Plus className="h-5 w-5" />
                   ) : cartToggleShowsUp ? (
                     <ChevronUp className="h-5 w-5" />
