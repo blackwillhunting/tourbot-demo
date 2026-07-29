@@ -2258,6 +2258,8 @@ type SmartBarMobileShellProps = {
   compactCartRows?: boolean;
   /** Demo-only: raise fixed overlay rails for contained playground/demo surfaces. */
   demoBottomLiftPx?: number;
+  /** Optional maximum height for panels rendered inside a shorter contained preview. */
+  containedPanelMaxHeight?: number;
   /** Demo-only: trimmed pizza cart for the restaurant walkthrough color explanation. */
   demoWalkthroughCartMode?: boolean;
   /** Demo-only reset hook for social reels that need to return the shell to rest. */
@@ -2334,6 +2336,7 @@ export default function SmartBarMobileShell({
   demoHideCollapsedSurface = false,
   compactCartRows = false,
   demoBottomLiftPx = 0,
+  containedPanelMaxHeight,
   demoWalkthroughCartMode = false,
   demoResetToRestKey = null,
   sendOrderNumber = "S-184",
@@ -2595,9 +2598,24 @@ export default function SmartBarMobileShell({
   const entryComposerRadius = entryComposerHeight > realComposerHeight + 18 ? 30 : 999;
   const buildPanelRadius = buildPanelHeight > realComposerHeight + 18 ? 30 : 999;
   const collapsedCartPanelHeight = 90;
-  const maxCartPanelHeight = Math.max(360, stableViewportHeight - 128);
+  const containedPanelHeightLimit = Number.isFinite(containedPanelMaxHeight)
+    ? Math.max(260, Math.floor(containedPanelMaxHeight as number))
+    : null;
+  const viewportCartPanelHeight = Math.max(360, stableViewportHeight - 128);
+  const maxCartPanelHeight = containedPanelHeightLimit === null
+    ? viewportCartPanelHeight
+    : Math.min(viewportCartPanelHeight, containedPanelHeightLimit);
   const isDemoConfirmationPanel = demoMontageStage?.surface === "confirmation";
-  const maxGenericPanelHeight = Math.max(320, Math.floor(stableViewportHeight * (isDesktopBookingGenericSurface ? 0.88 : isDemoConfirmationPanel ? 0.88 : 0.75)));
+  const viewportGenericPanelHeight = Math.max(320, Math.floor(stableViewportHeight * (isDesktopBookingGenericSurface ? 0.88 : isDemoConfirmationPanel ? 0.88 : 0.75)));
+  const maxGenericPanelHeight = containedPanelHeightLimit === null
+    ? viewportGenericPanelHeight
+    : Math.min(viewportGenericPanelHeight, containedPanelHeightLimit);
+  const adaptiveSurfaceMaxHeight = containedPanelHeightLimit === null
+    ? Math.max(260, stableViewportHeight - 88 - keyboardLift)
+    : Math.min(
+        containedPanelHeightLimit,
+        Math.max(260, stableViewportHeight - 88 - keyboardLift),
+      );
 
   const lines = useMemo(() => {
     return orderLines.map((line) => {
@@ -4754,7 +4772,7 @@ export default function SmartBarMobileShell({
             <motion.div
               data-smartbar-mobile-adaptive-surface="true"
               className={upperGlassClass}
-              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: Math.max(260, stableViewportHeight - 88 - keyboardLift) }}
+              style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: adaptiveSurfaceMaxHeight }}
               initial={{
                 height: phase === "building_cart" ? buildPanelHeight : realComposerHeight,
                 borderRadius: phase === "building_cart" ? buildPanelRadius : 999,

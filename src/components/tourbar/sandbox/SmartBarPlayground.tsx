@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, LayoutGrid } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
@@ -558,6 +558,7 @@ export default function SmartBarPlayground({
     fallbackTicketId: string;
   } | null>(null);
   const boardRefreshTimerRef = useRef<number | null>(null);
+  const playgroundShellFrameRef = useRef<HTMLDivElement | null>(null);
 
   const [boardOrders, setBoardOrders] = useState<SmartBarOrderBoardItem[]>([]);
   const [sendOrderNumber, setSendOrderNumber] = useState(() => formatPlaygroundTicketId(184));
@@ -569,6 +570,30 @@ export default function SmartBarPlayground({
   const [nextStepSubmitting, setNextStepSubmitting] = useState(false);
   const [nextStepRequested, setNextStepRequested] = useState(false);
   const [nextStepError, setNextStepError] = useState("");
+  const [containedPanelMaxHeight, setContainedPanelMaxHeight] = useState<number | undefined>(undefined);
+
+  useLayoutEffect(() => {
+    const frame = playgroundShellFrameRef.current;
+    if (!frame) return;
+
+    const updateContainedPanelMaxHeight = () => {
+      const frameHeight = Math.round(frame.getBoundingClientRect().height);
+      const nextHeight = Math.max(260, frameHeight - 108);
+      setContainedPanelMaxHeight((current) => current === nextHeight ? current : nextHeight);
+    };
+
+    updateContainedPanelMaxHeight();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateContainedPanelMaxHeight);
+      return () => window.removeEventListener("resize", updateContainedPanelMaxHeight);
+    }
+
+    const observer = new ResizeObserver(updateContainedPanelMaxHeight);
+    observer.observe(frame);
+
+    return () => observer.disconnect();
+  }, []);
 
   const websiteSetupRequestStatus = String(activeVendorContext.websiteSetupRequestStatus || "").trim().toLowerCase();
   const websiteModeStatus = String(activeVendorContext.websiteModeStatus || "").trim().toLowerCase();
@@ -1122,12 +1147,14 @@ export default function SmartBarPlayground({
             ? boardIsCompact ? "top-[108px]" : "top-[306px]"
             : "top-0",
         ].join(" ")}
+          ref={playgroundShellFrameRef}
         >
           <SmartBarMobileShell
             mode="overlay"
             introCallout={{ title: "Tap to say or type your order" }}
             sendOrderNumber={sendOrderNumber}
             demoBottomLiftPx={16}
+            containedPanelMaxHeight={containedPanelMaxHeight}
             demoSubmission={forcedCartSubmission}
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}
