@@ -79,7 +79,7 @@ export type SmartBarMobileOrderLine = {
   /** Exact backend-selected option IDs. These are authoritative for control state. */
   selectedOptionIds?: string[];
   /** Machine-readable gray reason for non-orderable lines. */
-  grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | string;
+  grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | "selection_limit_exceeded" | string;
   /** Short user-facing reason shown on gray lines. */
   displayReason?: string;
   optionSelectionMode?: "single" | "multi";
@@ -2624,6 +2624,8 @@ export default function SmartBarMobileShell({
     : "";
   const selectedLineGrayPlaceholder = selectedLine?.grayReason === "not_sold_separately"
     ? "Tell us which menu item this belongs with..."
+    : selectedLine?.grayReason === "selection_limit_exceeded"
+      ? "Enter fewer choices for this item..."
     : selectedLine?.grayReason === "not_on_menu"
       ? "Enter another menu item..."
       : "Clarify or replace this item...";
