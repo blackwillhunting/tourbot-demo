@@ -1970,33 +1970,28 @@ function smartBarMobileDemoKey(value: string) {
 }
 
 
-function smartBarMobileOptionMatchesDetail(option: string, detail: string) {
-  const optionKey = smartBarMobileDemoKey(option);
-  const detailKey = smartBarMobileDemoKey(detail);
-  if (!optionKey || !detailKey) return false;
-  if (optionKey === detailKey) return true;
-
-  const shorter = optionKey.length <= detailKey.length ? optionKey : detailKey;
-  const longer = optionKey.length > detailKey.length ? optionKey : detailKey;
-  return shorter.length >= 4 && longer.includes(shorter);
+function smartBarMobileOptionLabelsEqual(left: string, right: string) {
+  const leftKey = smartBarMobileDemoKey(left);
+  const rightKey = smartBarMobileDemoKey(right);
+  return Boolean(leftKey && rightKey && leftKey === rightKey);
 }
 
 function smartBarMobileLineHasOptionDetail(line: SmartBarMobileOrderLine, option: string) {
   const optionIndex = (line.options || []).findIndex((candidate) => candidate === option);
   const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
-  if (optionId && (line.selectedOptionIds || []).some((selectedId) => String(selectedId) === optionId)) {
-    return true;
+  if (optionId && Array.isArray(line.selectedOptionIds)) {
+    return line.selectedOptionIds.some((selectedId) => String(selectedId) === optionId);
   }
 
   const canonicalSelected = line.selectedOptions || [];
-  if (canonicalSelected.some((selected) => smartBarMobileOptionMatchesDetail(option, selected))) {
+  if (canonicalSelected.some((selected) => smartBarMobileOptionLabelsEqual(option, selected))) {
     return true;
   }
   if (line.status === "pending") {
     return false;
   }
 
-  return (line.details || []).some((detail) => smartBarMobileOptionMatchesDetail(option, detail));
+  return (line.details || []).some((detail) => smartBarMobileOptionLabelsEqual(option, detail));
 }
 
 function smartBarMobileSelectionBound(value: unknown) {
@@ -3525,19 +3520,19 @@ export default function SmartBarMobileShell({
       if (/^(choice needed|size needed)$/i.test(detail.trim())) return false;
 
       const detailMatchesAnyOption = (line.options || []).some((option) => {
-        return smartBarMobileOptionMatchesDetail(option, detail);
+        return smartBarMobileOptionLabelsEqual(option, detail);
       });
-      const detailMatchesSelectedValue = smartBarMobileOptionMatchesDetail(value, detail);
+      const detailMatchesSelectedValue = smartBarMobileOptionLabelsEqual(value, detail);
 
       if (!multiSelect && detailMatchesAnyOption && !detailMatchesSelectedValue) return false;
       return true;
     });
     const nextDetails = multiSelect && valueAlreadySelected
-      ? cleanedDetails.filter((detail) => !smartBarMobileOptionMatchesDetail(value, detail))
+      ? cleanedDetails.filter((detail) => !smartBarMobileOptionLabelsEqual(value, detail))
       : Array.from(new Set([...cleanedDetails, value]));
     const nextSelectedOptions = multiSelect
       ? valueAlreadySelected
-        ? (line.selectedOptions || []).filter((selected) => !smartBarMobileOptionMatchesDetail(value, selected))
+        ? (line.selectedOptions || []).filter((selected) => !smartBarMobileOptionLabelsEqual(value, selected))
         : Array.from(new Set([...(line.selectedOptions || []), value]))
       : [value];
     const nextSelectedOptionIds = optionId
