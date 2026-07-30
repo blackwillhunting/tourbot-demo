@@ -863,9 +863,10 @@ export default function SmartBarPlayground({
     if (!optimisticCarryoutOrder) return optimisticResult;
 
     try {
+      const groupContext = meta?.optionGroupLabel || line.optionGroupLabel || meta?.optionGroupId || line.activeOptionGroupId;
       const repricedResult = await smartBarMobileRepriceCartFromGuideAi(
         optimisticCarryoutOrder,
-        `${meta?.selected === false ? "deselected" : meta?.quantity === 2 ? "doubled" : "selected"} ${value} for ${line.title}`,
+        `${meta?.selected === false ? "deselected" : meta?.quantity === 2 ? "doubled" : "selected"} ${value} for ${line.title}${groupContext ? ` in ${groupContext}` : ""}`,
         activeVendorContext,
       );
 

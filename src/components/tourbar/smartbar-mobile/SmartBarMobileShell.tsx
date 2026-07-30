@@ -46,6 +46,25 @@ export type SmartBarMobileSelectionRule = {
   maxSelections?: number | null;
 };
 
+export type SmartBarMobileOptionGroup = {
+  /** Stable backend qualifier/modifier group identity. */
+  id: string;
+  label: string;
+  required?: boolean;
+  kind?: string;
+  options: string[];
+  /** Exact backend option IDs aligned by index with options. */
+  optionIds?: string[];
+  selectedOptions?: string[];
+  selectedOptionIds?: string[];
+  optionQuantities?: number[];
+  optionMaxQuantities?: number[];
+  selectionMode?: "single" | "multi";
+  minSelections?: number;
+  maxSelections?: number | null;
+  selectionRules?: SmartBarMobileSelectionRule[];
+};
+
 export type SmartBarMobileOrderLine = {
   id: string;
   /** Page target to scroll/focus when this known cart row is selected. */
@@ -71,6 +90,10 @@ export type SmartBarMobileOrderLine = {
   helper: string;
   price: string;
   details: string[];
+  /** All available choice groups for this line. Singular option fields below mirror the active group. */
+  optionGroups?: SmartBarMobileOptionGroup[];
+  /** Group currently displayed in the detail panel. */
+  activeOptionGroupId?: string;
   options?: string[];
   /** Exact backend option IDs aligned by index with options. */
   optionIds?: string[];
@@ -187,7 +210,7 @@ export type SmartBarMobileDemoSubmission = {
   manualSubmit?: boolean;
 };
 
-type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "options" | "optionQuantities" | "optionMaxQuantities" | "optionSelectionMode" | "retryPrompt">>;
+type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "optionGroups" | "activeOptionGroupId" | "options" | "optionIds" | "selectedOptions" | "selectedOptionIds" | "optionQuantities" | "optionMaxQuantities" | "optionSelectionMode" | "optionGroupLabel" | "optionMinSelections" | "optionMaxSelections" | "selectionRules" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
   {
@@ -2077,6 +2100,138 @@ function smartBarMobileLineSelectionInstruction(line: SmartBarMobileOrderLine) {
   return line.optionGroupLabel || "Choose extras";
 }
 
+function smartBarMobileFallbackOptionGroupId(line: SmartBarMobileOrderLine) {
+  const labelKey = smartBarMobileDemoKey(line.optionGroupLabel || "options");
+  return `legacy-${labelKey || "options"}`;
+}
+
+function smartBarMobileLineOptionGroups(line: SmartBarMobileOrderLine): SmartBarMobileOptionGroup[] {
+  if (Array.isArray(line.optionGroups) && line.optionGroups.length) {
+    return line.optionGroups.filter((group) => Array.isArray(group.options) && group.options.length);
+  }
+
+  if (!line.options?.length) return [];
+
+  return [{
+    id: line.activeOptionGroupId || smartBarMobileFallbackOptionGroupId(line),
+    label: line.optionGroupLabel || (line.status === "pending" ? "Required choice" : "Options"),
+    required: line.status === "pending" || smartBarMobileLineMinimumSelections(line) > 0,
+    options: line.options,
+    optionIds: line.optionIds,
+    selectedOptions: line.selectedOptions,
+    selectedOptionIds: line.selectedOptionIds,
+    optionQuantities: line.optionQuantities,
+    optionMaxQuantities: line.optionMaxQuantities,
+    selectionMode: line.optionSelectionMode || (line.status === "options" ? "multi" : "single"),
+    minSelections: line.optionMinSelections,
+    maxSelections: line.optionMaxSelections,
+    selectionRules: line.selectionRules,
+  }];
+}
+
+function smartBarMobileOptionGroupIsOptional(group: SmartBarMobileOptionGroup) {
+  const minimum = smartBarMobileSelectionBound(group.minSelections) ?? (group.required ? 1 : 0);
+  return !group.required && minimum === 0;
+}
+
+function smartBarMobileOptionGroupSelectionCount(group: SmartBarMobileOptionGroup) {
+  const quantities = group.optionQuantities || [];
+  if (quantities.some((quantity) => Number(quantity) > 0)) {
+    return quantities.reduce((sum, quantity) => {
+      const parsed = Number(quantity);
+      return sum + (Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0);
+    }, 0);
+  }
+
+  return Math.max(group.selectedOptionIds?.length || 0, group.selectedOptions?.length || 0);
+}
+
+function smartBarMobileOptionGroupNeedsRequiredChoice(group: SmartBarMobileOptionGroup) {
+  const minimum = smartBarMobileSelectionBound(group.minSelections) ?? (group.required ? 1 : 0);
+  const maximum = smartBarMobileSelectionBound(group.maxSelections);
+  const count = smartBarMobileOptionGroupSelectionCount(group);
+  return count < minimum || (maximum !== undefined && count > maximum);
+}
+
+function smartBarMobileLineWithActiveOptionGroup(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+): SmartBarMobileOrderLine {
+  return {
+    ...line,
+    activeOptionGroupId: group.id,
+    options: group.options,
+    optionIds: group.optionIds,
+    selectedOptions: group.selectedOptions,
+    selectedOptionIds: group.selectedOptionIds,
+    optionQuantities: group.optionQuantities,
+    optionMaxQuantities: group.optionMaxQuantities,
+    optionSelectionMode: group.selectionMode,
+    optionGroupLabel: group.label,
+    optionMinSelections: group.minSelections,
+    optionMaxSelections: group.maxSelections,
+    selectionRules: group.selectionRules,
+  };
+}
+
+function smartBarMobileReplaceActiveOptionGroup(
+  line: SmartBarMobileOrderLine,
+  replacement: SmartBarMobileOptionGroup,
+) {
+  const groups = smartBarMobileLineOptionGroups(line);
+  const optionGroups = groups.length
+    ? groups.map((group) => group.id === replacement.id ? replacement : group)
+    : [replacement];
+
+  return smartBarMobileLineWithActiveOptionGroup(
+    {
+      ...line,
+      optionGroups,
+      activeOptionGroupId: replacement.id,
+    },
+    replacement,
+  );
+}
+
+function smartBarMobileActiveOptionGroup(
+  line: SmartBarMobileOrderLine,
+  reviewedKeys: Record<string, true>,
+) {
+  const groups = smartBarMobileLineOptionGroups(line);
+  if (!groups.length) return null;
+
+  if (line.status === "pending") {
+    const missingRequired = groups.find((group) => (
+      !smartBarMobileOptionGroupIsOptional(group) &&
+      smartBarMobileOptionGroupNeedsRequiredChoice(group)
+    ));
+    if (missingRequired) return missingRequired;
+
+    return groups.find((group) => (
+      !smartBarMobileOptionGroupIsOptional(group) &&
+      group.id === line.activeOptionGroupId
+    )) || groups.find((group) => !smartBarMobileOptionGroupIsOptional(group)) || groups[0];
+  }
+
+  const unreviewedOptional = groups.find((group) => (
+    smartBarMobileOptionGroupIsOptional(group) &&
+    !smartBarMobileHasReviewedOptionGroupKey(line, group.id, reviewedKeys)
+  ));
+  if (unreviewedOptional) return unreviewedOptional;
+
+  return groups.find((group) => group.id === line.activeOptionGroupId) || groups[0];
+}
+
+function smartBarMobileUnreviewedOptionalGroups(
+  line: SmartBarMobileOrderLine,
+  reviewedKeys: Record<string, true>,
+) {
+  return smartBarMobileLineOptionGroups(line).filter((group) => (
+    smartBarMobileOptionGroupIsOptional(group) &&
+    !smartBarMobileHasReviewedOptionGroupKey(line, group.id, reviewedKeys)
+  ));
+}
+
 function smartBarMobileUniqueText(values: string[]) {
   const seen: Record<string, true> = {};
   const result: string[] = [];
@@ -2236,7 +2391,13 @@ function smartBarMobileRollupBundleTree(lines: SmartBarMobileOrderLine[]): Smart
   });
 }
 
-function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
+function smartBarMobileReviewedOptionGroupKeys(
+  line: SmartBarMobileOrderLine,
+  optionGroupId: string,
+) {
+  const normalizedGroupId = String(optionGroupId || "").trim();
+  if (!normalizedGroupId) return [];
+
   const keys = [
     ["cart-line", line.cartLineKey],
     ["source-line", line.sourceLineItemId],
@@ -2247,24 +2408,28 @@ function smartBarMobileReviewedOptionLineKeys(line: SmartBarMobileOrderLine) {
     const normalizedValue = String(value || "").trim();
     if (!normalizedValue) return reviewKeys;
 
-    const reviewKey = `${namespace}:${normalizedValue}`;
+    const reviewKey = `${namespace}:${normalizedValue}::option-group:${normalizedGroupId}`;
     if (!reviewKeys.includes(reviewKey)) reviewKeys.push(reviewKey);
     return reviewKeys;
   }, []);
 }
 
-function smartBarMobileReviewedOptionLineKeyPatch(line: SmartBarMobileOrderLine): Record<string, true> {
-  return smartBarMobileReviewedOptionLineKeys(line).reduce<Record<string, true>>((nextKeys, key) => {
+function smartBarMobileReviewedOptionGroupKeyPatch(
+  line: SmartBarMobileOrderLine,
+  optionGroupId: string,
+): Record<string, true> {
+  return smartBarMobileReviewedOptionGroupKeys(line, optionGroupId).reduce<Record<string, true>>((nextKeys, key) => {
     nextKeys[key] = true;
     return nextKeys;
   }, {});
 }
 
-function smartBarMobileHasReviewedOptionLineKey(
+function smartBarMobileHasReviewedOptionGroupKey(
   line: SmartBarMobileOrderLine,
+  optionGroupId: string,
   reviewedKeys: Record<string, true>,
 ) {
-  return smartBarMobileReviewedOptionLineKeys(line).some((key) => reviewedKeys[key]);
+  return smartBarMobileReviewedOptionGroupKeys(line, optionGroupId).some((key) => reviewedKeys[key]);
 }
 
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
@@ -2357,6 +2522,9 @@ export type SmartBarMobileApplyChoiceMeta = {
   selected: boolean;
   multiSelect: boolean;
   valueAlreadySelected: boolean;
+  /** Stable identity of the specific group being edited. */
+  optionGroupId?: string;
+  optionGroupLabel?: string;
   /** Final requested portion count for this option. */
   quantity?: number;
 };
@@ -2540,7 +2708,7 @@ export default function SmartBarMobileShell({
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
   const [reviewedOptionLineKeys, setReviewedOptionLineKeys] = useState<Record<string, true>>({});
   const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
-  const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; value: string } | null>(null);
+  const [selectedChoice, setSelectedChoice] = useState<{ lineId: string; groupId?: string; value: string } | null>(null);
   const [keyboardLift, setKeyboardLift] = useState(0);
   const [adaptiveRailOffset, setAdaptiveRailOffset] = useState(0);
   const [introTypedTitle, setIntroTypedTitle] = useState("");
@@ -2770,17 +2938,43 @@ export default function SmartBarMobileShell({
         ...line,
         ...(lineOverrides[lineInstanceKey] || {}),
       };
-      if (smartBarMobileHasReviewedOptionLineKey(mergedLine, reviewedOptionLineKeys) && mergedLine.status === "options") {
+      const optionGroups = smartBarMobileLineOptionGroups(mergedLine);
+      const optionalGroups = optionGroups.filter(smartBarMobileOptionGroupIsOptional);
+      const unreviewedOptionalGroups = smartBarMobileUnreviewedOptionalGroups(
+        mergedLine,
+        reviewedOptionLineKeys,
+      );
+      const activeGroup = smartBarMobileActiveOptionGroup(mergedLine, reviewedOptionLineKeys);
+      const activeLine = activeGroup
+        ? smartBarMobileLineWithActiveOptionGroup(
+            { ...mergedLine, optionGroups },
+            activeGroup,
+          )
+        : mergedLine;
+
+      if (
+        optionalGroups.length > 0 &&
+        mergedLine.status !== "pending" &&
+        mergedLine.status !== "unknown"
+      ) {
+        if (unreviewedOptionalGroups.length > 0) {
+          return {
+            ...activeLine,
+            status: "options" as const,
+            helper: activeGroup?.label
+              ? `Review ${activeGroup.label.toLowerCase()}`
+              : "Options available",
+          };
+        }
+
         return {
-          ...mergedLine,
+          ...activeLine,
           status: "ready" as const,
           helper: "Reviewed and ready",
-          options: mergedLine.options || line.options || [],
-          optionSelectionMode: mergedLine.optionSelectionMode || "multi",
         };
       }
 
-      return mergedLine;
+      return activeLine;
     });
     return smartBarMobileRollupBundleTree(overriddenLines);
   }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
@@ -2788,6 +2982,15 @@ export default function SmartBarMobileShell({
   const selectedLine = smartBarMobileFindLineInTree(lines, selectedLineId);
   const expandedBundleLine = smartBarMobileFindLineInTree(lines, expandedBundleLineId);
   const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
+  const selectedLineOptionGroups = selectedLine ? smartBarMobileLineOptionGroups(selectedLine) : [];
+  const selectedLineActiveOptionGroup = selectedLine
+    ? selectedLineOptionGroups.find((group) => group.id === selectedLine.activeOptionGroupId) ||
+      smartBarMobileActiveOptionGroup(selectedLine, reviewedOptionLineKeys)
+    : null;
+  const selectedLineUnreviewedOptionalGroups = selectedLine
+    ? smartBarMobileUnreviewedOptionalGroups(selectedLine, reviewedOptionLineKeys)
+    : [];
+  const selectedLineRemainingOptionalReviewCount = selectedLineUnreviewedOptionalGroups.length;
   const selectedLineFullTitle = smartBarMobileLineFullTitle(selectedLine);
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
   const selectedLineSummarySelections = smartBarMobileLineSummarySelections(selectedLine);
@@ -3717,9 +3920,19 @@ export default function SmartBarMobileShell({
     value: string,
     requestedQuantity?: number,
   ) => {
+    const activeGroup = smartBarMobileActiveOptionGroup(line, reviewedOptionLineKeys);
+    const activeGroupId = activeGroup?.id || line.activeOptionGroupId || smartBarMobileFallbackOptionGroupId(line);
+    const activeGroupLabel = activeGroup?.label || line.optionGroupLabel || "options";
+    const optionalReview = activeGroup
+      ? smartBarMobileOptionGroupIsOptional(activeGroup)
+      : line.status === "options";
     const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
     const lineInstanceKey = smartBarMobileLineInstanceKey(line);
-    if (handoffLocked || (!multiSelect && choiceLockedLineIdRef.current === lineInstanceKey)) return;
+    const choiceLockKey = `${lineInstanceKey}::${activeGroupId}`;
+    if (
+      handoffLocked ||
+      (!multiSelect && !optionalReview && choiceLockedLineIdRef.current === choiceLockKey)
+    ) return;
 
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
@@ -3734,8 +3947,12 @@ export default function SmartBarMobileShell({
     if (multiSelect && maximum !== undefined && nextSelectedCount > maximum) return;
     if (multiSelect && nextQuantity > 0 && !valueAlreadySelected && smartBarMobileLineAtSelectionLimit(line)) return;
 
-    if (!multiSelect) choiceLockedLineIdRef.current = lineInstanceKey;
-    setSelectedChoice(multiSelect && nextQuantity === 0 ? null : { lineId: lineInstanceKey, value });
+    if (!multiSelect && !optionalReview) choiceLockedLineIdRef.current = choiceLockKey;
+    setSelectedChoice(
+      multiSelect && nextQuantity === 0
+        ? null
+        : { lineId: lineInstanceKey, groupId: activeGroupId, value },
+    );
     disarmClose();
 
     const cleanedDetails = (line.details || []).filter((detail) => {
@@ -3771,42 +3988,58 @@ export default function SmartBarMobileShell({
     const minimum = smartBarMobileLineMinimumSelections(line);
     const stillPending = nextSelectedCount < minimum ||
       (maximum !== undefined && nextSelectedCount > maximum);
-    const resolvedLine: SmartBarMobileOrderLine = {
+    const resolvedStatus: SmartBarMobileOrderStatus = stillPending
+      ? "pending"
+      : optionalReview
+        ? "options"
+        : multiSelect
+          ? "ready"
+          : line.status;
+    const resolvedHelper = stillPending
+      ? `${Math.max(0, minimum - nextSelectedCount)} more required`
+      : optionalReview
+        ? `Review ${activeGroupLabel.toLowerCase()} when finished`
+        : multiSelect
+          ? "Reviewed and ready"
+          : `${value} selected`;
+
+    let resolvedLine: SmartBarMobileOrderLine = {
       ...line,
-      status: multiSelect ? (stillPending ? "pending" : "ready") : line.status,
-      helper: multiSelect
-        ? stillPending
-          ? `${Math.max(0, minimum - nextSelectedCount)} more required`
-          : "Reviewed and ready"
-        : `${value} selected`,
+      status: resolvedStatus,
+      helper: resolvedHelper,
       details: nextDetails,
-      options: multiSelect ? line.options || [] : undefined,
-      optionIds: multiSelect ? line.optionIds || [] : undefined,
-      optionQuantities: multiSelect ? nextOptionQuantities : undefined,
-      optionMaxQuantities: multiSelect ? line.optionMaxQuantities || [] : undefined,
+      options: line.options || [],
+      optionIds: line.optionIds || [],
+      optionQuantities: nextOptionQuantities,
+      optionMaxQuantities: line.optionMaxQuantities || [],
       selectedOptions: nextSelectedOptions,
       ...(nextSelectedOptionIds ? { selectedOptionIds: nextSelectedOptionIds } : {}),
       optionSelectionMode: line.optionSelectionMode || (multiSelect ? "multi" : "single"),
     };
+
+    if (activeGroup) {
+      const resolvedGroup: SmartBarMobileOptionGroup = {
+        ...activeGroup,
+        selectedOptions: nextSelectedOptions,
+        selectedOptionIds: nextSelectedOptionIds,
+        optionQuantities: nextOptionQuantities,
+      };
+      resolvedLine = smartBarMobileReplaceActiveOptionGroup(resolvedLine, resolvedGroup);
+    }
+
     const parentResultPromise = onApplyLineChoice
       ? Promise.resolve(onApplyLineChoice(resolvedLine, value, {
           selected: nextQuantity > 0,
           multiSelect,
           valueAlreadySelected,
+          optionGroupId: activeGroupId,
+          optionGroupLabel: activeGroupLabel,
           quantity: nextQuantity > 0 ? nextQuantity : undefined,
         }))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
-    // Required choices are single-select and close the detail view after a short
-    // confirmation beat. Optional extras stay multi-select for stacking, but
-    // after any review/edit the row becomes green because it is now prepared.
-    if (multiSelect) {
-      setReviewedOptionLineKeys((current) => ({
-        ...current,
-        ...smartBarMobileReviewedOptionLineKeyPatch(line),
-      }));
-    }
-
+    // Optional groups remain yellow while they are being edited. The footer
+    // explicitly completes one group and advances to the next optional group.
     setLineOverrides((current) => ({
       ...current,
       [lineInstanceKey]: {
@@ -3814,10 +4047,19 @@ export default function SmartBarMobileShell({
         status: resolvedLine.status,
         helper: resolvedLine.helper,
         details: resolvedLine.details,
-        options: line.options || [],
+        optionGroups: resolvedLine.optionGroups,
+        activeOptionGroupId: resolvedLine.activeOptionGroupId,
+        options: resolvedLine.options || [],
+        optionIds: resolvedLine.optionIds || [],
+        selectedOptions: resolvedLine.selectedOptions,
+        selectedOptionIds: resolvedLine.selectedOptionIds,
         optionQuantities: resolvedLine.optionQuantities,
         optionMaxQuantities: resolvedLine.optionMaxQuantities,
         optionSelectionMode: resolvedLine.optionSelectionMode,
+        optionGroupLabel: resolvedLine.optionGroupLabel,
+        optionMinSelections: resolvedLine.optionMinSelections,
+        optionMaxSelections: resolvedLine.optionMaxSelections,
+        selectionRules: resolvedLine.selectionRules,
       },
     }));
 
@@ -3831,7 +4073,11 @@ export default function SmartBarMobileShell({
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
-      setSelectedLineId((current) => (multiSelect && current === lineInstanceKey ? lineInstanceKey : null));
+      setSelectedLineId((current) => (
+        optionalReview || multiSelect
+          ? current === lineInstanceKey ? lineInstanceKey : current
+          : null
+      ));
       setCartExpanded(true);
 
       parentResultPromise
@@ -3849,10 +4095,10 @@ export default function SmartBarMobileShell({
               parentResult.lines,
               lineInstanceKey,
             );
-            if (replacementLine?.status === "pending" && (replacementLine.options || []).length) {
+            if (replacementLine?.status === "pending" && (replacementLine.options || replacementLine.optionGroups?.length)) {
               setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
               setCartExpanded(true);
-            } else if (multiSelect && replacementLine) {
+            } else if ((optionalReview || multiSelect) && replacementLine) {
               setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
               setCartExpanded(true);
             } else {
@@ -3868,24 +4114,14 @@ export default function SmartBarMobileShell({
               if (!smartBarMobileLinesAreSameInstance(candidate, resolvedLine)) return candidate;
 
               const stillNeedsRequiredChoice = candidate.status === "pending";
-              if (stillNeedsRequiredChoice && (candidate.options || []).length) {
+              if (
+                stillNeedsRequiredChoice &&
+                ((candidate.options || []).length || candidate.optionGroups?.length)
+              ) {
                 nextRequiredLineId = smartBarMobileLineInstanceKey(candidate);
               }
 
-              if (stillNeedsRequiredChoice || !multiSelect) {
-                return candidate;
-              }
-
-              return {
-                ...candidate,
-                status: resolvedLine.status,
-                helper: resolvedLine.helper,
-                details: resolvedLine.details,
-                options: candidate.options || resolvedLine.options || line.options || [],
-                optionQuantities: candidate.optionQuantities || resolvedLine.optionQuantities,
-                optionMaxQuantities: candidate.optionMaxQuantities || resolvedLine.optionMaxQuantities,
-                optionSelectionMode: candidate.optionSelectionMode || resolvedLine.optionSelectionMode,
-              };
+              return candidate;
             }),
           };
 
@@ -3894,7 +4130,7 @@ export default function SmartBarMobileShell({
           if (nextRequiredLineId) {
             setSelectedLineId(nextRequiredLineId);
             setCartExpanded(true);
-          } else if (multiSelect) {
+          } else if (optionalReview || multiSelect) {
             setSelectedLineId((current) => (current === lineInstanceKey ? lineInstanceKey : current));
           }
         })
@@ -3903,7 +4139,6 @@ export default function SmartBarMobileShell({
         });
     }, 360);
   };
-
 
   const removeLine = (line: SmartBarMobileOrderLine) => {
     if (handoffLocked) return;
@@ -4197,7 +4432,7 @@ export default function SmartBarMobileShell({
         : hasCart ? "Updating..." : buildingStatusLabel;
     }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
-    if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return "Mark reviewed";
+    if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Mark reviewed";
     if (phase === "cart" && expandedBundleLineId && selectedLine) return "Back to special";
     if (phase === "cart" && expandedBundleLineId) return "Finish included items";
     if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
@@ -4206,7 +4441,7 @@ export default function SmartBarMobileShell({
         ? "Checking..."
         : retryDraft.trim() ? "Tap to retry" : "Clarify or exit";
     }
-    if (phase === "cart" && selectedLine?.status === "options") return "Mark reviewed";
+    if (phase === "cart" && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Mark reviewed";
     if (phase === "cart" && selectedLine) return "Back to cart";
     if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
     if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Tap gray entries";
@@ -4284,27 +4519,50 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine) {
-      if (selectedLine.status === "options") {
-        const reviewedLine: SmartBarMobileOrderLine = {
-          ...selectedLine,
-          status: "ready",
-          helper: "Reviewed and ready",
-          options: selectedLine.options || [],
-          optionSelectionMode: selectedLine.optionSelectionMode || "multi",
+      if (selectedLine.status === "options" && selectedLineActiveOptionGroup) {
+        const reviewedPatch = smartBarMobileReviewedOptionGroupKeyPatch(
+          selectedLine,
+          selectedLineActiveOptionGroup.id,
+        );
+        const nextReviewedKeys = {
+          ...reviewedOptionLineKeys,
+          ...reviewedPatch,
         };
+        const remainingOptionalGroups = smartBarMobileLineOptionGroups(selectedLine).filter((group) => (
+          smartBarMobileOptionGroupIsOptional(group) &&
+          !smartBarMobileHasReviewedOptionGroupKey(selectedLine, group.id, nextReviewedKeys)
+        ));
+        const nextGroup = remainingOptionalGroups[0] || null;
+        const reviewedLine: SmartBarMobileOrderLine = nextGroup
+          ? smartBarMobileLineWithActiveOptionGroup(
+              {
+                ...selectedLine,
+                status: "options",
+                helper: `Review ${nextGroup.label.toLowerCase()}`,
+              },
+              nextGroup,
+            )
+          : {
+              ...selectedLine,
+              status: "ready",
+              helper: "Reviewed and ready",
+            };
         const reviewedResult: SmartBarMobileOrderResult = {
           lines: smartBarMobileReplaceLineInTree(lines, reviewedLine),
         };
 
-        setReviewedOptionLineKeys((current) => ({
-          ...current,
-          ...smartBarMobileReviewedOptionLineKeyPatch(selectedLine),
-        }));
-
+        setReviewedOptionLineKeys(nextReviewedKeys);
         setOrderLines(reviewedResult.lines);
         applyOrderResultEstimates(reviewedResult, "");
         setLineOverrides({});
         setSelectedChoice(null);
+
+        if (nextGroup) {
+          setSelectedLineId(selectedLineInstanceKey);
+          setSelectedDetailMode("choices");
+          setCartExpanded(true);
+          return;
+        }
       }
 
       setSelectedLineId(null);
@@ -5232,10 +5490,18 @@ export default function SmartBarMobileShell({
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = smartBarMobileLineHasOptionDetail(selectedLine, option);
                                 const isSelected = persistedSelected ||
-                                  (selectedChoice?.lineId === selectedLineInstanceKey && selectedChoice.value === option);
+                                  (
+                                    selectedChoice?.lineId === selectedLineInstanceKey &&
+                                    (!selectedChoice.groupId || selectedChoice.groupId === selectedLine.activeOptionGroupId) &&
+                                    selectedChoice.value === option
+                                  );
                                 const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
                                 const selectionLimitReached = isMultiSelect && !isSelected && smartBarMobileLineAtSelectionLimit(selectedLine);
-                                const isLocked = selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey && !isSelected);
+                                const selectedChoiceLocksActiveGroup = Boolean(
+                                  selectedChoice?.lineId === selectedLineInstanceKey &&
+                                  (!selectedChoice.groupId || selectedChoice.groupId === selectedLine.activeOptionGroupId)
+                                );
+                                const isLocked = selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup && !isSelected);
                                 const optionQuantity = smartBarMobileLineOptionQuantity(selectedLine, option);
                                 const optionMaximum = smartBarMobileLineOptionMaximum(selectedLine, option);
                                 const showDoubleControl = isMultiSelect && isSelected && optionMaximum === 2;
@@ -5247,17 +5513,18 @@ export default function SmartBarMobileShell({
 
                                 return (
                                   <div
-                                    key={option}
+                                    key={`${selectedLine.activeOptionGroupId || "options"}:${option}`}
                                     className="inline-flex max-w-full items-stretch"
                                   >
                                   <button
                                     type="button"
                                     data-smartbar-mobile-option="true"
                                     data-smartbar-mobile-option-key={smartBarMobileDemoKey(option)}
+                                    data-smartbar-mobile-option-group-id={selectedLine.activeOptionGroupId}
                                     data-smartbar-mobile-option-selected={isSelected ? "true" : undefined}
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
-                                    disabled={Boolean(selectionLimitReached || (!isMultiSelect && selectedChoice?.lineId === selectedLineInstanceKey))}
+                                    disabled={Boolean(selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup))}
                                     aria-disabled={isLocked}
                                     className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible ${showDoubleControl ? "rounded-l-full pl-4 pr-3" : "rounded-full px-4"} py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected

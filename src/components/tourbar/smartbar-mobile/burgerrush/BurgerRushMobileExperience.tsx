@@ -462,6 +462,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         value,
         meta?.selected ?? true,
         null,
+        meta?.quantity,
       );
       const nextResult: SmartBarMobileOrderResult = {
         lines: nextLines,
@@ -481,7 +482,12 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     }
 
     const action = meta?.selected === false ? "Deselect" : "Select";
-    const request = `${action} "${value}" for the cart line "${line.title}" with line id "${line.id}". Return the complete replacement cart JSON.`;
+    const optionGroupId = meta?.optionGroupId || line.activeOptionGroupId || "";
+    const optionGroupLabel = meta?.optionGroupLabel || line.optionGroupLabel || "";
+    const groupContext = optionGroupId || optionGroupLabel
+      ? ` in option group "${optionGroupLabel || optionGroupId}"${optionGroupId ? ` with group id "${optionGroupId}"` : ""}`
+      : "";
+    const request = `${action} "${value}" for the cart line "${line.title}" with line id "${line.id}"${groupContext}. Return the complete replacement cart JSON.`;
     const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext);
 
     mobileDirectCartRef.current = result;
