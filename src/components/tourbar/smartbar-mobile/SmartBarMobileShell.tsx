@@ -2120,16 +2120,35 @@ function smartBarMobileLineSelectedDetails(line?: SmartBarMobileOrderLine | null
     keys[smartBarMobileDemoKey(detail)] = true;
     return keys;
   }, {});
+  const itemTitleKeys = [smartBarMobileLineFullTitle(line), line.title]
+    .map((value) => smartBarMobileDemoKey(String(value || "")))
+    .filter(Boolean)
+    .reduce<Record<string, true>>((keys, key) => {
+      keys[key] = true;
+      return keys;
+    }, {});
 
   return smartBarMobileUniqueText([
     ...(line.selectedOptions || []),
     ...(line.details || []).filter((detail) => {
       const key = smartBarMobileDemoKey(detail);
-      if (!key || missingKeys[key]) return false;
+      if (!key || missingKeys[key] || itemTitleKeys[key]) return false;
       if (/^(choice needed|size needed)$/i.test(String(detail || "").trim())) return false;
       return true;
     }),
   ]);
+}
+
+function smartBarMobileLineSummarySelections(line?: SmartBarMobileOrderLine | null) {
+  if (!line) return [];
+
+  return smartBarMobileLineSelectedDetails(line).map((detail) => {
+    const matchingOption = (line.options || []).find((option) => smartBarMobileOptionLabelsEqual(option, detail));
+    if (!matchingOption) return detail;
+
+    const quantity = smartBarMobileLineOptionQuantity(line, matchingOption);
+    return quantity > 1 ? `${quantity}× ${matchingOption}` : matchingOption;
+  });
 }
 
 
@@ -2771,6 +2790,7 @@ export default function SmartBarMobileShell({
   const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
   const selectedLineFullTitle = smartBarMobileLineFullTitle(selectedLine);
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
+  const selectedLineSummarySelections = smartBarMobileLineSummarySelections(selectedLine);
   const selectedLineMissingDetails = smartBarMobileLineMissingDetails(selectedLine);
   const selectedLineHasOptions = Boolean(selectedLine?.options?.length);
   const selectedLineGrayReason = selectedLine?.status === "unknown"
@@ -2786,7 +2806,7 @@ export default function SmartBarMobileShell({
     : selectedLine?.grayReason === "not_on_menu"
       ? "Enter another menu item..."
       : "Clarify or replace this item...";
-  const selectedLineHasSummarySelections = selectedLineSelectedDetails.length > 0;
+  const selectedLineHasSummarySelections = selectedLineSummarySelections.length > 0;
   const selectedLineNoChoicesNeeded = Boolean(
     selectedLine &&
       selectedLine.status === "ready" &&
@@ -5104,39 +5124,48 @@ export default function SmartBarMobileShell({
                         className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
-                        <div className="rounded-[24px] border border-white/18 bg-slate-950/80 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(2,6,23,0.22)] ring-1 ring-white/10">
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/18 bg-slate-950/80 px-3.5 py-2.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Item summary</div>
-                          <div className="mt-1 text-lg font-black leading-tight tracking-tight">{selectedLineFullTitle}</div>
-                          <div className="mt-1 flex items-center justify-between gap-3 text-sm font-black text-white/78">
-                            <span>{statusLabel(selectedLine.status)}</span>
-                            <span>{selectedLine.price}</span>
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <span className={`inline-flex min-h-[28px] items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
+                              {statusLabel(selectedLine.status)}
+                            </span>
+                            <span className="inline-flex min-h-[28px] items-center rounded-full border border-white/14 bg-white/[0.10] px-3 py-1 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]">
+                              {selectedLine.price}
+                            </span>
                           </div>
                         </div>
 
-                        <div className="mt-3 rounded-[22px] border border-white/16 bg-white/[0.08] px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/8">
+                        <div className="mt-3 px-1">
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Selections</div>
                           {selectedLineHasSummarySelections ? (
-                            <div className="mt-2 space-y-2">
-                              {selectedLineSelectedDetails.map((detail) => (
-                                <div key={detail} className="flex items-start gap-2 rounded-[16px] bg-white/92 px-3 py-2 text-sm font-black leading-5 text-slate-950">
-                                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                  <span className="min-w-0 flex-1 whitespace-normal break-words">{detail}</span>
+                            <div className="mt-2 flex flex-wrap items-start gap-2">
+                              {selectedLineSummarySelections.map((detail) => (
+                                <div
+                                  key={detail}
+                                  className="inline-flex min-h-[40px] max-w-full basis-auto items-center gap-2 rounded-full border border-white/44 bg-white/94 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/6"
+                                >
+                                  <Check className="h-3.5 w-3.5 shrink-0 stroke-[2.75]" />
+                                  <span className="min-w-0 whitespace-normal break-words">{detail}</span>
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <div className="mt-2 rounded-[16px] bg-white/88 px-3 py-2 text-sm font-black leading-5 text-slate-950">
+                            <div className="mt-2 inline-flex min-h-[40px] max-w-full items-center rounded-full border border-white/36 bg-white/88 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.66),0_6px_12px_rgba(15,23,42,0.10)]">
                               {selectedLine.helper || "No selections yet."}
                             </div>
                           )}
                         </div>
 
                         {!!selectedLineMissingDetails.length && (
-                          <div className="mt-3 rounded-[22px] border border-red-100/26 bg-red-950/42 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)] ring-1 ring-white/8">
+                          <div className="mt-3 px-1">
                             <div className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/78">Missing</div>
-                            <div className="mt-2 space-y-2">
+                            <div className="mt-2 flex flex-wrap items-start gap-2">
                               {selectedLineMissingDetails.map((detail) => (
-                                <div key={detail} className="rounded-[16px] bg-white/90 px-3 py-2 text-sm font-black leading-5 text-slate-950">
+                                <div
+                                  key={detail}
+                                  className="inline-flex min-h-[40px] max-w-full basis-auto items-center rounded-full border border-red-100/44 bg-white/92 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_6px_12px_rgba(15,23,42,0.12)]"
+                                >
                                   {detail}
                                 </div>
                               ))}
