@@ -2326,6 +2326,22 @@ function smartBarMobileFindLineInTree(
   return null;
 }
 
+function smartBarMobileFindMatchingLineInTree(
+  lines: SmartBarMobileOrderLine[],
+  referenceLine: SmartBarMobileOrderLine,
+): SmartBarMobileOrderLine | null {
+  for (const line of lines) {
+    if (smartBarMobileLinesAreSameInstance(line, referenceLine)) return line;
+    const nested = smartBarMobileFindMatchingLineInTree(
+      line.bundleComponents || [],
+      referenceLine,
+    );
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
 function smartBarMobileMapLineTree(
   lines: SmartBarMobileOrderLine[],
   mapLine: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderLine,
@@ -2398,9 +2414,13 @@ function smartBarMobileReviewedOptionGroupKeys(
   const normalizedGroupId = String(optionGroupId || "").trim();
   if (!normalizedGroupId) return [];
 
+  const sourcePosition = typeof line.sourceLineIndex === "number"
+    ? `${line.sourceBucket || "items"}:${line.sourceLineIndex}`
+    : "";
   const keys = [
     ["cart-line", line.cartLineKey],
     ["source-line", line.sourceLineItemId],
+    ["source-position", sourcePosition],
     ["ui-line", line.id],
   ] as const;
 
@@ -2442,6 +2462,19 @@ function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right
   const leftLineItemId = String(left.sourceLineItemId || "").trim();
   const rightLineItemId = String(right.sourceLineItemId || "").trim();
   if (leftLineItemId && rightLineItemId && leftLineItemId === rightLineItemId) {
+    return true;
+  }
+
+  const leftSourceIndex = left.sourceLineIndex;
+  const rightSourceIndex = right.sourceLineIndex;
+  const leftSourceBucket = left.sourceBucket || "items";
+  const rightSourceBucket = right.sourceBucket || "items";
+  if (
+    typeof leftSourceIndex === "number" &&
+    typeof rightSourceIndex === "number" &&
+    leftSourceIndex === rightSourceIndex &&
+    leftSourceBucket === rightSourceBucket
+  ) {
     return true;
   }
 
@@ -4091,9 +4124,9 @@ export default function SmartBarMobileShell({
             choiceLockedLineIdRef.current = null;
             setSelectedChoice(null);
 
-            const replacementLine = smartBarMobileFindLineInTree(
+            const replacementLine = smartBarMobileFindMatchingLineInTree(
               parentResult.lines,
-              lineInstanceKey,
+              resolvedLine,
             );
             if (replacementLine?.status === "pending" && (replacementLine.options || replacementLine.optionGroups?.length)) {
               setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
@@ -4108,17 +4141,19 @@ export default function SmartBarMobileShell({
           }
 
           let nextRequiredLineId: string | null = null;
+          let refreshedEditedLineId: string | null = null;
           const reviewedParentResult: SmartBarMobileOrderResult = {
             ...parentResult,
             lines: smartBarMobileMapLineTree(parentResult.lines, (candidate) => {
               if (!smartBarMobileLinesAreSameInstance(candidate, resolvedLine)) return candidate;
 
+              refreshedEditedLineId = smartBarMobileLineInstanceKey(candidate);
               const stillNeedsRequiredChoice = candidate.status === "pending";
               if (
                 stillNeedsRequiredChoice &&
                 ((candidate.options || []).length || candidate.optionGroups?.length)
               ) {
-                nextRequiredLineId = smartBarMobileLineInstanceKey(candidate);
+                nextRequiredLineId = refreshedEditedLineId;
               }
 
               return candidate;
@@ -4130,8 +4165,9 @@ export default function SmartBarMobileShell({
           if (nextRequiredLineId) {
             setSelectedLineId(nextRequiredLineId);
             setCartExpanded(true);
-          } else if (optionalReview || multiSelect) {
-            setSelectedLineId((current) => (current === lineInstanceKey ? lineInstanceKey : current));
+          } else if ((optionalReview || multiSelect) && refreshedEditedLineId) {
+            setSelectedLineId(refreshedEditedLineId);
+            setCartExpanded(true);
           }
         })
         .catch(() => {

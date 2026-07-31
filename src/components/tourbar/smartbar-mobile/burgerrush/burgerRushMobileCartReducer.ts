@@ -401,6 +401,37 @@ function smartBarMobileGroupNeedsReview(
   return selectedCount < minimum || (maximum !== undefined && selectedCount > maximum);
 }
 
+function smartBarMobileGroupNeedsRequiredCompletion(
+  group: NonNullable<NonNullable<CarryoutOrder["items"]>[number]["qualifierGroups"]>[number],
+) {
+  return Boolean(
+    !smartBarMobileGroupIsOptional(group) &&
+      (group.missing || smartBarMobileGroupNeedsReview(group))
+  );
+}
+
+function smartBarMobileMissingRequiredQualifiers(
+  line: NonNullable<CarryoutOrder["items"]>[number],
+) {
+  const groups = line.qualifierGroups || [];
+
+  return (line.missingQualifiers || []).filter((missing) => {
+    const qualifierId = String(missing.qualifierId || "").trim();
+    if (!qualifierId) return true;
+
+    const matchingGroup = groups.find((group, index) => {
+      const looseGroup = group as typeof group & { id?: string };
+      return [
+        String(group.qualifierId || "").trim(),
+        String(looseGroup.id || "").trim(),
+        smartBarMobileGroupStableId(group, index),
+      ].some((candidate) => candidate && candidate === qualifierId);
+    });
+
+    return !matchingGroup || !smartBarMobileGroupIsOptional(matchingGroup);
+  });
+}
+
 function smartBarMobileOptionLabelMatchesValue(option: unknown, value: string) {
   const optionRecord = option as Record<string, unknown>;
   return [optionRecord.label, optionRecord.value, optionRecord.id]
@@ -418,7 +449,7 @@ function smartBarMobileActiveOptionGroupFromLine(
   status: SmartBarMobileOrderStatus,
 ) {
   const missingQualifierIds = new Set(
-    (line.missingQualifiers || [])
+    smartBarMobileMissingRequiredQualifiers(line)
       .map((missing) => String(missing.qualifierId || ""))
       .filter(Boolean),
   );
@@ -426,10 +457,11 @@ function smartBarMobileActiveOptionGroupFromLine(
   const groups = line.qualifierGroups || [];
 
   const activeMissingGroup = groups.find((group) => {
+    if (smartBarMobileGroupIsOptional(group)) return false;
+
     const qualifierId = String(group.qualifierId || "");
     return Boolean(
-      group.missing ||
-        smartBarMobileGroupNeedsReview(group) ||
+      smartBarMobileGroupNeedsRequiredCompletion(group) ||
         (qualifierId && missingQualifierIds.has(qualifierId)) ||
         (group.required && smartBarMobileGroupSelectedCount(group) === 0),
     );
@@ -509,13 +541,15 @@ function smartBarMobileStatusForLine(line: NonNullable<CarryoutOrder["items"]>[n
 
   const rawStatus = String(line.status || "").toLowerCase();
   const priceStatus = String((line as NonNullable<CarryoutOrder["items"]>[number] & { priceStatus?: string }).priceStatus || "").toLowerCase();
-  const hasMissingQualifiers = Boolean(
-    line.missingQualifiers?.length ||
-      line.qualifierGroups?.some((group) => group.missing || smartBarMobileGroupNeedsReview(group)),
+  const hasMissingRequiredChoices = Boolean(
+    smartBarMobileMissingRequiredQualifiers(line).length ||
+      line.qualifierGroups?.some(smartBarMobileGroupNeedsRequiredCompletion),
   );
+  const optionalGroups = smartBarMobileOptionalGroupsForLine(line);
 
-  if (rawStatus.includes("pending") || rawStatus.includes("need") || hasMissingQualifiers || priceStatus === "incomplete") return "pending";
-  if (smartBarMobileOptionalGroupsForLine(line).length > 0) return "options";
+  if (hasMissingRequiredChoices || priceStatus === "incomplete") return "pending";
+  if (optionalGroups.length > 0) return "options";
+  if (rawStatus.includes("pending") || rawStatus.includes("need")) return "pending";
   return "ready";
 }
 
@@ -531,8 +565,8 @@ function smartBarMobileHelperForLine(
   }
 
   if (status === "pending") {
-    const missing = line.missingQualifiers?.[0]?.label ||
-      line.qualifierGroups?.find((group) => group.missing || smartBarMobileGroupNeedsReview(group))?.label;
+    const missing = smartBarMobileMissingRequiredQualifiers(line)[0]?.label ||
+      line.qualifierGroups?.find(smartBarMobileGroupNeedsRequiredCompletion)?.label;
     return missing ? `Choose ${missing.toLowerCase()}` : "Choose a required option";
   }
 
@@ -973,14 +1007,7 @@ function smartBarMobileResponseContainsPreviousCarryoutLines(
 }
 
 function smartBarMobileCarryoutLineIsPending(line: NonNullable<CarryoutOrder["items"]>[number]) {
-  const status = String(line.status || "").toLowerCase();
-  return Boolean(
-    status.includes("pending") ||
-      status.includes("need") ||
-      line.bundleComponents?.some(smartBarMobileCarryoutLineIsPending) ||
-      line.missingQualifiers?.length ||
-      line.qualifierGroups?.some((group) => group.missing || smartBarMobileGroupNeedsReview(group)),
-  );
+  return smartBarMobileStatusForLine(line) === "pending";
 }
 
 export function smartBarMobileMergeCarryoutOrders(
@@ -1492,7 +1519,7 @@ function smartBarMobileActiveChoiceGroupIndex(
   }
 
   const missingQualifierIds = new Set(
-    (carryoutLine.missingQualifiers || [])
+    smartBarMobileMissingRequiredQualifiers(carryoutLine)
       .map((missing) => String(missing.qualifierId || ""))
       .filter(Boolean),
   );
@@ -1521,11 +1548,9 @@ function smartBarMobileActiveChoiceGroupIndex(
       );
 
       return Boolean(
-        group.required &&
         !smartBarMobileGroupIsOptional(group) &&
         (
-          group.missing ||
-          smartBarMobileGroupNeedsReview(group) ||
+          smartBarMobileGroupNeedsRequiredCompletion(group) ||
           (qualifierId && missingQualifierIds.has(qualifierId)) ||
           !hasSelectedOption
         )
@@ -1657,10 +1682,13 @@ function smartBarMobileApplyChoiceToCarryoutLine(
   });
 
   const activeGroupAfter = qualifierGroups[activeGroupIndex];
-  const missingQualifiers = (carryoutLine.missingQualifiers || []).filter((missing) => {
+  const missingQualifiers = smartBarMobileMissingRequiredQualifiers({
+    ...carryoutLine,
+    qualifierGroups,
+  }).filter((missing) => {
     const qualifierId = String(missing.qualifierId || "");
     if (!qualifierId || !matchingQualifierIds.has(qualifierId)) return true;
-    return Boolean(activeGroupAfter && smartBarMobileGroupNeedsReview(activeGroupAfter));
+    return Boolean(activeGroupAfter && smartBarMobileGroupNeedsRequiredCompletion(activeGroupAfter));
   });
 
   const requiredGroupOptionLabels = qualifierGroups
@@ -1705,9 +1733,9 @@ function smartBarMobileApplyChoiceToCarryoutLine(
       )
     : requiredAwareKnownSelections;
 
-  const stillMissingGroup = qualifierGroups.some((group) => Boolean(
-    group.missing || smartBarMobileGroupNeedsReview(group)
-  ));
+  const stillMissingGroup = qualifierGroups.some(
+    smartBarMobileGroupNeedsRequiredCompletion,
+  );
   const stillPending = missingQualifiers.length > 0 || stillMissingGroup;
   const hasOptionalGroups = qualifierGroups.some((group) => smartBarMobileGroupIsOptional(group) && (group.options || []).length);
   const nextModifiers = matchedSelectionMode === "multi" && matchedGroupKind === "modifier"
@@ -1834,9 +1862,10 @@ function smartBarMobileNextCurrentStep(order: CarryoutOrder, pendingItems: NonNu
   const nextPending = pendingItems[0];
   if (!nextPending) return undefined;
 
-  const activeGroup = (nextPending.qualifierGroups || []).find((group) => group.missing || smartBarMobileGroupNeedsReview(group)) ||
-    (nextPending.qualifierGroups || [])[0];
-  const activeMissing = (nextPending.missingQualifiers || [])[0];
+  const activeGroup = (nextPending.qualifierGroups || []).find(
+    smartBarMobileGroupNeedsRequiredCompletion,
+  ) || (nextPending.qualifierGroups || []).find((group) => !smartBarMobileGroupIsOptional(group));
+  const activeMissing = smartBarMobileMissingRequiredQualifiers(nextPending)[0];
 
   return {
     ...order.currentStep,
