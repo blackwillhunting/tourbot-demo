@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, LayoutGrid } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
@@ -20,6 +20,7 @@ import {
   smartBarMobileRemoveReplacementFromCarryoutOrder,
   smartBarMobileRemoveVisibleLine,
 } from "../smartbar-mobile/burgerrush/burgerRushMobileCartReducer";
+import { smartBarMobileTicketSelectionDetails } from "../smartbar-mobile/smartBarMobileSelectionDetails";
 import {
   smartBarMobileApiErrorResult,
   smartBarMobileRepriceCartFromGuideAi,
@@ -403,16 +404,14 @@ function boardDetailsForLine(line: SmartBarMobileOrderLine) {
   if (line.bundleComponents?.length) {
     return line.bundleComponents.map((component) => {
       const title = String(component.demoDisplayTitle || component.title || component.bundleSlotId || "Included item").trim();
-      const selections = (component.details || [])
-        .map((detail) => String(detail || "").trim())
-        .filter((detail) => detail && !/^(ready|choice needed)$/i.test(detail));
+      const selections = smartBarMobileTicketSelectionDetails(component);
       return selections.length ? `${title}: ${selections.join(", ")}` : title;
     });
   }
 
-  const details = (line.details || []).filter(Boolean);
-  if (details.length) return details;
-  if (line.helper) return [line.helper];
+  const selections = smartBarMobileTicketSelectionDetails(line);
+  if (selections.length) return selections;
+  if (line.status !== "ready" && line.helper) return [line.helper];
   return undefined;
 }
 
@@ -555,6 +554,7 @@ export default function SmartBarPlayground({
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const estimatedTotalRef = useRef("-");
+  const choiceMutationSequenceRef = useRef(0);
   const latestPromptRef = useRef("");
   const ticketSequenceRef = useRef(184);
   const activeOrderTicketIdRef = useRef<string | null>(null);
@@ -752,6 +752,7 @@ export default function SmartBarPlayground({
   }, []);
 
   const handleSubmitPrompt = useCallback(async (query: string, meta?: SmartBarMobileSubmitMeta) => {
+    choiceMutationSequenceRef.current += 1;
     const replacingUnknown = meta?.intent === "replace_unknown";
     const previousLines = replacingUnknown
       ? smartBarMobileFilterReplacementLine(orderLinesRef.current, meta)
@@ -831,6 +832,8 @@ export default function SmartBarPlayground({
     value: string,
     meta?: SmartBarMobileApplyChoiceMeta,
   ) => {
+    const mutationSequence = choiceMutationSequenceRef.current + 1;
+    choiceMutationSequenceRef.current = mutationSequence;
     const previousEstimatedTotal = estimatedTotalRef.current;
     const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
       carryoutOrderRef.current,
@@ -838,6 +841,7 @@ export default function SmartBarPlayground({
       value,
       meta?.selected ?? true,
       meta?.quantity,
+      meta?.optionGroupId,
     );
     const nextLines = smartBarMobileApplyChoiceToVisibleLines(
       orderLinesRef.current,
@@ -846,6 +850,7 @@ export default function SmartBarPlayground({
       meta?.selected ?? true,
       optimisticCarryoutOrder,
       meta?.quantity,
+      meta?.optionGroupId,
     );
     const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "-"
       ? previousEstimatedTotal
@@ -870,6 +875,13 @@ export default function SmartBarPlayground({
         activeVendorContext,
       );
 
+      if (choiceMutationSequenceRef.current !== mutationSequence) {
+        return {
+          lines: orderLinesRef.current,
+          estimatedTotal: estimatedTotalRef.current,
+        };
+      }
+
       orderLinesRef.current = repricedResult.lines;
       estimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
       carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
@@ -880,11 +892,18 @@ export default function SmartBarPlayground({
       };
     } catch (error) {
       console.warn("SmartBar playground reprice failed after choice", error);
+      if (choiceMutationSequenceRef.current !== mutationSequence) {
+        return {
+          lines: orderLinesRef.current,
+          estimatedTotal: estimatedTotalRef.current,
+        };
+      }
       return optimisticResult;
     }
   }, [activeVendorContext]);
 
   const handleRemoveLine = useCallback((line: SmartBarMobileOrderLine) => {
+    choiceMutationSequenceRef.current += 1;
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
     const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "-";
     const nextCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
@@ -1016,6 +1035,7 @@ export default function SmartBarPlayground({
   }, [activeBoardOrder, activeVendorContext, boardOrders]);
 
   const handleResetCart = useCallback(() => {
+    choiceMutationSequenceRef.current += 1;
     carryoutOrderRef.current = null;
     orderLinesRef.current = [];
     estimatedTotalRef.current = "-";

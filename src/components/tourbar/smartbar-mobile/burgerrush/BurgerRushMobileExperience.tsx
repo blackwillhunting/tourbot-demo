@@ -346,6 +346,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   const mobileDirectCartRef = useRef<SmartBarMobileOrderResult | null>(null);
   const mobileOrderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
   const mobileEstimatedTotalRef = useRef("—");
+  const mobileChoiceMutationSequenceRef = useRef(0);
   const mobileFocusSnapshotRef = useRef<any | null>(null);
   const mobileFocusTimerRef = useRef<number | null>(null);
 
@@ -396,6 +397,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   }, [clearMobileFocusTarget]);
 
   const handleSubmitPrompt = useCallback(async (query: string, meta?: SmartBarMobileSubmitMeta) => {
+    mobileChoiceMutationSequenceRef.current += 1;
     const replacingUnknown = meta?.intent === "replace_unknown";
     const previousLines = replacingUnknown
       ? smartBarMobileFilterReplacementLine(mobileOrderLinesRef.current, meta)
@@ -455,6 +457,9 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     value: string,
     meta?: SmartBarMobileApplyChoiceMeta,
   ) => {
+    const mutationSequence = mobileChoiceMutationSequenceRef.current + 1;
+    mobileChoiceMutationSequenceRef.current = mutationSequence;
+
     if (demoFixtureMode) {
       const nextLines = smartBarMobileApplyChoiceToVisibleLines(
         mobileOrderLinesRef.current,
@@ -463,6 +468,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         meta?.selected ?? true,
         null,
         meta?.quantity,
+        meta?.optionGroupId,
       );
       const nextResult: SmartBarMobileOrderResult = {
         lines: nextLines,
@@ -490,6 +496,13 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     const request = `${action} "${value}" for the cart line "${line.title}" with line id "${line.id}"${groupContext}. Return the complete replacement cart JSON.`;
     const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext);
 
+    if (mobileChoiceMutationSequenceRef.current !== mutationSequence) {
+      return {
+        lines: mobileOrderLinesRef.current,
+        estimatedTotal: mobileEstimatedTotalRef.current,
+      };
+    }
+
     mobileDirectCartRef.current = result;
     mobileOrderLinesRef.current = result.lines;
     mobileEstimatedTotalRef.current = result.estimatedTotal || mobileEstimatedTotalRef.current;
@@ -497,6 +510,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   }, [activeVendorContext, demoFixtureMode]);
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
+    mobileChoiceMutationSequenceRef.current += 1;
     if (demoFixtureMode) {
       const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
       const nextResult: SmartBarMobileOrderResult = {
@@ -527,6 +541,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
   }, [activeVendorContext, demoFixtureMode]);
 
   const handleResetCart = useCallback(() => {
+    mobileChoiceMutationSequenceRef.current += 1;
     clearMobileFocusTarget();
     clearSmartBarFocusOverlay();
     mobileDirectCartRef.current = null;

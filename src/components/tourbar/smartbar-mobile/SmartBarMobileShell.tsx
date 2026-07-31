@@ -1,6 +1,7 @@
 ﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   Pencil,
@@ -20,6 +21,8 @@ import {
   smartBarMobileRowSurfaceClass,
   statusClass,
 } from "./smartBarMobileStyles";
+import { smartBarMobileSelectionSummaryGroups } from "./smartBarMobileSelectionDetails";
+import { smartBarMobileConditionalNavigationTarget } from "./smartBarMobileConditionalNavigation";
 
 /**
  * SmartBarMobileShell
@@ -46,15 +49,26 @@ export type SmartBarMobileSelectionRule = {
   maxSelections?: number | null;
 };
 
+export type SmartBarMobileQualifierActivationRule = {
+  parentQualifierId: string;
+  parentOptionId: string;
+};
+
 export type SmartBarMobileOptionGroup = {
   /** Stable backend qualifier/modifier group identity. */
   id: string;
   label: string;
   required?: boolean;
   kind?: string;
+  /** False for a conditional child whose activating parent option is not selected. */
+  active?: boolean;
+  conditional?: boolean;
+  activationRules?: SmartBarMobileQualifierActivationRule[];
   options: string[];
   /** Exact backend option IDs aligned by index with options. */
   optionIds?: string[];
+  /** Child group IDs aligned by index with options. */
+  optionChildGroupIds?: string[][];
   selectedOptions?: string[];
   selectedOptionIds?: string[];
   optionQuantities?: number[];
@@ -97,6 +111,8 @@ export type SmartBarMobileOrderLine = {
   options?: string[];
   /** Exact backend option IDs aligned by index with options. */
   optionIds?: string[];
+  /** Conditional child group IDs aligned by index with options. */
+  optionChildGroupIds?: string[][];
   /** Canonical selected control labels retained for display and demo compatibility. */
   selectedOptions?: string[];
   /** Exact backend-selected option IDs. These are authoritative for control state. */
@@ -210,7 +226,7 @@ export type SmartBarMobileDemoSubmission = {
   manualSubmit?: boolean;
 };
 
-type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "optionGroups" | "activeOptionGroupId" | "options" | "optionIds" | "selectedOptions" | "selectedOptionIds" | "optionQuantities" | "optionMaxQuantities" | "optionSelectionMode" | "optionGroupLabel" | "optionMinSelections" | "optionMaxSelections" | "selectionRules" | "retryPrompt">>;
+type DemoLineOverride = Partial<Pick<SmartBarMobileOrderLine, "status" | "helper" | "price" | "details" | "optionGroups" | "activeOptionGroupId" | "options" | "optionIds" | "optionChildGroupIds" | "selectedOptions" | "selectedOptionIds" | "optionQuantities" | "optionMaxQuantities" | "optionSelectionMode" | "optionGroupLabel" | "optionMinSelections" | "optionMaxSelections" | "selectionRules" | "retryPrompt">>;
 
 const demoLines: SmartBarMobileOrderLine[] = [
   {
@@ -2105,7 +2121,7 @@ function smartBarMobileFallbackOptionGroupId(line: SmartBarMobileOrderLine) {
   return `legacy-${labelKey || "options"}`;
 }
 
-function smartBarMobileLineOptionGroups(line: SmartBarMobileOrderLine): SmartBarMobileOptionGroup[] {
+function smartBarMobileAllLineOptionGroups(line: SmartBarMobileOrderLine): SmartBarMobileOptionGroup[] {
   if (Array.isArray(line.optionGroups) && line.optionGroups.length) {
     return line.optionGroups.filter((group) => Array.isArray(group.options) && group.options.length);
   }
@@ -2116,8 +2132,10 @@ function smartBarMobileLineOptionGroups(line: SmartBarMobileOrderLine): SmartBar
     id: line.activeOptionGroupId || smartBarMobileFallbackOptionGroupId(line),
     label: line.optionGroupLabel || (line.status === "pending" ? "Required choice" : "Options"),
     required: line.status === "pending" || smartBarMobileLineMinimumSelections(line) > 0,
+    active: true,
     options: line.options,
     optionIds: line.optionIds,
+    optionChildGroupIds: line.optionChildGroupIds,
     selectedOptions: line.selectedOptions,
     selectedOptionIds: line.selectedOptionIds,
     optionQuantities: line.optionQuantities,
@@ -2127,6 +2145,10 @@ function smartBarMobileLineOptionGroups(line: SmartBarMobileOrderLine): SmartBar
     maxSelections: line.optionMaxSelections,
     selectionRules: line.selectionRules,
   }];
+}
+
+function smartBarMobileLineOptionGroups(line: SmartBarMobileOrderLine): SmartBarMobileOptionGroup[] {
+  return smartBarMobileAllLineOptionGroups(line).filter((group) => group.active !== false);
 }
 
 function smartBarMobileOptionGroupIsOptional(group: SmartBarMobileOptionGroup) {
@@ -2162,6 +2184,7 @@ function smartBarMobileLineWithActiveOptionGroup(
     activeOptionGroupId: group.id,
     options: group.options,
     optionIds: group.optionIds,
+    optionChildGroupIds: group.optionChildGroupIds,
     selectedOptions: group.selectedOptions,
     selectedOptionIds: group.selectedOptionIds,
     optionQuantities: group.optionQuantities,
@@ -2178,7 +2201,7 @@ function smartBarMobileReplaceActiveOptionGroup(
   line: SmartBarMobileOrderLine,
   replacement: SmartBarMobileOptionGroup,
 ) {
-  const groups = smartBarMobileLineOptionGroups(line);
+  const groups = smartBarMobileAllLineOptionGroups(line);
   const optionGroups = groups.length
     ? groups.map((group) => group.id === replacement.id ? replacement : group)
     : [replacement];
@@ -2193,24 +2216,231 @@ function smartBarMobileReplaceActiveOptionGroup(
   );
 }
 
+function smartBarMobileOptionGroupSelectedIds(group: SmartBarMobileOptionGroup) {
+  const selectedIds = (group.selectedOptionIds || []).map((value) => String(value || "").trim()).filter(Boolean);
+  if (selectedIds.length) return selectedIds;
+
+  return (group.options || []).reduce<string[]>((ids, option, index) => {
+    const selected = (group.selectedOptions || []).some((value) => smartBarMobileOptionLabelsEqual(value, option)) ||
+      Number(group.optionQuantities?.[index] || 0) > 0;
+    const optionId = String(group.optionIds?.[index] || option || "").trim();
+    if (selected && optionId && !ids.includes(optionId)) ids.push(optionId);
+    return ids;
+  }, []);
+}
+
+function smartBarMobileConditionalDescendantGroupIds(
+  line: SmartBarMobileOrderLine,
+  initialGroupIds: string[],
+) {
+  const groups = smartBarMobileAllLineOptionGroups(line);
+  const descendants = new Set<string>();
+  const queue = [...initialGroupIds];
+  while (queue.length) {
+    const groupId = String(queue.shift() || "").trim();
+    if (!groupId || descendants.has(groupId)) continue;
+    descendants.add(groupId);
+    const group = groups.find((candidate) => candidate.id === groupId);
+    (group?.optionChildGroupIds || []).flat().forEach((childId) => {
+      if (childId && !descendants.has(childId)) queue.push(childId);
+    });
+  }
+  return Array.from(descendants);
+}
+
+function smartBarMobileConditionalChildrenForOption(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+  optionId: string,
+  optionLabel: string,
+) {
+  const optionIndex = (group.options || []).findIndex((option, index) => {
+    const candidateId = String(group.optionIds?.[index] || "").trim();
+    return (candidateId && candidateId === optionId) || smartBarMobileOptionLabelsEqual(option, optionLabel);
+  });
+  if (optionIndex < 0) return [];
+  return smartBarMobileConditionalDescendantGroupIds(
+    line,
+    group.optionChildGroupIds?.[optionIndex] || [],
+  );
+}
+
+function smartBarMobileActiveConditionalParentGroup(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+) {
+  const groups = smartBarMobileAllLineOptionGroups(line);
+  const selectedByGroup = new Map(
+    groups.map((candidate) => [candidate.id, new Set(smartBarMobileOptionGroupSelectedIds(candidate))]),
+  );
+  const activeRule = (group.activationRules || []).find((rule) => {
+    const parent = groups.find((candidate) => candidate.id === rule.parentQualifierId);
+    return Boolean(
+      parent?.active !== false &&
+      selectedByGroup.get(rule.parentQualifierId)?.has(rule.parentOptionId)
+    );
+  });
+  if (!activeRule) return null;
+  return groups.find((candidate) => candidate.id === activeRule.parentQualifierId) || null;
+}
+
+function smartBarMobileConditionalReturnGroup(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+) {
+  let current: SmartBarMobileOptionGroup | null = group;
+  let returnGroup: SmartBarMobileOptionGroup | null = null;
+  const visited = new Set<string>();
+
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    const parent = smartBarMobileActiveConditionalParentGroup(line, current);
+    if (!parent) break;
+    if (parent.selectionMode === "multi") returnGroup = parent;
+    current = parent;
+  }
+
+  return returnGroup;
+}
+
+function smartBarMobileOptionGroupDescendantIds(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+) {
+  return smartBarMobileConditionalDescendantGroupIds(
+    line,
+    (group.optionChildGroupIds || []).flat(),
+  );
+}
+
+function smartBarMobileOptionGroupHasSelectedActiveChild(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+) {
+  const groups = smartBarMobileAllLineOptionGroups(line);
+  const selectedIds = new Set(smartBarMobileOptionGroupSelectedIds(group));
+  return (group.options || []).some((option, index) => {
+    const optionId = String(group.optionIds?.[index] || option || "").trim();
+    if (!optionId || !selectedIds.has(optionId)) return false;
+    return (group.optionChildGroupIds?.[index] || []).some((childId) => (
+      groups.some((candidate) => candidate.id === childId && candidate.active !== false)
+    ));
+  });
+}
+
+function smartBarMobileRecomputeConditionalOptionGroups(line: SmartBarMobileOrderLine) {
+  const sourceGroups = smartBarMobileAllLineOptionGroups(line);
+  if (!sourceGroups.length) return sourceGroups;
+
+  let groups = sourceGroups.map((group) => ({ ...group }));
+  const selectedByGroup = () => new Map(
+    groups.map((group) => [group.id, new Set(smartBarMobileOptionGroupSelectedIds(group))]),
+  );
+
+  for (let pass = 0; pass <= groups.length; pass += 1) {
+    const selected = selectedByGroup();
+    let changed = false;
+    groups = groups.map((group) => {
+      const rules = group.activationRules || [];
+      const active = rules.length === 0 || rules.some((rule) => {
+        const parent = groups.find((candidate) => candidate.id === rule.parentQualifierId);
+        return Boolean(parent?.active !== false && selected.get(rule.parentQualifierId)?.has(rule.parentOptionId));
+      });
+      if (Boolean(group.active !== false) !== active) changed = true;
+      if (active) return { ...group, active: true };
+      return {
+        ...group,
+        active: false,
+        selectedOptions: [],
+        selectedOptionIds: [],
+        optionQuantities: (group.options || []).map(() => 0),
+      };
+    });
+    if (!changed) break;
+  }
+
+  return groups;
+}
+
+function smartBarMobileResolveConditionalLine(
+  line: SmartBarMobileOrderLine,
+  preferredGroupIds: string[] = [],
+) {
+  const optionGroups = smartBarMobileRecomputeConditionalOptionGroups(line);
+  const activeGroups = optionGroups.filter((group) => group.active !== false);
+  const requiredGroup = activeGroups.find((group) => (
+    !smartBarMobileOptionGroupIsOptional(group) && smartBarMobileOptionGroupNeedsRequiredChoice(group)
+  ));
+  const preferredGroup = preferredGroupIds
+    .map((groupId) => activeGroups.find((group) => group.id === groupId))
+    .find(Boolean);
+  const currentGroup = activeGroups.find((group) => group.id === line.activeOptionGroupId);
+  const optionalGroup = activeGroups.find(smartBarMobileOptionGroupIsOptional);
+  const nextGroup = preferredGroup || requiredGroup || currentGroup || optionalGroup || activeGroups[0];
+  const hasOptionalGroups = activeGroups.some(smartBarMobileOptionGroupIsOptional);
+  const status: SmartBarMobileOrderStatus = requiredGroup
+    ? "pending"
+    : hasOptionalGroups
+      ? "options"
+      : "ready";
+  const helper = requiredGroup
+    ? `Choose ${requiredGroup.label.toLowerCase()}`
+    : hasOptionalGroups
+      ? `Review ${(nextGroup || optionalGroup)?.label.toLowerCase() || "options"}`
+      : "Reviewed and ready";
+
+  const allOptionLabels = optionGroups.flatMap((group) => group.options || []);
+  const selectedLabels = activeGroups.flatMap((group) => group.selectedOptions || []);
+  const details = Array.from(new Set([
+    ...(line.details || []).filter((detail) => (
+      !/^(choice needed|size needed)$/i.test(String(detail || "").trim()) &&
+      !allOptionLabels.some((option) => smartBarMobileOptionLabelsEqual(option, detail))
+    )),
+    ...selectedLabels,
+  ]));
+
+  const baseLine: SmartBarMobileOrderLine = {
+    ...line,
+    status,
+    helper,
+    details,
+    optionGroups,
+  };
+  return nextGroup ? smartBarMobileLineWithActiveOptionGroup(baseLine, nextGroup) : baseLine;
+}
+
 function smartBarMobileActiveOptionGroup(
   line: SmartBarMobileOrderLine,
   reviewedKeys: Record<string, true>,
 ) {
   const groups = smartBarMobileLineOptionGroups(line);
   if (!groups.length) return null;
+  const explicitGroup = groups.find((group) => group.id === line.activeOptionGroupId);
 
   if (line.status === "pending") {
+    if (
+      explicitGroup &&
+      !smartBarMobileOptionGroupIsOptional(explicitGroup) &&
+      smartBarMobileOptionGroupNeedsRequiredChoice(explicitGroup)
+    ) {
+      return explicitGroup;
+    }
+
     const missingRequired = groups.find((group) => (
       !smartBarMobileOptionGroupIsOptional(group) &&
       smartBarMobileOptionGroupNeedsRequiredChoice(group)
     ));
     if (missingRequired) return missingRequired;
 
-    return groups.find((group) => (
-      !smartBarMobileOptionGroupIsOptional(group) &&
-      group.id === line.activeOptionGroupId
-    )) || groups.find((group) => !smartBarMobileOptionGroupIsOptional(group)) || groups[0];
+    return explicitGroup || groups.find((group) => !smartBarMobileOptionGroupIsOptional(group)) || groups[0];
+  }
+
+  if (
+    explicitGroup &&
+    smartBarMobileOptionGroupIsOptional(explicitGroup) &&
+    !smartBarMobileHasReviewedOptionGroupKey(line, explicitGroup.id, reviewedKeys)
+  ) {
+    return explicitGroup;
   }
 
   const unreviewedOptional = groups.find((group) => (
@@ -2292,18 +2522,6 @@ function smartBarMobileLineSelectedDetails(line?: SmartBarMobileOrderLine | null
       return true;
     }),
   ]);
-}
-
-function smartBarMobileLineSummarySelections(line?: SmartBarMobileOrderLine | null) {
-  if (!line) return [];
-
-  return smartBarMobileLineSelectedDetails(line).map((detail) => {
-    const matchingOption = (line.options || []).find((option) => smartBarMobileOptionLabelsEqual(option, detail));
-    if (!matchingOption) return detail;
-
-    const quantity = smartBarMobileLineOptionQuantity(line, matchingOption);
-    return quantity > 1 ? `${quantity}× ${matchingOption}` : matchingOption;
-  });
 }
 
 
@@ -2412,26 +2630,10 @@ function smartBarMobileReviewedOptionGroupKeys(
   optionGroupId: string,
 ) {
   const normalizedGroupId = String(optionGroupId || "").trim();
-  if (!normalizedGroupId) return [];
+  const lineInstanceKey = smartBarMobileLineInstanceKey(line).trim();
+  if (!normalizedGroupId || !lineInstanceKey) return [];
 
-  const sourcePosition = typeof line.sourceLineIndex === "number"
-    ? `${line.sourceBucket || "items"}:${line.sourceLineIndex}`
-    : "";
-  const keys = [
-    ["cart-line", line.cartLineKey],
-    ["source-line", line.sourceLineItemId],
-    ["source-position", sourcePosition],
-    ["ui-line", line.id],
-  ] as const;
-
-  return keys.reduce<string[]>((reviewKeys, [namespace, value]) => {
-    const normalizedValue = String(value || "").trim();
-    if (!normalizedValue) return reviewKeys;
-
-    const reviewKey = `${namespace}:${normalizedValue}::option-group:${normalizedGroupId}`;
-    if (!reviewKeys.includes(reviewKey)) reviewKeys.push(reviewKey);
-    return reviewKeys;
-  }, []);
+  return [`line-instance:${lineInstanceKey}::option-group:${normalizedGroupId}`];
 }
 
 function smartBarMobileReviewedOptionGroupKeyPatch(
@@ -2455,27 +2657,37 @@ function smartBarMobileHasReviewedOptionGroupKey(
 function smartBarMobileLinesAreSameInstance(left: SmartBarMobileOrderLine, right: SmartBarMobileOrderLine) {
   const leftCartLineKey = String(left.cartLineKey || "").trim();
   const rightCartLineKey = String(right.cartLineKey || "").trim();
-  if (leftCartLineKey && rightCartLineKey && leftCartLineKey === rightCartLineKey) {
-    return true;
-  }
-
-  const leftLineItemId = String(left.sourceLineItemId || "").trim();
-  const rightLineItemId = String(right.sourceLineItemId || "").trim();
-  if (leftLineItemId && rightLineItemId && leftLineItemId === rightLineItemId) {
-    return true;
+  if (leftCartLineKey || rightCartLineKey) {
+    return Boolean(
+      leftCartLineKey &&
+      rightCartLineKey &&
+      leftCartLineKey === rightCartLineKey
+    );
   }
 
   const leftSourceIndex = left.sourceLineIndex;
   const rightSourceIndex = right.sourceLineIndex;
   const leftSourceBucket = left.sourceBucket || "items";
   const rightSourceBucket = right.sourceBucket || "items";
-  if (
-    typeof leftSourceIndex === "number" &&
-    typeof rightSourceIndex === "number" &&
-    leftSourceIndex === rightSourceIndex &&
-    leftSourceBucket === rightSourceBucket
-  ) {
-    return true;
+  const leftHasSourcePosition = typeof leftSourceIndex === "number";
+  const rightHasSourcePosition = typeof rightSourceIndex === "number";
+  if (leftHasSourcePosition || rightHasSourcePosition) {
+    return Boolean(
+      leftHasSourcePosition &&
+      rightHasSourcePosition &&
+      leftSourceIndex === rightSourceIndex &&
+      leftSourceBucket === rightSourceBucket
+    );
+  }
+
+  const leftLineItemId = String(left.sourceLineItemId || "").trim();
+  const rightLineItemId = String(right.sourceLineItemId || "").trim();
+  if (leftLineItemId || rightLineItemId) {
+    return Boolean(
+      leftLineItemId &&
+      rightLineItemId &&
+      leftLineItemId === rightLineItemId
+    );
   }
 
   const leftId = String(left.id || "").trim();
@@ -2699,12 +2911,15 @@ export default function SmartBarMobileShell({
   const entryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const retryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const genericContentMeasureRef = useRef<HTMLDivElement | null>(null);
+  const selectedDetailMeasureRef = useRef<HTMLDivElement | null>(null);
+  const selectedSummaryContentMeasureRef = useRef<HTMLDivElement | null>(null);
   const cartScrollRef = useRef<HTMLDivElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
   const handoffCollapseTimerRef = useRef<number | null>(null);
   const handoffResetTimerRef = useRef<number | null>(null);
   const choiceLockedLineIdRef = useRef<string | null>(null);
+  const choiceMutationRevisionRef = useRef(0);
   const adaptiveRailReturnTimerRef = useRef<number | null>(null);
   const adaptiveRailOffsetRef = useRef(0);
   const expandedBundleCompletionRef = useRef<{ lineId: string | null; complete: boolean }>({
@@ -2730,11 +2945,14 @@ export default function SmartBarMobileShell({
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
   const [genericResult, setGenericResult] = useState<SmartBarMobileGenericResult | null>(null);
   const [measuredGenericPanelHeight, setMeasuredGenericPanelHeight] = useState<number | null>(null);
+  const [measuredSelectedSummaryPanelHeight, setMeasuredSelectedSummaryPanelHeight] = useState<number | null>(null);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
   const [closeArmed, setCloseArmed] = useState(false);
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [selectedOptionGroupOverride, setSelectedOptionGroupOverride] = useState<{ lineKey: string; groupId: string } | null>(null);
+  const [conditionalReturnContext, setConditionalReturnContext] = useState<{ lineKey: string; groupId: string } | null>(null);
   const [expandedBundleLineId, setExpandedBundleLineId] = useState<string | null>(null);
   const [selectedDetailMode, setSelectedDetailMode] = useState<"choices" | "summary">("choices");
   const [cartStatusFilter, setCartStatusFilter] = useState<SmartBarMobileCartStatusFilter>(null);
@@ -2750,6 +2968,18 @@ export default function SmartBarMobileShell({
     phase === "cart" &&
     genericResult?.surfaceKind === "info" &&
     genericResult.statusLabel === "Order sent";
+
+  useEffect(() => {
+    if (!selectedLineId) {
+      setSelectedOptionGroupOverride(null);
+      setConditionalReturnContext(null);
+      return;
+    }
+
+    setConditionalReturnContext((current) => (
+      current && current.lineKey !== selectedLineId ? null : current
+    ));
+  }, [selectedLineId]);
 
   useEffect(() => {
     onPickupConfirmationOpenChange?.(pickupConfirmationOpen);
@@ -3012,7 +3242,29 @@ export default function SmartBarMobileShell({
     return smartBarMobileRollupBundleTree(overriddenLines);
   }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
 
-  const selectedLine = smartBarMobileFindLineInTree(lines, selectedLineId);
+  const selectedLineSource = smartBarMobileFindLineInTree(lines, selectedLineId);
+  const selectedLineSourceInstanceKey = selectedLineSource
+    ? smartBarMobileLineInstanceKey(selectedLineSource)
+    : "";
+  const selectedLineSourceOptionGroups = selectedLineSource
+    ? smartBarMobileLineOptionGroups(selectedLineSource)
+    : [];
+  const requestedOptionGroupOverrideId = selectedOptionGroupOverride?.lineKey === selectedLineSourceInstanceKey
+    ? selectedOptionGroupOverride.groupId
+    : null;
+  const selectedOptionGroupOverrideGroup = requestedOptionGroupOverrideId
+    ? selectedLineSourceOptionGroups.find((group) => group.id === requestedOptionGroupOverrideId) || null
+    : null;
+  const selectedOptionGroupOverrideId = selectedOptionGroupOverrideGroup?.id || null;
+  const selectedLine = selectedLineSource && selectedOptionGroupOverrideGroup
+    ? smartBarMobileLineWithActiveOptionGroup(
+        {
+          ...selectedLineSource,
+          activeOptionGroupId: selectedOptionGroupOverrideGroup.id,
+        },
+        selectedOptionGroupOverrideGroup,
+      )
+    : selectedLineSource;
   const expandedBundleLine = smartBarMobileFindLineInTree(lines, expandedBundleLineId);
   const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
   const selectedLineOptionGroups = selectedLine ? smartBarMobileLineOptionGroups(selectedLine) : [];
@@ -3020,13 +3272,107 @@ export default function SmartBarMobileShell({
     ? selectedLineOptionGroups.find((group) => group.id === selectedLine.activeOptionGroupId) ||
       smartBarMobileActiveOptionGroup(selectedLine, reviewedOptionLineKeys)
     : null;
+  const selectedLineActiveOptionGroupIndex = selectedLineActiveOptionGroup
+    ? selectedLineOptionGroups.findIndex((group) => group.id === selectedLineActiveOptionGroup.id)
+    : -1;
+  const selectedLineActiveConditionalParentOptionGroup = selectedLine && selectedLineActiveOptionGroup
+    ? smartBarMobileActiveConditionalParentGroup(selectedLine, selectedLineActiveOptionGroup)
+    : null;
+  const selectedLinePreviousOptionGroup = selectedLineActiveConditionalParentOptionGroup || (
+    selectedLineActiveOptionGroupIndex > 0
+      ? selectedLineOptionGroups[selectedLineActiveOptionGroupIndex - 1]
+      : null
+  );
+  const selectedLineNextOptionGroup = (
+    selectedLineActiveOptionGroupIndex >= 0 &&
+    selectedLineActiveOptionGroupIndex < selectedLineOptionGroups.length - 1
+  )
+    ? selectedLineOptionGroups[selectedLineActiveOptionGroupIndex + 1]
+    : null;
+  const selectedLineConditionalReturnOptionGroup = selectedLine && selectedLineActiveOptionGroup
+    ? (
+        conditionalReturnContext?.lineKey === selectedLineInstanceKey
+          ? selectedLineOptionGroups.find((group) => group.id === conditionalReturnContext.groupId) || null
+          : smartBarMobileConditionalReturnGroup(selectedLine, selectedLineActiveOptionGroup)
+      )
+    : null;
+  const selectedLineActiveOptionGroupConditionalDescendantIds = selectedLine && selectedLineActiveOptionGroup
+    ? smartBarMobileOptionGroupDescendantIds(selectedLine, selectedLineActiveOptionGroup)
+    : [];
+  const selectedLineActiveOptionGroupIsMultiSelectConditionalRoot = Boolean(
+    selectedLine &&
+    selectedLineActiveOptionGroup &&
+    selectedLineActiveOptionGroup.selectionMode === "multi" &&
+    selectedLineActiveOptionGroupConditionalDescendantIds.length > 0 &&
+    !smartBarMobileActiveConditionalParentGroup(selectedLine, selectedLineActiveOptionGroup),
+  );
+  const selectedLineConditionalHomeOptionGroup = selectedLineConditionalReturnOptionGroup || (
+    selectedLineActiveOptionGroupIsMultiSelectConditionalRoot
+      ? selectedLineActiveOptionGroup
+      : null
+  );
+  const selectedLineAtConditionalHomeGroup = Boolean(
+    selectedLineConditionalHomeOptionGroup &&
+    selectedLineActiveOptionGroup?.id === selectedLineConditionalHomeOptionGroup.id,
+  );
+  const selectedLineActiveGroupHasSelectedChild = Boolean(
+    selectedLine &&
+    selectedLineActiveOptionGroup &&
+    smartBarMobileOptionGroupHasSelectedActiveChild(selectedLine, selectedLineActiveOptionGroup),
+  );
+  const selectedLineConditionalBranchIsTerminal = Boolean(
+    selectedLineConditionalReturnOptionGroup &&
+    selectedLineActiveOptionGroup &&
+    selectedLineActiveOptionGroup.id !== selectedLineConditionalReturnOptionGroup.id &&
+    !selectedLineActiveGroupHasSelectedChild,
+  );
+  const selectedLineConditionalDescendantIds = selectedLine && selectedLineConditionalHomeOptionGroup
+    ? new Set(smartBarMobileOptionGroupDescendantIds(selectedLine, selectedLineConditionalHomeOptionGroup))
+    : new Set<string>();
+  const selectedLineConditionalDescendantAttentionGroup = selectedLineAtConditionalHomeGroup && selectedLine
+    ? selectedLineOptionGroups.find((group) => (
+        selectedLineConditionalDescendantIds.has(group.id) &&
+        (
+          (!smartBarMobileOptionGroupIsOptional(group) && smartBarMobileOptionGroupNeedsRequiredChoice(group)) ||
+          (
+            smartBarMobileOptionGroupIsOptional(group) &&
+            !smartBarMobileHasReviewedOptionGroupKey(selectedLine, group.id, reviewedOptionLineKeys)
+          )
+        )
+      )) || null
+    : null;
+  const selectedLineNextMainOptionGroup = selectedLineAtConditionalHomeGroup && selectedLineConditionalHomeOptionGroup
+    ? selectedLineOptionGroups.find((group, index) => (
+        index > selectedLineActiveOptionGroupIndex &&
+        !selectedLineConditionalDescendantIds.has(group.id)
+      )) || null
+    : null;
+  const selectedLineActiveOptionGroupIsOptional = Boolean(
+    selectedLineActiveOptionGroup &&
+    smartBarMobileOptionGroupIsOptional(selectedLineActiveOptionGroup),
+  );
+  const selectedLineActiveOptionGroupIsReviewed = Boolean(
+    selectedLine &&
+    selectedLineActiveOptionGroup &&
+    smartBarMobileHasReviewedOptionGroupKey(
+      selectedLine,
+      selectedLineActiveOptionGroup.id,
+      reviewedOptionLineKeys,
+    ),
+  );
+  const selectedLineActiveOptionGroupNeedsRequiredChoice = Boolean(
+    selectedLineActiveOptionGroup &&
+    !selectedLineActiveOptionGroupIsOptional &&
+    smartBarMobileOptionGroupNeedsRequiredChoice(selectedLineActiveOptionGroup),
+  );
   const selectedLineUnreviewedOptionalGroups = selectedLine
     ? smartBarMobileUnreviewedOptionalGroups(selectedLine, reviewedOptionLineKeys)
     : [];
   const selectedLineRemainingOptionalReviewCount = selectedLineUnreviewedOptionalGroups.length;
   const selectedLineFullTitle = smartBarMobileLineFullTitle(selectedLine);
   const selectedLineSelectedDetails = smartBarMobileLineSelectedDetails(selectedLine);
-  const selectedLineSummarySelections = smartBarMobileLineSummarySelections(selectedLine);
+  const selectedLineSummaryGroups = smartBarMobileSelectionSummaryGroups(selectedLine);
+  const selectedLineSummarySelections = selectedLineSummaryGroups.flatMap((group) => group.selections);
   const selectedLineMissingDetails = smartBarMobileLineMissingDetails(selectedLine);
   const selectedLineHasOptions = Boolean(selectedLine?.options?.length);
   const selectedLineGrayReason = selectedLine?.status === "unknown"
@@ -3056,6 +3402,82 @@ export default function SmartBarMobileShell({
       setSelectedDetailMode("summary");
     }
   }, [selectedLineId, selectedLineNoChoicesNeeded]);
+
+  const selectedSummaryMeasurementKey = [
+    selectedLineInstanceKey,
+    selectedLine?.status || "",
+    selectedLine?.price || "",
+    ...selectedLineSummaryGroups.flatMap((group) => [group.label, ...group.selections]),
+    ...selectedLineMissingDetails,
+  ].join("\u001f");
+
+  useLayoutEffect(() => {
+    const shouldMeasureSummary = Boolean(
+      phase === "cart" &&
+      cartExpanded &&
+      selectedLine &&
+      !selectedLineNoChoicesNeeded &&
+      selectedDetailMode === "summary",
+    );
+
+    if (!shouldMeasureSummary) {
+      setMeasuredSelectedSummaryPanelHeight(null);
+      return;
+    }
+
+    let frame = 0;
+    let firstTimer = 0;
+    let secondTimer = 0;
+
+    const measureSummary = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const detailNode = selectedDetailMeasureRef.current;
+        const summaryNode = selectedSummaryContentMeasureRef.current;
+        if (!detailNode || !summaryNode) return;
+
+        const detailRect = detailNode.getBoundingClientRect();
+        const summaryRect = summaryNode.getBoundingClientRect();
+        const contentTop = Math.max(0, summaryRect.top - detailRect.top);
+        const desiredHeight = Math.ceil(contentTop + summaryNode.scrollHeight + 12);
+        if (!Number.isFinite(desiredHeight) || desiredHeight <= 0) return;
+
+        const clampedHeight = Math.min(
+          maxCartPanelHeight,
+          Math.max(320, desiredHeight),
+        );
+
+        setMeasuredSelectedSummaryPanelHeight((current) => (
+          current === clampedHeight ? current : clampedHeight
+        ));
+      });
+    };
+
+    measureSummary();
+    firstTimer = window.setTimeout(measureSummary, 60);
+    secondTimer = window.setTimeout(measureSummary, 220);
+
+    const summaryNode = selectedSummaryContentMeasureRef.current;
+    const observer = summaryNode && typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measureSummary)
+      : null;
+    observer?.observe(summaryNode as Element);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+      observer?.disconnect();
+    };
+  }, [
+    cartExpanded,
+    maxCartPanelHeight,
+    phase,
+    selectedDetailMode,
+    selectedLine,
+    selectedLineNoChoicesNeeded,
+    selectedSummaryMeasurementKey,
+  ]);
 
   const expandedBundleCompletionKey = (expandedBundleLine?.bundleComponents || [])
     .map((component) => `${smartBarMobileLineInstanceKey(component)}:${component.status}`)
@@ -3299,7 +3721,7 @@ export default function SmartBarMobileShell({
 
     return twoLineTitle ? 560 : 536;
   };
-  const cartDetailHeight = selectedLine?.status === "unknown"
+  const cartDetailBaseHeight = selectedLine?.status === "unknown"
     ? 340
     : selectedLineNoChoicesNeeded
       ? selectedDetailTitleLines > 1 ? 270 : 248
@@ -3307,6 +3729,12 @@ export default function SmartBarMobileShell({
           maxCartPanelHeight,
           cartDetailHeightFromShape(selectedOptionRows, selectedDetailTitleLines),
         );
+  const cartDetailHeight = selectedDetailMode === "summary" && measuredSelectedSummaryPanelHeight
+    ? Math.min(
+        maxCartPanelHeight,
+        Math.max(cartDetailBaseHeight, measuredSelectedSummaryPanelHeight),
+      )
+    : cartDetailBaseHeight;
   const fakeCartPanelHeight = handoffState === "complete"
     ? 0
     : phase === "cart"
@@ -3523,6 +3951,7 @@ export default function SmartBarMobileShell({
     clearBuildTimer();
     clearHandoffTimers();
     resetAdaptiveRailToCenter();
+    choiceMutationRevisionRef.current += 1;
     setHandoffState("idle");
     setSelectedLineId(null);
     setCartStatusFilter(null);
@@ -3918,6 +4347,8 @@ export default function SmartBarMobileShell({
     disarmClose();
     choiceLockedLineIdRef.current = null;
     setSelectedChoice(null);
+    setSelectedOptionGroupOverride(null);
+    setConditionalReturnContext(null);
     if (line.isExpandableBundle && line.bundleComponents?.length) {
       setSelectedLineId(null);
       setSelectedDetailMode("choices");
@@ -3948,19 +4379,47 @@ export default function SmartBarMobileShell({
     }
   };
 
+  const openSelectedLineOptionGroup = (group: SmartBarMobileOptionGroup | null) => {
+    if (!selectedLine || !group) return;
+    setSelectedOptionGroupOverride({
+      lineKey: selectedLineInstanceKey,
+      groupId: group.id,
+    });
+    setSelectedChoice(null);
+    setSelectedDetailMode("choices");
+    setSelectedLineId(selectedLineInstanceKey);
+    setCartExpanded(true);
+  };
+
+  const openSelectedLinePreviousOptionGroup = () => {
+    openSelectedLineOptionGroup(selectedLinePreviousOptionGroup);
+  };
+
   const applyLineChoice = (
     line: SmartBarMobileOrderLine,
     value: string,
     requestedQuantity?: number,
   ) => {
-    const activeGroup = smartBarMobileActiveOptionGroup(line, reviewedOptionLineKeys);
+    const activeGroup = selectedOptionGroupOverrideId
+      ? smartBarMobileLineOptionGroups(line).find((group) => group.id === selectedOptionGroupOverrideId) ||
+        smartBarMobileActiveOptionGroup(line, reviewedOptionLineKeys)
+      : smartBarMobileActiveOptionGroup(line, reviewedOptionLineKeys);
+    const lineInstanceKey = smartBarMobileLineInstanceKey(line);
+    const existingConditionalReturnGroup = activeGroup
+      ? (
+          conditionalReturnContext?.lineKey === lineInstanceKey
+            ? smartBarMobileLineOptionGroups(line).find((group) => group.id === conditionalReturnContext.groupId) || null
+            : smartBarMobileConditionalReturnGroup(line, activeGroup)
+        )
+      : null;
     const activeGroupId = activeGroup?.id || line.activeOptionGroupId || smartBarMobileFallbackOptionGroupId(line);
     const activeGroupLabel = activeGroup?.label || line.optionGroupLabel || "options";
     const optionalReview = activeGroup
       ? smartBarMobileOptionGroupIsOptional(activeGroup)
       : line.status === "options";
-    const multiSelect = line.optionSelectionMode === "multi" || line.status === "options";
-    const lineInstanceKey = smartBarMobileLineInstanceKey(line);
+    const multiSelect = activeGroup
+      ? activeGroup.selectionMode === "multi"
+      : line.optionSelectionMode === "multi" || line.status === "options";
     const choiceLockKey = `${lineInstanceKey}::${activeGroupId}`;
     if (
       handoffLocked ||
@@ -3970,12 +4429,77 @@ export default function SmartBarMobileShell({
     const valueAlreadySelected = smartBarMobileLineHasOptionDetail(line, value);
     const optionIndex = (line.options || []).findIndex((option) => option === value);
     const optionId = optionIndex >= 0 ? String(line.optionIds?.[optionIndex] || "") : "";
+    const activatedChildGroupIds = activeGroup
+      ? smartBarMobileConditionalChildrenForOption(line, activeGroup, optionId, value)
+      : [];
+    const directActivatedChildGroupIds = activeGroup && optionIndex >= 0
+      ? (activeGroup.optionChildGroupIds?.[optionIndex] || [])
+          .map((groupId) => String(groupId || "").trim())
+          .filter(Boolean)
+      : [];
+    const previouslySelectedChildGroupIds = activeGroup
+      ? smartBarMobileOptionGroupSelectedIds(activeGroup).flatMap((selectedId) => {
+          const selectedIndex = (activeGroup.optionIds || []).findIndex((candidate) => String(candidate || "") === selectedId);
+          const selectedLabel = selectedIndex >= 0 ? activeGroup.options[selectedIndex] || "" : "";
+          return smartBarMobileConditionalChildrenForOption(line, activeGroup, selectedId, selectedLabel);
+        })
+      : [];
     const currentQuantity = smartBarMobileLineOptionQuantity(line, value);
     const maximumForOption = smartBarMobileLineOptionMaximum(line, value);
     const nextQuantity = requestedQuantity === undefined
       ? valueAlreadySelected ? 0 : 1
       : Math.max(1, Math.min(maximumForOption, Math.floor(requestedQuantity)));
-    const nextSelectedCount = smartBarMobileLineSelectionCount(line) - currentQuantity + nextQuantity;
+    const optionSelectionChanged = multiSelect
+      ? (currentQuantity > 0) !== (nextQuantity > 0)
+      : nextQuantity === 0 || !valueAlreadySelected;
+    const childReviewKeysToClear = !optionSelectionChanged
+      ? []
+      : Array.from(new Set(
+          multiSelect
+            ? activatedChildGroupIds
+            : [
+                ...activatedChildGroupIds,
+                ...previouslySelectedChildGroupIds,
+              ],
+        ));
+    if (childReviewKeysToClear.length) {
+      setReviewedOptionLineKeys((current) => {
+        const next = { ...current };
+        childReviewKeysToClear.forEach((groupId) => {
+          smartBarMobileReviewedOptionGroupKeys(line, groupId).forEach((key) => {
+            delete next[key];
+          });
+        });
+        return next;
+      });
+    }
+    const selectedOptionActivatesChild = nextQuantity > 0 && directActivatedChildGroupIds.length > 0;
+    const activeGroupIsMultiSelectConditionalHome = Boolean(
+      activeGroup &&
+      activeGroup.selectionMode === "multi" &&
+      smartBarMobileOptionGroupDescendantIds(line, activeGroup).length > 0 &&
+      !smartBarMobileActiveConditionalParentGroup(line, activeGroup)
+    );
+    const conditionalReturnGroup = existingConditionalReturnGroup || (
+      activeGroupIsMultiSelectConditionalHome ? activeGroup : null
+    );
+    if (conditionalReturnGroup) {
+      setConditionalReturnContext({
+        lineKey: lineInstanceKey,
+        groupId: conditionalReturnGroup.id,
+      });
+    }
+    const shouldAutoReturnToConditionalParent = Boolean(
+      conditionalReturnGroup &&
+      activeGroup &&
+      activeGroup.id !== conditionalReturnGroup.id &&
+      activeGroup.selectionMode !== "multi" &&
+      nextQuantity > 0 &&
+      !selectedOptionActivatesChild
+    );
+    const nextSelectedCount = multiSelect
+      ? smartBarMobileLineSelectionCount(line) - currentQuantity + nextQuantity
+      : nextQuantity;
     const maximum = smartBarMobileLineMaximumSelections(line);
     if (multiSelect && maximum !== undefined && nextSelectedCount > maximum) return;
     if (multiSelect && nextQuantity > 0 && !valueAlreadySelected && smartBarMobileLineAtSelectionLimit(line)) return;
@@ -4016,7 +4540,7 @@ export default function SmartBarMobileShell({
       : line.selectedOptionIds;
     const nextOptionQuantities = (line.options || []).map((option, index) => {
       if (index === optionIndex) return nextQuantity;
-      return smartBarMobileLineOptionQuantity(line, option);
+      return multiSelect ? smartBarMobileLineOptionQuantity(line, option) : 0;
     });
     const minimum = smartBarMobileLineMinimumSelections(line);
     const stillPending = nextSelectedCount < minimum ||
@@ -4036,13 +4560,14 @@ export default function SmartBarMobileShell({
           ? "Reviewed and ready"
           : `${value} selected`;
 
-    let resolvedLine: SmartBarMobileOrderLine = {
+    let appliedLine: SmartBarMobileOrderLine = {
       ...line,
       status: resolvedStatus,
       helper: resolvedHelper,
       details: nextDetails,
       options: line.options || [],
       optionIds: line.optionIds || [],
+      optionChildGroupIds: line.optionChildGroupIds || [],
       optionQuantities: nextOptionQuantities,
       optionMaxQuantities: line.optionMaxQuantities || [],
       selectedOptions: nextSelectedOptions,
@@ -4057,11 +4582,89 @@ export default function SmartBarMobileShell({
         selectedOptionIds: nextSelectedOptionIds,
         optionQuantities: nextOptionQuantities,
       };
-      resolvedLine = smartBarMobileReplaceActiveOptionGroup(resolvedLine, resolvedGroup);
+      appliedLine = smartBarMobileReplaceActiveOptionGroup(appliedLine, resolvedGroup);
+    }
+    appliedLine = smartBarMobileResolveConditionalLine(
+      appliedLine,
+      nextQuantity > 0 ? activatedChildGroupIds : [],
+    );
+
+    if (
+      shouldAutoReturnToConditionalParent &&
+      activeGroup &&
+      smartBarMobileOptionGroupIsOptional(activeGroup)
+    ) {
+      setReviewedOptionLineKeys((current) => ({
+        ...current,
+        ...smartBarMobileReviewedOptionGroupKeyPatch(line, activeGroup.id),
+      }));
     }
 
+    const resolvedGroups = smartBarMobileLineOptionGroups(appliedLine);
+    const resolvedActiveGroup = activeGroup
+      ? resolvedGroups.find((group) => group.id === activeGroup.id) || null
+      : null;
+    const resolvedConditionalHomeGroup = conditionalReturnGroup
+      ? resolvedGroups.find((group) => group.id === conditionalReturnGroup.id) || null
+      : null;
+    const resolvedActiveGroupNeedsRequiredChoice = Boolean(
+      resolvedActiveGroup &&
+      !smartBarMobileOptionGroupIsOptional(resolvedActiveGroup) &&
+      smartBarMobileOptionGroupNeedsRequiredChoice(resolvedActiveGroup)
+    );
+    const navigationDecision = smartBarMobileConditionalNavigationTarget({
+      currentGroupId: resolvedActiveGroup?.id || activeGroupId,
+      resolverGroupId: appliedLine.activeOptionGroupId || null,
+      conditionalHomeGroupId: resolvedConditionalHomeGroup?.id || null,
+      directChildGroupIds: directActivatedChildGroupIds,
+      activeGroupIds: resolvedGroups
+        .filter((group) => group.active !== false)
+        .map((group) => group.id),
+      selected: nextQuantity > 0,
+      currentGroupSelectionMode: resolvedActiveGroup?.selectionMode || activeGroup?.selectionMode,
+      currentGroupNeedsRequiredChoice: resolvedActiveGroupNeedsRequiredChoice,
+      currentGroupIsConditionalHome: activeGroupIsMultiSelectConditionalHome,
+    });
+    const displayedGroup = resolvedGroups.find((group) => (
+      group.id === navigationDecision.visibleGroupId
+    )) || resolvedActiveGroup || resolvedGroups[0] || null;
+    let displayedLine = displayedGroup
+      ? smartBarMobileLineWithActiveOptionGroup(appliedLine, displayedGroup)
+      : appliedLine;
+    const conditionalReturnGroupId = navigationDecision.conditionalHomeGroupId;
+    const visibleOptionGroupId = displayedGroup?.id || displayedLine.activeOptionGroupId || null;
+
+    if (
+      conditionalReturnGroupId &&
+      visibleOptionGroupId === conditionalReturnGroupId
+    ) {
+      displayedLine = {
+        ...displayedLine,
+        helper: "Continue selections",
+      };
+    }
+
+    const mutationLine = activeGroup
+      ? smartBarMobileLineWithActiveOptionGroup(
+          {
+            ...line,
+            activeOptionGroupId: activeGroup.id,
+          },
+          activeGroup,
+        )
+      : line;
+    const mutationRevision = choiceMutationRevisionRef.current + 1;
+    choiceMutationRevisionRef.current = mutationRevision;
+    const keepDetailOpen = Boolean(
+      conditionalReturnGroupId ||
+      displayedLine.status === "pending" ||
+      displayedLine.status === "options" ||
+      optionalReview ||
+      multiSelect
+    );
+
     const parentResultPromise = onApplyLineChoice
-      ? Promise.resolve(onApplyLineChoice(resolvedLine, value, {
+      ? Promise.resolve(onApplyLineChoice(mutationLine, value, {
           selected: nextQuantity > 0,
           multiSelect,
           valueAlreadySelected,
@@ -4077,28 +4680,62 @@ export default function SmartBarMobileShell({
       ...current,
       [lineInstanceKey]: {
         ...(current[lineInstanceKey] || {}),
-        status: resolvedLine.status,
-        helper: resolvedLine.helper,
-        details: resolvedLine.details,
-        optionGroups: resolvedLine.optionGroups,
-        activeOptionGroupId: resolvedLine.activeOptionGroupId,
-        options: resolvedLine.options || [],
-        optionIds: resolvedLine.optionIds || [],
-        selectedOptions: resolvedLine.selectedOptions,
-        selectedOptionIds: resolvedLine.selectedOptionIds,
-        optionQuantities: resolvedLine.optionQuantities,
-        optionMaxQuantities: resolvedLine.optionMaxQuantities,
-        optionSelectionMode: resolvedLine.optionSelectionMode,
-        optionGroupLabel: resolvedLine.optionGroupLabel,
-        optionMinSelections: resolvedLine.optionMinSelections,
-        optionMaxSelections: resolvedLine.optionMaxSelections,
-        selectionRules: resolvedLine.selectionRules,
+        status: displayedLine.status,
+        helper: displayedLine.helper,
+        details: displayedLine.details,
+        optionGroups: displayedLine.optionGroups,
+        activeOptionGroupId: displayedLine.activeOptionGroupId,
+        options: displayedLine.options || [],
+        optionIds: displayedLine.optionIds || [],
+        optionChildGroupIds: displayedLine.optionChildGroupIds || [],
+        selectedOptions: displayedLine.selectedOptions,
+        selectedOptionIds: displayedLine.selectedOptionIds,
+        optionQuantities: displayedLine.optionQuantities,
+        optionMaxQuantities: displayedLine.optionMaxQuantities,
+        optionSelectionMode: displayedLine.optionSelectionMode,
+        optionGroupLabel: displayedLine.optionGroupLabel,
+        optionMinSelections: displayedLine.optionMinSelections,
+        optionMaxSelections: displayedLine.optionMaxSelections,
+        selectionRules: displayedLine.selectionRules,
       },
     }));
+    if (conditionalReturnGroupId) {
+      setConditionalReturnContext({
+        lineKey: lineInstanceKey,
+        groupId: conditionalReturnGroupId,
+      });
+    } else {
+      setConditionalReturnContext(null);
+    }
+    if (visibleOptionGroupId && keepDetailOpen) {
+      setSelectedOptionGroupOverride({
+        lineKey: lineInstanceKey,
+        groupId: visibleOptionGroupId,
+      });
+    } else {
+      setSelectedOptionGroupOverride(null);
+    }
+    setSelectedLineId((current) => (
+      keepDetailOpen
+        ? current === lineInstanceKey ? lineInstanceKey : current
+        : null
+    ));
+    setSelectedDetailMode("choices");
+    setCartExpanded(true);
 
     window.setTimeout(() => {
+      // A newer option click owns the visible panel and cart state. Older
+      // delayed commits must not overwrite that newer navigation decision.
+      if (choiceMutationRevisionRef.current !== mutationRevision) {
+        parentResultPromise.catch(() => {
+          // The newer mutation remains authoritative even if this stale
+          // pricing request fails.
+        });
+        return;
+      }
+
       const optimisticResult: SmartBarMobileOrderResult = {
-        lines: smartBarMobileReplaceLineInTree(lines, resolvedLine),
+        lines: smartBarMobileReplaceLineInTree(lines, displayedLine),
       };
 
       setOrderLines(optimisticResult.lines);
@@ -4106,8 +4743,20 @@ export default function SmartBarMobileShell({
       setLineOverrides({});
       choiceLockedLineIdRef.current = null;
       setSelectedChoice(null);
+      if (conditionalReturnGroupId) {
+        setConditionalReturnContext({
+          lineKey: lineInstanceKey,
+          groupId: conditionalReturnGroupId,
+        });
+      }
+      if (visibleOptionGroupId && keepDetailOpen) {
+        setSelectedOptionGroupOverride({
+          lineKey: lineInstanceKey,
+          groupId: visibleOptionGroupId,
+        });
+      }
       setSelectedLineId((current) => (
-        optionalReview || multiSelect
+        keepDetailOpen
           ? current === lineInstanceKey ? lineInstanceKey : current
           : null
       ));
@@ -4115,60 +4764,65 @@ export default function SmartBarMobileShell({
 
       parentResultPromise
         .then((parentResult) => {
+          if (choiceMutationRevisionRef.current !== mutationRevision) return;
           if (!parentResult || parentResult.lines.length === 0) return;
 
-          if (parentResult.authoritativeReplacement) {
-            setOrderLines(parentResult.lines);
-            applyOrderResultEstimates(parentResult);
-            setLineOverrides({});
-            choiceLockedLineIdRef.current = null;
-            setSelectedChoice(null);
+          setOrderLines(parentResult.lines);
+          applyOrderResultEstimates(parentResult);
+          setLineOverrides({});
+          choiceLockedLineIdRef.current = null;
+          setSelectedChoice(null);
 
-            const replacementLine = smartBarMobileFindMatchingLineInTree(
-              parentResult.lines,
-              resolvedLine,
-            );
-            if (replacementLine?.status === "pending" && (replacementLine.options || replacementLine.optionGroups?.length)) {
-              setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
-              setCartExpanded(true);
-            } else if ((optionalReview || multiSelect) && replacementLine) {
-              setSelectedLineId(smartBarMobileLineInstanceKey(replacementLine));
-              setCartExpanded(true);
-            } else {
-              setSelectedLineId(null);
-            }
+          const replacementLine = smartBarMobileFindMatchingLineInTree(
+            parentResult.lines,
+            mutationLine,
+          );
+          if (!replacementLine || !keepDetailOpen) {
+            setSelectedOptionGroupOverride(null);
+            setConditionalReturnContext(null);
+            setSelectedLineId(null);
             return;
           }
 
-          let nextRequiredLineId: string | null = null;
-          let refreshedEditedLineId: string | null = null;
-          const reviewedParentResult: SmartBarMobileOrderResult = {
-            ...parentResult,
-            lines: smartBarMobileMapLineTree(parentResult.lines, (candidate) => {
-              if (!smartBarMobileLinesAreSameInstance(candidate, resolvedLine)) return candidate;
+          const replacementLineKey = smartBarMobileLineInstanceKey(replacementLine);
+          const replacementGroups = smartBarMobileLineOptionGroups(replacementLine);
+          const replacementVisibleGroup = visibleOptionGroupId
+            ? replacementGroups.find((group) => (
+                group.id === visibleOptionGroupId &&
+                group.active !== false
+              )) || null
+            : null;
+          const replacementHomeGroup = conditionalReturnGroupId
+            ? replacementGroups.find((group) => (
+                group.id === conditionalReturnGroupId &&
+                group.active !== false
+              )) || null
+            : null;
+          const replacementFallbackGroup = replacementGroups.find((group) => (
+            group.id === replacementLine.activeOptionGroupId
+          )) || replacementGroups[0] || null;
+          const preservedVisibleGroup = replacementVisibleGroup ||
+            replacementHomeGroup ||
+            replacementFallbackGroup;
 
-              refreshedEditedLineId = smartBarMobileLineInstanceKey(candidate);
-              const stillNeedsRequiredChoice = candidate.status === "pending";
-              if (
-                stillNeedsRequiredChoice &&
-                ((candidate.options || []).length || candidate.optionGroups?.length)
-              ) {
-                nextRequiredLineId = refreshedEditedLineId;
-              }
-
-              return candidate;
-            }),
-          };
-
-          setOrderLines(reviewedParentResult.lines);
-          applyOrderResultEstimates(reviewedParentResult);
-          if (nextRequiredLineId) {
-            setSelectedLineId(nextRequiredLineId);
-            setCartExpanded(true);
-          } else if ((optionalReview || multiSelect) && refreshedEditedLineId) {
-            setSelectedLineId(refreshedEditedLineId);
-            setCartExpanded(true);
+          if (replacementHomeGroup) {
+            setConditionalReturnContext({
+              lineKey: replacementLineKey,
+              groupId: replacementHomeGroup.id,
+            });
+          } else {
+            setConditionalReturnContext(null);
           }
+          if (preservedVisibleGroup) {
+            setSelectedOptionGroupOverride({
+              lineKey: replacementLineKey,
+              groupId: preservedVisibleGroup.id,
+            });
+          } else {
+            setSelectedOptionGroupOverride(null);
+          }
+          setSelectedLineId(replacementLineKey);
+          setCartExpanded(true);
         })
         .catch(() => {
           // Keep the optimistic cart if the pricing refresh fails.
@@ -4181,8 +4835,13 @@ export default function SmartBarMobileShell({
 
     disarmClose();
     choiceLockedLineIdRef.current = null;
+    choiceMutationRevisionRef.current += 1;
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
+    const removedLineReviewPrefix = `line-instance:${smartBarMobileLineInstanceKey(line)}::option-group:`;
+    setReviewedOptionLineKeys((current) => Object.fromEntries(
+      Object.entries(current).filter(([key]) => !key.startsWith(removedLineReviewPrefix)),
+    ));
 
     const parentResultPromise = onRemoveLine
       ? Promise.resolve(onRemoveLine(line))
@@ -4383,6 +5042,7 @@ export default function SmartBarMobileShell({
     setLineOverrides({});
     setReviewedOptionLineKeys({});
     choiceLockedLineIdRef.current = null;
+    choiceMutationRevisionRef.current += 1;
     setSelectedChoice(null);
     setRetryCheckingLineId(null);
     setHasCart(false);
@@ -4468,6 +5128,38 @@ export default function SmartBarMobileShell({
         : hasCart ? "Updating..." : buildingStatusLabel;
     }
     if (phase === "cart" && genericResult) return genericResult.statusLabel || genericResult.title || "SmartBar result";
+    if (
+      phase === "cart" &&
+      selectedLine &&
+      selectedLineConditionalReturnOptionGroup &&
+      selectedLineActiveOptionGroupNeedsRequiredChoice
+    ) return "Make a choice";
+    if (
+      phase === "cart" &&
+      selectedLine &&
+      selectedLineAtConditionalHomeGroup &&
+      !selectedLineActiveOptionGroupNeedsRequiredChoice
+    ) {
+      return selectedLineConditionalDescendantAttentionGroup
+        ? selectedLineConditionalDescendantAttentionGroup.label
+        : "Done choosing";
+    }
+    if (
+      phase === "cart" &&
+      selectedLine &&
+      selectedLineConditionalBranchIsTerminal &&
+      !selectedLineActiveOptionGroupNeedsRequiredChoice &&
+      (
+        selectedLineActiveOptionGroup?.selectionMode === "multi" ||
+        selectedLineActiveOptionGroupIsOptional
+      )
+    ) return "Continue selections";
+    if (
+      phase === "cart" &&
+      selectedLine &&
+      selectedLineNextOptionGroup &&
+      !selectedLineActiveOptionGroupNeedsRequiredChoice
+    ) return "Next options";
     if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Mark reviewed";
     if (phase === "cart" && expandedBundleLineId && selectedLine) return "Back to special";
     if (phase === "cart" && expandedBundleLineId) return "Finish included items";
@@ -4555,7 +5247,106 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine) {
-      if (selectedLine.status === "options" && selectedLineActiveOptionGroup) {
+      if (
+        selectedLineConditionalReturnOptionGroup &&
+        selectedLineActiveOptionGroupNeedsRequiredChoice
+      ) return;
+
+      if (
+        selectedLineAtConditionalHomeGroup &&
+        !selectedLineActiveOptionGroupNeedsRequiredChoice
+      ) {
+        if (selectedLineConditionalDescendantAttentionGroup) {
+          openSelectedLineOptionGroup(selectedLineConditionalDescendantAttentionGroup);
+          return;
+        }
+
+        let nextReviewedKeys = reviewedOptionLineKeys;
+        if (
+          selectedLineActiveOptionGroup &&
+          selectedLineActiveOptionGroupIsOptional &&
+          !selectedLineActiveOptionGroupIsReviewed
+        ) {
+          nextReviewedKeys = {
+            ...reviewedOptionLineKeys,
+            ...smartBarMobileReviewedOptionGroupKeyPatch(
+              selectedLine,
+              selectedLineActiveOptionGroup.id,
+            ),
+          };
+          setReviewedOptionLineKeys(nextReviewedKeys);
+        }
+
+        setConditionalReturnContext(null);
+        if (selectedLineNextMainOptionGroup) {
+          openSelectedLineOptionGroup(selectedLineNextMainOptionGroup);
+          return;
+        }
+
+        setSelectedOptionGroupOverride(null);
+        setSelectedLineId(null);
+        setCartExpanded(true);
+        return;
+      }
+
+      if (
+        selectedLineConditionalBranchIsTerminal &&
+        selectedLineConditionalReturnOptionGroup &&
+        !selectedLineActiveOptionGroupNeedsRequiredChoice &&
+        (
+          selectedLineActiveOptionGroup?.selectionMode === "multi" ||
+          selectedLineActiveOptionGroupIsOptional
+        )
+      ) {
+        let returnedLine = selectedLine;
+        if (
+          selectedLineActiveOptionGroup &&
+          selectedLineActiveOptionGroupIsOptional &&
+          !selectedLineActiveOptionGroupIsReviewed
+        ) {
+          setReviewedOptionLineKeys((current) => ({
+            ...current,
+            ...smartBarMobileReviewedOptionGroupKeyPatch(
+              selectedLine,
+              selectedLineActiveOptionGroup.id,
+            ),
+          }));
+        }
+
+        returnedLine = smartBarMobileLineWithActiveOptionGroup(
+          {
+            ...returnedLine,
+            helper: "Continue selections",
+          },
+          selectedLineConditionalReturnOptionGroup,
+        );
+        const returnedResult: SmartBarMobileOrderResult = {
+          lines: smartBarMobileReplaceLineInTree(lines, returnedLine),
+        };
+
+        setOrderLines(returnedResult.lines);
+        applyOrderResultEstimates(returnedResult, "");
+        setLineOverrides({});
+        setSelectedChoice(null);
+        setConditionalReturnContext({
+          lineKey: selectedLineInstanceKey,
+          groupId: selectedLineConditionalReturnOptionGroup.id,
+        });
+        setSelectedOptionGroupOverride({
+          lineKey: selectedLineInstanceKey,
+          groupId: selectedLineConditionalReturnOptionGroup.id,
+        });
+        setSelectedLineId(selectedLineInstanceKey);
+        setSelectedDetailMode("choices");
+        setCartExpanded(true);
+        return;
+      }
+
+      if (
+        selectedLineActiveOptionGroup &&
+        selectedLineActiveOptionGroupIsOptional &&
+        !selectedLineActiveOptionGroupIsReviewed
+      ) {
         const reviewedPatch = smartBarMobileReviewedOptionGroupKeyPatch(
           selectedLine,
           selectedLineActiveOptionGroup.id,
@@ -4568,20 +5359,24 @@ export default function SmartBarMobileShell({
           smartBarMobileOptionGroupIsOptional(group) &&
           !smartBarMobileHasReviewedOptionGroupKey(selectedLine, group.id, nextReviewedKeys)
         ));
-        const nextGroup = remainingOptionalGroups[0] || null;
+        const nextGroup = selectedLineNextOptionGroup || remainingOptionalGroups[0] || null;
+        const hasUnreviewedOptionalGroups = remainingOptionalGroups.length > 0;
         const reviewedLine: SmartBarMobileOrderLine = nextGroup
           ? smartBarMobileLineWithActiveOptionGroup(
               {
                 ...selectedLine,
-                status: "options",
-                helper: `Review ${nextGroup.label.toLowerCase()}`,
+                status: hasUnreviewedOptionalGroups ? "options" : "ready",
+                helper: smartBarMobileOptionGroupIsOptional(nextGroup) &&
+                  !smartBarMobileHasReviewedOptionGroupKey(selectedLine, nextGroup.id, nextReviewedKeys)
+                    ? `Review ${nextGroup.label.toLowerCase()}`
+                    : "Review item selections",
               },
               nextGroup,
             )
           : {
               ...selectedLine,
-              status: "ready",
-              helper: "Reviewed and ready",
+              status: hasUnreviewedOptionalGroups ? "options" : "ready",
+              helper: hasUnreviewedOptionalGroups ? "Options available" : "Reviewed and ready",
             };
         const reviewedResult: SmartBarMobileOrderResult = {
           lines: smartBarMobileReplaceLineInTree(lines, reviewedLine),
@@ -4594,13 +5389,25 @@ export default function SmartBarMobileShell({
         setSelectedChoice(null);
 
         if (nextGroup) {
+          setSelectedOptionGroupOverride({
+            lineKey: selectedLineInstanceKey,
+            groupId: nextGroup.id,
+          });
           setSelectedLineId(selectedLineInstanceKey);
           setSelectedDetailMode("choices");
           setCartExpanded(true);
           return;
         }
+      } else if (
+        selectedLineNextOptionGroup &&
+        !selectedLineActiveOptionGroupNeedsRequiredChoice
+      ) {
+        openSelectedLineOptionGroup(selectedLineNextOptionGroup);
+        return;
       }
 
+      setConditionalReturnContext(null);
+      setSelectedOptionGroupOverride(null);
       setSelectedLineId(null);
       setCartExpanded(true);
       return;
@@ -4659,6 +5466,7 @@ export default function SmartBarMobileShell({
       retryTextareaRef.current?.blur();
       disarmClose();
       setSelectedLineId(null);
+      setSelectedOptionGroupOverride(null);
       setSelectedDetailMode("choices");
       setCartExpanded(true);
       return;
@@ -5359,6 +6167,7 @@ export default function SmartBarMobileShell({
 
                 {phase === "cart" && cartExpanded && selectedLine && (
                   <motion.div
+                    ref={selectedDetailMeasureRef}
                     key={`fake-item-detail-${selectedLine.id}`}
                     initial={demoWalkthroughDecisionPanelSwap ? { opacity: 1 } : { opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -5382,6 +6191,19 @@ export default function SmartBarMobileShell({
 
                     {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && selectedLine.status !== "unknown" && (
                       <div className="mt-2 flex shrink-0 items-center justify-center gap-2">
+                        {selectedLinePreviousOptionGroup ? (
+                          <button
+                            type="button"
+                            data-smartbar-mobile-previous-options="true"
+                            onClick={openSelectedLinePreviousOptionGroup}
+                            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-[16px] border border-white/16 bg-slate-950/82 px-3 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]"
+                            aria-label={`Back to ${selectedLinePreviousOptionGroup.label}`}
+                            title={`Back to ${selectedLinePreviousOptionGroup.label}`}
+                          >
+                            <ArrowLeft className="h-[16px] w-[16px] shrink-0 stroke-[2.7]" aria-hidden="true" />
+                            <span>Back</span>
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           data-smartbar-mobile-item-summary="true"
@@ -5418,7 +6240,8 @@ export default function SmartBarMobileShell({
                         className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/18 bg-slate-950/80 px-3.5 py-2.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
+                        <div ref={selectedSummaryContentMeasureRef}>
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/18 bg-slate-950/80 px-3.5 py-2.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Item summary</div>
                           <div className="flex flex-wrap items-center justify-end gap-2">
                             <span className={`inline-flex min-h-[28px] items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
@@ -5433,14 +6256,25 @@ export default function SmartBarMobileShell({
                         <div className="mt-3 px-1">
                           <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Selections</div>
                           {selectedLineHasSummarySelections ? (
-                            <div className="mt-2 flex flex-wrap items-start gap-2">
-                              {selectedLineSummarySelections.map((detail) => (
-                                <div
-                                  key={detail}
-                                  className="inline-flex min-h-[40px] max-w-full basis-auto items-center gap-2 rounded-full border border-white/44 bg-white/94 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/6"
-                                >
-                                  <Check className="h-3.5 w-3.5 shrink-0 stroke-[2.75]" />
-                                  <span className="min-w-0 whitespace-normal break-words">{detail}</span>
+                            <div className="mt-2 space-y-3">
+                              {selectedLineSummaryGroups.map((group) => (
+                                <div key={group.id}>
+                                  {group.label ? (
+                                    <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/64">
+                                      {group.label}
+                                    </div>
+                                  ) : null}
+                                  <div className="flex flex-wrap items-start gap-2">
+                                    {group.selections.map((detail) => (
+                                      <div
+                                        key={`${group.id}-${detail}`}
+                                        className="inline-flex min-h-[40px] max-w-full basis-auto items-center gap-2 rounded-full border border-white/44 bg-white/94 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/6"
+                                      >
+                                        <Check className="h-3.5 w-3.5 shrink-0 stroke-[2.75]" />
+                                        <span className="min-w-0 whitespace-normal break-words">{detail}</span>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -5451,21 +6285,22 @@ export default function SmartBarMobileShell({
                           )}
                         </div>
 
-                        {!!selectedLineMissingDetails.length && (
-                          <div className="mt-3 px-1">
-                            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/78">Missing</div>
-                            <div className="mt-2 flex flex-wrap items-start gap-2">
-                              {selectedLineMissingDetails.map((detail) => (
-                                <div
-                                  key={detail}
-                                  className="inline-flex min-h-[40px] max-w-full basis-auto items-center rounded-full border border-red-100/44 bg-white/92 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_6px_12px_rgba(15,23,42,0.12)]"
-                                >
-                                  {detail}
-                                </div>
-                              ))}
+                          {!!selectedLineMissingDetails.length && (
+                            <div className="mt-3 px-1">
+                              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/78">Missing</div>
+                              <div className="mt-2 flex flex-wrap items-start gap-2">
+                                {selectedLineMissingDetails.map((detail) => (
+                                  <div
+                                    key={detail}
+                                    className="inline-flex min-h-[40px] max-w-full basis-auto items-center rounded-full border border-red-100/44 bg-white/92 px-3.5 py-2 text-sm font-black leading-5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_6px_12px_rgba(15,23,42,0.12)]"
+                                  >
+                                    {detail}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     ) : selectedLine.status === "unknown" ? (
                       <div
@@ -5520,7 +6355,9 @@ export default function SmartBarMobileShell({
                         {!!selectedLine.options?.length && (
                           <div className="mt-1">
                             <div className="mb-2.5 px-1 text-[12px] font-bold tracking-[0.02em] text-white/72">
-                              {smartBarMobileLineSelectionInstruction(selectedLine)}
+                              {selectedLineAtConditionalHomeGroup && selectedLineConditionalDescendantAttentionGroup
+                                ? `Complete this next step first: ${selectedLineConditionalDescendantAttentionGroup.label}`
+                                : smartBarMobileLineSelectionInstruction(selectedLine)}
                             </div>
                             <div className="flex flex-wrap items-start gap-2">
                               {selectedLine.options.map((option) => {
@@ -5531,13 +6368,39 @@ export default function SmartBarMobileShell({
                                     (!selectedChoice.groupId || selectedChoice.groupId === selectedLine.activeOptionGroupId) &&
                                     selectedChoice.value === option
                                   );
-                                const isMultiSelect = selectedLine.optionSelectionMode === "multi" || selectedLine.status === "options";
+                                const isMultiSelect = selectedLine.optionSelectionMode
+                                  ? selectedLine.optionSelectionMode === "multi"
+                                  : selectedLine.status === "options";
+                                const conditionalLockOptionIndex = selectedLineActiveOptionGroup
+                                  ? selectedLineActiveOptionGroup.options.findIndex((candidate) => (
+                                      smartBarMobileOptionLabelsEqual(candidate, option)
+                                    ))
+                                  : -1;
+                                const conditionalLockOptionId = conditionalLockOptionIndex >= 0
+                                  ? String(selectedLineActiveOptionGroup?.optionIds?.[conditionalLockOptionIndex] || "")
+                                  : "";
+                                const optionOwnsPendingConditionalChild = Boolean(
+                                  selectedLineAtConditionalHomeGroup &&
+                                  selectedLineConditionalDescendantAttentionGroup &&
+                                  selectedLineActiveOptionGroup &&
+                                  smartBarMobileConditionalChildrenForOption(
+                                    selectedLine,
+                                    selectedLineActiveOptionGroup,
+                                    conditionalLockOptionId,
+                                    option,
+                                  ).includes(selectedLineConditionalDescendantAttentionGroup.id)
+                                );
+                                const conditionalChildResolutionLock = Boolean(
+                                  selectedLineAtConditionalHomeGroup &&
+                                  selectedLineConditionalDescendantAttentionGroup &&
+                                  !optionOwnsPendingConditionalChild
+                                );
                                 const selectionLimitReached = isMultiSelect && !isSelected && smartBarMobileLineAtSelectionLimit(selectedLine);
                                 const selectedChoiceLocksActiveGroup = Boolean(
                                   selectedChoice?.lineId === selectedLineInstanceKey &&
                                   (!selectedChoice.groupId || selectedChoice.groupId === selectedLine.activeOptionGroupId)
                                 );
-                                const isLocked = selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup && !isSelected);
+                                const isLocked = conditionalChildResolutionLock || selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup && !isSelected);
                                 const optionQuantity = smartBarMobileLineOptionQuantity(selectedLine, option);
                                 const optionMaximum = smartBarMobileLineOptionMaximum(selectedLine, option);
                                 const showDoubleControl = isMultiSelect && isSelected && optionMaximum === 2;
@@ -5560,7 +6423,7 @@ export default function SmartBarMobileShell({
                                     data-smartbar-mobile-option-selected={isSelected ? "true" : undefined}
                                     data-smartbar-mobile-option-mode={isMultiSelect ? "multi" : "single"}
                                     onClick={() => applyLineChoice(selectedLine, option)}
-                                    disabled={Boolean(selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup))}
+                                    disabled={Boolean(conditionalChildResolutionLock || selectionLimitReached || (!isMultiSelect && selectedChoiceLocksActiveGroup))}
                                     aria-disabled={isLocked}
                                     className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center overflow-visible ${showDoubleControl ? "rounded-l-full pl-4 pr-3" : "rounded-full px-4"} py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                       isSelected
@@ -5603,7 +6466,7 @@ export default function SmartBarMobileShell({
                                         option,
                                         optionQuantity === 2 ? 1 : 2,
                                       )}
-                                      disabled={doubleWouldExceedLimit}
+                                      disabled={conditionalChildResolutionLock || doubleWouldExceedLimit}
                                       aria-label={
                                         optionQuantity === 2
                                           ? `Change ${option} to single`
@@ -5612,7 +6475,7 @@ export default function SmartBarMobileShell({
                                       className={`min-h-[44px] shrink-0 rounded-r-full border-l border-emerald-950/18 px-3 py-2.5 text-[12px] font-black leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] transition ${
                                         optionQuantity === 2
                                           ? "bg-emerald-200 text-emerald-950 ring-2 ring-emerald-50/54"
-                                          : doubleWouldExceedLimit
+                                          : conditionalChildResolutionLock || doubleWouldExceedLimit
                                             ? "bg-emerald-200/55 text-emerald-950/45"
                                             : "bg-emerald-200 text-emerald-950 hover:bg-emerald-100"
                                       }`}
@@ -6237,7 +7100,6 @@ export default function SmartBarMobileShell({
     </div>
   );
 }
-
 
 
 
