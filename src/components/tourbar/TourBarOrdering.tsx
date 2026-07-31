@@ -33,6 +33,8 @@ export type CarryoutQualifierOption = {
   quantity?: number;
   /** Per-option cap supplied by the menu profile/runtime. */
   maxQuantity?: number;
+  /** Conditional child groups activated while this option is selected. */
+  childQualifierGroupIds?: string[];
 };
 
 export type CarryoutSelectionRule = {
@@ -40,6 +42,11 @@ export type CarryoutSelectionRule = {
   when?: Record<string, unknown>;
   minSelections?: number;
   maxSelections?: number | null;
+};
+
+export type CarryoutQualifierActivationRule = {
+  parentQualifierId: string;
+  parentOptionId: string;
 };
 
 export type CarryoutQualifierGroup = {
@@ -51,6 +58,10 @@ export type CarryoutQualifierGroup = {
   lineItemId?: string;
   required?: boolean;
   missing?: boolean;
+  /** False for a conditional child whose parent option is not selected. */
+  active?: boolean;
+  conditional?: boolean;
+  activationRules?: CarryoutQualifierActivationRule[];
   selectionMode?: "single" | "multi" | string;
   minSelections?: number;
   maxSelections?: number | null;
