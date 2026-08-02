@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowLeft,
@@ -7475,7 +7475,7 @@ export default function SmartBarMobileShell({
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
-                              {!handoffLocked && !line.demoHideMeta && demoCompactCartRows && line.status === "options" ? (
+                              {!line.demoHideMeta && demoCompactCartRows && line.status === "options" ? (
                                 <span
                                   data-smartbar-mobile-optional-indicator="true"
                                   className="inline-flex min-h-[22px] items-center gap-1 rounded-full border border-amber-200/82 bg-amber-200/96 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_3px_8px_rgba(146,64,14,0.12)] ring-1 ring-amber-50/76"
@@ -7487,7 +7487,7 @@ export default function SmartBarMobileShell({
                               {!restaurantCalculatedPricing && !line.demoHideMeta && !line.priceSuppressed && line.bundleDisplayRole !== "component" ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
                             </div>
                           </div>
-                          {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && line.status === "options" ? (
+                          {!line.demoHideMeta && !demoCompactCartRows && line.status === "options" ? (
                             <div
                               data-smartbar-mobile-optional-indicator="true"
                               className="relative z-10 mt-2.5 mr-10 inline-flex min-h-[34px] max-w-[calc(100%_-_2.5rem)] items-center gap-2 rounded-full border border-amber-200/82 bg-amber-100/92 px-3 py-1.5 text-[15px] font-medium leading-[1.15] text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_2px_6px_rgba(146,64,14,0.10)] ring-1 ring-amber-50/72"
