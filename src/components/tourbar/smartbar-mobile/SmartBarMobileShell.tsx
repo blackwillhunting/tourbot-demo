@@ -15,6 +15,7 @@ import {
   Package,
   Plus,
   SlidersHorizontal,
+  ShoppingCart,
   Sparkles,
   StickyNote,
   Store,
@@ -5615,6 +5616,11 @@ export default function SmartBarMobileShell({
     if (
       phase === "cart" &&
       selectedLine &&
+      selectedDetailMode === "summary"
+    ) return "Back to cart";
+    if (
+      phase === "cart" &&
+      selectedLine &&
       selectedLineActiveDirectChildAttentionGroup
     ) return smartBarMobileConditionalFooterLabel(selectedLineActiveDirectChildAttentionGroup);
     if (
@@ -5719,6 +5725,22 @@ export default function SmartBarMobileShell({
           variant: "primary",
         }, genericResult);
       }
+      return;
+    }
+
+    if (
+      phase === "cart" &&
+      selectedLine &&
+      selectedDetailMode === "summary"
+    ) {
+      retryTextareaRef.current?.blur();
+      disarmClose();
+      setRetryDraft("");
+      setSelectedOptionGroupOverride(null);
+      setConditionalReturnContext(null);
+      setSelectedLineId(null);
+      setSelectedDetailMode("choices");
+      setCartExpanded(true);
       return;
     }
 
@@ -7778,8 +7800,8 @@ export default function SmartBarMobileShell({
                 onClick={demoInteractionLocked ? undefined : handleCartToggleClick}
                 className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} right-0`}
                 style={{
-                  ...(expandedBundleLineId
-                    ? SMARTBAR_MOBILE_FOOTER_RED_STYLE
+                  ...(phase === "cart" && (expandedBundleLineId || selectedLine)
+                    ? SMARTBAR_MOBILE_BLUE_CONTROL_STYLE
                     : cartToggleShowsAdd
                       ? SMARTBAR_MOBILE_GREEN_CONTROL_STYLE
                       : SMARTBAR_MOBILE_BLUE_CONTROL_STYLE),
@@ -7791,9 +7813,7 @@ export default function SmartBarMobileShell({
                 exit={{ opacity: 0, scale: 0.92 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 aria-label={
-                  expandedBundleLineId
-                    ? "Close included items"
-                    : phase === "cart" && selectedLine
+                  phase === "cart" && (expandedBundleLineId || selectedLine)
                     ? "Back to cart"
                     : cartToggleShowsAdd
                     ? "Add more items"
@@ -7801,8 +7821,8 @@ export default function SmartBarMobileShell({
                 }
               >
                 <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white">
-                  {expandedBundleLineId ? (
-                    <X className="h-5 w-5" />
+                  {phase === "cart" && (expandedBundleLineId || selectedLine) ? (
+                    <ShoppingCart className="h-5 w-5" />
                   ) : cartToggleShowsAdd ? (
                     <Plus className="h-5 w-5" />
                   ) : cartToggleShowsUp ? (
