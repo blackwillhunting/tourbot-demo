@@ -22,6 +22,13 @@ import {
 } from "../smartbar-mobile/burgerrush/burgerRushMobileCartReducer";
 import { smartBarMobileTicketSelectionDetails } from "../smartbar-mobile/smartBarMobileSelectionDetails";
 import {
+  smartBarMobileSaveUnknownAsNoteInLines,
+} from "../smartbar-mobile/smartBarMobileCustomerNotes";
+import {
+  smartBarPlaygroundApplyPricingOnly,
+  smartBarPlaygroundShouldRequestChoiceRefresh,
+} from "./smartBarPlaygroundChoiceIsolation";
+import {
   smartBarMobileApiErrorResult,
   smartBarMobileRepriceCartFromGuideAi,
   smartBarMobileResultFromGuideAi,
@@ -73,6 +80,9 @@ type PersistedSmartBarTicketLine = {
   status?: string;
   details?: unknown;
   price?: string;
+  kind?: string;
+  originalRequest?: string;
+  customerNote?: string;
 };
 
 type PersistedSmartBarTicket = {
@@ -103,13 +113,17 @@ type PersistedSmartBarTicket = {
   issueLineCount?: number | string;
   customerText?: string;
   itemCount?: number | string;
+  pricingMode?: "restaurant-calculated" | "exact" | string;
   estimatedTotal?: number | string;
   createdAt?: string;
   ticket?: {
+    pricingMode?: "restaurant-calculated" | "exact" | string;
     items?: PersistedSmartBarTicketLine[];
     totals?: {
+      pricingMode?: "restaurant-calculated" | "exact" | string;
       estimatedTotal?: number | string;
       estimatedTotalLabel?: string;
+      paymentMessage?: string;
     };
   };
 };
@@ -145,6 +159,11 @@ function smartBarPlaygroundPlural(count: number, singular: string, plural = `${s
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function smartBarPlaygroundMenuItemCount(lines: SmartBarMobileOrderLine[]) {
+  const menuItemCount = lines.filter((line) => !line.isCustomerNote).length;
+  return Math.max(1, menuItemCount || lines.length || 1);
+}
+
 function smartBarPlaygroundBuildReadiness(lines: SmartBarMobileOrderLine[]): SmartBarPlaygroundTicketReadiness {
   let readyLineCount = 0;
   let requiredLineCount = 0;
@@ -164,6 +183,7 @@ function smartBarPlaygroundBuildReadiness(lines: SmartBarMobileOrderLine[]): Sma
     }
 
     if (line.status === "options") {
+      readyLineCount += 1;
       optionalLineCount += 1;
       return;
     }
@@ -176,12 +196,14 @@ function smartBarPlaygroundBuildReadiness(lines: SmartBarMobileOrderLine[]): Sma
     otherIssueLineCount += 1;
   });
 
-  const issueLineCount = requiredLineCount + optionalLineCount + unknownLineCount + otherIssueLineCount;
+  const issueLineCount = requiredLineCount + unknownLineCount + otherIssueLineCount;
 
   if (!issueLineCount) {
     return {
       readinessStatus: "ready",
-      readinessNote: "All lines ready.",
+      readinessNote: optionalLineCount
+        ? `Ready. ${smartBarPlaygroundPlural(optionalLineCount, "item has", "items have")} optional choices available.`
+        : "All lines ready.",
       readyLineCount,
       requiredLineCount,
       optionalLineCount,
@@ -192,7 +214,6 @@ function smartBarPlaygroundBuildReadiness(lines: SmartBarMobileOrderLine[]): Sma
 
   const parts = [
     requiredLineCount ? smartBarPlaygroundPlural(requiredLineCount, "required choice") : "",
-    optionalLineCount ? smartBarPlaygroundPlural(optionalLineCount, "optional review") : "",
     unknownLineCount ? smartBarPlaygroundPlural(unknownLineCount, "unknown item") : "",
     otherIssueLineCount ? smartBarPlaygroundPlural(otherIssueLineCount, "other issue") : "",
   ].filter(Boolean);
@@ -215,6 +236,8 @@ async function createPersistentSmartBarTicket(
 ): Promise<SmartBarTicketCreateResponse | null> {
   const lines = result.lines || [];
   const readiness = smartBarPlaygroundBuildReadiness(lines);
+  const pricingMode = result.pricingMode === "restaurant-calculated" ? "restaurant-calculated" : "exact";
+  const restaurantCalculatedPricing = pricingMode === "restaurant-calculated";
 
   const payload = {
     clientId: vendorContext.clientId,
@@ -225,6 +248,7 @@ async function createPersistentSmartBarTicket(
     timezone: vendorContext.timezone,
     mode: "sandbox",
     customerText: rawOrder || "SmartBar order",
+    itemCount: smartBarPlaygroundMenuItemCount(lines),
     readinessStatus: readiness.readinessStatus,
     readinessNote: readiness.readinessNote,
     managerScoreStatus: "unscored",
@@ -234,18 +258,29 @@ async function createPersistentSmartBarTicket(
     optionalLineCount: readiness.optionalLineCount,
     unknownLineCount: readiness.unknownLineCount,
     issueLineCount: readiness.issueLineCount,
+    pricingMode,
     ticket: {
+      pricingMode,
       items: lines.map((line) => ({
-        title: line.demoDisplayTitle || line.title,
+        title: line.isCustomerNote ? "Customer note" : line.demoDisplayTitle || line.title,
         quantity: 1,
         status: line.status,
         details: boardDetailsForLine(line) || [],
-        price: line.price,
+        ...(!restaurantCalculatedPricing && line.price ? { price: line.price } : {}),
+        kind: line.isCustomerNote ? "customer_note" : "menu_item",
+        originalRequest: line.originalUnknownText || "",
+        customerNote: line.customerNote || "",
       })),
-      totals: {
-        estimatedTotal: smartBarPlaygroundNumberFromCurrency(result.estimatedTotal),
-        estimatedTotalLabel: result.estimatedTotal || "",
-      },
+      totals: restaurantCalculatedPricing
+        ? {
+            pricingMode,
+            paymentMessage: "Total calculated by restaurant. Pay at pickup.",
+          }
+        : {
+            pricingMode,
+            estimatedTotal: smartBarPlaygroundNumberFromCurrency(result.estimatedTotal),
+            estimatedTotalLabel: result.estimatedTotal || "",
+          },
     },
   };
 
@@ -411,7 +446,7 @@ function boardDetailsForLine(line: SmartBarMobileOrderLine) {
 
   const selections = smartBarMobileTicketSelectionDetails(line);
   if (selections.length) return selections;
-  if (line.status !== "ready" && line.helper) return [line.helper];
+  if ((line.status === "pending" || line.status === "unknown") && line.helper) return [line.helper];
   return undefined;
 }
 
@@ -455,7 +490,10 @@ function smartBarPersistedTicketToBoardOrder(
 ): SmartBarOrderBoardItem {
   const items = ticket.ticket?.items || [];
   const ticketId = smartBarTicketDisplayId(ticket);
-  const estimatedTotalLabel = ticket.ticket?.totals?.estimatedTotalLabel || smartBarTicketTotalLabel(ticket.estimatedTotal);
+  const pricingMode = String(ticket.pricingMode || ticket.ticket?.pricingMode || ticket.ticket?.totals?.pricingMode || "exact");
+  const estimatedTotalLabel = pricingMode === "restaurant-calculated"
+    ? ""
+    : ticket.ticket?.totals?.estimatedTotalLabel || smartBarTicketTotalLabel(ticket.estimatedTotal);
 
   return {
     id: ticketId,
@@ -471,7 +509,7 @@ function smartBarPersistedTicketToBoardOrder(
         items: items.length
           ? items.map((item) => ({
               quantity: smartBarTicketQuantity(item.quantity),
-              name: item.title || item.name || "SmartBar ticket",
+              name: item.kind === "customer_note" ? "Customer note" : item.title || item.name || "SmartBar ticket",
               details: smartBarTicketDetails(item.details),
             }))
           : [{ quantity: 1, name: "SmartBar ticket" }],
@@ -516,20 +554,23 @@ function createBoardOrderFromResult(
     customer: "SmartBar",
     phone: "202-555-0184",
     pickup: "ASAP",
-    itemCount: Math.max(1, lines.length),
+    itemCount: smartBarPlaygroundMenuItemCount(lines),
     groups: [
       {
         title: "Order",
         items: lines.length
           ? lines.map((line) => ({
               quantity: 1,
-              name: line.demoDisplayTitle || line.title,
+              name: line.isCustomerNote ? "Customer note" : line.demoDisplayTitle || line.title,
               details: boardDetailsForLine(line),
             }))
           : [{ quantity: 1, name: "SmartBar ticket" }],
       },
     ],
-    notes: [rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket", result.estimatedTotal ? `Total: ${result.estimatedTotal}` : ""]
+    notes: [
+      rawOrder ? `Heard: ${rawOrder}` : "SmartBar ticket",
+      result.pricingMode !== "restaurant-calculated" && result.estimatedTotal ? `Total: ${result.estimatedTotal}` : "",
+    ]
       .filter(Boolean)
       .join(" - "),
     readinessStatus: readiness.readinessStatus,
@@ -553,6 +594,7 @@ export default function SmartBarPlayground({
 }: SmartBarPlaygroundProps) {
   const carryoutOrderRef = useRef<CarryoutOrder | null>(null);
   const orderLinesRef = useRef<SmartBarMobileOrderLine[]>([]);
+  const pricingModeRef = useRef<string>("exact");
   const estimatedTotalRef = useRef("-");
   const choiceMutationSequenceRef = useRef(0);
   const latestPromptRef = useRef("");
@@ -758,6 +800,7 @@ export default function SmartBarPlayground({
       ? smartBarMobileFilterReplacementLine(orderLinesRef.current, meta)
       : orderLinesRef.current;
     const previousEstimatedTotal = estimatedTotalRef.current;
+    const previousPricingMode = pricingModeRef.current;
     const existingCarryoutOrder = replacingUnknown
       ? smartBarMobileRemoveReplacementFromCarryoutOrder(carryoutOrderRef.current, meta)
       : carryoutOrderRef.current;
@@ -780,6 +823,7 @@ export default function SmartBarPlayground({
       const result = await smartBarMobileResultFromGuideAi(promptQuery, carryoutOrderForPrompt, activeVendorContext);
       const resultForMerge = {
         ...result,
+        pricingMode: result.pricingMode || previousPricingMode,
         lines: smartBarPlaygroundEnsureRetryReplacementLine(
           smartBarMobileFilterReplacementLine(result.lines, meta),
           previousLines,
@@ -798,7 +842,10 @@ export default function SmartBarPlayground({
         : mergedResultBase;
 
       orderLinesRef.current = mergedResult.lines;
-      estimatedTotalRef.current = mergedResult.estimatedTotal || previousEstimatedTotal;
+      pricingModeRef.current = String(mergedResult.pricingMode || previousPricingMode);
+      estimatedTotalRef.current = pricingModeRef.current === "restaurant-calculated"
+        ? ""
+        : mergedResult.estimatedTotal || previousEstimatedTotal;
       carryoutOrderRef.current = smartBarMobileMergeCarryoutOrders(
         carryoutOrderForPrompt,
         smartBarMobileRemoveReplacementFromCarryoutOrder(result.carryoutOrder ?? null, meta),
@@ -808,7 +855,10 @@ export default function SmartBarPlayground({
       return mergedResult;
     } catch (error) {
       console.warn("SmartBar playground guide API failed", error);
-      const errorResult = smartBarMobileApiErrorResult(promptQuery, error);
+      const errorResult = {
+        ...smartBarMobileApiErrorResult(promptQuery, error),
+        pricingMode: previousPricingMode,
+      };
       const mergedErrorResultBase = smartBarMobileMergeOrderResults(
         errorResult,
         previousLines,
@@ -820,7 +870,10 @@ export default function SmartBarPlayground({
         : mergedErrorResultBase;
 
       orderLinesRef.current = mergedErrorResult.lines;
-      estimatedTotalRef.current = mergedErrorResult.estimatedTotal || previousEstimatedTotal;
+      pricingModeRef.current = String(mergedErrorResult.pricingMode || previousPricingMode);
+      estimatedTotalRef.current = pricingModeRef.current === "restaurant-calculated"
+        ? ""
+        : mergedErrorResult.estimatedTotal || previousEstimatedTotal;
       carryoutOrderRef.current = carryoutOrderForPrompt;
 
       return mergedErrorResult;
@@ -835,6 +888,8 @@ export default function SmartBarPlayground({
     const mutationSequence = choiceMutationSequenceRef.current + 1;
     choiceMutationSequenceRef.current = mutationSequence;
     const previousEstimatedTotal = estimatedTotalRef.current;
+    const pricingMode = pricingModeRef.current;
+    const restaurantCalculatedPricing = pricingMode === "restaurant-calculated";
     const optimisticCarryoutOrder = smartBarMobileApplyChoiceToCarryoutOrder(
       carryoutOrderRef.current,
       line,
@@ -852,9 +907,11 @@ export default function SmartBarPlayground({
       meta?.quantity,
       meta?.optionGroupId,
     );
-    const optimisticEstimatedTotal = previousEstimatedTotal && previousEstimatedTotal !== "-"
-      ? previousEstimatedTotal
-      : smartBarMobileEstimatedTotalFromLines(nextLines);
+    const optimisticEstimatedTotal = restaurantCalculatedPricing
+      ? ""
+      : previousEstimatedTotal && previousEstimatedTotal !== "-"
+        ? previousEstimatedTotal
+        : smartBarMobileEstimatedTotalFromLines(nextLines);
 
     orderLinesRef.current = nextLines;
     estimatedTotalRef.current = optimisticEstimatedTotal;
@@ -862,10 +919,20 @@ export default function SmartBarPlayground({
 
     const optimisticResult = {
       lines: nextLines,
-      estimatedTotal: optimisticEstimatedTotal,
+      pricingMode,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : optimisticEstimatedTotal,
     };
 
     if (!optimisticCarryoutOrder) return optimisticResult;
+
+    // Restaurant-calculated profiles have no price to refresh. The local
+    // line-scoped reducer has already applied the exact choice to the exact
+    // line and canonical carryout order. Sending the cart through the AI
+    // "review" path can rewrite unrelated lines and consumes unnecessary
+    // tokens, so the deterministic optimistic result is authoritative here.
+    if (!smartBarPlaygroundShouldRequestChoiceRefresh(pricingMode)) {
+      return optimisticResult;
+    }
 
     try {
       const groupContext = meta?.optionGroupLabel || line.optionGroupLabel || meta?.optionGroupId || line.activeOptionGroupId;
@@ -878,34 +945,80 @@ export default function SmartBarPlayground({
       if (choiceMutationSequenceRef.current !== mutationSequence) {
         return {
           lines: orderLinesRef.current,
-          estimatedTotal: estimatedTotalRef.current,
+          pricingMode: pricingModeRef.current,
+          estimatedTotal: pricingModeRef.current === "restaurant-calculated" ? undefined : estimatedTotalRef.current,
         };
       }
 
-      orderLinesRef.current = repricedResult.lines;
-      estimatedTotalRef.current = repricedResult.estimatedTotal || optimisticEstimatedTotal;
-      carryoutOrderRef.current = repricedResult.carryoutOrder ?? optimisticCarryoutOrder;
+      const repricedLines = smartBarPlaygroundApplyPricingOnly(
+        orderLinesRef.current,
+        repricedResult.lines,
+      );
+      orderLinesRef.current = repricedLines;
+      pricingModeRef.current = String(repricedResult.pricingMode || pricingMode);
+      estimatedTotalRef.current = pricingModeRef.current === "restaurant-calculated"
+        ? ""
+        : repricedResult.estimatedTotal || optimisticEstimatedTotal;
+
+      // The exact local carryout mutation remains authoritative. A downstream
+      // whole-cart response may contribute pricing only; it may never replace
+      // another line's selections, required state, status, or canonical cart.
+      carryoutOrderRef.current = optimisticCarryoutOrder;
 
       return {
         ...repricedResult,
-        estimatedTotal: repricedResult.estimatedTotal || optimisticEstimatedTotal,
+        lines: repricedLines,
+        carryoutOrder: optimisticCarryoutOrder,
+        pricingMode: pricingModeRef.current,
+        estimatedTotal: pricingModeRef.current === "restaurant-calculated"
+          ? undefined
+          : repricedResult.estimatedTotal || optimisticEstimatedTotal,
       };
     } catch (error) {
       console.warn("SmartBar playground reprice failed after choice", error);
       if (choiceMutationSequenceRef.current !== mutationSequence) {
         return {
           lines: orderLinesRef.current,
-          estimatedTotal: estimatedTotalRef.current,
+          pricingMode: pricingModeRef.current,
+          estimatedTotal: pricingModeRef.current === "restaurant-calculated" ? undefined : estimatedTotalRef.current,
         };
       }
       return optimisticResult;
     }
   }, [activeVendorContext]);
 
+  const handleSaveUnknownAsNote = useCallback((
+    line: SmartBarMobileOrderLine,
+    note: string,
+  ) => {
+    choiceMutationSequenceRef.current += 1;
+    const nextLines = smartBarMobileSaveUnknownAsNoteInLines(
+      orderLinesRef.current,
+      line,
+      note,
+    );
+    const nextCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
+      carryoutOrderRef.current,
+      line,
+    );
+
+    orderLinesRef.current = nextLines;
+    carryoutOrderRef.current = nextCarryoutOrder;
+
+    return {
+      lines: nextLines,
+      pricingMode: pricingModeRef.current,
+      estimatedTotal: pricingModeRef.current === "restaurant-calculated" ? undefined : estimatedTotalRef.current,
+    };
+  }, []);
+
   const handleRemoveLine = useCallback((line: SmartBarMobileOrderLine) => {
     choiceMutationSequenceRef.current += 1;
     const nextLines = smartBarMobileRemoveVisibleLine(orderLinesRef.current, line);
-    const nextEstimatedTotal = nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "-";
+    const restaurantCalculatedPricing = pricingModeRef.current === "restaurant-calculated";
+    const nextEstimatedTotal = restaurantCalculatedPricing
+      ? ""
+      : nextLines.length ? smartBarMobileEstimatedTotalFromLines(nextLines) : "-";
     const nextCarryoutOrder = smartBarMobileRemoveLineFromCarryoutOrder(
       carryoutOrderRef.current,
       line,
@@ -920,14 +1033,18 @@ export default function SmartBarPlayground({
     // removed. Remaining line prices already determine the updated total.
     return {
       lines: nextLines,
-      estimatedTotal: nextEstimatedTotal,
+      pricingMode: pricingModeRef.current,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : nextEstimatedTotal,
     };
   }, []);
 
   const handleCartReady = useCallback((result: SmartBarMobileOrderResult) => {
     setCartOpen(true);
     orderLinesRef.current = result.lines;
-    estimatedTotalRef.current = result.estimatedTotal || estimatedTotalRef.current;
+    pricingModeRef.current = String(result.pricingMode || pricingModeRef.current);
+    estimatedTotalRef.current = pricingModeRef.current === "restaurant-calculated"
+      ? ""
+      : result.estimatedTotal || estimatedTotalRef.current;
   }, []);
 
   const handleOrderSent = useCallback(async () => {
@@ -938,7 +1055,8 @@ export default function SmartBarPlayground({
 
     const currentResult = {
       lines: orderLinesRef.current,
-      estimatedTotal: estimatedTotalRef.current,
+      pricingMode: pricingModeRef.current,
+      estimatedTotal: pricingModeRef.current === "restaurant-calculated" ? undefined : estimatedTotalRef.current,
     };
     const rawOrder = latestPromptRef.current || "SmartBar order";
 
@@ -1038,6 +1156,7 @@ export default function SmartBarPlayground({
     choiceMutationSequenceRef.current += 1;
     carryoutOrderRef.current = null;
     orderLinesRef.current = [];
+    pricingModeRef.current = "exact";
     estimatedTotalRef.current = "-";
     latestPromptRef.current = "";
     activeOrderTicketIdRef.current = null;
@@ -1192,6 +1311,7 @@ export default function SmartBarPlayground({
             onSubmitPrompt={handleSubmitPrompt}
             onApplyLineChoice={handleApplyLineChoice}
             onRemoveLine={handleRemoveLine}
+            onSaveUnknownAsNote={handleSaveUnknownAsNote}
             onCartReady={handleCartReady}
             onCartOpenChange={handleCartOpenChange}
             onPickupConfirmationOpenChange={handlePickupConfirmationOpenChange}

@@ -118,6 +118,7 @@ export type CannotMatchItem = {
 
 export type CarryoutOrder = {
   type?: string;
+  pricingMode?: "restaurant-calculated" | "exact" | string;
   status?: "ready_cart" | "needs_qualifier" | "cannot_match" | string;
   nextAction?: string;
   completeItems?: CarryoutLine[];
@@ -138,6 +139,7 @@ export type CarryoutOrder = {
   navigationOrder?: string[];
   totals?: {
     status?: string;
+    pricingMode?: "restaurant-calculated" | "exact" | string;
     subtotal?: number | null;
     estimatedTax?: number | null;
     estimatedTotal?: number | null;
@@ -1100,6 +1102,7 @@ function missingLabels(line: CarryoutLine, groups: CarryoutQualifierGroup[]) {
 
 function orderNeedsBackendReprice(order: CarryoutOrder | null) {
   if (!order) return false;
+  if (String(order.pricingMode || order.totals?.pricingMode || "exact") === "restaurant-calculated") return false;
   const lines = allLines(order);
   if (!lines.length) return false;
   if (lines.some(lineIsPending)) return false;
@@ -1949,6 +1952,7 @@ export function OrderReview({
   const hasPendingItems = displayPendingItems.length > 0;
   const hasOptionalItems = optionalItems.length > 0;
   const hasCannotMatchItems = cannotMatchItems.length > 0;
+  const restaurantCalculatedPricing = String(order?.pricingMode || order?.totals?.pricingMode || "exact") === "restaurant-calculated";
   const estimatedTotal = money(order?.totals?.estimatedTotal);
   const subtotal = money(order?.totals?.subtotal);
   const estimatedTax = money(order?.totals?.estimatedTax);
@@ -2250,9 +2254,11 @@ export function OrderReview({
             </button>
           )}
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className={`${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass(state, isLocked) : cartLinePriceClass(state, isLocked, appearance)}`}>
-              {formatLinePrice(entry.line)}
-            </span>
+            {!restaurantCalculatedPricing ? (
+              <span className={`${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass(state, isLocked) : cartLinePriceClass(state, isLocked, appearance)}`}>
+                {formatLinePrice(entry.line)}
+              </span>
+            ) : null}
             {!isLocked && !blueGlassCompactScrollMode && (
               <button
                 type="button"
@@ -2349,7 +2355,7 @@ export function OrderReview({
                         title={cannotMatchReason(entry, notOnMenuLabel)}
                         className={`mt-1 text-[13px] leading-5 md:text-[11px] md:leading-4 ${cartLineHelperClass("unrecognized", isLocked, appearance)}`}
                       >
-                        Not priced.
+                        {restaurantCalculatedPricing ? cannotMatchReason(entry, notOnMenuLabel) : "Not priced."}
                       </div>
                     )}
                     {entry.suggestion && !blueGlassSurface && (
@@ -2358,9 +2364,11 @@ export function OrderReview({
                       </div>
                     )}
                   </div>
-                  <span className={`shrink-0 ${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass("unrecognized", isLocked) : cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
-                    —
-                  </span>
+                  {!restaurantCalculatedPricing ? (
+                    <span className={`shrink-0 ${blueGlassSurface ? "rounded-full px-3 py-1.5 text-[12px] font-black md:text-[11px]" : "rounded-full px-2 py-1 text-[12px] font-bold md:text-[11px]"} ${blueGlassSurface ? blueGlassCartLinePriceClass("unrecognized", isLocked) : cartLinePriceClass("unrecognized", isLocked, appearance)}`}>
+                      —
+                    </span>
+                  ) : null}
                 </div>
               </button>
             );
@@ -2683,20 +2691,33 @@ export function OrderReview({
 
       {blueGlassSurface ? (
         <div className="shrink-0 rounded-[22px] border border-white/20 bg-[#17227c] p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_18px_38px_rgba(23,34,124,0.24)] ring-1 ring-white/18">
-          <div className="space-y-1.5 text-[12px] font-black uppercase tracking-[0.14em]">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Subtotal</span>
-              <span className="tabular-nums">{subtotal || "—"}</span>
+          {restaurantCalculatedPricing ? (
+            <div className="rounded-[16px] border border-white/16 bg-white/[0.08] px-3.5 py-3 text-center ring-1 ring-white/10">
+              <div className="text-[12px] font-black uppercase tracking-[0.12em] text-white/72">
+                Total calculated by restaurant
+              </div>
+              <div className="mt-1 text-[17px] font-black tracking-[-0.02em] text-white">
+                Pay at pickup
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Est. tax</span>
-              <span className="tabular-nums">{estimatedTax || "—"}</span>
-            </div>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/20 pt-2 text-[17px] font-black tracking-[-0.02em]">
-            <span>Total</span>
-            <span className="tabular-nums">{estimatedTotal || subtotal || "—"}</span>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-1.5 text-[12px] font-black uppercase tracking-[0.14em]">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Subtotal</span>
+                  <span className="tabular-nums">{subtotal || "—"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-white/68 [text-shadow:0_1px_2px_rgba(0,0,0,0.45)]">Est. tax</span>
+                  <span className="tabular-nums">{estimatedTax || "—"}</span>
+                </div>
+              </div>
+              <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/20 pt-2 text-[17px] font-black tracking-[-0.02em]">
+                <span>Total</span>
+                <span className="tabular-nums">{estimatedTotal || subtotal || "—"}</span>
+              </div>
+            </>
+          )}
           {isLocked ? (
             <div className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-white/18 px-4 py-2.5 text-sm font-black text-white ring-1 ring-white/22">
               <LockKeyhole className="h-3.5 w-3.5" />
@@ -2736,7 +2757,9 @@ export function OrderReview({
                   ? hasCannotMatchItems
                     ? "Only matched items are included in this handoff."
                     : "Items are read-only for the checkout handoff."
-                  : estimatedTotal
+                  : restaurantCalculatedPricing
+                    ? "Total calculated by restaurant. Pay at pickup."
+                    : estimatedTotal
                     ? hasCannotMatchItems
                       ? `Estimated total for matched items: ${estimatedTotal}`
                       : `Estimated total: ${estimatedTotal}`

@@ -1004,7 +1004,7 @@ export default function SmartBarSocialPizzaReel() {
       movePizzaPointerToElement(caesarSelector, 0.5, 0, false, 0.5, "Required detail");
     });
     queuePizzaPointer(7350, () => {
-      movePizzaPointerToElement(pizzaSelector, 0.5, 0, false, 0.5, "Optional review");
+      movePizzaPointerToElement(pizzaSelector, 0.5, 0, false, 0.5, "Options available");
     });
 
     queuePizzaPointer(9300, () => {
@@ -1024,10 +1024,10 @@ export default function SmartBarSocialPizzaReel() {
     });
 
     queuePizzaPointer(17850, () => {
-      movePizzaPointerToElement(pizzaSelector, 0.5, 0, false, 0.5, "Review optional extras");
+      movePizzaPointerToElement(pizzaSelector, 0.5, 0, false, 0.5, "Optional choices");
     });
     queuePizzaPointer(19000, () => {
-      clickPizzaPointerElement(pizzaSelector, 0.5, 0, 0.5, "Review optional extras");
+      clickPizzaPointerElement(pizzaSelector, 0.5, 0, 0.5, "Optional choices");
     });
     queuePizzaPointer(22050, () => {
       movePizzaPointerToElement(detailDone, 0.5, 0, false, 0.10, "Looks good");

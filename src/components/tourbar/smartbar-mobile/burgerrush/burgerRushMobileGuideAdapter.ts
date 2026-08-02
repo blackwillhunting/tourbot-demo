@@ -2,6 +2,7 @@ import type { CarryoutOrder, GuideAiCarryoutResponse } from "../../TourBarOrderi
 import type { SmartBarMobileOrderResult } from "../SmartBarMobileShell";
 import { smartBarMobileResultFromOrder } from "./burgerRushMobileCartReducer";
 import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../SmartBarVendorContext";
+import type { SmartBarMobileDirectCartChoiceEvent } from "./smartBarMobileDirectCartEvents";
 
 const SMARTBAR_MOBILE_GUIDE_AI_URL = "/api/guide_ai";
 const SMARTBAR_MOBILE_AUTH_TOKEN_KEY = "tourbot_demo_token";
@@ -176,10 +177,11 @@ export async function smartBarMobileResultFromGuideAi(
 }
 
 
-export async function smartBarMobileDirectResultFromGuideAi(
+async function smartBarMobileDirectCartResponseFromGuideAi(
   query: string,
   currentCart: SmartBarMobileOrderResult | null,
   vendorContext?: SmartBarVendorContext | null,
+  directCartEvent?: SmartBarMobileDirectCartChoiceEvent,
 ): Promise<SmartBarMobileOrderResult> {
   const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
   const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
@@ -198,6 +200,7 @@ export async function smartBarMobileDirectResultFromGuideAi(
       },
       message: query,
       directCart: currentCart,
+      directCartEvent,
       clientId: activeVendorContext.clientId,
       vendorId: activeVendorContext.vendorId,
       menuProfileId: activeVendorContext.menuProfileId,
@@ -209,13 +212,16 @@ export async function smartBarMobileDirectResultFromGuideAi(
         lastUserMessage: query,
         recentUserMessages: [query],
         directCart: currentCart,
+        directCartEvent,
         commerceContext: {
           directCart: currentCart,
+          directCartEvent,
           vendorContext: activeVendorContext,
         },
       },
       visibleContext: {
         directCart: currentCart,
+        directCartEvent,
         vendorContext: activeVendorContext,
         interpretationMode: "ai-direct-cart",
       },
@@ -248,9 +254,30 @@ export async function smartBarMobileDirectResultFromGuideAi(
     );
   }
 
-  // The live ordering path stores and renders this complete AI replacement cart.
-  // It is not converted into carryoutOrder and is not merged with stale cart state.
+  // The live ordering path stores and renders this complete backend replacement cart.
+  // Button events are deterministic; natural-language requests may still use AI.
   return directCart;
+}
+
+export async function smartBarMobileDirectResultFromGuideAi(
+  query: string,
+  currentCart: SmartBarMobileOrderResult | null,
+  vendorContext?: SmartBarVendorContext | null,
+): Promise<SmartBarMobileOrderResult> {
+  return smartBarMobileDirectCartResponseFromGuideAi(query, currentCart, vendorContext);
+}
+
+export async function smartBarMobileDirectCartEventResultFromGuideAi(
+  directCartEvent: SmartBarMobileDirectCartChoiceEvent,
+  currentCart: SmartBarMobileOrderResult,
+  vendorContext?: SmartBarVendorContext | null,
+): Promise<SmartBarMobileOrderResult> {
+  return smartBarMobileDirectCartResponseFromGuideAi(
+    "Apply the exact cart option event.",
+    currentCart,
+    vendorContext,
+    directCartEvent,
+  );
 }
 
 export async function smartBarMobileRepriceCartFromGuideAi(

@@ -1,5 +1,26 @@
 export type SmartBarMobileStyleStatus = "ready" | "pending" | "options" | "unknown";
 
+export const smartBarMobileDetailTheme = {
+  lightHeader:
+    "shrink-0 rounded-[24px] border border-white/58 bg-white/46 px-4 py-3 text-[#06143A] shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_20px_rgba(15,23,42,0.10)] ring-1 ring-slate-900/6 backdrop-blur-xl",
+  lightHeaderIcon:
+    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/62 bg-white/58 text-[#172554] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5",
+  eyebrow:
+    "text-[11px] font-black uppercase tracking-[0.08em] text-slate-600",
+  title:
+    "mt-1.5 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight text-[#06143A]",
+  darkUtilityButton:
+    "inline-flex h-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 bg-slate-950/86 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]",
+  lightSectionRow:
+    "flex items-center justify-between gap-3 border-b border-slate-900/10 px-1 pb-2.5",
+  lightSectionIcon:
+    "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/58 bg-white/50 text-[#172554] shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_3px_8px_rgba(15,23,42,0.07)] ring-1 ring-slate-900/5",
+  glassSectionLabel:
+    "text-[12px] font-black uppercase tracking-[0.08em] text-[#334155]",
+  lightPricePill:
+    "inline-flex min-h-[28px] items-center rounded-full border border-white/58 bg-white/54 px-3 py-1 text-sm font-black text-[#06143A] shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_3px_8px_rgba(15,23,42,0.07)] ring-1 ring-slate-900/5",
+} as const;
+
 const SMARTBAR_MOBILE_PILL_INTENSITY: "soft" | "strong" = "strong";
 const SMARTBAR_MOBILE_STRONG_PILLS = SMARTBAR_MOBILE_PILL_INTENSITY === "strong";
 
@@ -46,7 +67,7 @@ export function smartBarMobileRowSurfaceClass(status: SmartBarMobileStyleStatus,
   const strong = SMARTBAR_MOBILE_STRONG_PILLS;
 
   if (isOverlay) {
-    if (status === "ready") {
+    if (status === "ready" || status === "options") {
       return strong
         ? "border-emerald-50/70 bg-emerald-300/94 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.46),0_12px_30px_rgba(16,185,129,0.22)] ring-1 ring-emerald-50/42"
         : "border-emerald-100/62 bg-emerald-300/84 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_12px_30px_rgba(16,185,129,0.18)] ring-1 ring-emerald-100/32";
@@ -56,17 +77,12 @@ export function smartBarMobileRowSurfaceClass(status: SmartBarMobileStyleStatus,
         ? "border-rose-50/60 bg-rose-500/94 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.30),0_12px_32px_rgba(244,63,94,0.28)] ring-1 ring-rose-50/34"
         : "border-rose-100/52 bg-rose-500/82 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_12px_32px_rgba(244,63,94,0.22)] ring-1 ring-rose-100/26";
     }
-    if (status === "options") {
-      return strong
-        ? "border-amber-50/74 bg-amber-300/96 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.50),0_12px_32px_rgba(245,158,11,0.25)] ring-1 ring-amber-50/44"
-        : "border-amber-100/68 bg-amber-300/88 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_12px_32px_rgba(245,158,11,0.20)] ring-1 ring-amber-100/34";
-    }
     return strong
       ? "border-white/46 bg-slate-200/90 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_12px_30px_rgba(2,6,23,0.24)] ring-1 ring-white/30"
       : "border-white/36 bg-slate-200/78 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_30px_rgba(2,6,23,0.22)] ring-1 ring-white/22";
   }
 
-  if (status === "ready") {
+  if (status === "ready" || status === "options") {
     return strong
       ? "border-emerald-50/66 bg-emerald-300/92 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.42),0_12px_28px_rgba(16,185,129,0.20)] ring-1 ring-emerald-50/38"
       : "border-emerald-100/58 bg-emerald-300/80 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.34),0_12px_28px_rgba(16,185,129,0.16)] ring-1 ring-emerald-100/30";
@@ -75,11 +91,6 @@ export function smartBarMobileRowSurfaceClass(status: SmartBarMobileStyleStatus,
     return strong
       ? "border-rose-50/58 bg-rose-500/92 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_12px_30px_rgba(244,63,94,0.25)] ring-1 ring-rose-50/32"
       : "border-rose-100/50 bg-rose-500/78 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_12px_30px_rgba(244,63,94,0.20)] ring-1 ring-rose-100/24";
-  }
-  if (status === "options") {
-    return strong
-      ? "border-amber-50/70 bg-amber-300/94 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.44),0_12px_30px_rgba(245,158,11,0.22)] ring-1 ring-amber-50/40"
-      : "border-amber-100/64 bg-amber-300/84 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_30px_rgba(245,158,11,0.18)] ring-1 ring-amber-100/32";
   }
   return strong
     ? "border-white/40 bg-slate-200/86 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.36),0_12px_28px_rgba(15,23,42,0.24)] ring-1 ring-white/26"

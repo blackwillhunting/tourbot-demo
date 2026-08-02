@@ -15,9 +15,17 @@ import {
   smartBarMobileRemoveVisibleLine,
 } from "./burgerRushMobileCartReducer";
 import {
+  smartBarMobileIsCustomerNoteLine,
+  smartBarMobilePreserveCustomerNoteLines,
+  smartBarMobileSaveUnknownAsNoteInLines,
+  smartBarMobileWithoutCustomerNoteLines,
+} from "../smartBarMobileCustomerNotes";
+import {
   smartBarMobileApiErrorResult,
+  smartBarMobileDirectCartEventResultFromGuideAi,
   smartBarMobileDirectResultFromGuideAi,
 } from "./burgerRushMobileGuideAdapter";
+import { smartBarMobileDirectCartChoiceEventFromLine } from "./smartBarMobileDirectCartEvents";
 import { getStoredSmartBarVendorContext } from "../SmartBarVendorContext";
 import { BurgerRushCarryoutSite } from "../../../../App-Carryout";
 
@@ -405,7 +413,10 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     const previousEstimatedTotal = mobileEstimatedTotalRef.current;
     const hasExistingCart = Boolean(mobileDirectCartRef.current || previousLines.length > 0);
     const shouldUseExistingCart = smartBarMobileQueryShouldUseExistingCart(query, hasExistingCart);
-    const currentCart = shouldUseExistingCart ? mobileDirectCartRef.current : null;
+    const storedCart = shouldUseExistingCart ? mobileDirectCartRef.current : null;
+    const currentCart = storedCart
+      ? { ...storedCart, lines: smartBarMobileWithoutCustomerNoteLines(storedCart.lines) }
+      : null;
     const promptQuery = replacingUnknown && meta?.replaceLineTitle
       ? `Replace the cart line "${meta.replaceLineTitle}" with: ${query}`
       : query;
@@ -440,15 +451,25 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     try {
       const result = await smartBarMobileDirectResultFromGuideAi(promptQuery, currentCart, activeVendorContext);
 
-      // AI returned the complete replacement cart. Store and return that exact object.
-      mobileDirectCartRef.current = result;
-      mobileOrderLinesRef.current = result.lines;
+      // Preserve local restaurant notes while storing the AI's complete menu cart.
+      const resultLines = shouldUseExistingCart
+        ? smartBarMobilePreserveCustomerNoteLines(result.lines, previousLines)
+        : result.lines;
+      const resultWithNotes = { ...result, lines: resultLines };
+      mobileDirectCartRef.current = resultWithNotes;
+      mobileOrderLinesRef.current = resultLines;
       mobileEstimatedTotalRef.current = result.estimatedTotal || "—";
-      return result;
+      return resultWithNotes;
     } catch (error) {
       console.warn("SmartBar AI direct cart failed", error);
-      if (currentCart) return currentCart;
-      return smartBarMobileApiErrorResult(promptQuery, error);
+      if (storedCart) return storedCart;
+      const errorResult = smartBarMobileApiErrorResult(promptQuery, error);
+      return shouldUseExistingCart
+        ? {
+            ...errorResult,
+            lines: smartBarMobilePreserveCustomerNoteLines(errorResult.lines, previousLines),
+          }
+        : errorResult;
     }
   }, [activeVendorContext, demoFixtureMode]);
 
@@ -479,7 +500,10 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       return nextResult;
     }
 
-    const currentCart = mobileDirectCartRef.current;
+    const storedCart = mobileDirectCartRef.current;
+    const currentCart = storedCart
+      ? { ...storedCart, lines: smartBarMobileWithoutCustomerNoteLines(storedCart.lines) }
+      : null;
     if (!currentCart) {
       return {
         lines: mobileOrderLinesRef.current,
@@ -487,14 +511,34 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       };
     }
 
-    const action = meta?.selected === false ? "Deselect" : "Select";
-    const optionGroupId = meta?.optionGroupId || line.activeOptionGroupId || "";
-    const optionGroupLabel = meta?.optionGroupLabel || line.optionGroupLabel || "";
-    const groupContext = optionGroupId || optionGroupLabel
-      ? ` in option group "${optionGroupLabel || optionGroupId}"${optionGroupId ? ` with group id "${optionGroupId}"` : ""}`
-      : "";
-    const request = `${action} "${value}" for the cart line "${line.title}" with line id "${line.id}"${groupContext}. Return the complete replacement cart JSON.`;
-    const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext);
+    const directCartEvent = smartBarMobileDirectCartChoiceEventFromLine(line, value, {
+      selected: meta?.selected ?? true,
+      optionGroupId: meta?.optionGroupId || line.activeOptionGroupId,
+      quantity: meta?.quantity,
+    });
+
+    if (!directCartEvent) {
+      console.warn("SmartBar direct cart event could not be built from exact IDs", {
+        lineId: line.sourceLineItemId || line.cartLineKey || line.id,
+        optionGroupId: meta?.optionGroupId || line.activeOptionGroupId,
+        value,
+      });
+      return storedCart || currentCart;
+    }
+
+    let result: SmartBarMobileOrderResult;
+    try {
+      result = await smartBarMobileDirectCartEventResultFromGuideAi(
+        directCartEvent,
+        currentCart,
+        activeVendorContext,
+      );
+    } catch (error) {
+      // A failed deterministic event must preserve the authoritative cart. It
+      // must never fall back to an AI-authored whole-cart replacement.
+      console.warn("SmartBar direct cart event failed; preserving current cart", error);
+      return storedCart || currentCart;
+    }
 
     if (mobileChoiceMutationSequenceRef.current !== mutationSequence) {
       return {
@@ -503,14 +547,52 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       };
     }
 
-    mobileDirectCartRef.current = result;
-    mobileOrderLinesRef.current = result.lines;
+    const resultLines = smartBarMobilePreserveCustomerNoteLines(
+      result.lines,
+      mobileOrderLinesRef.current,
+    );
+    const resultWithNotes = { ...result, lines: resultLines };
+    mobileDirectCartRef.current = resultWithNotes;
+    mobileOrderLinesRef.current = resultLines;
     mobileEstimatedTotalRef.current = result.estimatedTotal || mobileEstimatedTotalRef.current;
-    return result;
+    return resultWithNotes;
   }, [activeVendorContext, demoFixtureMode]);
+
+  const handleSaveUnknownAsNote = useCallback((
+    line: SmartBarMobileOrderLine,
+    note: string,
+  ) => {
+    mobileChoiceMutationSequenceRef.current += 1;
+    const nextLines = smartBarMobileSaveUnknownAsNoteInLines(
+      mobileOrderLinesRef.current,
+      line,
+      note,
+    );
+    const nextResult: SmartBarMobileOrderResult = {
+      ...(mobileDirectCartRef.current || {}),
+      lines: nextLines,
+      estimatedTotal: mobileEstimatedTotalRef.current,
+    };
+
+    mobileDirectCartRef.current = nextResult;
+    mobileOrderLinesRef.current = nextLines;
+    return nextResult;
+  }, []);
 
   const handleRemoveLine = useCallback(async (line: SmartBarMobileOrderLine) => {
     mobileChoiceMutationSequenceRef.current += 1;
+    if (smartBarMobileIsCustomerNoteLine(line)) {
+      const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
+      const nextResult: SmartBarMobileOrderResult = {
+        ...(mobileDirectCartRef.current || {}),
+        lines: nextLines,
+        estimatedTotal: mobileEstimatedTotalRef.current,
+      };
+      mobileDirectCartRef.current = nextResult;
+      mobileOrderLinesRef.current = nextLines;
+      return nextResult;
+    }
+
     if (demoFixtureMode) {
       const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
       const nextResult: SmartBarMobileOrderResult = {
@@ -522,7 +604,10 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
       return nextResult;
     }
 
-    const currentCart = mobileDirectCartRef.current;
+    const storedCart = mobileDirectCartRef.current;
+    const currentCart = storedCart
+      ? { ...storedCart, lines: smartBarMobileWithoutCustomerNoteLines(storedCart.lines) }
+      : null;
     if (!currentCart) {
       const nextLines = smartBarMobileRemoveVisibleLine(mobileOrderLinesRef.current, line);
       return {
@@ -534,10 +619,15 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     const request = `Remove the cart line "${line.title}" with line id "${line.id}". Return the complete replacement cart JSON.`;
     const result = await smartBarMobileDirectResultFromGuideAi(request, currentCart, activeVendorContext);
 
-    mobileDirectCartRef.current = result;
-    mobileOrderLinesRef.current = result.lines;
+    const resultLines = smartBarMobilePreserveCustomerNoteLines(
+      result.lines,
+      mobileOrderLinesRef.current,
+    );
+    const resultWithNotes = { ...result, lines: resultLines };
+    mobileDirectCartRef.current = resultWithNotes;
+    mobileOrderLinesRef.current = resultLines;
     mobileEstimatedTotalRef.current = result.estimatedTotal || "—";
-    return result;
+    return resultWithNotes;
   }, [activeVendorContext, demoFixtureMode]);
 
   const handleResetCart = useCallback(() => {
@@ -565,6 +655,7 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
         onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}
         onRemoveLine={handleRemoveLine}
+        onSaveUnknownAsNote={handleSaveUnknownAsNote}
         onNavigateToLine={handleNavigateToLine}
         onResetCart={handleResetCart}
       />

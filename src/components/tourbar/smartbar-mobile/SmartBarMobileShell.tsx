@@ -1,27 +1,37 @@
-﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
+  BadgeCheck,
   Check,
+  CircleHelp,
   Pencil,
   ChevronDown,
   ChevronUp,
   Compass,
+  GitBranch,
   ListOrdered,
   Package,
   Plus,
+  SlidersHorizontal,
   Sparkles,
+  StickyNote,
+  Store,
   Trash2,
   X,
 } from "lucide-react";
 import {
   getSmartBarMobileShellStyles,
+  smartBarMobileDetailTheme,
   smartBarMobileHandoffRowSurfaceClass,
   smartBarMobileRowSurfaceClass,
   statusClass,
 } from "./smartBarMobileStyles";
 import { smartBarMobileSelectionSummaryGroups } from "./smartBarMobileSelectionDetails";
+import {
+  smartBarMobileSaveUnknownAsNoteInLines,
+} from "./smartBarMobileCustomerNotes";
 import { smartBarMobileConditionalNavigationTarget } from "./smartBarMobileConditionalNavigation";
 
 /**
@@ -92,7 +102,7 @@ export type SmartBarMobileOrderLine = {
   /** Index of the backend source line before visual sorting/grouping. */
   sourceLineIndex?: number;
   /** Backend collection that owns this occurrence. */
-  sourceBucket?: "items" | "cannot_match";
+  sourceBucket?: "items" | "cannot_match" | "customer_note";
   title: string;
   /** Quantity supplied by the authoritative AI cart. */
   quantity?: number;
@@ -125,6 +135,12 @@ export type SmartBarMobileOrderLine = {
   grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | "selection_limit_exceeded" | string;
   /** Short user-facing reason shown on gray lines. */
   displayReason?: string;
+  /** True when an unresolved request was deliberately preserved as a restaurant note. */
+  isCustomerNote?: boolean;
+  /** Exact unresolved wording preserved before the line became a note. */
+  originalUnknownText?: string;
+  /** Customer-authored note sent to the restaurant. */
+  customerNote?: string;
   optionSelectionMode?: "single" | "multi";
   optionGroupLabel?: string;
   optionMinSelections?: number;
@@ -150,6 +166,7 @@ export type SmartBarMobileOrderLine = {
 
 export type SmartBarMobileOrderResult = {
   lines: SmartBarMobileOrderLine[];
+  pricingMode?: "restaurant-calculated" | "exact" | string;
   /** AI-direct responses replace the entire current cart and must not be reinterpreted. */
   authoritativeReplacement?: boolean;
   source?: string;
@@ -200,7 +217,7 @@ export type SmartBarMobileSubmitMeta = {
   replaceCartLineKey?: string;
   replaceSourceLineItemId?: string;
   replaceSourceLineIndex?: number;
-  replaceSourceBucket?: "items" | "cannot_match";
+  replaceSourceBucket?: "items" | "cannot_match" | "customer_note";
 };
 
 export type SmartBarMobileDemoTypingStep =
@@ -1706,16 +1723,6 @@ const SMARTBAR_MOBILE_FOOTER_RED_STYLE: CSSProperties = {
   WebkitBackdropFilter: "blur(18px) saturate(125%)",
 };
 
-const SMARTBAR_MOBILE_FOOTER_YELLOW_STYLE: CSSProperties = {
-  background:
-    "linear-gradient(180deg, rgba(254,240,138,0.98) 0%, rgba(250,204,21,0.98) 52%, rgba(234,179,8,0.99) 100%)",
-  borderColor: "rgba(254,249,195,0.84)",
-  boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(161,98,7,0.40), 0 16px 38px rgba(161,98,7,0.24), 0 5px 14px rgba(2,6,23,0.16)",
-  backdropFilter: "blur(18px) saturate(125%)",
-  WebkitBackdropFilter: "blur(18px) saturate(125%)",
-};
-
 const SMARTBAR_MOBILE_FOOTER_GRAY_STYLE: CSSProperties = {
   background:
     "linear-gradient(180deg, rgba(226,232,240,0.98) 0%, rgba(203,213,225,0.98) 52%, rgba(148,163,184,0.99) 100%)",
@@ -1728,7 +1735,6 @@ const SMARTBAR_MOBILE_FOOTER_GRAY_STYLE: CSSProperties = {
 
 function smartBarMobileFooterPolicyStyle(status: SmartBarMobileOrderStatus | null): CSSProperties {
   if (status === "pending") return SMARTBAR_MOBILE_FOOTER_RED_STYLE;
-  if (status === "options") return SMARTBAR_MOBILE_FOOTER_YELLOW_STYLE;
   if (status === "unknown") return SMARTBAR_MOBILE_FOOTER_GRAY_STYLE;
 
   return SMARTBAR_MOBILE_BLUE_CONTROL_STYLE;
@@ -1739,7 +1745,7 @@ function smartBarMobileFooterPolicyTextClass(status: SmartBarMobileOrderStatus |
     return "!font-black text-white";
   }
 
-  if (status === "options" || status === "unknown") {
+  if (status === "unknown") {
     return "!font-black text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.28)]";
   }
 
@@ -1834,7 +1840,7 @@ function SmartBarMobileFormattedBody({ text }: { text: string }) {
 function statusLabel(status: SmartBarMobileOrderStatus) {
   if (status === "ready") return "Ready";
   if (status === "pending") return "Pending";
-  if (status === "options") return "Options?";
+  if (status === "options") return "Optional";
   return "Unknown";
 }
 
@@ -1848,7 +1854,7 @@ function smartBarMobileCompactRowHelper(line: SmartBarMobileOrderLine) {
 
   if (line.status === "ready") return "Ready";
   if (line.status === "pending") return "Size needed";
-  if (line.status === "options") return "Extras";
+  if (line.status === "options") return "Options available";
   return "Unknown";
 }
 
@@ -1931,7 +1937,7 @@ function SmartBarMobileOdometerText({ value, motionKey }: { value: string; motio
 }
 
 function smartBarMobileRowAnimate(status: SmartBarMobileOrderStatus): TargetAndTransition {
-  if (status === "pending" || status === "options") {
+  if (status === "pending") {
     return { x: 0, scale: [1, 1.006, 1] };
   }
 
@@ -1939,7 +1945,7 @@ function smartBarMobileRowAnimate(status: SmartBarMobileOrderStatus): TargetAndT
 }
 
 function smartBarMobileRowTransition(status: SmartBarMobileOrderStatus): Transition {
-  if (status === "pending" || status === "options") {
+  if (status === "pending") {
     return {
       x: { type: "spring", stiffness: 520, damping: 36 },
       scale: { duration: 1.45, repeat: Infinity, ease: "easeInOut" },
@@ -2284,6 +2290,76 @@ function smartBarMobileActiveConditionalParentGroup(
   return groups.find((candidate) => candidate.id === activeRule.parentQualifierId) || null;
 }
 
+function smartBarMobileConditionalParentOptionLabel(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+) {
+  const groups = smartBarMobileAllLineOptionGroups(line);
+  const selectedByGroup = new Map(
+    groups.map((candidate) => [candidate.id, new Set(smartBarMobileOptionGroupSelectedIds(candidate))]),
+  );
+  const activeRule = (group.activationRules || []).find((rule) => {
+    const parent = groups.find((candidate) => candidate.id === rule.parentQualifierId);
+    return Boolean(
+      parent?.active !== false &&
+      selectedByGroup.get(rule.parentQualifierId)?.has(rule.parentOptionId)
+    );
+  });
+  if (!activeRule) return "";
+
+  const parent = groups.find((candidate) => candidate.id === activeRule.parentQualifierId);
+  if (!parent) return "";
+
+  const optionIndex = (parent.optionIds || []).findIndex((optionId) => (
+    String(optionId || "").trim() === String(activeRule.parentOptionId || "").trim()
+  ));
+  return optionIndex >= 0
+    ? String(parent.options?.[optionIndex] || "").replace(/\s+/g, " ").trim()
+    : String(activeRule.parentOptionId || "").replace(/\s+/g, " ").trim();
+}
+
+function smartBarMobileConditionalOwnerOptionLabel(
+  line: SmartBarMobileOrderLine,
+  parentGroup: SmartBarMobileOptionGroup,
+  childGroupId: string,
+) {
+  const selectedIds = new Set(smartBarMobileOptionGroupSelectedIds(parentGroup));
+  const normalizedChildGroupId = String(childGroupId || "").trim();
+  if (!normalizedChildGroupId) return "";
+
+  const ownerIndex = (parentGroup.options || []).findIndex((option, index) => {
+    const optionId = String(parentGroup.optionIds?.[index] || option || "").trim();
+    if (!optionId || !selectedIds.has(optionId)) return false;
+    return smartBarMobileConditionalChildrenForOption(
+      line,
+      parentGroup,
+      optionId,
+      option,
+    ).includes(normalizedChildGroupId);
+  });
+
+  return ownerIndex >= 0
+    ? String(parentGroup.options?.[ownerIndex] || "").replace(/\s+/g, " ").trim()
+    : "";
+}
+
+function smartBarMobileSimplifyConditionalChildLabel(
+  label: string,
+  parentOptionLabel: string,
+) {
+  const normalizedLabel = String(label || "").replace(/\s+/g, " ").trim();
+  const normalizedParent = String(parentOptionLabel || "").replace(/\s+/g, " ").trim();
+  if (!normalizedLabel || !normalizedParent) return normalizedLabel;
+
+  const escapedParent = normalizedParent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return normalizedLabel
+    .replace(new RegExp(escapedParent, "ig"), " ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .trim() || normalizedLabel;
+}
+
+
 function smartBarMobileConditionalReturnGroup(
   line: SmartBarMobileOrderLine,
   group: SmartBarMobileOptionGroup,
@@ -2326,6 +2402,53 @@ function smartBarMobileOptionGroupHasSelectedActiveChild(
       groups.some((candidate) => candidate.id === childId && candidate.active !== false)
     ));
   });
+}
+
+function smartBarMobileOptionGroupDirectChildAttentionGroup(
+  line: SmartBarMobileOrderLine,
+  group: SmartBarMobileOptionGroup,
+  reviewedKeys: Record<string, true>,
+) {
+  const activeGroups = smartBarMobileLineOptionGroups(line);
+  const activeById = new Map(activeGroups.map((candidate) => [candidate.id, candidate]));
+  const selectedIds = new Set(smartBarMobileOptionGroupSelectedIds(group));
+  const directChildren: SmartBarMobileOptionGroup[] = [];
+  const seen = new Set<string>();
+
+  (group.options || []).forEach((option, index) => {
+    const optionId = String(group.optionIds?.[index] || option || "").trim();
+    if (!optionId || !selectedIds.has(optionId)) return;
+
+    (group.optionChildGroupIds?.[index] || []).forEach((childId) => {
+      const child = activeById.get(String(childId || "").trim());
+      if (!child || seen.has(child.id)) return;
+      seen.add(child.id);
+      directChildren.push(child);
+    });
+  });
+
+  return directChildren.find((child) => (
+    !smartBarMobileOptionGroupIsOptional(child) &&
+    smartBarMobileOptionGroupNeedsRequiredChoice(child)
+  )) || directChildren.find((child) => (
+    smartBarMobileOptionGroupIsOptional(child) &&
+    !smartBarMobileHasReviewedOptionGroupKey(line, child.id, reviewedKeys)
+  )) || null;
+}
+
+function smartBarMobileConditionalFooterLabel(group: SmartBarMobileOptionGroup) {
+  const label = String(group.label || "options").replace(/\s+/g, " ").trim();
+  const subject = label.replace(/^(choose|review)\s+/i, "").trim();
+
+  if (/\bdipping sauces?\b/i.test(subject)) return "Choose dipping sauce";
+  if (/\bpreferences?\b/i.test(subject)) return "Review preferences";
+  if (/\bflavou?r\b/i.test(subject)) return "Choose flavor";
+  if (/\bsauces?\b/i.test(subject)) return "Choose sauce";
+
+  if (/^(choose|review)\b/i.test(label)) return label;
+  return smartBarMobileOptionGroupIsOptional(group)
+    ? `Review ${label}`
+    : `Choose ${label}`;
 }
 
 function smartBarMobileRecomputeConditionalOptionGroups(line: SmartBarMobileOrderLine) {
@@ -2587,7 +2710,10 @@ function smartBarMobileReplaceLineInTree(
 
 function smartBarMobileBundleIsComplete(line?: SmartBarMobileOrderLine | null) {
   const components = line?.bundleComponents || [];
-  return Boolean(components.length && components.every((component) => component.status === "ready"));
+  return Boolean(
+    components.length &&
+      components.every((component) => component.status === "ready" || component.status === "options"),
+  );
 }
 
 function smartBarMobileRollupBundleTree(lines: SmartBarMobileOrderLine[]): SmartBarMobileOrderLine[] {
@@ -2613,7 +2739,7 @@ function smartBarMobileRollupBundleTree(lines: SmartBarMobileOrderLine[]): Smart
       : status === "pending"
         ? "Finish included items"
         : status === "options"
-          ? "Review included options"
+          ? "Optional choices available"
           : "All included items ready";
 
     return {
@@ -2823,6 +2949,7 @@ type SmartBarMobileShellProps = {
   onSubmitPrompt?: (query: string, meta?: SmartBarMobileSubmitMeta) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult>;
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
+  onSaveUnknownAsNote?: (line: SmartBarMobileOrderLine, note: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
@@ -2897,6 +3024,7 @@ export default function SmartBarMobileShell({
   onSubmitPrompt,
   onApplyLineChoice,
   onRemoveLine,
+  onSaveUnknownAsNote,
   onNavigateToLine,
   onGenericAction,
   onCartReady,
@@ -2913,6 +3041,8 @@ export default function SmartBarMobileShell({
   const genericContentMeasureRef = useRef<HTMLDivElement | null>(null);
   const selectedDetailMeasureRef = useRef<HTMLDivElement | null>(null);
   const selectedSummaryContentMeasureRef = useRef<HTMLDivElement | null>(null);
+  const selectedChoiceContentMeasureRef = useRef<HTMLDivElement | null>(null);
+  const selectedUnknownContentMeasureRef = useRef<HTMLDivElement | null>(null);
   const cartScrollRef = useRef<HTMLDivElement | null>(null);
   const closeArmTimeoutRef = useRef<number | null>(null);
   const buildTimerRef = useRef<number | null>(null);
@@ -2940,12 +3070,15 @@ export default function SmartBarMobileShell({
   const [buildingStatusLabel, setBuildingStatusLabel] = useState(buildingLabel);
   const [retryDraft, setRetryDraft] = useState("");
   const [orderLines, setOrderLines] = useState<SmartBarMobileOrderLine[]>(demoLines);
+  const [orderPricingMode, setOrderPricingMode] = useState<string>("exact");
   const [orderEstimatedSubtotal, setOrderEstimatedSubtotal] = useState<string | undefined>(undefined);
   const [orderEstimatedTax, setOrderEstimatedTax] = useState<string | undefined>(undefined);
   const [orderEstimatedTotal, setOrderEstimatedTotal] = useState(estimatedTotal);
   const [genericResult, setGenericResult] = useState<SmartBarMobileGenericResult | null>(null);
   const [measuredGenericPanelHeight, setMeasuredGenericPanelHeight] = useState<number | null>(null);
   const [measuredSelectedSummaryPanelHeight, setMeasuredSelectedSummaryPanelHeight] = useState<number | null>(null);
+  const [measuredSelectedChoicePanelHeight, setMeasuredSelectedChoicePanelHeight] = useState<number | null>(null);
+  const [measuredSelectedUnknownPanelHeight, setMeasuredSelectedUnknownPanelHeight] = useState<number | null>(null);
   const [hasCart, setHasCart] = useState(false);
   const [cartExpanded, setCartExpanded] = useState(true);
   const [handoffState, setHandoffState] = useState<SmartBarMobileHandoffState>("idle");
@@ -3320,6 +3453,13 @@ export default function SmartBarMobileShell({
     selectedLineActiveOptionGroup &&
     smartBarMobileOptionGroupHasSelectedActiveChild(selectedLine, selectedLineActiveOptionGroup),
   );
+  const selectedLineActiveDirectChildAttentionGroup = selectedLine && selectedLineActiveOptionGroup
+    ? smartBarMobileOptionGroupDirectChildAttentionGroup(
+        selectedLine,
+        selectedLineActiveOptionGroup,
+        reviewedOptionLineKeys,
+      )
+    : null;
   const selectedLineConditionalBranchIsTerminal = Boolean(
     selectedLineConditionalReturnOptionGroup &&
     selectedLineActiveOptionGroup &&
@@ -3378,16 +3518,7 @@ export default function SmartBarMobileShell({
   const selectedLineGrayReason = selectedLine?.status === "unknown"
     ? String(selectedLine.displayReason || selectedLine.helper || "Not recognized").replace(/\s+/g, " ").trim()
     : "";
-  const selectedLineGrayPrompt = selectedLine?.status === "unknown"
-    ? String(selectedLine.retryPrompt || "Clarify this item or enter something else from the menu.").replace(/\s+/g, " ").trim()
-    : "";
-  const selectedLineGrayPlaceholder = selectedLine?.grayReason === "not_sold_separately"
-    ? "Tell us which menu item this belongs with..."
-    : selectedLine?.grayReason === "selection_limit_exceeded"
-      ? "Enter fewer choices for this item..."
-    : selectedLine?.grayReason === "not_on_menu"
-      ? "Enter another menu item..."
-      : "Clarify or replace this item...";
+  const selectedLineGrayPlaceholder = "Retry menu item or leave note...";
   const selectedLineHasSummarySelections = selectedLineSummarySelections.length > 0;
   const selectedLineNoChoicesNeeded = Boolean(
     selectedLine &&
@@ -3396,6 +3527,119 @@ export default function SmartBarMobileShell({
       selectedLineSelectedDetails.length === 0 &&
       selectedLineMissingDetails.length === 0,
   );
+  const selectedLineIsReviewedReady = Boolean(
+    selectedLine &&
+      selectedLine.status === "ready" &&
+      /reviewed and ready/i.test(String(selectedLine.helper || "")),
+  );
+  const selectedLineUseLightReadyDetail = Boolean(
+    selectedLine &&
+      selectedLine.status === "ready" &&
+      !selectedLine.isCustomerNote,
+  );
+  const selectedLineUseLightChoiceDetail = Boolean(
+    selectedLine &&
+      (selectedLine.status === "pending" || selectedLine.status === "options") &&
+      !selectedLine.isCustomerNote,
+  );
+  const selectedLineUseLightUnknownDetail = Boolean(
+    selectedLine &&
+      selectedLine.status === "unknown",
+  );
+  const selectedLineUseLightCustomerNoteDetail = Boolean(
+    selectedLine?.isCustomerNote,
+  );
+  const selectedLineUseLightThemedDetail = Boolean(
+    selectedLineUseLightReadyDetail ||
+      selectedLineUseLightChoiceDetail ||
+      selectedLineUseLightUnknownDetail ||
+      selectedLineUseLightCustomerNoteDetail,
+  );
+  const selectedLineUseLightThemedSummary = Boolean(
+    selectedLineUseLightThemedDetail &&
+      selectedDetailMode === "summary",
+  );
+  const selectedLineUseConditionalDetail = Boolean(
+    selectedLine &&
+      selectedLineActiveOptionGroup &&
+      selectedLineUseLightThemedDetail &&
+      (
+        selectedLineActiveConditionalParentOptionGroup ||
+        selectedLineActiveOptionGroupConditionalDescendantIds.length > 0 ||
+        selectedLineConditionalReturnOptionGroup
+      ),
+  );
+  const selectedLineConditionalContextParentLabel = selectedLine && selectedLineActiveOptionGroup
+    ? (
+        selectedLineActiveConditionalParentOptionGroup
+          ? smartBarMobileConditionalParentOptionLabel(selectedLine, selectedLineActiveOptionGroup)
+          : selectedLineConditionalDescendantAttentionGroup
+            ? smartBarMobileConditionalOwnerOptionLabel(
+                selectedLine,
+                selectedLineActiveOptionGroup,
+                selectedLineConditionalDescendantAttentionGroup.id,
+              )
+            : ""
+      )
+    : "";
+  const selectedLineConditionalContextChildLabel = String(
+    selectedLineAtConditionalHomeGroup && selectedLineConditionalDescendantAttentionGroup
+      ? selectedLineConditionalDescendantAttentionGroup.label
+      : selectedLineActiveOptionGroup?.label || selectedLine?.optionGroupLabel || "Choices",
+  ).replace(/\s+/g, " ").trim();
+  const selectedLineConditionalDisplayTitle = selectedLineActiveConditionalParentOptionGroup
+    ? selectedLineConditionalContextParentLabel || selectedLineConditionalContextChildLabel
+    : selectedLineConditionalContextChildLabel;
+  const selectedLineConditionalDisplayPrompt = selectedLineActiveConditionalParentOptionGroup
+    ? smartBarMobileSimplifyConditionalChildLabel(
+        selectedLineConditionalContextChildLabel,
+        selectedLineConditionalContextParentLabel,
+      )
+    : "";
+  const selectedLineReadyHeaderLabel = selectedLineIsReviewedReady ? "Reviewed" : "Ready";
+  const selectedLineCustomerOriginalRequest = selectedLine?.isCustomerNote
+    ? String(
+        selectedLine.originalUnknownText ||
+        selectedLine.details?.find((detail) => /^original request\s*:/i.test(String(detail || "")))?.replace(
+          /^original request\s*:\s*/i,
+          "",
+        ) ||
+        "",
+      ).replace(/\s+/g, " ").trim()
+    : "";
+  const selectedLineCustomerNoteText = selectedLine?.isCustomerNote
+    ? String(
+        selectedLine.customerNote ||
+        selectedLine.details?.find((detail) => /^customer note\s*:/i.test(String(detail || "")))?.replace(
+          /^customer note\s*:\s*/i,
+          "",
+        ) ||
+        selectedLine.helper ||
+        "",
+      ).replace(/\s+/g, " ").trim()
+    : "";
+  const selectedLineThemedHeaderEyebrow = selectedLineUseLightUnknownDetail
+    ? "Clarify item"
+    : selectedLineUseLightCustomerNoteDetail
+      ? "Customer note"
+      : "Item details";
+  const selectedLineThemedHeaderStatusLabel = selectedLineUseLightUnknownDetail
+    ? "Needs help"
+    : selectedLineUseLightCustomerNoteDetail
+      ? "Saved"
+      : selectedLineUseLightReadyDetail
+        ? selectedLineReadyHeaderLabel
+        : statusLabel(selectedLine?.status || "unknown");
+  const selectedLineThemedHeaderAriaLabel = selectedLineUseLightUnknownDetail
+    ? "Needs help"
+    : selectedLineUseLightCustomerNoteDetail
+      ? "Saved customer note"
+      : selectedLineUseLightReadyDetail
+        ? selectedLineIsReviewedReady ? "Reviewed and ready" : "Ready"
+        : statusLabel(selectedLine?.status || "unknown");
+  const selectedLineThemedHeaderTitle = selectedLineUseLightCustomerNoteDetail
+    ? selectedLineCustomerNoteText || selectedLineFullTitle || "Customer note"
+    : selectedLineFullTitle || smartBarMobileShortTitle(selectedLine?.title || "");
 
   useEffect(() => {
     if (selectedLineNoChoicesNeeded) {
@@ -3407,9 +3651,160 @@ export default function SmartBarMobileShell({
     selectedLineInstanceKey,
     selectedLine?.status || "",
     selectedLine?.price || "",
+    selectedLineCustomerOriginalRequest,
+    selectedLineCustomerNoteText,
     ...selectedLineSummaryGroups.flatMap((group) => [group.label, ...group.selections]),
     ...selectedLineMissingDetails,
   ].join("\u001f");
+  const selectedChoiceMeasurementKey = [
+    selectedLineInstanceKey,
+    selectedLine?.status || "",
+    selectedLineActiveOptionGroup?.id || "",
+    selectedLineConditionalDisplayTitle,
+    selectedLineConditionalDisplayPrompt,
+    ...(selectedLine?.options || []),
+    ...(selectedLine?.details || []),
+  ].join("\u001f");
+  const selectedUnknownMeasurementKey = [
+    selectedLineInstanceKey,
+    selectedLine?.status || "",
+    selectedLineGrayReason,
+    selectedLineGrayPlaceholder,
+  ].join("\u001f");
+
+  useLayoutEffect(() => {
+    const shouldMeasureUnknown = Boolean(
+      phase === "cart" &&
+      cartExpanded &&
+      selectedLine?.status === "unknown",
+    );
+
+    if (!shouldMeasureUnknown) {
+      setMeasuredSelectedUnknownPanelHeight(null);
+      return;
+    }
+
+    let frame = 0;
+    let firstTimer = 0;
+    let secondTimer = 0;
+
+    const measureUnknown = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const detailNode = selectedDetailMeasureRef.current;
+        const intrinsicUnknownNode = selectedUnknownContentMeasureRef.current;
+        if (!detailNode || !intrinsicUnknownNode) return;
+
+        const detailRect = detailNode.getBoundingClientRect();
+        const unknownRect = intrinsicUnknownNode.getBoundingClientRect();
+        const contentTop = Math.max(0, unknownRect.top - detailRect.top);
+        const intrinsicContentHeight = Math.ceil(intrinsicUnknownNode.scrollHeight);
+        const desiredHeight = Math.ceil(contentTop + intrinsicContentHeight + 28);
+        if (!Number.isFinite(desiredHeight) || desiredHeight <= 0) return;
+
+        const clampedHeight = Math.min(
+          maxCartPanelHeight,
+          Math.max(430, desiredHeight),
+        );
+
+        setMeasuredSelectedUnknownPanelHeight((current) => (
+          current === clampedHeight ? current : clampedHeight
+        ));
+      });
+    };
+
+    measureUnknown();
+    firstTimer = window.setTimeout(measureUnknown, 60);
+    secondTimer = window.setTimeout(measureUnknown, 220);
+
+    const intrinsicUnknownNode = selectedUnknownContentMeasureRef.current;
+    const observer = intrinsicUnknownNode && typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measureUnknown)
+      : null;
+    observer?.observe(intrinsicUnknownNode as Element);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+      observer?.disconnect();
+    };
+  }, [
+    cartExpanded,
+    maxCartPanelHeight,
+    phase,
+    selectedLine?.status,
+    selectedUnknownMeasurementKey,
+  ]);
+
+  useLayoutEffect(() => {
+    const shouldMeasureChoices = Boolean(
+      phase === "cart" &&
+      cartExpanded &&
+      selectedLine &&
+      selectedDetailMode === "choices" &&
+      selectedLineUseConditionalDetail,
+    );
+
+    if (!shouldMeasureChoices) {
+      setMeasuredSelectedChoicePanelHeight(null);
+      return;
+    }
+
+    let frame = 0;
+    let firstTimer = 0;
+    let secondTimer = 0;
+
+    const measureChoices = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const detailNode = selectedDetailMeasureRef.current;
+        const intrinsicChoicesNode = selectedChoiceContentMeasureRef.current;
+        if (!detailNode || !intrinsicChoicesNode) return;
+
+        const detailRect = detailNode.getBoundingClientRect();
+        const choicesRect = intrinsicChoicesNode.getBoundingClientRect();
+        const contentTop = Math.max(0, choicesRect.top - detailRect.top);
+        const intrinsicContentHeight = Math.ceil(intrinsicChoicesNode.scrollHeight);
+        const desiredHeight = Math.ceil(contentTop + intrinsicContentHeight + 28);
+        if (!Number.isFinite(desiredHeight) || desiredHeight <= 0) return;
+
+        const clampedHeight = Math.min(
+          maxCartPanelHeight,
+          Math.max(320, desiredHeight),
+        );
+
+        setMeasuredSelectedChoicePanelHeight((current) => (
+          current === clampedHeight ? current : clampedHeight
+        ));
+      });
+    };
+
+    measureChoices();
+    firstTimer = window.setTimeout(measureChoices, 60);
+    secondTimer = window.setTimeout(measureChoices, 220);
+
+    const intrinsicChoicesNode = selectedChoiceContentMeasureRef.current;
+    const observer = intrinsicChoicesNode && typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(measureChoices)
+      : null;
+    observer?.observe(intrinsicChoicesNode as Element);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+      observer?.disconnect();
+    };
+  }, [
+    cartExpanded,
+    maxCartPanelHeight,
+    phase,
+    selectedChoiceMeasurementKey,
+    selectedDetailMode,
+    selectedLine,
+    selectedLineUseConditionalDetail,
+  ]);
 
   useLayoutEffect(() => {
     const shouldMeasureSummary = Boolean(
@@ -3439,7 +3834,8 @@ export default function SmartBarMobileShell({
         const detailRect = detailNode.getBoundingClientRect();
         const summaryRect = summaryNode.getBoundingClientRect();
         const contentTop = Math.max(0, summaryRect.top - detailRect.top);
-        const desiredHeight = Math.ceil(contentTop + summaryNode.scrollHeight + 12);
+        const intrinsicContentHeight = Math.ceil(summaryNode.scrollHeight);
+        const desiredHeight = Math.ceil(contentTop + intrinsicContentHeight + 28);
         if (!Number.isFinite(desiredHeight) || desiredHeight <= 0) return;
 
         const clampedHeight = Math.min(
@@ -3511,22 +3907,19 @@ export default function SmartBarMobileShell({
   }, [expandedBundleCompletionKey, expandedBundleLine, expandedBundleLineId]);
 
   const blockingIssueCount = lines.filter((line) => line.status === "pending").length;
-  const optionCount = lines.filter((line) => line.status === "options").length;
   const unknownCount = lines.filter((line) => line.status === "unknown").length;
   const cartGuidanceStatus: SmartBarMobileOrderStatus | null = !genericResult && lines.length > 0
     ? blockingIssueCount > 0
       ? "pending"
       : unknownCount > 0
         ? "unknown"
-        : optionCount > 0
-          ? "options"
-          : null
+        : null
     : null;
   const walkthroughGuidanceStatusOverride: SmartBarMobileOrderStatus | null =
     demoWalkthroughCartMode && demoMontageStage?.status ? demoMontageStage.status : null;
   const effectiveCartGuidanceStatus: SmartBarMobileOrderStatus | null =
     walkthroughGuidanceStatusOverride ?? cartGuidanceStatus;
-  const unresolvedReviewCount = blockingIssueCount + unknownCount + optionCount;
+  const unresolvedBlockingCount = blockingIssueCount + unknownCount;
   const statusFilteredCartLines = cartStatusFilter
     ? lines.filter((line) => line.status === cartStatusFilter)
     : lines;
@@ -3550,6 +3943,7 @@ export default function SmartBarMobileShell({
     : statusFilteredCartLines;
   const checkoutReady = !genericResult && lines.length > 0 && cartGuidanceStatus === null;
   const handoffLocked = handoffState !== "idle";
+  const restaurantCalculatedPricing = orderPricingMode === "restaurant-calculated";
   const cartTotals = smartBarMobileTotalsFromLines(lines, {
     subtotal: orderEstimatedSubtotal,
     tax: orderEstimatedTax,
@@ -3722,19 +4116,29 @@ export default function SmartBarMobileShell({
     return twoLineTitle ? 560 : 536;
   };
   const cartDetailBaseHeight = selectedLine?.status === "unknown"
-    ? 340
+    ? 430
     : selectedLineNoChoicesNeeded
       ? selectedDetailTitleLines > 1 ? 270 : 248
       : Math.min(
           maxCartPanelHeight,
           cartDetailHeightFromShape(selectedOptionRows, selectedDetailTitleLines),
         );
-  const cartDetailHeight = selectedDetailMode === "summary" && measuredSelectedSummaryPanelHeight
+  const cartDetailHeight = selectedLine?.status === "unknown" && measuredSelectedUnknownPanelHeight
     ? Math.min(
         maxCartPanelHeight,
-        Math.max(cartDetailBaseHeight, measuredSelectedSummaryPanelHeight),
+        Math.max(cartDetailBaseHeight, measuredSelectedUnknownPanelHeight),
       )
-    : cartDetailBaseHeight;
+    : selectedDetailMode === "summary" && measuredSelectedSummaryPanelHeight
+      ? Math.min(
+          maxCartPanelHeight,
+          Math.max(cartDetailBaseHeight, measuredSelectedSummaryPanelHeight),
+        )
+      : selectedDetailMode === "choices" && measuredSelectedChoicePanelHeight
+        ? Math.min(
+            maxCartPanelHeight,
+            Math.max(cartDetailBaseHeight, measuredSelectedChoicePanelHeight),
+          )
+        : cartDetailBaseHeight;
   const fakeCartPanelHeight = handoffState === "complete"
     ? 0
     : phase === "cart"
@@ -3759,6 +4163,14 @@ export default function SmartBarMobileShell({
       : { duration: 0.26, ease: [0.22, 1, 0.36, 1] };
 
   const applyOrderResultEstimates = (result: SmartBarMobileOrderResult, fallbackTotal = orderEstimatedTotal) => {
+    const nextPricingMode = String(result.pricingMode || orderPricingMode || "exact");
+    setOrderPricingMode(nextPricingMode);
+    if (nextPricingMode === "restaurant-calculated") {
+      setOrderEstimatedSubtotal(undefined);
+      setOrderEstimatedTax(undefined);
+      setOrderEstimatedTotal("");
+      return;
+    }
     setOrderEstimatedSubtotal(result.estimatedSubtotal);
     setOrderEstimatedTax(result.estimatedTax);
     setOrderEstimatedTotal(result.estimatedTotal || fallbackTotal);
@@ -4359,13 +4771,27 @@ export default function SmartBarMobileShell({
     }
 
     const lineHasNoChoicesNeeded = Boolean(
-      line.status === "ready" &&
+      line.isCustomerNote ||
+      (
+        line.status === "ready" &&
         !line.options?.length &&
         smartBarMobileLineSelectedDetails(line).length === 0 &&
-        smartBarMobileLineMissingDetails(line).length === 0,
+        smartBarMobileLineMissingDetails(line).length === 0
+      ),
     );
+    const lineInstanceKey = smartBarMobileLineInstanceKey(line);
+    const firstReviewGroup = line.status === "pending" || line.status === "unknown"
+      ? null
+      : smartBarMobileLineOptionGroups(line)[0] || null;
 
-    setSelectedLineId(smartBarMobileLineInstanceKey(line));
+    if (firstReviewGroup) {
+      setSelectedOptionGroupOverride({
+        lineKey: lineInstanceKey,
+        groupId: firstReviewGroup.id,
+      });
+    }
+
+    setSelectedLineId(lineInstanceKey);
     setSelectedDetailMode(lineHasNoChoicesNeeded ? "summary" : "choices");
     setCartExpanded(true);
 
@@ -4656,6 +5082,7 @@ export default function SmartBarMobileShell({
     const mutationRevision = choiceMutationRevisionRef.current + 1;
     choiceMutationRevisionRef.current = mutationRevision;
     const keepDetailOpen = Boolean(
+      selectedOptionActivatesChild ||
       conditionalReturnGroupId ||
       displayedLine.status === "pending" ||
       displayedLine.status === "options" ||
@@ -4674,8 +5101,8 @@ export default function SmartBarMobileShell({
         }))
       : Promise.resolve<SmartBarMobileOrderResult | void>(undefined);
 
-    // Optional groups remain yellow while they are being edited. The footer
-    // explicitly completes one group and advances to the next optional group.
+    // Keep conditional parents visible after they activate a child. The footer
+    // explicitly opens that child, then continues the established review flow.
     setLineOverrides((current) => ({
       ...current,
       [lineInstanceKey]: {
@@ -4715,11 +5142,7 @@ export default function SmartBarMobileShell({
     } else {
       setSelectedOptionGroupOverride(null);
     }
-    setSelectedLineId((current) => (
-      keepDetailOpen
-        ? current === lineInstanceKey ? lineInstanceKey : current
-        : null
-    ));
+    setSelectedLineId(keepDetailOpen ? lineInstanceKey : null);
     setSelectedDetailMode("choices");
     setCartExpanded(true);
 
@@ -4755,11 +5178,7 @@ export default function SmartBarMobileShell({
           groupId: visibleOptionGroupId,
         });
       }
-      setSelectedLineId((current) => (
-        keepDetailOpen
-          ? current === lineInstanceKey ? lineInstanceKey : current
-          : null
-      ));
+      setSelectedLineId(keepDetailOpen ? lineInstanceKey : null);
       setCartExpanded(true);
 
       parentResultPromise
@@ -4777,7 +5196,18 @@ export default function SmartBarMobileShell({
             parentResult.lines,
             mutationLine,
           );
-          if (!replacementLine || !keepDetailOpen) {
+          if (!replacementLine) {
+            // Keep the already-rendered optimistic conditional parent open.
+            // A backend refresh that cannot be matched must not dismiss the
+            // footer instruction the customer still needs to follow.
+            if (!keepDetailOpen) {
+              setSelectedOptionGroupOverride(null);
+              setConditionalReturnContext(null);
+              setSelectedLineId(null);
+            }
+            return;
+          }
+          if (!keepDetailOpen) {
             setSelectedOptionGroupOverride(null);
             setConditionalReturnContext(null);
             setSelectedLineId(null);
@@ -4849,7 +5279,8 @@ export default function SmartBarMobileShell({
     const fallbackLines = smartBarMobileRemoveOneLineInstance(orderLines, line);
     const optimisticResult: SmartBarMobileOrderResult = {
       lines: fallbackLines,
-      estimatedTotal: fallbackLines.length ? undefined : "-",
+      pricingMode: orderPricingMode,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : fallbackLines.length ? undefined : "-",
     };
 
     setOrderLines(optimisticResult.lines);
@@ -4887,6 +5318,57 @@ export default function SmartBarMobileShell({
   };
 
 
+  const saveUnknownAsNote = () => {
+    const submittedNote = retryDraft.trim();
+    if (
+      handoffLocked ||
+      !selectedLine ||
+      selectedLine.status !== "unknown" ||
+      !submittedNote ||
+      retryCheckingLineId
+    ) return;
+
+    retryTextareaRef.current?.blur();
+    disarmClose();
+    setRetryCheckingLineId(selectedLineInstanceKey);
+
+    const fallbackResult: SmartBarMobileOrderResult = {
+      lines: smartBarMobileSaveUnknownAsNoteInLines(orderLines, selectedLine, submittedNote),
+      pricingMode: orderPricingMode,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : orderEstimatedTotal,
+    };
+    const savePromise = onSaveUnknownAsNote
+      ? Promise.resolve(onSaveUnknownAsNote(selectedLine, submittedNote))
+      : Promise.resolve<SmartBarMobileOrderResult | void>(fallbackResult);
+
+    savePromise
+      .then((result) => {
+        const savedResult = result || fallbackResult;
+        setOrderLines(savedResult.lines);
+        applyOrderResultEstimates(savedResult);
+        setRetryDraft("");
+        setLineOverrides({});
+        setSelectedLineId(null);
+        setSelectedDetailMode("choices");
+        setCartExpanded(true);
+      })
+      .catch(() => {
+        const lineInstanceKey = smartBarMobileLineInstanceKey(selectedLine);
+        setLineOverrides((current) => ({
+          ...current,
+          [lineInstanceKey]: {
+            ...(current[lineInstanceKey] || {}),
+            status: "unknown",
+            helper: "Could not save note",
+            retryPrompt: "Try saving the note again.",
+          } as DemoLineOverride,
+        }));
+      })
+      .finally(() => {
+        setRetryCheckingLineId(null);
+      });
+  };
+
   const submitRetry = () => {
     const submittedRetry = retryDraft.trim();
     if (handoffLocked || !selectedLine || selectedLine.status !== "unknown" || !submittedRetry || retryCheckingLineId) return;
@@ -4915,12 +5397,13 @@ export default function SmartBarMobileShell({
               title: submittedRetry,
               status: "ready",
               helper: "Re-entered and matched",
-              price: "$5.49",
+              price: restaurantCalculatedPricing ? "" : "$5.49",
               details: [submittedRetry],
               options: [],
             },
           ],
-          estimatedTotal: orderEstimatedTotal,
+          pricingMode: orderPricingMode,
+          estimatedTotal: restaurantCalculatedPricing ? undefined : orderEstimatedTotal,
         });
 
     replacementPromise
@@ -5034,6 +5517,7 @@ export default function SmartBarMobileShell({
     setSubmittedPromptPreview("");
     setRetryDraft("");
     setOrderLines(demoLines);
+    setOrderPricingMode("exact");
     setOrderEstimatedSubtotal(undefined);
     setOrderEstimatedTax(undefined);
     setOrderEstimatedTotal(estimatedTotal);
@@ -5131,6 +5615,11 @@ export default function SmartBarMobileShell({
     if (
       phase === "cart" &&
       selectedLine &&
+      selectedLineActiveDirectChildAttentionGroup
+    ) return smartBarMobileConditionalFooterLabel(selectedLineActiveDirectChildAttentionGroup);
+    if (
+      phase === "cart" &&
+      selectedLine &&
       selectedLineConditionalReturnOptionGroup &&
       selectedLineActiveOptionGroupNeedsRequiredChoice
     ) return "Make a choice";
@@ -5141,7 +5630,7 @@ export default function SmartBarMobileShell({
       !selectedLineActiveOptionGroupNeedsRequiredChoice
     ) {
       return selectedLineConditionalDescendantAttentionGroup
-        ? selectedLineConditionalDescendantAttentionGroup.label
+        ? smartBarMobileConditionalFooterLabel(selectedLineConditionalDescendantAttentionGroup)
         : "Done choosing";
     }
     if (
@@ -5160,23 +5649,24 @@ export default function SmartBarMobileShell({
       selectedLineNextOptionGroup &&
       !selectedLineActiveOptionGroupNeedsRequiredChoice
     ) return "Next options";
-    if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Mark reviewed";
+    if (phase === "cart" && expandedBundleLineId && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Done";
     if (phase === "cart" && expandedBundleLineId && selectedLine) return "Back to special";
     if (phase === "cart" && expandedBundleLineId) return "Finish included items";
     if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
     if (phase === "cart" && selectedLine?.status === "unknown") {
       return retryCheckingLineId === selectedLineInstanceKey
-        ? "Checking..."
+        ? "Working..."
         : retryDraft.trim() ? "Tap to retry" : "Clarify or exit";
     }
-    if (phase === "cart" && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Mark reviewed";
+    if (phase === "cart" && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Done";
     if (phase === "cart" && selectedLine) return "Back to cart";
     if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
     if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Tap gray entries";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "options") return "Tap yellow entries";
     if (phase === "cart") return "Send order";
-    if (checkoutReady) return `Ready to send - ${cartTotals.totalLabel}`;
-    return `${unresolvedReviewCount} need attention - ${cartTotals.totalLabel}`;
+    if (checkoutReady) return restaurantCalculatedPricing ? "Ready to send" : `Ready to send - ${cartTotals.totalLabel}`;
+    return restaurantCalculatedPricing
+      ? `${unresolvedBlockingCount} need attention`
+      : `${unresolvedBlockingCount} need attention - ${cartTotals.totalLabel}`;
   })();
 
   const demoRestCompanionIsBlank = phase === "rest" && Boolean(demoRestCompanion?.blank);
@@ -5247,6 +5737,11 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine) {
+      if (selectedLineActiveDirectChildAttentionGroup) {
+        openSelectedLineOptionGroup(selectedLineActiveDirectChildAttentionGroup);
+        return;
+      }
+
       if (
         selectedLineConditionalReturnOptionGroup &&
         selectedLineActiveOptionGroupNeedsRequiredChoice
@@ -5711,6 +6206,7 @@ export default function SmartBarMobileShell({
       setGenericResult(null);
       setMeasuredGenericPanelHeight(null);
       setOrderLines([]);
+      setOrderPricingMode("exact");
       setOrderEstimatedSubtotal(undefined);
       setOrderEstimatedTax(undefined);
       setOrderEstimatedTotal("-");
@@ -6175,28 +6671,75 @@ export default function SmartBarMobileShell({
                     transition={demoWalkthroughDecisionPanelSwap ? { duration: 0 } : { duration: 0.16, ease: "easeOut" }}
                     className="flex h-full min-h-0 flex-col p-3"
                   >
-                    <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
-                      <div className="min-w-0">
-                        <div className="inline-flex max-w-full items-center rounded-full border border-white/14 bg-white/[0.08] px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] text-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_4px_12px_rgba(2,6,23,0.14)]">
-                          {selectedLine.status === "unknown" ? "Clarify item" : "Item details"}
+                    {selectedLineUseLightThemedDetail ? (
+                      <div
+                        data-smartbar-mobile-detail-theme="canonical"
+                        className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : smartBarMobileDetailTheme.lightHeader}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className={smartBarMobileDetailTheme.lightHeaderIcon}>
+                              {selectedLineUseLightUnknownDetail ? (
+                                <CircleHelp className="h-[18px] w-[18px] stroke-[2.2]" aria-hidden="true" />
+                              ) : selectedLineUseLightCustomerNoteDetail ? (
+                                <StickyNote className="h-[18px] w-[18px] stroke-[2.2]" aria-hidden="true" />
+                              ) : selectedLineUseConditionalDetail ? (
+                                <GitBranch className="h-[18px] w-[18px] stroke-[2.2]" aria-hidden="true" />
+                              ) : selectedLineUseLightReadyDetail ? (
+                                <Package className="h-[18px] w-[18px] stroke-[2.2]" aria-hidden="true" />
+                              ) : (
+                                <SlidersHorizontal className="h-[18px] w-[18px] stroke-[2.2]" aria-hidden="true" />
+                              )}
+                            </span>
+                            <div className={smartBarMobileDetailTheme.eyebrow}>
+                              {selectedLineThemedHeaderEyebrow}
+                            </div>
+                          </div>
+                          <div
+                            className={`inline-flex min-h-[30px] shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ring-1 ${statusClass(selectedLine.status)}`}
+                            aria-label={selectedLineThemedHeaderAriaLabel}
+                          >
+                            {selectedLineUseLightUnknownDetail ? (
+                              <CircleHelp className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" aria-hidden="true" />
+                            ) : selectedLineUseLightReadyDetail || selectedLineUseLightCustomerNoteDetail ? (
+                              <BadgeCheck className="h-3.5 w-3.5 shrink-0 stroke-[2.5]" aria-hidden="true" />
+                            ) : null}
+                            <span>{selectedLineThemedHeaderStatusLabel}</span>
+                          </div>
                         </div>
-                        <div className="mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight">
-                          {selectedLineFullTitle || smartBarMobileShortTitle(selectedLine.title)}
+                        <div className={smartBarMobileDetailTheme.title}>
+                          {selectedLineThemedHeaderTitle}
                         </div>
                       </div>
-                      <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
-                        {selectedLine.status === "unknown" ? "Needs context" : statusLabel(selectedLine.status)}
+                    ) : (
+                      <div className={(genericResult?.surfaceKind === "info" || genericResult?.surfaceKind === "chat") ? "hidden" : "flex shrink-0 items-start justify-between gap-3 rounded-[24px] border border-white/18 bg-slate-950/82 px-4 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_12px_28px_rgba(2,6,23,0.24)] ring-1 ring-white/12"}>
+                        <div className="min-w-0 flex-1">
+                          <div className="inline-flex max-w-full items-center rounded-full border border-white/14 bg-white/[0.08] px-2.5 py-1 text-[11px] font-bold tracking-[0.04em] text-white/82 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_4px_12px_rgba(2,6,23,0.14)]">
+                            {selectedLine.status === "unknown" ? "Clarify item" : selectedLine.isCustomerNote ? "Customer note" : "Item details"}
+                          </div>
+                          <div className="mt-1 max-h-[58px] overflow-hidden text-xl font-black leading-tight tracking-tight">
+                            {selectedLineFullTitle || smartBarMobileShortTitle(selectedLine.title)}
+                          </div>
+                        </div>
+                        {selectedLine.status !== "unknown" ? (
+                          <div className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
+                            {statusLabel(selectedLine.status)}
+                          </div>
+                        ) : null}
                       </div>
-                    </div>
+                    )}
 
-                    {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && selectedLine.status !== "unknown" && (
-                      <div className="mt-2 flex shrink-0 items-center justify-center gap-2">
+                    {!demoWalkthroughHideCartChrome && !selectedLine.demoHideMeta && selectedLine.status !== "unknown" && !selectedLine.priceSuppressed && (
+                      <div
+                        data-smartbar-mobile-detail-utilities="dark"
+                        className="mt-2 flex shrink-0 items-center justify-center gap-2"
+                      >
                         {selectedLinePreviousOptionGroup ? (
                           <button
                             type="button"
                             data-smartbar-mobile-previous-options="true"
                             onClick={openSelectedLinePreviousOptionGroup}
-                            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-[16px] border border-white/16 bg-slate-950/82 px-3 text-xs font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]"
+                            className={`${smartBarMobileDetailTheme.darkUtilityButton} gap-1.5 bg-slate-950/82 px-3 text-xs font-black text-white`}
                             aria-label={`Back to ${selectedLinePreviousOptionGroup.label}`}
                             title={`Back to ${selectedLinePreviousOptionGroup.label}`}
                           >
@@ -6208,18 +6751,24 @@ export default function SmartBarMobileShell({
                           type="button"
                           data-smartbar-mobile-item-summary="true"
                           onClick={() => setSelectedDetailMode((current) => (current === "summary" && selectedLineHasOptions ? "choices" : "summary"))}
-                          className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] ${selectedDetailMode === "summary" ? "bg-sky-200 text-slate-950" : "bg-slate-950/82 text-white"}`}
+                          className={selectedLineUseLightThemedDetail
+                            ? `${smartBarMobileDetailTheme.darkUtilityButton} w-11 text-white`
+                            : `inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96] ${selectedDetailMode === "summary" ? "bg-sky-200 text-slate-950" : "bg-slate-950/82 text-white"}`}
                           aria-pressed={selectedDetailMode === "summary"}
-                          aria-label="Show item summary"
-                          title="Summary"
+                          aria-label={selectedLineUseLightThemedDetail && selectedDetailMode === "summary" ? "Edit item choices" : "Show item summary"}
+                          title={selectedLineUseLightThemedDetail && selectedDetailMode === "summary" ? "Edit choices" : "Summary"}
                         >
-                          <ListOrdered className="h-[18px] w-[18px] shrink-0 stroke-[2.5]" aria-hidden="true" />
+                          {selectedLineUseLightThemedDetail && selectedDetailMode === "summary" ? (
+                            <Pencil className="h-[17px] w-[17px] shrink-0 stroke-[2.4]" aria-hidden="true" />
+                          ) : (
+                            <ListOrdered className="h-[18px] w-[18px] shrink-0 stroke-[2.5]" aria-hidden="true" />
+                          )}
                         </button>
                         <button
                           type="button"
                           data-smartbar-mobile-detail-remove="true"
                           onClick={() => removeLine(selectedLine)}
-                          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border border-white/16 bg-slate-950/86 text-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_7px_14px_rgba(2,6,23,0.22)] ring-1 ring-white/12 transition hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.96]"
+                          className={`${smartBarMobileDetailTheme.darkUtilityButton} w-11 text-white/88`}
                           aria-label={`Remove ${selectedLine.title}`}
                           title="Remove item"
                         >
@@ -6240,27 +6789,87 @@ export default function SmartBarMobileShell({
                         className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
-                        <div ref={selectedSummaryContentMeasureRef}>
-                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/18 bg-slate-950/80 px-3.5 py-2.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Item summary</div>
-                          <div className="flex flex-wrap items-center justify-end gap-2">
-                            <span className={`inline-flex min-h-[28px] items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
-                              {statusLabel(selectedLine.status)}
-                            </span>
-                            <span className="inline-flex min-h-[28px] items-center rounded-full border border-white/14 bg-white/[0.10] px-3 py-1 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]">
-                              {selectedLine.price}
-                            </span>
-                          </div>
-                        </div>
+                        <div
+                          ref={selectedSummaryContentMeasureRef}
+                          data-smartbar-mobile-summary-content-measure="true"
+                          className="pb-4"
+                        >
+                          {!selectedLine.isCustomerNote ? (
+                            selectedLineUseLightThemedSummary ? (
+                              <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                    <ListOrdered className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                  </span>
+                                  <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                    Item summary
+                                  </span>
+                                </div>
+                                {!restaurantCalculatedPricing && !selectedLine.priceSuppressed ? (
+                                  <span className={smartBarMobileDetailTheme.lightPricePill}>
+                                    {selectedLine.price}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] border border-white/18 bg-slate-950/80 px-3.5 py-2.5 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_8px_18px_rgba(2,6,23,0.18)] ring-1 ring-white/10">
+                                <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Item summary</div>
+                                <div className="flex flex-wrap items-center justify-end gap-2">
+                                  <span className={`inline-flex min-h-[28px] items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.10em] ring-1 ${statusClass(selectedLine.status)}`}>
+                                    {statusLabel(selectedLine.status)}
+                                  </span>
+                                  {!restaurantCalculatedPricing && !selectedLine.priceSuppressed ? (
+                                    <span className="inline-flex min-h-[28px] items-center rounded-full border border-white/14 bg-white/[0.10] px-3 py-1 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.10)]">
+                                      {selectedLine.price}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )
+                          ) : null}
 
-                        <div className="mt-3 px-1">
-                          <div className="text-[10px] font-black uppercase tracking-[0.16em] text-white/66">Selections</div>
+                        {selectedLine.isCustomerNote ? (
+                          <div className="space-y-4 px-1" data-smartbar-mobile-customer-note-detail="true">
+                            <div>
+                              <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                    <CircleHelp className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                  </span>
+                                  <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                    Original request
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 rounded-[18px] border border-white/58 bg-white/76 px-3.5 py-3 text-[14px] font-bold leading-5 text-slate-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_4px_10px_rgba(15,23,42,0.07)] ring-1 ring-slate-900/5">
+                                {selectedLineCustomerOriginalRequest || "Unresolved request"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                    <StickyNote className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                  </span>
+                                  <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                    Note for restaurant
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 rounded-[18px] border border-sky-100/72 bg-sky-50/78 px-3.5 py-3 text-[15px] font-black leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_5px_12px_rgba(14,116,144,0.08)] ring-1 ring-sky-900/5">
+                                {selectedLineCustomerNoteText || "Saved for restaurant"}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                              <div className="mt-3 px-1">
+                          <div className="text-[12px] font-black uppercase tracking-[0.08em] text-[#334155]">Selections</div>
                           {selectedLineHasSummarySelections ? (
                             <div className="mt-2 space-y-3">
                               {selectedLineSummaryGroups.map((group) => (
                                 <div key={group.id}>
                                   {group.label ? (
-                                    <div className="mb-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-white/64">
+                                    <div className="mb-1.5 text-[12px] font-black uppercase tracking-[0.08em] text-[#334155]">
                                       {group.label}
                                     </div>
                                   ) : null}
@@ -6284,10 +6893,10 @@ export default function SmartBarMobileShell({
                             </div>
                           )}
                         </div>
-
+                        )}
                           {!!selectedLineMissingDetails.length && (
                             <div className="mt-3 px-1">
-                              <div className="text-[10px] font-black uppercase tracking-[0.16em] text-red-100/78">Missing</div>
+                              <div className="text-[12px] font-black uppercase tracking-[0.08em] text-rose-800">Missing</div>
                               <div className="mt-2 flex flex-wrap items-start gap-2">
                                 {selectedLineMissingDetails.map((detail) => (
                                   <div
@@ -6304,15 +6913,27 @@ export default function SmartBarMobileShell({
                       </div>
                     ) : selectedLine.status === "unknown" ? (
                       <div
-                        className="mt-3 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                        className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 overscroll-contain touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
-                        <div className="shrink-0 rounded-[22px] border border-white/46 bg-white/58 px-4 py-3.5 text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.66),0_8px_18px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/8 backdrop-blur-md">
-                          <div className="text-[15px] font-black leading-5 tracking-[-0.01em]">
-                            {selectedLineGrayReason || "We couldn't match this to a menu item."}
+                        <div
+                          ref={selectedUnknownContentMeasureRef}
+                          data-smartbar-mobile-unknown-content-measure="true"
+                          className="space-y-2.5 pb-4"
+                        >
+                        <div className="shrink-0 px-1">
+                          <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                            <div className="flex min-w-0 items-center gap-2.5">
+                              <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                <CircleHelp className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                              </span>
+                              <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                What happened
+                              </span>
+                            </div>
                           </div>
-                          <div className="mt-1.5 text-[13px] font-semibold leading-[1.35rem] text-slate-700">
-                            {selectedLineGrayPrompt}
+                          <div className="mt-2.5 px-1 text-[14px] font-bold leading-5 text-slate-700">
+                            {selectedLineGrayReason || "We couldn't match this to a menu item."}
                           </div>
                         </div>
                         <div className="relative shrink-0">
@@ -6332,16 +6953,27 @@ export default function SmartBarMobileShell({
                             disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
                             readOnly={demoInteractionLocked}
                             tabIndex={demoInteractionLocked ? -1 : undefined}
-                            className={`${retryInputClass} !min-h-[72px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-3.5 !pl-11 !pr-4 !text-[15px] !font-bold !leading-5 !text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 disabled:!opacity-70`}
+                            className={`${retryInputClass} !min-h-[150px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-4 !pl-11 !pr-4 !text-[15px] !font-bold !leading-6 !text-slate-950 !caret-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 focus:!border-sky-400/80 focus:!outline-none focus:!ring-2 focus:!ring-sky-300/55 focus:placeholder:!text-transparent disabled:!opacity-70`}
                             placeholder={selectedLineGrayPlaceholder}
-                            aria-label="Clarify unmatched item"
-                            rows={2}
+                            aria-label="Clarify unmatched item or add a restaurant note"
+                            rows={6}
                           />
+                        </div>
+                        <button
+                          type="button"
+                          data-smartbar-mobile-leave-note="true"
+                          onClick={saveUnknownAsNote}
+                          disabled={demoInteractionLocked || !retryDraft.trim() || retryCheckingLineId === selectedLineInstanceKey}
+                          className={`${smartBarMobileDetailTheme.darkUtilityButton} min-h-[46px] w-full gap-2 px-4 text-[15px] font-black text-white disabled:cursor-not-allowed disabled:opacity-45`}
+                        >
+                          <StickyNote className="h-4 w-4 shrink-0 stroke-[2.4]" aria-hidden="true" />
+                          <span>Leave Note</span>
+                        </button>
                         </div>
                       </div>
                     ) : (
                       <div
-                        className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                        className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pb-4 pr-1 touch-pan-y [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                         style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y", overscrollBehavior: "contain" }}
                       >
                         {!selectedLine.options?.length && (
@@ -6353,12 +6985,41 @@ export default function SmartBarMobileShell({
                           </div>
                         )}
                         {!!selectedLine.options?.length && (
-                          <div className="mt-1">
-                            <div className="mb-2.5 px-1 text-[12px] font-bold tracking-[0.02em] text-white/72">
-                              {selectedLineAtConditionalHomeGroup && selectedLineConditionalDescendantAttentionGroup
-                                ? `Complete this next step first: ${selectedLineConditionalDescendantAttentionGroup.label}`
-                                : smartBarMobileLineSelectionInstruction(selectedLine)}
-                            </div>
+                          <div
+                            ref={selectedChoiceContentMeasureRef}
+                            data-smartbar-mobile-choice-content-measure="true"
+                            className="mt-1"
+                          >
+                            {selectedLineUseConditionalDetail ? (
+                              <div className="mb-2.5" data-smartbar-mobile-conditional-context="true">
+                                <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                                  <div className="flex min-w-0 items-center gap-2.5">
+                                    <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                      <GitBranch className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                    </span>
+                                    <div className="min-w-0">
+                                      <div className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                        {selectedLineConditionalDisplayTitle}
+                                      </div>
+                                      {selectedLineConditionalDisplayPrompt &&
+                                      selectedLineConditionalDisplayPrompt.toLocaleLowerCase() !==
+                                        selectedLineConditionalDisplayTitle.toLocaleLowerCase() ? (
+                                        <div className="mt-0.5 text-[13px] font-extrabold leading-4 text-[#06143A]">
+                                          {selectedLineConditionalDisplayPrompt}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="mt-2 px-1 text-[13px] font-bold leading-5 tracking-[0.01em] text-slate-700">
+                                  {smartBarMobileLineSelectionInstruction(selectedLine)}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mb-2.5 px-1 text-[13px] font-bold leading-5 tracking-[0.01em] text-slate-700">
+                                {smartBarMobileLineSelectionInstruction(selectedLine)}
+                              </div>
+                            )}
                             <div className="flex flex-wrap items-start gap-2">
                               {selectedLine.options.map((option) => {
                                 const persistedSelected = smartBarMobileLineHasOptionDetail(selectedLine, option);
@@ -6661,14 +7322,33 @@ export default function SmartBarMobileShell({
                         </div>
                       </div>
 
-                      <div
-                        className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-black uppercase tracking-[0.08em] text-white tabular-nums ring-1 ring-white/28"
-                        style={SMARTBAR_MOBILE_BLUE_CONTROL_STYLE}
-                        aria-label={`Order total ${cartTotals.totalLabel}`}
-                      >
-                        <span className="text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.52)]">Total</span>
-                        <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
-                      </div>
+                      {restaurantCalculatedPricing ? (
+                        <div
+                          className="flex shrink-0 items-center gap-2.5 text-left"
+                          aria-label="Pay at pickup. Calculated onsite."
+                        >
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/58 bg-white/55 text-[#172554] shadow-[inset_0_1px_0_rgba(255,255,255,0.76),0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-slate-900/5">
+                            <Store className="h-[17px] w-[17px] stroke-[2.2]" aria-hidden="true" />
+                          </span>
+                          <span className="min-w-0 max-w-[160px]">
+                            <span className="block text-[12px] font-bold leading-4 text-[#06143A]">
+                              Pay at pickup
+                            </span>
+                            <span className="block text-[12px] font-medium leading-4 text-slate-600">
+                              Calculated onsite
+                            </span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div
+                          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border px-4 text-[13px] font-black uppercase tracking-[0.08em] text-white tabular-nums ring-1 ring-white/28"
+                          style={SMARTBAR_MOBILE_BLUE_CONTROL_STYLE}
+                          aria-label={`Order total ${cartTotals.totalLabel}`}
+                        >
+                          <span className="text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.52)]">Total</span>
+                          <SmartBarMobileOdometerText value={cartTotals.totalLabel} motionKey={cartTotalMotionKey} />
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -6750,10 +7430,12 @@ export default function SmartBarMobileShell({
                             </>
                           ) : null}
                           <div className={`relative z-10 flex justify-between gap-2.5 ${demoCompactCartRows || line.demoHideMeta ? "min-h-[1.35rem] items-center" : "items-start"}`}>
-                            <div className={`min-w-0 ${demoCompactCartRows ? "flex min-h-[1.35rem] flex-1 items-baseline gap-1.5" : line.demoHideMeta ? "flex min-h-[1.35rem] flex-1 items-center" : ""}`}>
+                            <div className={`min-w-0 flex-1 ${demoCompactCartRows ? "flex min-h-[1.35rem] items-baseline gap-1.5" : line.demoHideMeta ? "flex min-h-[1.35rem] items-center" : ""}`}>
                               <div
                                 className={[
-                                  "truncate font-black",
+                                  demoCompactCartRows || line.demoHideMeta
+                                    ? "truncate font-black"
+                                    : "overflow-hidden break-words font-medium leading-[1.22] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]",
                                   demoCompactCartRows
                                     ? `text-[15px] leading-tight tracking-[-0.03em] ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`
                                     : line.demoHideMeta
@@ -6761,22 +7443,59 @@ export default function SmartBarMobileShell({
                                       : `text-base ${handoffLocked ? handoffTitleClass : smartBarMobileCartRowPrimaryTextClass(line.status, false)}`,
                                 ].join(" ")}
                               >
-                                {line.demoDisplayTitle !== undefined ? line.demoDisplayTitle : smartBarMobileShortTitle(line.title)}
+                                {line.demoDisplayTitle !== undefined
+                                  ? line.demoDisplayTitle
+                                  : demoCompactCartRows || line.demoHideMeta
+                                    ? smartBarMobileShortTitle(line.title)
+                                    : line.title}
                               </div>
                               {demoCompactCartRows && !demoWalkthroughHideCartChrome && !line.demoHideMeta ? (
                                 <div className={`min-w-[3.4rem] shrink-0 truncate text-[11px] font-black leading-none ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
                                   - {smartBarMobileCompactRowHelper(line)}
                                 </div>
-                              ) : !demoCompactCartRows && !line.demoHideMeta ? (
-                                <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
-                                  {line.helper}
-                                </div>
+                              ) : !demoCompactCartRows && !line.demoHideMeta && line.status !== "options" ? (
+                                line.status === "ready" ? (
+                                  <div
+                                    data-smartbar-mobile-ready-indicator="true"
+                                    data-smartbar-mobile-customer-note={line.isCustomerNote ? "true" : undefined}
+                                    className={`mt-2 inline-flex min-h-[34px] max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[15px] font-medium leading-[1.15] text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_2px_6px_rgba(15,23,42,0.08)] ring-1 ${line.isCustomerNote ? "border-sky-100/78 bg-sky-50/76 ring-sky-200/54" : "border-white/72 bg-white/48 ring-emerald-100/58"}`}
+                                  >
+                                    {line.isCustomerNote ? (
+                                      <StickyNote className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
+                                    ) : (
+                                      <BadgeCheck className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
+                                    )}
+                                    <span>{line.helper}</span>
+                                  </div>
+                                ) : (
+                                  <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
+                                    {line.helper}
+                                  </div>
+                                )
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
-                              {!line.demoHideMeta && !line.priceSuppressed && line.bundleDisplayRole !== "component" ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
+                              {!handoffLocked && !line.demoHideMeta && demoCompactCartRows && line.status === "options" ? (
+                                <span
+                                  data-smartbar-mobile-optional-indicator="true"
+                                  className="inline-flex min-h-[22px] items-center gap-1 rounded-full border border-amber-200/82 bg-amber-200/96 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_3px_8px_rgba(146,64,14,0.12)] ring-1 ring-amber-50/76"
+                                >
+                                  <SlidersHorizontal className="h-3 w-3 shrink-0 stroke-[2.5]" aria-hidden="true" />
+                                  Options
+                                </span>
+                              ) : null}
+                              {!restaurantCalculatedPricing && !line.demoHideMeta && !line.priceSuppressed && line.bundleDisplayRole !== "component" ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
                             </div>
                           </div>
+                          {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && line.status === "options" ? (
+                            <div
+                              data-smartbar-mobile-optional-indicator="true"
+                              className="relative z-10 mt-2.5 mr-10 inline-flex min-h-[34px] max-w-[calc(100%_-_2.5rem)] items-center gap-2 rounded-full border border-amber-200/82 bg-amber-100/92 px-3 py-1.5 text-[15px] font-medium leading-[1.15] text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_2px_6px_rgba(146,64,14,0.10)] ring-1 ring-amber-50/72"
+                            >
+                              <SlidersHorizontal className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
+                              <span>Customize if you’d like</span>
+                            </div>
+                          ) : null}
                           </motion.div>
 
                           {!handoffLocked && !line.demoHideMeta && !demoCompactCartRows && !line.bundleDisplayRole && (

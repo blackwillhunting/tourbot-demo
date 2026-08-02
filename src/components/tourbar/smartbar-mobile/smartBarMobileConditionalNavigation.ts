@@ -42,8 +42,10 @@ export function smartBarMobileConditionalNavigationTarget({
 
   if (firstActiveDirectChildId) {
     return {
-      visibleGroupId: firstActiveDirectChildId,
-      conditionalHomeGroupId: resolvedHomeGroupId,
+      // Keep the activating parent visible. The footer is the explicit
+      // navigation control that opens the newly activated child group.
+      visibleGroupId: currentGroupId,
+      conditionalHomeGroupId: resolvedHomeGroupId || currentGroupId,
     };
   }
 

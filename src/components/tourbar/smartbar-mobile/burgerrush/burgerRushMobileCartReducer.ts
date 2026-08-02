@@ -10,6 +10,15 @@ import type {
   SmartBarMobileOrderStatus,
   SmartBarMobileSubmitMeta,
 } from "../SmartBarMobileShell";
+import {
+  smartBarMobileIsCustomerNoteLine,
+  smartBarMobilePreserveCustomerNoteLines,
+  smartBarMobileWithoutCustomerNoteLines,
+} from "../smartBarMobileCustomerNotes";
+import {
+  smartBarMobileDurableLineIdentityMatches,
+  smartBarMobileInterleaveLinkedUnknownLines,
+} from "./smartBarMobileLineIsolation";
 
 function smartBarMobileCompactText(value?: string | null) {
   return String(value || "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -592,7 +601,7 @@ function smartBarMobileHelperForLine(
   if (line.bundleComponents?.length) {
     if (status === "unknown") return "Check included items";
     if (status === "pending") return "Finish included items";
-    if (status === "options") return "Review included options";
+    if (status === "options") return "Optional choices available";
     return "All included items ready";
   }
 
@@ -614,6 +623,7 @@ function smartBarMobileLineFromCarryoutLine(
     parentSourceLineItemId: string;
     slotId: string;
   },
+  pricingMode: string = "exact",
 ): SmartBarMobileOrderLine {
   const status = smartBarMobileStatusForLine(line);
   const rawBundleOwnStatus = String(line.bundleOwnStatus || "").toLowerCase();
@@ -669,7 +679,7 @@ function smartBarMobileLineFromCarryoutLine(
       parentCartLineKey: cartLineKey,
       parentSourceLineItemId: sourceLineItemId,
       slotId: String(component.slotId || `component-${componentIndex + 1}`),
-    })
+    }, pricingMode)
   ));
 
   return {
@@ -683,7 +693,7 @@ function smartBarMobileLineFromCarryoutLine(
     title: `${(line.quantity || 1) > 1 ? `${line.quantity} × ` : ""}${line.title || line.id || "Item"}`,
     status,
     helper: smartBarMobileHelperForLine(line, status),
-    price: priceSuppressed ? "" : smartBarMobilePriceFromLine(line),
+    price: priceSuppressed || pricingMode === "restaurant-calculated" ? "" : smartBarMobilePriceFromLine(line),
     details: details.length ? details : status === "pending" ? ["Choice needed"] : ["Ready"],
     ...(optionGroups.length ? { optionGroups, activeOptionGroupId } : {}),
     ...(options.length ? { options, optionIds, optionChildGroupIds, optionQuantities, optionMaxQuantities } : {}),
@@ -743,14 +753,16 @@ export function smartBarMobileResultFromOrder(
     };
   }
 
+  const pricingMode = String(order.pricingMode || order.totals?.pricingMode || "exact");
+  const restaurantCalculatedPricing = pricingMode === "restaurant-calculated";
   const baseLines = Array.isArray(order.items)
     ? order.items
     : [...(order.completeItems || []), ...(order.pendingItems || [])];
   const matchedLines = baseLines
-    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index))
+    .map((line, index) => smartBarMobileLineFromCarryoutLine(line, index, undefined, pricingMode))
     .reverse();
-  const cannotMatchLines = (order.cannotMatchItems || [])
-    .map((item, index): SmartBarMobileOrderLine => {
+  const cannotMatchEntries = (order.cannotMatchItems || [])
+    .map((item, index) => {
       const looseItem = item as typeof item & Record<string, unknown>;
       const title = String(looseItem.text || looseItem.label || looseItem.title || looseItem.item || "Unmatched item");
       const grayReason = smartBarMobileGrayReasonCode(looseItem.grayReason || looseItem.reason, title);
@@ -760,7 +772,7 @@ export function smartBarMobileResultFromOrder(
         looseItem.retryPrompt || suggestion || smartBarMobileGrayRetryPrompt(grayReason, title),
       ).replace(/\s+/g, " ").trim();
       const cartLineKey = `cannot-match::source-${index}`;
-      return {
+      const line: SmartBarMobileOrderLine = {
         id: cartLineKey,
         cartLineKey,
         sourceLineItemId: `cannot-match-${index}`,
@@ -775,19 +787,32 @@ export function smartBarMobileResultFromOrder(
         details: suggestion ? [suggestion] : [],
         retryPrompt,
       };
+      return {
+        line,
+        parentLineItemId: String(looseItem.parentLineItemId || "").trim() || undefined,
+      };
     });
-  const allLines = smartBarMobileEnsureUniqueLineInstances([
-    ...matchedLines,
-    ...cannotMatchLines,
-  ]);
-  const estimatedSubtotal = smartBarMobileMoney(order.totals?.subtotal) || undefined;
-  const estimatedTax = smartBarMobileMoney(order.totals?.estimatedTax) || undefined;
-  const estimatedTotal = smartBarMobileMoney(order.totals?.estimatedTotal) ||
-    estimatedSubtotal ||
-    smartBarMobileEstimatedTotalFromLines(allLines);
+  const orderedLines = smartBarMobileInterleaveLinkedUnknownLines(
+    matchedLines,
+    cannotMatchEntries,
+    (line) => String(line.sourceLineItemId || ""),
+  );
+  const allLines = smartBarMobileEnsureUniqueLineInstances(orderedLines);
+  const estimatedSubtotal = restaurantCalculatedPricing
+    ? undefined
+    : smartBarMobileMoney(order.totals?.subtotal) || undefined;
+  const estimatedTax = restaurantCalculatedPricing
+    ? undefined
+    : smartBarMobileMoney(order.totals?.estimatedTax) || undefined;
+  const estimatedTotal = restaurantCalculatedPricing
+    ? undefined
+    : smartBarMobileMoney(order.totals?.estimatedTotal) ||
+      estimatedSubtotal ||
+      smartBarMobileEstimatedTotalFromLines(allLines);
 
   return {
     lines: allLines,
+    pricingMode,
     estimatedSubtotal,
     estimatedTax,
     estimatedTotal,
@@ -805,30 +830,22 @@ function smartBarMobileLinesMatch(left: SmartBarMobileOrderLine, right: SmartBar
     );
   }
 
-  const leftHasSourcePosition = typeof left.sourceLineIndex === "number";
-  const rightHasSourcePosition = typeof right.sourceLineIndex === "number";
-  if (leftHasSourcePosition || rightHasSourcePosition) {
-    return Boolean(
-      leftHasSourcePosition &&
-      rightHasSourcePosition &&
-      left.sourceLineIndex === right.sourceLineIndex &&
-      (left.sourceBucket || "items") === (right.sourceBucket || "items")
-    );
-  }
-
-  const leftLineItemId = String(left.sourceLineItemId || "").trim();
-  const rightLineItemId = String(right.sourceLineItemId || "").trim();
-  if (leftLineItemId || rightLineItemId) {
-    return Boolean(
-      leftLineItemId &&
-      rightLineItemId &&
-      leftLineItemId === rightLineItemId
-    );
-  }
-
-  const leftId = String(left.id || "").trim();
-  const rightId = String(right.id || "").trim();
-  return Boolean(leftId && rightId && leftId === rightId);
+  return smartBarMobileDurableLineIdentityMatches(
+    {
+      lineItemId: left.sourceLineItemId,
+      sourceLineIndex: left.sourceLineIndex,
+      sourceBucket: left.sourceBucket,
+      itemId: left.sourceItemId || left.id,
+      title: left.title,
+    },
+    {
+      lineItemId: right.sourceLineItemId,
+      sourceLineIndex: right.sourceLineIndex,
+      sourceBucket: right.sourceBucket,
+      itemId: right.sourceItemId || right.id,
+      title: right.title,
+    },
+  );
 }
 
 function smartBarMobileResponseContainsPreviousLines(
@@ -963,7 +980,7 @@ function smartBarMobileHydrateLineFromPrevious(
     optionMaxQuantities: line.optionMaxQuantities?.length ? line.optionMaxQuantities : previous.optionMaxQuantities,
     selectedOptions: line.selectedOptions !== undefined ? line.selectedOptions : previous.selectedOptions,
     selectedOptionIds: line.selectedOptionIds !== undefined ? line.selectedOptionIds : previous.selectedOptionIds,
-    price: line.price && line.price !== "—" ? line.price : previous.price,
+    price: line.price === "" ? "" : line.price && line.price !== "—" ? line.price : previous.price,
     details: lineHasIntentionalEmptyOptionDetails
       ? []
       : line.details.length > 0 && !(line.details.length === 1 && line.details[0] === "Ready")
@@ -990,41 +1007,48 @@ export function smartBarMobileMergeOrderResults(
   previousEstimatedTotal: string,
   shouldMergeWithPrevious: boolean,
 ): SmartBarMobileOrderResult {
+  const restaurantCalculatedPricing = nextResult.pricingMode === "restaurant-calculated";
+  const previousMenuLines = smartBarMobileWithoutCustomerNoteLines(previousLines);
   const uniqueNextLines = smartBarMobileEnsureUniqueLineInstances(nextResult.lines);
-  const hydratedNextLines = uniqueNextLines.map((line) => smartBarMobileHydrateLineFromPrevious(line, previousLines));
+  const hydratedNextLines = uniqueNextLines.map((line) => smartBarMobileHydrateLineFromPrevious(line, previousMenuLines));
 
   if (!shouldMergeWithPrevious) {
     return {
       ...nextResult,
       lines: hydratedNextLines,
-      estimatedSubtotal: nextResult.estimatedSubtotal,
-      estimatedTax: nextResult.estimatedTax,
-      estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
-        ? nextResult.estimatedTotal
-        : smartBarMobileEstimatedTotalFromLines(hydratedNextLines),
-    };
-  }
-
-  if (previousLines.length === 0) {
-    return {
-      ...nextResult,
-      lines: hydratedNextLines,
-      estimatedSubtotal: nextResult.estimatedSubtotal,
-      estimatedTax: nextResult.estimatedTax,
-      estimatedTotal: nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
-        ? nextResult.estimatedTotal
-        : previousEstimatedTotal && previousEstimatedTotal !== "—"
-          ? previousEstimatedTotal
+      estimatedSubtotal: restaurantCalculatedPricing ? undefined : nextResult.estimatedSubtotal,
+      estimatedTax: restaurantCalculatedPricing ? undefined : nextResult.estimatedTax,
+      estimatedTotal: restaurantCalculatedPricing
+        ? undefined
+        : nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+          ? nextResult.estimatedTotal
           : smartBarMobileEstimatedTotalFromLines(hydratedNextLines),
     };
   }
 
-  const responseLooksLikeFullCart = smartBarMobileResponseContainsPreviousLines(hydratedNextLines, previousLines);
+  if (previousMenuLines.length === 0) {
+    const mergedLines = smartBarMobilePreserveCustomerNoteLines(hydratedNextLines, previousLines);
+    return {
+      ...nextResult,
+      lines: mergedLines,
+      estimatedSubtotal: restaurantCalculatedPricing ? undefined : nextResult.estimatedSubtotal,
+      estimatedTax: restaurantCalculatedPricing ? undefined : nextResult.estimatedTax,
+      estimatedTotal: restaurantCalculatedPricing
+        ? undefined
+        : nextResult.estimatedTotal && nextResult.estimatedTotal !== "—"
+          ? nextResult.estimatedTotal
+          : previousEstimatedTotal && previousEstimatedTotal !== "—"
+            ? previousEstimatedTotal
+            : smartBarMobileEstimatedTotalFromLines(mergedLines),
+    };
+  }
+
+  const responseLooksLikeFullCart = smartBarMobileResponseContainsPreviousLines(hydratedNextLines, previousMenuLines);
   const appendedLines = responseLooksLikeFullCart
     ? []
     : smartBarMobilePrepareIncrementalLines(hydratedNextLines, previousLines);
   const mergedLines = responseLooksLikeFullCart
-    ? hydratedNextLines
+    ? smartBarMobilePreserveCustomerNoteLines(hydratedNextLines, previousLines)
     : [...previousLines, ...appendedLines];
 
   const previousTotal = smartBarMobileParseMoney(previousEstimatedTotal);
@@ -1045,9 +1069,9 @@ export function smartBarMobileMergeOrderResults(
   return {
     ...nextResult,
     lines: mergedLines,
-    estimatedSubtotal: nextResult.estimatedSubtotal,
-    estimatedTax: nextResult.estimatedTax,
-    estimatedTotal,
+    estimatedSubtotal: restaurantCalculatedPricing ? undefined : nextResult.estimatedSubtotal,
+    estimatedTax: restaurantCalculatedPricing ? undefined : nextResult.estimatedTax,
+    estimatedTotal: restaurantCalculatedPricing ? undefined : estimatedTotal,
   };
 }
 
@@ -1261,42 +1285,29 @@ function smartBarMobileCarryoutLineMatchesVisibleLine(
   visibleLine: SmartBarMobileOrderLine,
   carryoutIndex?: number,
 ) {
-  const visibleSourceIndex = visibleLine.sourceLineIndex;
-  const visibleHasSourceIndex = typeof visibleSourceIndex === "number";
-  const carryoutHasSourceIndex = typeof carryoutIndex === "number";
-  if (visibleHasSourceIndex || carryoutHasSourceIndex) {
-    return Boolean(
-      visibleHasSourceIndex &&
-      carryoutHasSourceIndex &&
-      visibleSourceIndex === carryoutIndex
-    );
-  }
-
-  const visibleSourceLineItemId = smartBarMobileSelectionKey(String(visibleLine.sourceLineItemId || ""));
-  const carryoutLineItemId = smartBarMobileSelectionKey(String(carryoutLine.lineItemId || carryoutLine.id || ""));
-  if (visibleSourceLineItemId || carryoutLineItemId) {
-    return Boolean(
-      visibleSourceLineItemId &&
-      carryoutLineItemId &&
-      visibleSourceLineItemId === carryoutLineItemId,
-    );
-  }
-
-  const visibleSourceItemId = smartBarMobileSelectionKey(String(visibleLine.sourceItemId || ""));
-  const carryoutItemId = smartBarMobileSelectionKey(String(carryoutLine.id || ""));
-  const itemMatches = Boolean(visibleSourceItemId && carryoutItemId && visibleSourceItemId === carryoutItemId);
-  const carryoutTitle = smartBarMobileComparableVisibleLineTitle(String(carryoutLine.title || carryoutLine.id || ""));
-  const visibleTitle = smartBarMobileComparableVisibleLineTitle(visibleLine.title || "");
-  const titleMatches = Boolean(carryoutTitle && visibleTitle && carryoutTitle === visibleTitle);
-
-  return Boolean(itemMatches || titleMatches);
+  return smartBarMobileDurableLineIdentityMatches(
+    {
+      lineItemId: carryoutLine.lineItemId || carryoutLine.id,
+      sourceLineIndex: carryoutIndex,
+      sourceBucket: "items",
+      itemId: carryoutLine.id,
+      title: smartBarMobileComparableVisibleLineTitle(String(carryoutLine.title || carryoutLine.id || "")),
+    },
+    {
+      lineItemId: visibleLine.sourceLineItemId,
+      sourceLineIndex: visibleLine.sourceLineIndex,
+      sourceBucket: visibleLine.sourceBucket,
+      itemId: visibleLine.sourceItemId,
+      title: smartBarMobileComparableVisibleLineTitle(visibleLine.title || ""),
+    },
+  );
 }
 
 export function smartBarMobileRemoveLineFromCarryoutOrder(
   order: CarryoutOrder | null,
   lineToRemove: SmartBarMobileOrderLine,
 ): CarryoutOrder | null {
-  if (!order) return order;
+  if (!order || smartBarMobileIsCustomerNoteLine(lineToRemove)) return order;
 
   const sourceItems = Array.isArray(order.items)
     ? order.items

@@ -19,6 +19,9 @@ export type SmartBarMobileSelectionLineLike = {
   selectedOptionIds?: string[];
   optionQuantities?: number[];
   optionGroups?: SmartBarMobileSelectionGroupLike[];
+  isCustomerNote?: boolean;
+  originalUnknownText?: string;
+  customerNote?: string;
 };
 
 export type SmartBarMobileSelectionSummaryGroup = {
@@ -108,6 +111,19 @@ export function smartBarMobileSelectionSummaryGroups(
   line?: SmartBarMobileSelectionLineLike | null,
 ): SmartBarMobileSelectionSummaryGroup[] {
   if (!line) return [];
+
+  if (line.isCustomerNote) {
+    const originalUnknownText = compact(line.originalUnknownText);
+    const customerNote = compact(line.customerNote);
+    const selections = [
+      originalUnknownText ? `Original request: ${originalUnknownText}` : "",
+      customerNote ? `Customer note: ${customerNote}` : "",
+    ].filter(Boolean);
+
+    return selections.length
+      ? [{ id: "customer-note", label: "", selections }]
+      : [];
+  }
 
   const groups = (line.optionGroups || [])
     .filter((group) => group.active !== false)
