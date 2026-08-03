@@ -4237,7 +4237,7 @@ export default function SmartBarMobileShell({
           ? Math.max(342, 148 + lines.length * 58 + Math.max(0, lines.length - 1) * 8)
           : demoWalkthroughCartMode
             ? Math.max(360, 104 + lines.length * 108 + Math.max(0, lines.length - 1) * 10)
-            : Math.max(388, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
+            : Math.max(244, 116 + lines.length * 104 + Math.max(0, lines.length - 1) * 12),
       );
   const selectedOptionRows = (() => {
     const options = selectedLine?.options || [];
