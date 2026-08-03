@@ -125,6 +125,11 @@ export function smartBarMobileSelectionSummaryGroups(
       : [];
   }
 
+  const attachedCustomerNote = compact(line.customerNote);
+  const attachedCustomerNoteGroup: SmartBarMobileSelectionSummaryGroup[] = attachedCustomerNote
+    ? [{ id: "attached-customer-note", label: "Customer note", selections: [attachedCustomerNote] }]
+    : [];
+
   const groups = (line.optionGroups || [])
     .filter((group) => group.active !== false)
     .map((group, index) => ({
@@ -134,7 +139,7 @@ export function smartBarMobileSelectionSummaryGroups(
     }))
     .filter((group) => group.selections.length > 0);
 
-  if (groups.length) return groups;
+  if (groups.length) return [...groups, ...attachedCustomerNoteGroup];
 
   const flatGroup = selectedEntries({
     options: line.options,
@@ -144,11 +149,18 @@ export function smartBarMobileSelectionSummaryGroups(
     optionQuantities: line.optionQuantities,
   });
   if (flatGroup.length) {
-    return [{ id: "selections", label: "", selections: flatGroup }];
+    return [
+      { id: "selections", label: "", selections: flatGroup },
+      ...attachedCustomerNoteGroup,
+    ];
   }
 
   const details = fallbackDetails(line);
-  return details.length ? [{ id: "details", label: "", selections: details }] : [];
+  const detailGroups: SmartBarMobileSelectionSummaryGroup[] = details.length
+    ? [{ id: "details", label: "", selections: details }]
+    : [];
+
+  return [...detailGroups, ...attachedCustomerNoteGroup];
 }
 
 export function smartBarMobileTicketSelectionDetails(
