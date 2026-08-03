@@ -1,4 +1,4 @@
-﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { AnimatePresence, motion, type TargetAndTransition, type Transition } from "framer-motion";
 import {
   ArrowLeft,
@@ -12,10 +12,13 @@ import {
   Compass,
   GitBranch,
   ListOrdered,
+  LoaderCircle,
   Package,
+  Paperclip,
   Plus,
   SlidersHorizontal,
   ShoppingCart,
+  ScanSearch,
   Sparkles,
   StickyNote,
   Store,
@@ -31,7 +34,10 @@ import {
 } from "./smartBarMobileStyles";
 import { smartBarMobileSelectionSummaryGroups } from "./smartBarMobileSelectionDetails";
 import {
+  smartBarMobileAttachUnknownNoteToLineInLines,
+  smartBarMobileLineHasAttachedCustomerNote,
   smartBarMobileSaveUnknownAsNoteInLines,
+  smartBarMobileUnknownNoteDraft,
 } from "./smartBarMobileCustomerNotes";
 import { smartBarMobileConditionalNavigationTarget } from "./smartBarMobileConditionalNavigation";
 
@@ -90,6 +96,47 @@ export type SmartBarMobileOptionGroup = {
   selectionRules?: SmartBarMobileSelectionRule[];
 };
 
+export type SmartBarMobileCandidateResolutionCandidate = {
+  itemId: string;
+  label: string;
+  rank: number;
+};
+
+export type SmartBarMobileCandidateResolution = {
+  schemaVersion: "smartbar.candidateResolution.v1";
+  resolutionId: string;
+  sourceText: string;
+  candidates: SmartBarMobileCandidateResolutionCandidate[];
+  selectionMode: "authoritative_item";
+  manualEntryMode: "direct_gray_note";
+};
+
+export type SmartBarMobileCandidateSelection = {
+  schemaVersion: "smartbar.candidateSelection.v1";
+  resolutionId: string;
+  sourceText: string;
+  itemId: string;
+  selectionMode: "authoritative_item";
+};
+
+export type SmartBarMobileAiTrace = {
+  prescreenReturnedValues?: string[];
+  prescreenAcceptedItemIds?: string[];
+  prescreenRejectedValues?: string[];
+  prescreenUnmatchedCount?: number;
+  prescreenUnmatchedReasons?: string[];
+  cartBuilderScope?: "filtered_menu" | "full_menu_fallback" | "full_menu" | string;
+  cartBuilderReceivedItemIds?: string[];
+  cartBuilderReturnedValues?: string[];
+  cartBuilderProposedValues?: string[];
+  cartBuilderRejectedValues?: string[];
+  cartBuilderCannotMatchReasons?: string[];
+  cartBuilderParserResult?: string;
+  fallbackReason?: string;
+  finalResult?: string;
+  traceId?: string;
+};
+
 export type SmartBarMobileOrderLine = {
   id: string;
   /** Page target to scroll/focus when this known cart row is selected. */
@@ -136,6 +183,10 @@ export type SmartBarMobileOrderLine = {
   grayReason?: "not_on_menu" | "not_recognized" | "not_sold_separately" | "selection_limit_exceeded" | string;
   /** Short user-facing reason shown on gray lines. */
   displayReason?: string;
+  /** Sanitized per-request AI routing evidence available only on gray lines. */
+  aiTrace?: SmartBarMobileAiTrace;
+  /** Structured three-item recovery choice shown only after Stage 1 found no item. */
+  candidateResolution?: SmartBarMobileCandidateResolution;
   /** True when an unresolved request was deliberately preserved as a restaurant note. */
   isCustomerNote?: boolean;
   /** Exact unresolved wording preserved before the line became a note. */
@@ -175,6 +226,9 @@ export type SmartBarMobileOrderResult = {
   answer?: string;
   /** Demo/controlled-flow flag: keep result.lines exactly after retry instead of subtracting the selected unknown row. */
   preserveResultLinesOnRetry?: boolean;
+  /** Candidate selection did not complete; keep the recovery panel and original cart unchanged. */
+  candidateSelectionFailed?: boolean;
+  candidateSelectionFailureMessage?: string;
   estimatedSubtotal?: string;
   estimatedTax?: string;
   estimatedTotal?: string;
@@ -213,6 +267,10 @@ export type SmartBarMobileSubmitResult = SmartBarMobileOrderResult | SmartBarMob
 
 export type SmartBarMobileSubmitMeta = {
   intent?: "replace_unknown";
+  /** Entry composer reopened while a cart exists, so this request is adding another item. */
+  requestIntent?: "add_item";
+  /** Authoritative recovery-candidate selection; skips Stage 1 and enters Stage 2. */
+  candidateSelection?: SmartBarMobileCandidateSelection;
   replaceLineId?: string;
   replaceLineTitle?: string;
   replaceCartLineKey?: string;
@@ -1765,6 +1823,30 @@ function smartBarMobileResultIsGeneric(
   );
 }
 
+function smartBarMobileCandidateSelectionFailureMessage(result: SmartBarMobileSubmitResult) {
+  if (smartBarMobileResultIsGeneric(result)) {
+    return "That choice did not finish. Tap it to try again.";
+  }
+
+  if (result.candidateSelectionFailed) {
+    return String(
+      result.candidateSelectionFailureMessage ||
+      "That choice did not finish. Tap it to try again.",
+    ).replace(/\s+/g, " ").trim();
+  }
+
+  const hasFunctionalLine = (result.lines || []).some((line) => (
+    line.status !== "unknown" && !line.isCustomerNote
+  ));
+  return hasFunctionalLine ? "" : "That choice did not finish. Tap it to try again.";
+}
+
+function smartBarMobileDisplayedLineHelper(line: SmartBarMobileOrderLine) {
+  return line.candidateResolution
+    ? "One quick choice will narrow this down"
+    : line.helper;
+}
+
 
 const SMARTBAR_MOBILE_FORCED_SPOTLIGHT_MS = 7000;
 
@@ -1846,6 +1928,8 @@ function statusLabel(status: SmartBarMobileOrderStatus) {
 }
 
 function smartBarMobileCompactRowHelper(line: SmartBarMobileOrderLine) {
+  if (line.candidateResolution) return "Quick choice";
+
   if (line.id.startsWith("walkthrough-pizza")) {
     if (line.status === "ready") return "Ready";
     if (line.status === "pending") return "Missing requirement";
@@ -2653,6 +2737,48 @@ function smartBarMobileLineInstanceKey(line: SmartBarMobileOrderLine) {
   return String(line.cartLineKey || line.id || line.sourceLineItemId || line.title || "");
 }
 
+type SmartBarMobileNoteTargetChoice = {
+  key: string;
+  label: string;
+  line: SmartBarMobileOrderLine;
+};
+
+function smartBarMobileNoteTargetChoices(lines: SmartBarMobileOrderLine[]) {
+  const collected: Array<{ key: string; baseLabel: string; line: SmartBarMobileOrderLine }> = [];
+
+  const visit = (line: SmartBarMobileOrderLine, parentLabel = "") => {
+    const lineLabel = String(line.demoDisplayTitle || line.title || "Cart item").replace(/\s+/g, " ").trim();
+    const baseLabel = parentLabel ? `${parentLabel}: ${lineLabel}` : lineLabel;
+
+    if (line.status !== "unknown" && !line.isCustomerNote) {
+      const key = smartBarMobileLineInstanceKey(line);
+      if (key) collected.push({ key, baseLabel, line });
+    }
+
+    (line.bundleComponents || []).forEach((component) => visit(component, lineLabel));
+  };
+
+  lines.forEach((line) => visit(line));
+
+  const totals = collected.reduce<Map<string, number>>((counts, choice) => {
+    const key = choice.baseLabel.toLowerCase();
+    counts.set(key, (counts.get(key) || 0) + 1);
+    return counts;
+  }, new Map());
+  const occurrences = new Map<string, number>();
+
+  return collected.map<SmartBarMobileNoteTargetChoice>((choice) => {
+    const labelKey = choice.baseLabel.toLowerCase();
+    const occurrence = (occurrences.get(labelKey) || 0) + 1;
+    occurrences.set(labelKey, occurrence);
+    const label = (totals.get(labelKey) || 0) > 1
+      ? `${choice.baseLabel} — ${occurrence}`
+      : choice.baseLabel;
+
+    return { key: choice.key, label, line: choice.line };
+  });
+}
+
 function smartBarMobileFindLineInTree(
   lines: SmartBarMobileOrderLine[],
   lineId: string | null,
@@ -2951,6 +3077,11 @@ type SmartBarMobileShellProps = {
   onApplyLineChoice?: (line: SmartBarMobileOrderLine, value: string, meta?: SmartBarMobileApplyChoiceMeta) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onRemoveLine?: (line: SmartBarMobileOrderLine) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onSaveUnknownAsNote?: (line: SmartBarMobileOrderLine, note: string) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
+  onAttachUnknownAsNote?: (
+    line: SmartBarMobileOrderLine,
+    targetLine: SmartBarMobileOrderLine,
+    note: string,
+  ) => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void;
   onNavigateToLine?: (line: SmartBarMobileOrderLine) => void;
   onGenericAction?: (action: SmartBarMobileGenericAction, result: SmartBarMobileGenericResult) => SmartBarMobileSubmitResult | Promise<SmartBarMobileSubmitResult> | void;
   onCartReady?: (result: SmartBarMobileOrderResult) => void;
@@ -3026,6 +3157,7 @@ export default function SmartBarMobileShell({
   onApplyLineChoice,
   onRemoveLine,
   onSaveUnknownAsNote,
+  onAttachUnknownAsNote,
   onNavigateToLine,
   onGenericAction,
   onCartReady,
@@ -3070,6 +3202,11 @@ export default function SmartBarMobileShell({
   const [submittedPromptPreview, setSubmittedPromptPreview] = useState("");
   const [buildingStatusLabel, setBuildingStatusLabel] = useState(buildingLabel);
   const [retryDraft, setRetryDraft] = useState("");
+  const [candidateManualEntryOpen, setCandidateManualEntryOpen] = useState(false);
+  const [candidateSubmittingItemId, setCandidateSubmittingItemId] = useState<string | null>(null);
+  const [candidateFailedItemId, setCandidateFailedItemId] = useState<string | null>(null);
+  const [noteTargetPickerOpen, setNoteTargetPickerOpen] = useState(false);
+  const [grayTraceOpen, setGrayTraceOpen] = useState(false);
   const [orderLines, setOrderLines] = useState<SmartBarMobileOrderLine[]>(demoLines);
   const [orderPricingMode, setOrderPricingMode] = useState<string>("exact");
   const [orderEstimatedSubtotal, setOrderEstimatedSubtotal] = useState<string | undefined>(undefined);
@@ -3102,6 +3239,13 @@ export default function SmartBarMobileShell({
     phase === "cart" &&
     genericResult?.surfaceKind === "info" &&
     genericResult.statusLabel === "Order sent";
+
+  useEffect(() => {
+    setGrayTraceOpen(false);
+    setCandidateManualEntryOpen(false);
+    setCandidateSubmittingItemId(null);
+    setCandidateFailedItemId(null);
+  }, [selectedLineId]);
 
   useEffect(() => {
     if (!selectedLineId) {
@@ -3376,6 +3520,7 @@ export default function SmartBarMobileShell({
     return smartBarMobileRollupBundleTree(overriddenLines);
   }, [lineOverrides, orderLines, reviewedOptionLineKeys]);
 
+  const noteTargetChoices = useMemo(() => smartBarMobileNoteTargetChoices(lines), [lines]);
   const selectedLineSource = smartBarMobileFindLineInTree(lines, selectedLineId);
   const selectedLineSourceInstanceKey = selectedLineSource
     ? smartBarMobileLineInstanceKey(selectedLineSource)
@@ -3401,6 +3546,11 @@ export default function SmartBarMobileShell({
     : selectedLineSource;
   const expandedBundleLine = smartBarMobileFindLineInTree(lines, expandedBundleLineId);
   const selectedLineInstanceKey = selectedLine ? smartBarMobileLineInstanceKey(selectedLine) : "";
+
+  useEffect(() => {
+    setNoteTargetPickerOpen(false);
+  }, [selectedLineInstanceKey]);
+
   const selectedLineOptionGroups = selectedLine ? smartBarMobileLineOptionGroups(selectedLine) : [];
   const selectedLineActiveOptionGroup = selectedLine
     ? selectedLineOptionGroups.find((group) => group.id === selectedLine.activeOptionGroupId) ||
@@ -3516,10 +3666,15 @@ export default function SmartBarMobileShell({
   const selectedLineSummarySelections = selectedLineSummaryGroups.flatMap((group) => group.selections);
   const selectedLineMissingDetails = smartBarMobileLineMissingDetails(selectedLine);
   const selectedLineHasOptions = Boolean(selectedLine?.options?.length);
+  const selectedLineCandidateResolution = selectedLine?.status === "unknown"
+    ? selectedLine.candidateResolution || null
+    : null;
   const selectedLineGrayReason = selectedLine?.status === "unknown"
     ? String(selectedLine.displayReason || selectedLine.helper || "Not recognized").replace(/\s+/g, " ").trim()
     : "";
-  const selectedLineGrayPlaceholder = "Retry menu item or leave note...";
+  const selectedLineGrayPlaceholder = selectedLineCandidateResolution
+    ? "Type exactly what you want the restaurant to receive..."
+    : "Retry menu item or leave note...";
   const selectedLineHasSummarySelections = selectedLineSummarySelections.length > 0;
   const selectedLineNoChoicesNeeded = Boolean(
     selectedLine &&
@@ -3620,19 +3775,19 @@ export default function SmartBarMobileShell({
       ).replace(/\s+/g, " ").trim()
     : "";
   const selectedLineThemedHeaderEyebrow = selectedLineUseLightUnknownDetail
-    ? "Clarify item"
+    ? selectedLineCandidateResolution ? "Quick clarification" : "Clarify item"
     : selectedLineUseLightCustomerNoteDetail
       ? "Customer note"
       : "Item details";
   const selectedLineThemedHeaderStatusLabel = selectedLineUseLightUnknownDetail
-    ? "Needs help"
+    ? selectedLineCandidateResolution ? "3 close matches" : "Needs help"
     : selectedLineUseLightCustomerNoteDetail
       ? "Saved"
       : selectedLineUseLightReadyDetail
         ? selectedLineReadyHeaderLabel
         : statusLabel(selectedLine?.status || "unknown");
   const selectedLineThemedHeaderAriaLabel = selectedLineUseLightUnknownDetail
-    ? "Needs help"
+    ? selectedLineCandidateResolution ? "Three close menu matches; choose one to continue" : "Needs help"
     : selectedLineUseLightCustomerNoteDetail
       ? "Saved customer note"
       : selectedLineUseLightReadyDetail
@@ -3666,11 +3821,19 @@ export default function SmartBarMobileShell({
     ...(selectedLine?.options || []),
     ...(selectedLine?.details || []),
   ].join("\u001f");
+  const selectedUnknownMinimumPanelHeight = selectedLineCandidateResolution
+    ? candidateManualEntryOpen ? 420 : 300
+    : 430;
   const selectedUnknownMeasurementKey = [
     selectedLineInstanceKey,
     selectedLine?.status || "",
     selectedLineGrayReason,
     selectedLineGrayPlaceholder,
+    candidateManualEntryOpen ? "candidate-manual-open" : "candidate-manual-closed",
+    ...(selectedLineCandidateResolution?.candidates || []).flatMap((candidate) => [
+      candidate.itemId,
+      candidate.label,
+    ]),
   ].join("\u001f");
 
   useLayoutEffect(() => {
@@ -3705,7 +3868,7 @@ export default function SmartBarMobileShell({
 
         const clampedHeight = Math.min(
           maxCartPanelHeight,
-          Math.max(430, desiredHeight),
+          Math.max(selectedUnknownMinimumPanelHeight, desiredHeight),
         );
 
         setMeasuredSelectedUnknownPanelHeight((current) => (
@@ -3736,6 +3899,7 @@ export default function SmartBarMobileShell({
     phase,
     selectedLine?.status,
     selectedUnknownMeasurementKey,
+    selectedUnknownMinimumPanelHeight,
   ]);
 
   useLayoutEffect(() => {
@@ -4117,7 +4281,7 @@ export default function SmartBarMobileShell({
     return twoLineTitle ? 560 : 536;
   };
   const cartDetailBaseHeight = selectedLine?.status === "unknown"
-    ? 430
+    ? selectedUnknownMinimumPanelHeight
     : selectedLineNoChoicesNeeded
       ? selectedDetailTitleLines > 1 ? 270 : 248
       : Math.min(
@@ -4431,7 +4595,10 @@ export default function SmartBarMobileShell({
   };
 
   const submitPrompt = () => {
-    submitPromptValue(entryDraft);
+    submitPromptValue(
+      entryDraft,
+      hasCart ? { requestIntent: "add_item" } : undefined,
+    );
   };
 
   useEffect(() => {
@@ -4801,8 +4968,9 @@ export default function SmartBarMobileShell({
     }
 
     if (line.status === "unknown") {
-      setRetryDraft("");
+      setRetryDraft(smartBarMobileUnknownNoteDraft(line));
       setRetryCheckingLineId(null);
+      setGrayTraceOpen(false);
     }
   };
 
@@ -5319,7 +5487,7 @@ export default function SmartBarMobileShell({
   };
 
 
-  const saveUnknownAsNote = () => {
+  const beginUnknownNoteRouting = () => {
     const submittedNote = retryDraft.trim();
     if (
       handoffLocked ||
@@ -5331,23 +5499,24 @@ export default function SmartBarMobileShell({
 
     retryTextareaRef.current?.blur();
     disarmClose();
+    setNoteTargetPickerOpen(true);
+  };
+
+  const completeUnknownNoteAction = (
+    action: () => SmartBarMobileOrderResult | Promise<SmartBarMobileOrderResult> | void,
+    fallbackResult: SmartBarMobileOrderResult,
+  ) => {
+    if (!selectedLine) return;
+
     setRetryCheckingLineId(selectedLineInstanceKey);
-
-    const fallbackResult: SmartBarMobileOrderResult = {
-      lines: smartBarMobileSaveUnknownAsNoteInLines(orderLines, selectedLine, submittedNote),
-      pricingMode: orderPricingMode,
-      estimatedTotal: restaurantCalculatedPricing ? undefined : orderEstimatedTotal,
-    };
-    const savePromise = onSaveUnknownAsNote
-      ? Promise.resolve(onSaveUnknownAsNote(selectedLine, submittedNote))
-      : Promise.resolve<SmartBarMobileOrderResult | void>(fallbackResult);
-
-    savePromise
+    Promise.resolve()
+      .then(action)
       .then((result) => {
         const savedResult = result || fallbackResult;
         setOrderLines(savedResult.lines);
         applyOrderResultEstimates(savedResult);
         setRetryDraft("");
+        setNoteTargetPickerOpen(false);
         setLineOverrides({});
         setSelectedLineId(null);
         setSelectedDetailMode("choices");
@@ -5355,6 +5524,7 @@ export default function SmartBarMobileShell({
       })
       .catch(() => {
         const lineInstanceKey = smartBarMobileLineInstanceKey(selectedLine);
+        setNoteTargetPickerOpen(false);
         setLineOverrides((current) => ({
           ...current,
           [lineInstanceKey]: {
@@ -5370,8 +5540,62 @@ export default function SmartBarMobileShell({
       });
   };
 
-  const submitRetry = () => {
-    const submittedRetry = retryDraft.trim();
+  const saveUnknownAsGeneralNote = () => {
+    const submittedNote = retryDraft.trim();
+    if (
+      handoffLocked ||
+      !selectedLine ||
+      selectedLine.status !== "unknown" ||
+      !submittedNote ||
+      retryCheckingLineId
+    ) return;
+
+    disarmClose();
+    const fallbackResult: SmartBarMobileOrderResult = {
+      lines: smartBarMobileSaveUnknownAsNoteInLines(orderLines, selectedLine, submittedNote),
+      pricingMode: orderPricingMode,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : orderEstimatedTotal,
+    };
+
+    completeUnknownNoteAction(
+      () => onSaveUnknownAsNote?.(selectedLine, submittedNote) || fallbackResult,
+      fallbackResult,
+    );
+  };
+
+  const attachUnknownAsNote = (targetLine: SmartBarMobileOrderLine) => {
+    const submittedNote = retryDraft.trim();
+    if (
+      handoffLocked ||
+      !selectedLine ||
+      selectedLine.status !== "unknown" ||
+      !submittedNote ||
+      retryCheckingLineId
+    ) return;
+
+    disarmClose();
+    const fallbackResult: SmartBarMobileOrderResult = {
+      lines: smartBarMobileAttachUnknownNoteToLineInLines(
+        orderLines,
+        selectedLine,
+        targetLine,
+        submittedNote,
+      ),
+      pricingMode: orderPricingMode,
+      estimatedTotal: restaurantCalculatedPricing ? undefined : orderEstimatedTotal,
+    };
+
+    completeUnknownNoteAction(
+      () => onAttachUnknownAsNote?.(selectedLine, targetLine, submittedNote) || fallbackResult,
+      fallbackResult,
+    );
+  };
+
+  const submitRetry = (
+    candidateSelection?: SmartBarMobileCandidateSelection,
+    candidateUi?: { restoreManualEntryOnFailure?: boolean },
+  ) => {
+    const submittedRetry = String(candidateSelection?.sourceText || retryDraft).trim();
     if (handoffLocked || !selectedLine || selectedLine.status !== "unknown" || !submittedRetry || retryCheckingLineId) return;
 
     retryTextareaRef.current?.blur();
@@ -5388,6 +5612,7 @@ export default function SmartBarMobileShell({
             replaceSourceLineItemId: selectedLine.sourceLineItemId,
             replaceSourceLineIndex: selectedLine.sourceLineIndex,
             replaceSourceBucket: selectedLine.sourceBucket,
+            ...(candidateSelection ? { candidateSelection } : {}),
           }),
         )
       : Promise.resolve<SmartBarMobileOrderResult>({
@@ -5409,6 +5634,17 @@ export default function SmartBarMobileShell({
 
     replacementPromise
       .then((result) => {
+        if (candidateSelection) {
+          const candidateFailureMessage = smartBarMobileCandidateSelectionFailureMessage(result);
+          if (candidateFailureMessage) {
+            setCandidateFailedItemId(candidateSelection.itemId);
+            setCandidateManualEntryOpen(Boolean(candidateUi?.restoreManualEntryOnFailure));
+            return;
+          }
+        }
+
+        setCandidateFailedItemId(null);
+
         if (smartBarMobileResultIsGeneric(result)) {
           setGenericResult(result);
           setOrderLines([]);
@@ -5453,6 +5689,12 @@ export default function SmartBarMobileShell({
         setCartExpanded(true);
       })
       .catch(() => {
+        if (candidateSelection) {
+          setCandidateFailedItemId(candidateSelection.itemId);
+          setCandidateManualEntryOpen(Boolean(candidateUi?.restoreManualEntryOnFailure));
+          return;
+        }
+
         const lineInstanceKey = smartBarMobileLineInstanceKey(selectedLine);
         setLineOverrides((current) => ({
           ...current,
@@ -5467,7 +5709,42 @@ export default function SmartBarMobileShell({
       })
       .finally(() => {
         setRetryCheckingLineId(null);
+        setCandidateSubmittingItemId(null);
       });
+  };
+
+  const submitCandidateSelection = (candidate: SmartBarMobileCandidateResolutionCandidate) => {
+    if (!selectedLineCandidateResolution || retryCheckingLineId) return;
+
+    const restoreManualEntryOnFailure = candidateManualEntryOpen;
+    setCandidateManualEntryOpen(false);
+    setCandidateFailedItemId(null);
+    setCandidateSubmittingItemId(candidate.itemId);
+    submitRetry(
+      {
+        schemaVersion: "smartbar.candidateSelection.v1",
+        resolutionId: selectedLineCandidateResolution.resolutionId,
+        sourceText: selectedLineCandidateResolution.sourceText,
+        itemId: candidate.itemId,
+        selectionMode: "authoritative_item",
+      },
+      { restoreManualEntryOnFailure },
+    );
+  };
+
+  const openCandidateManualEntry = () => {
+    if (!selectedLineCandidateResolution || retryCheckingLineId || demoInteractionLocked) return;
+
+    setCandidateManualEntryOpen(true);
+    setCandidateSubmittingItemId(null);
+    setCandidateFailedItemId(null);
+    window.requestAnimationFrame(() => {
+      const input = retryTextareaRef.current;
+      if (!input) return;
+      input.focus();
+      const end = input.value.length;
+      input.setSelectionRange(end, end);
+    });
   };
 
   const returnToEntryFromCart = () => {
@@ -5660,9 +5937,12 @@ export default function SmartBarMobileShell({
     if (phase === "cart" && expandedBundleLineId) return "Finish included items";
     if (phase === "cart" && selectedLine && demoWalkthroughCartMode) return "Back to cart";
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      return retryCheckingLineId === selectedLineInstanceKey
-        ? "Working..."
-        : retryDraft.trim() ? "Tap to retry" : "Clarify or exit";
+      if (noteTargetPickerOpen) return "Back to note";
+      if (retryCheckingLineId === selectedLineInstanceKey) return "Working...";
+      if (selectedLineCandidateResolution) {
+        return candidateManualEntryOpen && retryDraft.trim() ? "Use typed wording" : "Choose an item";
+      }
+      return retryDraft.trim() ? "Tap to retry" : "Clarify or exit";
     }
     if (phase === "cart" && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Done";
     if (phase === "cart" && selectedLine) return "Back to cart";
@@ -5745,7 +6025,13 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && selectedLine?.status === "unknown") {
-      if (retryDraft.trim()) {
+      if (noteTargetPickerOpen) {
+        setNoteTargetPickerOpen(false);
+      } else if (selectedLineCandidateResolution && candidateManualEntryOpen && retryDraft.trim()) {
+        saveUnknownAsGeneralNote();
+      } else if (selectedLineCandidateResolution) {
+        return;
+      } else if (retryDraft.trim()) {
         submitRetry();
       } else {
         retryTextareaRef.current?.blur();
@@ -6943,54 +7229,306 @@ export default function SmartBarMobileShell({
                           data-smartbar-mobile-unknown-content-measure="true"
                           className="space-y-2.5 pb-4"
                         >
-                        <div className="shrink-0 px-1">
-                          <div className={smartBarMobileDetailTheme.lightSectionRow}>
-                            <div className="flex min-w-0 items-center gap-2.5">
-                              <span className={smartBarMobileDetailTheme.lightSectionIcon}>
-                                <CircleHelp className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
-                              </span>
-                              <span className={smartBarMobileDetailTheme.glassSectionLabel}>
-                                What happened
-                              </span>
+                        {noteTargetPickerOpen ? (
+                          <>
+                            <div className="shrink-0 px-1" data-smartbar-mobile-note-target-picker="true">
+                              <div className={smartBarMobileDetailTheme.lightSectionRow}>
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                    <StickyNote className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                  </span>
+                                  <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                    Add note to
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-2.5 px-1 text-[14px] font-bold leading-5 text-slate-700">
+                                Choose one cart item, or keep this as a general order note.
+                              </div>
+                              <div className="mt-2.5 rounded-[18px] border border-white/54 bg-white/84 px-3.5 py-3 text-[14px] font-extrabold leading-5 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_12px_rgba(15,23,42,0.08)]">
+                                {retryDraft.trim()}
+                              </div>
                             </div>
-                          </div>
-                          <div className="mt-2.5 px-1 text-[14px] font-bold leading-5 text-slate-700">
-                            {selectedLineGrayReason || "We couldn't match this to a menu item."}
-                          </div>
-                        </div>
-                        <div className="relative shrink-0">
-                          <Pencil
-                            className="pointer-events-none absolute left-4 top-4 z-10 h-4 w-4 text-slate-500"
-                            strokeWidth={2.4}
-                            aria-hidden="true"
-                          />
-                          <textarea
-                            data-smartbar-mobile-retry-input="true"
-                            ref={retryTextareaRef}
-                            value={retryDraft}
-                            onChange={(event) => {
-                              if (demoInteractionLocked) return;
-                              setRetryDraft(event.target.value);
-                            }}
-                            disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
-                            readOnly={demoInteractionLocked}
-                            tabIndex={demoInteractionLocked ? -1 : undefined}
-                            className={`${retryInputClass} !min-h-[150px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-4 !pl-11 !pr-4 !text-[15px] !font-bold !leading-6 !text-slate-950 !caret-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 focus:!border-sky-400/80 focus:!outline-none focus:!ring-2 focus:!ring-sky-300/55 focus:placeholder:!text-transparent disabled:!opacity-70`}
-                            placeholder={selectedLineGrayPlaceholder}
-                            aria-label="Clarify unmatched item or add a restaurant note"
-                            rows={6}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          data-smartbar-mobile-leave-note="true"
-                          onClick={saveUnknownAsNote}
-                          disabled={demoInteractionLocked || !retryDraft.trim() || retryCheckingLineId === selectedLineInstanceKey}
-                          className={`${smartBarMobileDetailTheme.darkUtilityButton} min-h-[46px] w-full gap-2 px-4 text-[15px] font-black text-white disabled:cursor-not-allowed disabled:opacity-45`}
-                        >
-                          <StickyNote className="h-4 w-4 shrink-0 stroke-[2.4]" aria-hidden="true" />
-                          <span>Leave Note</span>
-                        </button>
+                            <div className="flex flex-wrap items-start gap-2 px-1">
+                              {noteTargetChoices.map((choice) => (
+                                <button
+                                  key={choice.key}
+                                  type="button"
+                                  data-smartbar-mobile-note-target="item"
+                                  data-smartbar-mobile-note-target-key={choice.key}
+                                  onClick={() => attachUnknownAsNote(choice.line)}
+                                  disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                  className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center rounded-full px-4 py-2.5 text-center text-sm font-bold text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] ring-1 ring-white/54 transition disabled:cursor-not-allowed disabled:opacity-45 ${
+                                    SMARTBAR_MOBILE_STRONG_ACTION_PILLS ? "bg-white/96" : "bg-white/88"
+                                  }`}
+                                >
+                                  <span className="min-w-0 whitespace-normal break-words">{choice.label}</span>
+                                </button>
+                              ))}
+                              <button
+                                type="button"
+                                data-smartbar-mobile-note-target="general"
+                                onClick={saveUnknownAsGeneralNote}
+                                disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                className="relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_7px_14px_rgba(2,6,23,0.20)] ring-1 ring-white/18 transition disabled:cursor-not-allowed disabled:opacity-45"
+                              >
+                                <StickyNote className="h-4 w-4 shrink-0 stroke-[2.4]" aria-hidden="true" />
+                                <span className="min-w-0 whitespace-normal break-words">General order note</span>
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            {!selectedLineCandidateResolution ? (
+                            <div className="shrink-0 px-1">
+                              <div className={`${smartBarMobileDetailTheme.lightSectionRow} justify-between`}>
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                  <span className={smartBarMobileDetailTheme.lightSectionIcon}>
+                                    <CircleHelp className="h-4 w-4 stroke-[2.3]" aria-hidden="true" />
+                                  </span>
+                                  <span className={smartBarMobileDetailTheme.glassSectionLabel}>
+                                    What happened
+                                  </span>
+                                </div>
+                                {selectedLine.aiTrace ? (
+                                  <button
+                                    type="button"
+                                    data-smartbar-mobile-ai-trace-toggle="true"
+                                    onClick={() => setGrayTraceOpen((value) => !value)}
+                                    aria-label={grayTraceOpen ? "Hide SmartBar trace" : "Show SmartBar trace"}
+                                    aria-expanded={grayTraceOpen}
+                                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-900/10 bg-white/92 text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_5px_10px_rgba(15,23,42,0.10)] transition hover:bg-white"
+                                  >
+                                    <ScanSearch className="h-[17px] w-[17px] stroke-[2.35]" aria-hidden="true" />
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="mt-2.5 px-1 text-[14px] font-bold leading-5 text-slate-700">
+                                {selectedLineGrayReason || "We couldn't match this to a menu item."}
+                              </div>
+                              {selectedLine.aiTrace && grayTraceOpen ? (
+                                <div
+                                  data-smartbar-mobile-ai-trace-panel="true"
+                                  className="mt-2.5 rounded-[20px] border border-sky-200/70 bg-sky-50/94 px-3.5 py-3 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.78),0_7px_16px_rgba(15,23,42,0.08)]"
+                                >
+                                  <div className="text-[10px] font-black uppercase tracking-[0.15em] text-sky-800">SmartBar trace</div>
+                                  <div className="mt-2.5 space-y-2.5 text-[12px] leading-4">
+                                    <div>
+                                      <div className="font-black text-slate-600">Prescreen returned</div>
+                                      <div className="mt-0.5 break-words font-bold text-slate-950">
+                                        {selectedLine.aiTrace.prescreenReturnedValues?.length
+                                          ? selectedLine.aiTrace.prescreenReturnedValues.join(", ")
+                                          : selectedLine.aiTrace.prescreenUnmatchedCount
+                                            ? "No item ID — marked unmatched"
+                                            : "None"}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="font-black text-slate-600">Accepted item</div>
+                                      <div className="mt-0.5 break-words font-bold text-slate-950">
+                                        {selectedLine.aiTrace.prescreenAcceptedItemIds?.length
+                                          ? selectedLine.aiTrace.prescreenAcceptedItemIds.join(", ")
+                                          : "None"}
+                                      </div>
+                                    </div>
+                                    {selectedLine.aiTrace.prescreenRejectedValues?.length ? (
+                                      <div>
+                                        <div className="font-black text-slate-600">Rejected value</div>
+                                        <div className="mt-0.5 break-words font-bold text-slate-950">
+                                          {selectedLine.aiTrace.prescreenRejectedValues.join(", ")}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    <div>
+                                      <div className="font-black text-slate-600">Cart builder received</div>
+                                      <div className="mt-0.5 break-words font-bold text-slate-950">
+                                        {selectedLine.aiTrace.cartBuilderScope === "full_menu_fallback"
+                                          ? "Full menu fallback"
+                                          : selectedLine.aiTrace.cartBuilderScope === "full_menu"
+                                            ? "Full menu"
+                                            : selectedLine.aiTrace.cartBuilderReceivedItemIds?.length
+                                              ? selectedLine.aiTrace.cartBuilderReceivedItemIds.join(", ")
+                                              : "No candidate items"}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="font-black text-slate-600">Cart builder proposed</div>
+                                      <div className="mt-0.5 break-words font-bold text-slate-950">
+                                        {selectedLine.aiTrace.cartBuilderProposedValues?.length
+                                          ? selectedLine.aiTrace.cartBuilderProposedValues.join(", ")
+                                          : selectedLine.aiTrace.cartBuilderReturnedValues?.length
+                                            ? selectedLine.aiTrace.cartBuilderReturnedValues.join(", ")
+                                            : "None"}
+                                      </div>
+                                    </div>
+                                    {selectedLine.aiTrace.cartBuilderRejectedValues?.length ? (
+                                      <div>
+                                        <div className="font-black text-slate-600">Cart builder rejected</div>
+                                        <div className="mt-0.5 break-words font-bold text-slate-950">
+                                          {selectedLine.aiTrace.cartBuilderRejectedValues.join(", ")}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {selectedLine.aiTrace.cartBuilderCannotMatchReasons?.length ? (
+                                      <div>
+                                        <div className="font-black text-slate-600">Cannot-match reason</div>
+                                        <div className="mt-0.5 break-words font-bold text-slate-950">
+                                          {selectedLine.aiTrace.cartBuilderCannotMatchReasons.join(", ")}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    {selectedLine.aiTrace.cartBuilderParserResult ? (
+                                      <div>
+                                        <div className="font-black text-slate-600">Parser result</div>
+                                        <div className="mt-0.5 break-words font-bold text-slate-950">
+                                          {selectedLine.aiTrace.cartBuilderParserResult}
+                                        </div>
+                                      </div>
+                                    ) : null}
+                                    <div>
+                                      <div className="font-black text-slate-600">Final result</div>
+                                      <div className="mt-0.5 break-words font-bold text-slate-950">
+                                        {selectedLine.aiTrace.finalResult || selectedLine.grayReason || "not_recognized"}
+                                      </div>
+                                    </div>
+                                    {selectedLine.aiTrace.traceId ? (
+                                      <div className="border-t border-sky-200/70 pt-2 font-mono text-[10px] font-bold text-slate-500">
+                                        Trace: {selectedLine.aiTrace.traceId.slice(0, 16)}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                            ) : null}
+                            {selectedLineCandidateResolution ? (
+                              <>
+                                <div className="flex flex-wrap items-start gap-2 px-1" data-smartbar-mobile-candidate-resolution="true">
+                                  {selectedLineCandidateResolution.candidates.map((candidate) => {
+                                    const candidateIsSubmitting = Boolean(
+                                      retryCheckingLineId === selectedLineInstanceKey &&
+                                      candidateSubmittingItemId === candidate.itemId,
+                                    );
+                                    const candidateFailed = Boolean(
+                                      !candidateIsSubmitting &&
+                                      candidateFailedItemId === candidate.itemId,
+                                    );
+
+                                    return (
+                                      <button
+                                        key={candidate.itemId}
+                                        type="button"
+                                        data-smartbar-mobile-candidate-item="true"
+                                        data-smartbar-mobile-candidate-item-id={candidate.itemId}
+                                        data-smartbar-mobile-candidate-selected={candidateIsSubmitting ? "true" : undefined}
+                                        data-smartbar-mobile-candidate-failed={candidateFailed ? "true" : undefined}
+                                        onClick={() => submitCandidateSelection(candidate)}
+                                        disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                        aria-busy={candidateIsSubmitting}
+                                        aria-label={candidateFailed ? `${candidate.label}. Did not finish. Tap to try again.` : candidate.label}
+                                        className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] ring-1 transition disabled:cursor-wait ${
+                                          candidateFailed ? "flex-col gap-0.5" : "gap-2"
+                                        } ${
+                                          candidateIsSubmitting
+                                            ? "bg-[#012169] text-white ring-[#012169]/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_18px_rgba(1,33,105,0.28)]"
+                                            : candidateFailed
+                                              ? "bg-amber-100/96 text-amber-950 ring-amber-300/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_18px_rgba(120,53,15,0.16)]"
+                                              : `${SMARTBAR_MOBILE_STRONG_ACTION_PILLS ? "bg-white/96" : "bg-white/88"} text-slate-950 ring-white/54`
+                                        }`}
+                                      >
+                                        {candidateIsSubmitting ? (
+                                          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin stroke-[2.5]" aria-hidden="true" />
+                                        ) : null}
+                                        <span className="min-w-0 whitespace-normal break-words">{candidate.label}</span>
+                                        {candidateFailed ? (
+                                          <span className="text-[10px] font-black uppercase tracking-[0.06em] text-amber-800">
+                                            Tap to try again
+                                          </span>
+                                        ) : null}
+                                      </button>
+                                    );
+                                  })}
+                                  <button
+                                    type="button"
+                                    data-smartbar-mobile-candidate-manual-toggle="true"
+                                    data-smartbar-mobile-candidate-manual-open={candidateManualEntryOpen ? "true" : undefined}
+                                    onClick={openCandidateManualEntry}
+                                    disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                    className={`relative inline-flex min-h-[44px] max-w-full basis-auto items-center justify-center gap-2 rounded-full px-4 py-2.5 text-center text-sm font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_7px_14px_rgba(2,6,23,0.18)] ring-1 transition disabled:cursor-wait ${
+                                      candidateManualEntryOpen
+                                        ? "bg-slate-950 text-white ring-white/18"
+                                        : `${SMARTBAR_MOBILE_STRONG_ACTION_PILLS ? "bg-white/96" : "bg-white/88"} text-slate-950 ring-white/54`
+                                    }`}
+                                  >
+                                    <Pencil className="h-4 w-4 shrink-0 stroke-[2.4]" aria-hidden="true" />
+                                    <span>Type it in</span>
+                                  </button>
+                                </div>
+                                {candidateManualEntryOpen ? (
+                                  <div className="relative shrink-0 px-1 pt-1" data-smartbar-mobile-candidate-manual-panel="true">
+                                    <Pencil
+                                      className="pointer-events-none absolute left-5 top-5 z-10 h-4 w-4 text-slate-500"
+                                      strokeWidth={2.4}
+                                      aria-hidden="true"
+                                    />
+                                    <textarea
+                                      data-smartbar-mobile-candidate-manual-input="true"
+                                      ref={retryTextareaRef}
+                                      value={retryDraft}
+                                      onChange={(event) => {
+                                        if (demoInteractionLocked) return;
+                                        setRetryDraft(event.target.value);
+                                      }}
+                                      disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                      readOnly={demoInteractionLocked}
+                                      tabIndex={demoInteractionLocked ? -1 : undefined}
+                                      className={`${retryInputClass} !min-h-[92px] !w-full !rounded-[20px] !border !border-slate-900/10 !bg-white/92 !py-3.5 !pl-11 !pr-4 !text-[15px] !font-bold !leading-6 !text-slate-950 !caret-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 focus:!border-sky-400/80 focus:!outline-none focus:!ring-2 focus:!ring-sky-300/55 focus:placeholder:!text-transparent disabled:!opacity-70`}
+                                      placeholder={selectedLineGrayPlaceholder}
+                                      aria-label="Type the request exactly as a restaurant note"
+                                      rows={3}
+                                    />
+                                  </div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <>
+                                <div className="relative shrink-0">
+                                  <Pencil
+                                    className="pointer-events-none absolute left-4 top-4 z-10 h-4 w-4 text-slate-500"
+                                    strokeWidth={2.4}
+                                    aria-hidden="true"
+                                  />
+                                  <textarea
+                                    data-smartbar-mobile-retry-input="true"
+                                    ref={retryTextareaRef}
+                                    value={retryDraft}
+                                    onChange={(event) => {
+                                      if (demoInteractionLocked) return;
+                                      setRetryDraft(event.target.value);
+                                    }}
+                                    disabled={demoInteractionLocked || retryCheckingLineId === selectedLineInstanceKey}
+                                    readOnly={demoInteractionLocked}
+                                    tabIndex={demoInteractionLocked ? -1 : undefined}
+                                    className={`${retryInputClass} !min-h-[150px] !w-full !rounded-[22px] !border !border-slate-900/10 !bg-white/92 !py-4 !pl-11 !pr-4 !text-[15px] !font-bold !leading-6 !text-slate-950 !caret-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.80),0_8px_18px_rgba(15,23,42,0.10)] placeholder:!font-semibold placeholder:!text-slate-500 focus:!border-sky-400/80 focus:!outline-none focus:!ring-2 focus:!ring-sky-300/55 focus:placeholder:!text-transparent disabled:!opacity-70`}
+                                    placeholder={selectedLineGrayPlaceholder}
+                                    aria-label="Clarify unmatched item or add a restaurant note"
+                                    rows={6}
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  data-smartbar-mobile-leave-note="true"
+                                  onClick={beginUnknownNoteRouting}
+                                  disabled={demoInteractionLocked || !retryDraft.trim() || retryCheckingLineId === selectedLineInstanceKey}
+                                  className={`${smartBarMobileDetailTheme.darkUtilityButton} min-h-[46px] w-full gap-2 px-4 text-[15px] font-black text-white disabled:cursor-not-allowed disabled:opacity-45`}
+                                >
+                                  <StickyNote className="h-4 w-4 shrink-0 stroke-[2.4]" aria-hidden="true" />
+                                  <span>Leave Note</span>
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
                         </div>
                       </div>
                     ) : (
@@ -7487,16 +8025,26 @@ export default function SmartBarMobileShell({
                                     ) : (
                                       <BadgeCheck className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
                                     )}
-                                    <span>{line.helper}</span>
+                                    <span>{smartBarMobileDisplayedLineHelper(line)}</span>
                                   </div>
                                 ) : (
                                   <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
-                                    {line.helper}
+                                    {smartBarMobileDisplayedLineHelper(line)}
                                   </div>
                                 )
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
+                              {!line.demoHideMeta && smartBarMobileLineHasAttachedCustomerNote(line) ? (
+                                <span
+                                  data-smartbar-mobile-attached-note="true"
+                                  className={`inline-flex shrink-0 items-center justify-center rounded-full border border-white/72 bg-white/76 text-[#172554] shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_3px_8px_rgba(15,23,42,0.14)] ring-1 ring-slate-900/8 ${demoCompactCartRows ? "h-[22px] w-[22px]" : "h-8 w-8"}`}
+                                  aria-label="Note attached"
+                                  title="Note attached"
+                                >
+                                  <Paperclip className={`${demoCompactCartRows ? "h-3 w-3" : "h-4 w-4"} stroke-[2.55]`} aria-hidden="true" />
+                                </span>
+                              ) : null}
                               {!line.demoHideMeta && demoCompactCartRows && line.status === "options" ? (
                                 <span
                                   data-smartbar-mobile-optional-indicator="true"
@@ -7673,8 +8221,23 @@ export default function SmartBarMobileShell({
             data-smartbar-mobile-checkout={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-send-order={phase === "cart" && !selectedLine && checkoutReady ? "true" : undefined}
             data-smartbar-mobile-guidance-status={phase === "cart" && !selectedLine && effectiveCartGuidanceStatus ? effectiveCartGuidanceStatus : undefined}
-            data-smartbar-mobile-detail-close={phase === "cart" && selectedLine && (selectedLine.status !== "unknown" || !retryDraft.trim()) ? "true" : undefined}
-            data-smartbar-mobile-retry-submit={phase === "cart" && selectedLine?.status === "unknown" && retryDraft.trim() ? "true" : undefined}
+            data-smartbar-mobile-detail-close={
+              phase === "cart" &&
+              selectedLine &&
+              (
+                selectedLine.status !== "unknown" ||
+                (selectedLineCandidateResolution ? !candidateManualEntryOpen : !retryDraft.trim())
+              )
+                ? "true"
+                : undefined
+            }
+            data-smartbar-mobile-retry-submit={
+              phase === "cart" &&
+              selectedLine?.status === "unknown" &&
+              (selectedLineCandidateResolution ? candidateManualEntryOpen && Boolean(retryDraft.trim()) : Boolean(retryDraft.trim()))
+                ? "true"
+                : undefined
+            }
             disabled={demoInteractionLocked}
             onClick={demoInteractionLocked ? undefined : handleCompanionClick}
             className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} h-[46px] min-w-0 justify-center px-4`}

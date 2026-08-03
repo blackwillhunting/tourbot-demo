@@ -4,6 +4,7 @@ import type {
   CarryoutOrder,
 } from "../../TourBarOrdering";
 import type {
+  SmartBarMobileCandidateResolution,
   SmartBarMobileOptionGroup,
   SmartBarMobileOrderLine,
   SmartBarMobileOrderResult,
@@ -57,6 +58,43 @@ function smartBarMobileGrayRetryPrompt(reason: unknown, title?: string) {
   if (code === "selection_limit_exceeded") return "Remove the extra choice or choose fewer options.";
   if (code === "not_on_menu") return "Try a different item from this menu.";
   return "Try describing this item another way.";
+}
+
+function smartBarMobileCandidateResolution(value: unknown): SmartBarMobileCandidateResolution | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  if (String(record.schemaVersion || "") !== "smartbar.candidateResolution.v1") return undefined;
+
+  const resolutionId = String(record.resolutionId || "").trim();
+  const sourceText = String(record.sourceText || "").replace(/\s+/g, " ").trim();
+  const candidates = Array.isArray(record.candidates)
+    ? record.candidates.flatMap((candidate, index) => {
+        if (!candidate || typeof candidate !== "object") return [];
+        const candidateRecord = candidate as Record<string, unknown>;
+        const itemId = String(candidateRecord.itemId || "").trim();
+        const label = String(candidateRecord.label || "").replace(/\s+/g, " ").trim();
+        if (!itemId || !label) return [];
+        return [{ itemId, label, rank: index + 1 }];
+      })
+    : [];
+
+  if (
+    !resolutionId ||
+    !sourceText ||
+    candidates.length !== 3 ||
+    new Set(candidates.map((candidate) => candidate.itemId)).size !== 3 ||
+    String(record.selectionMode || "") !== "authoritative_item" ||
+    String(record.manualEntryMode || "") !== "direct_gray_note"
+  ) return undefined;
+
+  return {
+    schemaVersion: "smartbar.candidateResolution.v1",
+    resolutionId,
+    sourceText,
+    candidates,
+    selectionMode: "authoritative_item",
+    manualEntryMode: "direct_gray_note",
+  };
 }
 
 function smartBarMobileQueryStartsFreshCart(value: string) {
@@ -772,6 +810,7 @@ export function smartBarMobileResultFromOrder(
         looseItem.retryPrompt || suggestion || smartBarMobileGrayRetryPrompt(grayReason, title),
       ).replace(/\s+/g, " ").trim();
       const cartLineKey = `cannot-match::source-${index}`;
+      const candidateResolution = smartBarMobileCandidateResolution(looseItem.candidateResolution);
       const line: SmartBarMobileOrderLine = {
         id: cartLineKey,
         cartLineKey,
@@ -786,6 +825,7 @@ export function smartBarMobileResultFromOrder(
         price: "—",
         details: suggestion ? [suggestion] : [],
         retryPrompt,
+        ...(candidateResolution ? { candidateResolution } : {}),
       };
       return {
         line,
