@@ -1,5 +1,5 @@
 import type { CarryoutOrder, GuideAiCarryoutResponse } from "../../TourBarOrdering";
-import type { SmartBarMobileCandidateSelection, SmartBarMobileOrderResult } from "../SmartBarMobileShell";
+import type { SmartBarMobileOrderResult } from "../SmartBarMobileShell";
 import { smartBarMobileResultFromOrder } from "./burgerRushMobileCartReducer";
 import { normalizeSmartBarVendorContext, type SmartBarVendorContext } from "../SmartBarVendorContext";
 import type { SmartBarMobileDirectCartChoiceEvent } from "./smartBarMobileDirectCartEvents";
@@ -104,8 +104,6 @@ export async function smartBarMobileResultFromGuideAi(
   query: string,
   carryoutOrder: CarryoutOrder | null,
   vendorContext?: SmartBarVendorContext | null,
-  candidateSelection?: SmartBarMobileCandidateSelection,
-  requestIntent?: "add_item",
 ): Promise<SmartBarMobileOrderResult & { carryoutOrder?: CarryoutOrder | null }> {
   const activeVendorContext = normalizeSmartBarVendorContext(vendorContext);
   const response = await fetch(SMARTBAR_MOBILE_GUIDE_AI_URL, {
@@ -117,8 +115,6 @@ export async function smartBarMobileResultFromGuideAi(
       mode: "commerce",
       guideConfig: smartBarMobileBuildGuideConfig(activeVendorContext),
       message: query,
-      ...(candidateSelection ? { candidateSelection } : {}),
-      ...(requestIntent ? { smartbarRequestIntent: requestIntent } : {}),
       clientId: activeVendorContext.clientId,
       vendorId: activeVendorContext.vendorId,
       menuProfileId: activeVendorContext.menuProfileId,
@@ -132,13 +128,11 @@ export async function smartBarMobileResultFromGuideAi(
         commerceContext: {
           carryoutOrder,
           vendorContext: activeVendorContext,
-          ...(requestIntent ? { smartbarRequestIntent: requestIntent } : {}),
         },
       },
       visibleContext: {
         carryoutOrder,
         vendorContext: activeVendorContext,
-        ...(requestIntent ? { smartbarRequestIntent: requestIntent } : {}),
       },
       pageContext: {
         url: typeof window !== "undefined" ? window.location.href : "",

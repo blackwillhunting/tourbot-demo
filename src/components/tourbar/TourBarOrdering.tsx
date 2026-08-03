@@ -107,21 +107,6 @@ export type CarryoutBundleComponent = CarryoutLine & {
   priceSuppressed?: boolean;
 };
 
-export type CarryoutCandidateResolutionCandidate = {
-  itemId: string;
-  label: string;
-  rank: number;
-};
-
-export type CarryoutCandidateResolution = {
-  schemaVersion: "smartbar.candidateResolution.v1";
-  resolutionId: string;
-  sourceText: string;
-  candidates: CarryoutCandidateResolutionCandidate[];
-  selectionMode: "authoritative_item";
-  manualEntryMode: "direct_gray_note";
-};
-
 export type CannotMatchItem = {
   text?: string;
   label?: string;
@@ -129,7 +114,6 @@ export type CannotMatchItem = {
   item?: string;
   reason?: string;
   suggestion?: string;
-  candidateResolution?: CarryoutCandidateResolution;
 };
 
 export type CarryoutOrder = {
