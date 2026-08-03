@@ -57,7 +57,6 @@ import { smartBarMobileConditionalNavigationTarget } from "./smartBarMobileCondi
 type SmartBarMobilePhase = "rest" | "entry" | "building_cart" | "cart";
 type SmartBarMobileHandoffState = "idle" | "handing_off" | "complete";
 export type SmartBarMobileOrderStatus = "ready" | "pending" | "options" | "unknown";
-type SmartBarMobileCartStatusFilter = SmartBarMobileOrderStatus | null;
 
 export type SmartBarMobileSelectionRule = {
   /** Reserved for a later conditional-limit phase; not evaluated in this shell. */
@@ -3226,7 +3225,6 @@ export default function SmartBarMobileShell({
   const [conditionalReturnContext, setConditionalReturnContext] = useState<{ lineKey: string; groupId: string } | null>(null);
   const [expandedBundleLineId, setExpandedBundleLineId] = useState<string | null>(null);
   const [selectedDetailMode, setSelectedDetailMode] = useState<"choices" | "summary">("choices");
-  const [cartStatusFilter, setCartStatusFilter] = useState<SmartBarMobileCartStatusFilter>(null);
   const [lineOverrides, setLineOverrides] = useState<Record<string, DemoLineOverride>>({});
   const [reviewedOptionLineKeys, setReviewedOptionLineKeys] = useState<Record<string, true>>({});
   const [retryCheckingLineId, setRetryCheckingLineId] = useState<string | null>(null);
@@ -4085,11 +4083,8 @@ export default function SmartBarMobileShell({
   const effectiveCartGuidanceStatus: SmartBarMobileOrderStatus | null =
     walkthroughGuidanceStatusOverride ?? cartGuidanceStatus;
   const unresolvedBlockingCount = blockingIssueCount + unknownCount;
-  const statusFilteredCartLines = cartStatusFilter
-    ? lines.filter((line) => line.status === cartStatusFilter)
-    : lines;
   const visibleCartLines: SmartBarMobileOrderLine[] = expandedBundleLineId
-    ? statusFilteredCartLines.flatMap<SmartBarMobileOrderLine>((line) => {
+    ? lines.flatMap<SmartBarMobileOrderLine>((line) => {
         const lineKey = smartBarMobileLineInstanceKey(line);
         if (lineKey !== expandedBundleLineId) {
           return [{ ...line, bundleDisplayRole: "dimmed_other" as const }];
@@ -4105,7 +4100,7 @@ export default function SmartBarMobileShell({
           })),
         ];
       })
-    : statusFilteredCartLines;
+    : lines;
   const checkoutReady = !genericResult && lines.length > 0 && cartGuidanceStatus === null;
   const handoffLocked = handoffState !== "idle";
   const restaurantCalculatedPricing = orderPricingMode === "restaurant-calculated";
@@ -4417,7 +4412,6 @@ export default function SmartBarMobileShell({
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
     setSelectedLineId(null);
-    setCartStatusFilter(null);
     setLineOverrides({});
     setReviewedOptionLineKeys({});
     setHasCart(false);
@@ -4444,7 +4438,6 @@ export default function SmartBarMobileShell({
     setGenericResult(null);
     setMeasuredGenericPanelHeight(null);
     setSelectedLineId(null);
-    setCartStatusFilter(null);
     setLineOverrides({});
     setReviewedOptionLineKeys({});
     setHasCart(false);
@@ -4531,7 +4524,6 @@ export default function SmartBarMobileShell({
     choiceMutationRevisionRef.current += 1;
     setHandoffState("idle");
     setSelectedLineId(null);
-    setCartStatusFilter(null);
     setLineOverrides({});
     // Keep reviewed option keys across follow-up submits so yellow rows do not revert after add-item.
     setGenericResult(null);
@@ -4747,7 +4739,6 @@ export default function SmartBarMobileShell({
 
     if (demoMontageStage.surface.startsWith("booking_")) {
       setSelectedLineId(null);
-      setCartStatusFilter(null);
       setOrderLines([]);
       setOrderEstimatedSubtotal(undefined);
       setOrderEstimatedTax(undefined);
@@ -4759,7 +4750,6 @@ export default function SmartBarMobileShell({
     if (demoMontageStage.surface === "confirmation") {
       const isWalkthroughConfirmation = demoWalkthroughCartMode;
       setSelectedLineId(null);
-      setCartStatusFilter(null);
       if (isWalkthroughConfirmation) {
         setOrderLines(smartBarMobileWalkthroughPizzaLinesForState("correction"));
         setOrderEstimatedSubtotal("$26.97");
@@ -4797,7 +4787,6 @@ export default function SmartBarMobileShell({
         setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
       }
       setSelectedLineId(null);
-      setCartStatusFilter(null);
       return;
     }
 
@@ -4814,7 +4803,6 @@ export default function SmartBarMobileShell({
         setOrderEstimatedTotal(smartBarMobileSocialMontageTotal);
       }
       setSelectedLineId(null);
-      setCartStatusFilter(null);
       setHandoffState("handing_off");
       return;
     }
@@ -4866,7 +4854,6 @@ export default function SmartBarMobileShell({
         }
         setSelectedLineId("social-montage-requirement");
       }
-      setCartStatusFilter(null);
       return;
     }
 
@@ -4905,19 +4892,16 @@ export default function SmartBarMobileShell({
         }
         setSelectedLineId("social-montage-extras");
       }
-      setCartStatusFilter(null);
       return;
     }
 
     if (demoMontageStage.surface === "corrections") {
       setSelectedLineId(demoWalkthroughCartMode ? "walkthrough-pizza-garstix" : "social-montage-correction");
-      setCartStatusFilter(null);
       setRetryDraft(demoMontageStage.retryDraft || "");
       return;
     }
 
     setSelectedLineId(null);
-    setCartStatusFilter(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [demoMontageStage?.id, demoMontageStage?.open, demoMontageStage?.surface, demoWalkthroughCartMode, sendOrderNumber]);
 
@@ -4932,7 +4916,6 @@ export default function SmartBarMobileShell({
     if (line.isExpandableBundle && line.bundleComponents?.length) {
       setSelectedLineId(null);
       setSelectedDetailMode("choices");
-      setCartStatusFilter(null);
       setExpandedBundleLineId(smartBarMobileLineInstanceKey(line));
       setCartExpanded(true);
       return;
@@ -5760,7 +5743,6 @@ export default function SmartBarMobileShell({
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
     setExpandedBundleLineId(null);
-    setCartStatusFilter(null);
     setCartExpanded(true);
     setEntryDraft("");
     setHasEditedEntryDraft(false);
@@ -5812,7 +5794,6 @@ export default function SmartBarMobileShell({
     disarmClose();
     setSelectedLineId(null);
     setExpandedBundleLineId(null);
-    setCartStatusFilter(null);
     setCartExpanded(true);
   };
 
@@ -5830,7 +5811,6 @@ export default function SmartBarMobileShell({
     setRetryCheckingLineId(null);
     setSelectedLineId(null);
     setExpandedBundleLineId(null);
-    setCartStatusFilter(null);
     setCartExpanded(true);
     setHandoffState("handing_off");
 
@@ -6217,13 +6197,6 @@ export default function SmartBarMobileShell({
     }
 
     if (phase === "cart" && expandedBundleLineId) return;
-
-    if (phase === "cart" && effectiveCartGuidanceStatus) {
-      setSelectedLineId(null);
-      setCartExpanded(true);
-      setCartStatusFilter(effectiveCartGuidanceStatus);
-      return;
-    }
 
     if (phase === "cart" && checkoutReady) {
       startCheckoutHandoff();

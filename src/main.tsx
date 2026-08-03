@@ -29,7 +29,7 @@ const TOURBOT_AUTH_TOKEN_KEY = "tourbot_demo_token";
 const TOURBOT_AUTH_TOKEN_EXPIRES_AT_KEY = "tourbot_demo_token_expires_at";
 const TOURBOT_LOCAL_DEV_TOKEN = "local-dev";
 const TOURBOT_LOCAL_DEV_TTL_SECONDS = 3600;
-const SMARTBAR_HOSTNAMES = new Set(["smartbar.getn2ai.com"]);
+const SMARTBAR_HOSTNAMES = new Set(["smartbar.getn2ai.com", "smartbar.localhost"]);
 
 function normalizedPath() {
   return window.location.pathname.replace(/\/$/, "") || "/";
@@ -156,7 +156,7 @@ function isLocalDemoAuthBypassEnabled() {
   const hostname = window.location.hostname;
 
   return (
-    ["localhost", "127.0.0.1"].includes(hostname) ||
+    ["localhost", "127.0.0.1", "smartbar.localhost"].includes(hostname) ||
     /^192\.168\.\d+\.\d+$/.test(hostname)
   );
 }
