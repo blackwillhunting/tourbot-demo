@@ -1840,9 +1840,13 @@ function smartBarMobileCandidateSelectionFailureMessage(result: SmartBarMobileSu
 }
 
 function smartBarMobileDisplayedLineHelper(line: SmartBarMobileOrderLine) {
-  return line.candidateResolution
-    ? "One quick choice will narrow this down"
-    : line.helper;
+  if (line.status === "unknown") {
+    return line.candidateResolution
+      ? "See some suggestions?"
+      : "Add as a note?";
+  }
+
+  return line.helper;
 }
 
 
