@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, LayoutGrid } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Info, LayoutGrid } from "lucide-react";
 import type { CarryoutOrder } from "../TourBarOrdering";
 import SmartBarMobileShell, {
   type SmartBarMobileApplyChoiceMeta,
@@ -42,6 +42,14 @@ const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const SMARTBAR_TICKET_SCORE_URL = "/api/smartbar-tickets/score";
 const SMARTBAR_PLAYGROUND_BOARD_REFRESH_DELAY_MS = 650;
+const SMARTBAR_PLAYGROUND_INTRO_SESSION_PREFIX = "smartbar-playground-intro-v1";
+
+function smartBarPlaygroundCoverageSections(value: string) {
+  return String(value || "")
+    .split("|")
+    .map((section) => section.trim())
+    .filter(Boolean);
+}
 
 type SmartBarTicketCreateResponse = {
   ok?: boolean;
@@ -651,6 +659,65 @@ export default function SmartBarPlayground({
   const [nextStepRequested, setNextStepRequested] = useState(false);
   const [nextStepError, setNextStepError] = useState("");
   const [containedPanelMaxHeight, setContainedPanelMaxHeight] = useState<number | undefined>(undefined);
+  const [playgroundIntroOpen, setPlaygroundIntroOpen] = useState(false);
+
+  const playgroundCoverageMode = String(activeVendorContext.playgroundCoverageMode || "")
+    .trim()
+    .toLowerCase();
+  const playgroundCoverageSections = useMemo(
+    () => smartBarPlaygroundCoverageSections(activeVendorContext.playgroundCoverageSections),
+    [activeVendorContext.playgroundCoverageSections],
+  );
+  const playgroundIntroEnabled =
+    playgroundCoverageMode === "full" ||
+    (playgroundCoverageMode === "selected" && playgroundCoverageSections.length > 0);
+  const playgroundIntroSessionKey = useMemo(() => {
+    const contextKey = [
+      activeVendorContext.vendorId,
+      activeVendorContext.menuProfileId,
+      activeVendorContext.clientId,
+      playgroundCoverageMode,
+      playgroundCoverageSections.join("|"),
+    ]
+      .map((value) => String(value || "").trim())
+      .filter(Boolean)
+      .join(":") || "default";
+
+    return `${SMARTBAR_PLAYGROUND_INTRO_SESSION_PREFIX}:${contextKey}`;
+  }, [
+    activeVendorContext.clientId,
+    activeVendorContext.menuProfileId,
+    activeVendorContext.vendorId,
+    playgroundCoverageMode,
+    playgroundCoverageSections,
+  ]);
+
+  useEffect(() => {
+    if (!playgroundIntroEnabled) {
+      setPlaygroundIntroOpen(false);
+      return;
+    }
+
+    let dismissedForSession = false;
+
+    try {
+      dismissedForSession = window.sessionStorage.getItem(playgroundIntroSessionKey) === "dismissed";
+    } catch {
+      dismissedForSession = false;
+    }
+
+    setPlaygroundIntroOpen(!dismissedForSession);
+  }, [playgroundIntroEnabled, playgroundIntroSessionKey]);
+
+  const dismissPlaygroundIntro = useCallback(() => {
+    setPlaygroundIntroOpen(false);
+
+    try {
+      window.sessionStorage.setItem(playgroundIntroSessionKey, "dismissed");
+    } catch {
+      // The intro still closes when session storage is unavailable.
+    }
+  }, [playgroundIntroSessionKey]);
 
   useLayoutEffect(() => {
     const frame = playgroundShellFrameRef.current;
@@ -1371,6 +1438,88 @@ export default function SmartBarPlayground({
 
       <div className="relative h-[min(650px,calc(100svh-132px))] min-h-[560px] overflow-hidden rounded-[34px] bg-[#e9f6ff] shadow-[0_24px_70px_rgba(14,116,144,0.16)] ring-1 ring-sky-100/90">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.88),transparent_44%),linear-gradient(180deg,rgba(255,255,255,0.44),rgba(232,246,255,0.26))]" />
+
+        {playgroundIntroEnabled && !playgroundIntroOpen && !pickupConfirmationOpen ? (
+          <button
+            type="button"
+            onClick={() => setPlaygroundIntroOpen(true)}
+            className="absolute left-3 top-3 z-[80] inline-flex items-center rounded-full bg-white/92 px-3 py-2 text-xs font-bold text-sky-800 shadow-[0_10px_24px_rgba(14,116,144,0.18)] ring-1 ring-sky-200/90 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white"
+            aria-label={`Open playground coverage information for ${restaurantName}`}
+          >
+            <Info className="mr-1.5 h-3.5 w-3.5" />
+            Coverage
+          </button>
+        ) : null}
+
+        {playgroundIntroEnabled && playgroundIntroOpen ? (
+          <div className="absolute inset-0 z-[130] flex items-center justify-center bg-slate-950/28 p-4 backdrop-blur-[3px]">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="smartbar-playground-intro-title"
+              aria-describedby="smartbar-playground-intro-description"
+              className="w-full max-w-[370px] rounded-[28px] bg-white/96 p-5 shadow-[0_28px_80px_rgba(15,23,42,0.30)] ring-1 ring-white/90 backdrop-blur-xl"
+            >
+              <div
+                title={restaurantName}
+                className="inline-flex max-w-full items-center justify-center whitespace-normal break-words rounded-[18px] bg-sky-100 px-4 py-2 text-center text-xs font-black leading-4 text-sky-800 ring-1 ring-sky-200/80"
+              >
+                {restaurantName}
+              </div>
+
+              <h2
+                id="smartbar-playground-intro-title"
+                className="mt-3 text-[24px] font-black leading-[1.05] tracking-tight text-slate-950"
+              >
+                Order like a customer
+              </h2>
+
+              <div
+                id="smartbar-playground-intro-description"
+                className="mt-4 rounded-[20px] bg-sky-50/90 p-4 ring-1 ring-sky-100"
+              >
+                <div className="text-xs font-black uppercase tracking-[0.12em] text-sky-800">
+                  {playgroundCoverageMode === "full"
+                    ? "This playground includes"
+                    : "This playground covers"}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(playgroundCoverageMode === "full"
+                    ? ["Full menu"]
+                    : playgroundCoverageSections
+                  ).map((section) => (
+                    <span
+                      key={section}
+                      className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-sky-100"
+                    >
+                      {section}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-3 text-sm font-medium leading-5 text-slate-600">
+                <p>
+                  No special instructions are provided because customers will not receive any either.
+                  
+                </p>
+                <p>
+                  After you send your order, the <span className="font-bold text-slate-900">Order Board</span>{" "}
+                  shows the ticket the restaurant receives.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={dismissPlaygroundIntro}
+                className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-sky-700 px-5 py-3 text-sm font-black text-white shadow-[0_12px_28px_rgba(3,105,161,0.28)] transition hover:-translate-y-0.5 hover:bg-sky-800"
+              >
+                Start ordering
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {pickupConfirmationOpen ? (
           <div className={[

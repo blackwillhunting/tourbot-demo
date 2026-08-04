@@ -7,6 +7,8 @@ export type SmartBarVendorContext = {
   behaviorProfileId: string;
   boardProfileId: string;
   timezone: string;
+  playgroundCoverageMode: string;
+  playgroundCoverageSections: string;
   onboardingStatus: string;
   isReadyForOrders: boolean;
   readyForOrdersUtc: string;
@@ -47,6 +49,8 @@ export const SMARTBAR_DEFAULT_VENDOR_CONTEXT: SmartBarVendorContext = Object.fre
   behaviorProfileId: "burger-rush-smartbar-v1",
   boardProfileId: "standard-order-board-v1",
   timezone: "America/New_York",
+  playgroundCoverageMode: "",
+  playgroundCoverageSections: "",
   onboardingStatus: "",
   isReadyForOrders: false,
   readyForOrdersUtc: "",
@@ -173,6 +177,19 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     (useStandalonePrototypeDefaults ? SMARTBAR_DEFAULT_VENDOR_CONTEXT.behaviorProfileId : "");
   const boardProfileId = smartBarVendorPickString(merged, ["boardProfileId", "board_profile_id", "BoardProfileId"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.boardProfileId;
   const timezone = smartBarVendorPickString(merged, ["timezone", "timeZone", "time_zone", "Timezone", "TimeZone"]) || SMARTBAR_DEFAULT_VENDOR_CONTEXT.timezone;
+  const rawPlaygroundCoverageMode = smartBarVendorPickString(merged, [
+    "playgroundCoverageMode",
+    "playground_coverage_mode",
+    "PlaygroundCoverageMode",
+  ]).toLowerCase();
+  const playgroundCoverageMode = ["full", "selected"].includes(rawPlaygroundCoverageMode)
+    ? rawPlaygroundCoverageMode
+    : "";
+  const playgroundCoverageSections = smartBarVendorPickString(merged, [
+    "playgroundCoverageSections",
+    "playground_coverage_sections",
+    "PlaygroundCoverageSections",
+  ]);
   const onboardingStatus = smartBarVendorPickString(merged, ["onboardingStatus", "onboarding_status", "OnboardingStatus"]);
   const isReadyForOrders = smartBarVendorPickBoolean(merged, ["isReadyForOrders", "is_ready_for_orders", "readyForOrders", "ReadyForOrders", "IsReadyForOrders"]);
   const readyForOrdersUtc = smartBarVendorPickString(merged, ["readyForOrdersUtc", "ready_for_orders_utc", "ReadyForOrdersUtc"]);
@@ -210,6 +227,8 @@ export function normalizeSmartBarVendorContext(value?: unknown, demoPathFallback
     behaviorProfileId,
     boardProfileId,
     timezone,
+    playgroundCoverageMode,
+    playgroundCoverageSections,
     onboardingStatus,
     isReadyForOrders,
     readyForOrdersUtc,
