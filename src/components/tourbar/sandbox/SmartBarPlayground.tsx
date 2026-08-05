@@ -42,7 +42,6 @@ const SMARTBAR_TICKET_CREATE_URL = "/api/smartbar-tickets/create";
 const SMARTBAR_TICKET_LIST_URL = "/api/smartbar-tickets/list";
 const SMARTBAR_TICKET_SCORE_URL = "/api/smartbar-tickets/score";
 const SMARTBAR_PLAYGROUND_BOARD_REFRESH_DELAY_MS = 650;
-const SMARTBAR_PLAYGROUND_INTRO_SESSION_PREFIX = "smartbar-playground-intro-v1";
 
 function smartBarPlaygroundCoverageSections(value: string) {
   return String(value || "")
@@ -671,53 +670,17 @@ export default function SmartBarPlayground({
   const playgroundIntroEnabled =
     playgroundCoverageMode === "full" ||
     (playgroundCoverageMode === "selected" && playgroundCoverageSections.length > 0);
-  const playgroundIntroSessionKey = useMemo(() => {
-    const contextKey = [
-      activeVendorContext.vendorId,
-      activeVendorContext.menuProfileId,
-      activeVendorContext.clientId,
-      playgroundCoverageMode,
-      playgroundCoverageSections.join("|"),
-    ]
-      .map((value) => String(value || "").trim())
-      .filter(Boolean)
-      .join(":") || "default";
-
-    return `${SMARTBAR_PLAYGROUND_INTRO_SESSION_PREFIX}:${contextKey}`;
+  useEffect(() => {
+    setPlaygroundIntroOpen(playgroundIntroEnabled);
   }, [
-    activeVendorContext.clientId,
     activeVendorContext.menuProfileId,
     activeVendorContext.vendorId,
-    playgroundCoverageMode,
-    playgroundCoverageSections,
+    playgroundIntroEnabled,
   ]);
-
-  useEffect(() => {
-    if (!playgroundIntroEnabled) {
-      setPlaygroundIntroOpen(false);
-      return;
-    }
-
-    let dismissedForSession = false;
-
-    try {
-      dismissedForSession = window.sessionStorage.getItem(playgroundIntroSessionKey) === "dismissed";
-    } catch {
-      dismissedForSession = false;
-    }
-
-    setPlaygroundIntroOpen(!dismissedForSession);
-  }, [playgroundIntroEnabled, playgroundIntroSessionKey]);
 
   const dismissPlaygroundIntro = useCallback(() => {
     setPlaygroundIntroOpen(false);
-
-    try {
-      window.sessionStorage.setItem(playgroundIntroSessionKey, "dismissed");
-    } catch {
-      // The intro still closes when session storage is unavailable.
-    }
-  }, [playgroundIntroSessionKey]);
+  }, []);
 
   useLayoutEffect(() => {
     const frame = playgroundShellFrameRef.current;
