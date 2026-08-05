@@ -1500,12 +1500,12 @@ export default function SmartBarPlayground({
 
               <div className="mt-4 space-y-3 text-sm font-medium leading-5 text-slate-600">
                 <p>
-                  No special instructions are provided because customers will not receive any either.
+                  No instructions are shown because customers won't see any.
                   
                 </p>
                 <p>
-                  After you send your order, the <span className="font-bold text-slate-900">Order Board</span>{" "}
-                  shows the ticket the restaurant receives.
+                  After you send orders, the <span className="font-bold text-slate-900">Order Board</span>{" "}
+                  shows what you receive.
                 </p>
               </div>
 
