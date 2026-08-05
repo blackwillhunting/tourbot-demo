@@ -1849,6 +1849,100 @@ function smartBarMobileDisplayedLineHelper(line: SmartBarMobileOrderLine) {
   return line.helper;
 }
 
+function smartBarMobileCartStatusPillLabel(line: SmartBarMobileOrderLine) {
+  if (line.isCustomerNote) return "Note";
+  if (line.status === "ready") {
+    return /reviewed and ready/i.test(String(line.helper || ""))
+      ? "Reviewed"
+      : "Ready";
+  }
+  if (line.status === "pending") return "Required";
+  if (line.status === "options") return "Extras";
+  return "Unclear";
+}
+
+function smartBarMobileCartStatusHelper(line: SmartBarMobileOrderLine) {
+  const helper = smartBarMobileDisplayedLineHelper(line);
+  if (line.isCustomerNote) return helper;
+
+  if (line.status === "ready") {
+    if (/reviewed and ready/i.test(helper)) return "Options checked";
+    if (/^(matched and ready|ready for checkout|all included items ready|re-entered and matched)$/i.test(helper)) {
+      return "";
+    }
+  }
+
+  if (line.status === "options") return "Customize if you’d like";
+  return helper;
+}
+
+function smartBarMobileCartStatusPillClass(
+  line: SmartBarMobileOrderLine,
+  handoffLocked = false,
+) {
+  if (handoffLocked) {
+    return "border-white/28 bg-white/14 text-white ring-white/14";
+  }
+  if (line.isCustomerNote) {
+    return "border-sky-100/78 bg-sky-50/76 text-slate-900 ring-sky-200/54";
+  }
+  if (line.status === "ready") {
+    return "border-white/72 bg-white/48 text-slate-900 ring-emerald-100/58";
+  }
+  if (line.status === "pending") {
+    return "border-red-100/72 bg-white/18 text-white ring-red-50/30";
+  }
+  if (line.status === "options") {
+    return "border-amber-200/82 bg-amber-100/92 text-amber-950 ring-amber-50/72";
+  }
+  return "border-white/72 bg-white/58 text-slate-900 ring-slate-200/72";
+}
+
+function SmartBarMobileCartStatusSummary({
+  line,
+  handoffLocked = false,
+  reserveRemoveSpace = false,
+}: {
+  line: SmartBarMobileOrderLine;
+  handoffLocked?: boolean;
+  reserveRemoveSpace?: boolean;
+}) {
+  const label = smartBarMobileCartStatusPillLabel(line);
+  const helper = smartBarMobileCartStatusHelper(line);
+
+  return (
+    <div
+      className={`mt-2 flex max-w-full flex-wrap items-center gap-x-2 gap-y-1.5 ${reserveRemoveSpace ? "mr-10 max-w-[calc(100%_-_2.5rem)]" : ""}`}
+    >
+      <span
+        data-smartbar-mobile-status-pill={label.toLowerCase()}
+        data-smartbar-mobile-ready-indicator={line.status === "ready" ? "true" : undefined}
+        data-smartbar-mobile-optional-indicator={line.status === "options" ? "true" : undefined}
+        data-smartbar-mobile-customer-note={line.isCustomerNote ? "true" : undefined}
+        className={`inline-flex min-h-[32px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-[13px] font-black leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_2px_6px_rgba(15,23,42,0.08)] ring-1 ${smartBarMobileCartStatusPillClass(line, handoffLocked)}`}
+      >
+        {line.isCustomerNote ? (
+          <StickyNote className="h-3.5 w-3.5 shrink-0 stroke-[2.45]" aria-hidden="true" />
+        ) : line.status === "ready" ? (
+          <BadgeCheck className="h-3.5 w-3.5 shrink-0 stroke-[2.45]" aria-hidden="true" />
+        ) : line.status === "options" ? (
+          <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 stroke-[2.45]" aria-hidden="true" />
+        ) : (
+          <CircleHelp className="h-3.5 w-3.5 shrink-0 stroke-[2.45]" aria-hidden="true" />
+        )}
+        <span>{label}</span>
+      </span>
+      {helper ? (
+        <span
+          className={`min-w-0 text-sm font-semibold leading-[1.2] ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}
+        >
+          {helper}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 
 const SMARTBAR_MOBILE_FORCED_SPOTLIGHT_MS = 7000;
 
@@ -7800,24 +7894,10 @@ export default function SmartBarMobileShell({
                                   - {smartBarMobileCompactRowHelper(line)}
                                 </div>
                               ) : !demoCompactCartRows && !line.demoHideMeta && line.status !== "options" ? (
-                                line.status === "ready" ? (
-                                  <div
-                                    data-smartbar-mobile-ready-indicator="true"
-                                    data-smartbar-mobile-customer-note={line.isCustomerNote ? "true" : undefined}
-                                    className={`mt-2 inline-flex min-h-[34px] max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-[15px] font-medium leading-[1.15] text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_2px_6px_rgba(15,23,42,0.08)] ring-1 ${line.isCustomerNote ? "border-sky-100/78 bg-sky-50/76 ring-sky-200/54" : "border-white/72 bg-white/48 ring-emerald-100/58"}`}
-                                  >
-                                    {line.isCustomerNote ? (
-                                      <StickyNote className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
-                                    ) : (
-                                      <BadgeCheck className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
-                                    )}
-                                    <span>{smartBarMobileDisplayedLineHelper(line)}</span>
-                                  </div>
-                                ) : (
-                                  <div className={`mt-1 text-sm font-semibold ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
-                                    {smartBarMobileDisplayedLineHelper(line)}
-                                  </div>
-                                )
+                                <SmartBarMobileCartStatusSummary
+                                  line={line}
+                                  handoffLocked={handoffLocked}
+                                />
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
@@ -7844,12 +7924,12 @@ export default function SmartBarMobileShell({
                             </div>
                           </div>
                           {!line.demoHideMeta && !demoCompactCartRows && line.status === "options" ? (
-                            <div
-                              data-smartbar-mobile-optional-indicator="true"
-                              className="relative z-10 mt-2.5 mr-10 inline-flex min-h-[34px] max-w-[calc(100%_-_2.5rem)] items-center gap-2 rounded-full border border-amber-200/82 bg-amber-100/92 px-3 py-1.5 text-[15px] font-medium leading-[1.15] text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.62),0_2px_6px_rgba(146,64,14,0.10)] ring-1 ring-amber-50/72"
-                            >
-                              <SlidersHorizontal className="h-4 w-4 shrink-0 stroke-[2.35]" aria-hidden="true" />
-                              <span>Customize if you’d like</span>
+                            <div className="relative z-10">
+                              <SmartBarMobileCartStatusSummary
+                                line={line}
+                                handoffLocked={handoffLocked}
+                                reserveRemoveSpace
+                              />
                             </div>
                           ) : null}
                           </motion.div>
