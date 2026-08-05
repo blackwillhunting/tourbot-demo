@@ -1464,7 +1464,7 @@ export default function SmartBarPlayground({
               <div className="mt-4 space-y-3 text-sm font-medium leading-5 text-slate-600">
                 <p>
                  <span className="font-bold text-slate-900">SmartBar</span>{" "} tells you what to do. 
-                  The <span className="font-bold text-slate-900">Order Board</span>{" "} shows you what gets sent in.
+                  The <span className="font-bold text-slate-900">Order Board</span>{" "} shows you what you get.
                   
                 </p>
               </div>
