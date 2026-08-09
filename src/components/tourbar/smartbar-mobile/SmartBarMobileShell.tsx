@@ -1892,7 +1892,7 @@ function SmartBarMobileCartStatusSummary({
 
   return (
     <div
-      className={`mt-2 flex max-w-full flex-wrap items-center gap-x-2 gap-y-1.5 ${reserveRemoveSpace ? "mr-10 max-w-[calc(100%_-_2.5rem)]" : ""}`}
+      className={`mt-2 flex max-w-full flex-col items-start gap-1.5 ${reserveRemoveSpace ? "mr-10 max-w-[calc(100%_-_2.5rem)]" : ""}`}
     >
       <span
         data-smartbar-mobile-status-pill={label.toLowerCase()}
@@ -1914,7 +1914,7 @@ function SmartBarMobileCartStatusSummary({
       </span>
       {helper ? (
         <span
-          className={`min-w-0 text-sm font-semibold leading-[1.2] ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}
+          className={`block min-w-0 w-full text-[15px] font-semibold leading-[1.22] ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}
         >
           {helper}
         </span>
@@ -3266,10 +3266,69 @@ export default function SmartBarMobileShell({
   });
 
   const [phase, setPhase] = useState<SmartBarMobilePhase>("rest");
+  const hasDemoRestCompanion = Boolean(demoRestCompanion);
+  // Patch 2H: the resting launcher briefly teaches the distinct SmartBar
+  // interaction without mounting a permanent caption or opening the composer.
+  const [restTeachingExpanded, setRestTeachingExpanded] = useState(false);
+  const [restTeachingCancelled, setRestTeachingCancelled] = useState(false);
+  // Incremented when the browser restores this home-page document from the
+  // back/forward cache. That counts as a genuine return, so the teaching
+  // sequence is allowed to run again even though the React tree was preserved.
+  const [restTeachingVisitKey, setRestTeachingVisitKey] = useState(0);
 
   useEffect(() => {
     onCartOpenChange?.(phase === "building_cart" || phase === "cart");
   }, [onCartOpenChange, phase]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      setRestTeachingExpanded(false);
+      setRestTeachingCancelled(false);
+      setRestTeachingVisitKey((visitKey) => visitKey + 1);
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (phase !== "rest" || hasDemoRestCompanion || demoInteractionLocked || restTeachingCancelled) {
+      setRestTeachingExpanded(false);
+      return;
+    }
+
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      setRestTeachingExpanded(false);
+      return;
+    }
+
+    // Run the two teaching cycles on every fresh shell mount, including a
+    // browser refresh. A refresh is still a real opportunity to teach the
+    // interaction, and suppressing it makes the launcher appear broken during
+    // ordinary testing. Back/forward cache restores are also replayed via the
+    // visit key below.
+
+    setRestTeachingExpanded(false);
+
+    // Two deliberate teaching cycles, then silence. The pill never opens the
+    // composer automatically; it only unwraps horizontally.
+    const firstOpenTimer = window.setTimeout(() => setRestTeachingExpanded(true), 650);
+    const firstCloseTimer = window.setTimeout(() => setRestTeachingExpanded(false), 2850);
+    const secondOpenTimer = window.setTimeout(() => setRestTeachingExpanded(true), 3650);
+    const secondCloseTimer = window.setTimeout(() => setRestTeachingExpanded(false), 5850);
+
+    return () => {
+      window.clearTimeout(firstOpenTimer);
+      window.clearTimeout(firstCloseTimer);
+      window.clearTimeout(secondOpenTimer);
+      window.clearTimeout(secondCloseTimer);
+    };
+  }, [demoInteractionLocked, hasDemoRestCompanion, phase, restTeachingCancelled, restTeachingVisitKey]);
 
   const [entryDraft, setEntryDraft] = useState("");
   const [entryFocused, setEntryFocused] = useState(false);
@@ -3493,7 +3552,15 @@ export default function SmartBarMobileShell({
   };
 
   const cartTogglePillSize = 46;
-  const restLauncherPillWidth = Math.min(142, entryPillWidth);
+  // The compact state stays thumb-friendly while leaving enough room for
+  // "Tap to order". The teaching state only unwraps horizontally.
+  const restLauncherCompactPillWidth = Math.min(170, entryPillWidth);
+  const restLauncherTeachingPillWidth = Math.min(238, entryPillWidth);
+  const restLauncherPillWidth = demoRestCompanion
+    ? Math.min(142, entryPillWidth)
+    : restTeachingExpanded
+      ? restLauncherTeachingPillWidth
+      : restLauncherCompactPillWidth;
   // Patch 2: once SmartBar is communicating, the center caption owns the full
   // lane between the two side controls. The resting launcher remains compact.
   const expandedLauncherPillWidth = Math.max(120, entryPillWidth - (cartTogglePillSize * 2));
@@ -5913,7 +5980,8 @@ export default function SmartBarMobileShell({
     }
     if (phase === "rest") {
       if (demoRestCompanion?.blank) return "";
-      return demoRestCompanion?.label || "Order";
+      if (demoRestCompanion?.label) return demoRestCompanion.label;
+      return restTeachingExpanded ? "Just say your order" : "Tap to order";
     }
     if (pickupConfirmationOpen) return "Tap X to close";
     if (closeArmed) return "Tap X again";
@@ -6089,6 +6157,9 @@ export default function SmartBarMobileShell({
     if (handoffLocked) return;
 
     if (phase === "rest") {
+      // Any real SmartBar interaction ends the automatic teaching sequence
+      // for this visit. A genuine later return to the page may teach again.
+      setRestTeachingCancelled(true);
       setPhase("entry");
       return;
     }
@@ -6728,7 +6799,7 @@ export default function SmartBarMobileShell({
     : SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE;
   const companionTextClass = phase === "rest"
     ? "text-white"
-    : "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.62)]";
+    : "text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.78)]";
   const {
     rootTextClass,
     upperGlassClass,
@@ -6996,7 +7067,7 @@ export default function SmartBarMobileShell({
                 exit={{ opacity: 0, y: 18, scaleY: 0.92 }}
                 transition={{ delay: 0.10, duration: 0.32, ease: [0.18, 0.88, 0.28, 1] }}
               >
-                <div className="mb-2 px-1 text-[13px] font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.62)]">
+                <div className="mb-2 px-1 text-[15px] font-bold text-white [text-shadow:0_1px_5px_rgba(0,0,0,0.78)]">
                   Say or type your order...
                 </div>
                 <div className="relative h-[calc(100%_-_30px)] rounded-[18px] border border-white/18 bg-slate-950/20 shadow-[inset_0_1px_12px_rgba(0,0,0,0.10)]">
@@ -7025,7 +7096,7 @@ export default function SmartBarMobileShell({
                     onBlur={() => setEntryFocused(false)}
                     readOnly={demoInteractionLocked}
                     tabIndex={demoInteractionLocked ? -1 : undefined}
-                    className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-3 text-left text-[16px] font-normal leading-5 outline-none ring-0 placeholder:text-white/48 ${
+                    className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-3 text-left text-[17px] font-medium leading-[1.35] outline-none ring-0 placeholder:font-medium placeholder:text-white/84 ${
                       demoInteractionLocked
                         ? "text-white caret-transparent selection:bg-transparent"
                         : "text-white caret-white selection:bg-white/24"
@@ -7034,7 +7105,7 @@ export default function SmartBarMobileShell({
                       caretColor: demoInteractionLocked ? "transparent" : "#fff",
                       whiteSpace: "pre-wrap",
                       overflowWrap: "break-word",
-                      textShadow: "0 1px 3px rgba(0,0,0,0.30)",
+                      textShadow: "0 1px 4px rgba(0,0,0,0.56)",
                     }}
                     placeholder="I'd like..."
                     spellCheck={false}
@@ -8191,16 +8262,27 @@ export default function SmartBarMobileShell({
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
-              <span className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap ${demoRestCompanionIsBlank ? "px-0" : "px-4"} text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}>
+              <span
+                className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap ${demoRestCompanionIsBlank ? "px-0" : "px-2"} text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}
+                style={{ textShadow: "0 1px 5px rgba(0,0,0,0.78)" }}
+              >
                 {restLauncherShowMic ? (
-                  <Mic className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.2} />
+                  <Mic
+                    className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`}
+                    strokeWidth={2.35}
+                    style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.72))" }}
+                  />
                 ) : demoRestCompanionShowLogo ? (
-                  <Compass className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.25} />
+                  <Compass
+                    className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`}
+                    strokeWidth={2.4}
+                    style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.72))" }}
+                  />
                 ) : null}
                 {companionLabel ? <span>{companionLabel}</span> : null}
               </span>
             ) : (
-              <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
+              <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[17px] font-bold tracking-[-0.015em] ${companionTextClass}`}>
                 {companionCaptionNode}
               </span>
             )}
