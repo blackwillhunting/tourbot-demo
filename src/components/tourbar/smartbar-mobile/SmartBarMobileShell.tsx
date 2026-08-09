@@ -5981,7 +5981,7 @@ export default function SmartBarMobileShell({
     if (phase === "rest") {
       if (demoRestCompanion?.blank) return "";
       if (demoRestCompanion?.label) return demoRestCompanion.label;
-      return restTeachingExpanded ? "Just say your order" : "Tap to order";
+      return restTeachingExpanded ? "Just say what you want" : "Tap to order";
     }
     if (pickupConfirmationOpen) return "Tap X to close";
     if (closeArmed) return "Tap X again";
