@@ -646,13 +646,10 @@ export default function BurgerRushMobileExperience({ demoFixtureMode = false }: 
     >
       <BurgerRushMobileProductSurface hideMobileBrowseControls={demoFixtureMode} />
       <div aria-hidden="true" className="h-[420px] sm:hidden" />
-      <SmartBarMobileShell
-        mode="overlay"
-        demoTransitionShield={demoFixtureMode}
-        introCallout={{
-          title: "Tap to say or type your order",
-        }}
-        onSubmitPrompt={handleSubmitPrompt}
+<SmartBarMobileShell
+  mode="overlay"
+  demoTransitionShield={demoFixtureMode}
+  onSubmitPrompt={handleSubmitPrompt}
         onApplyLineChoice={handleApplyLineChoice}
         onRemoveLine={handleRemoveLine}
         onSaveUnknownAsNote={handleSaveUnknownAsNote}
