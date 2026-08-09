@@ -13,6 +13,7 @@ import {
   GitBranch,
   ListOrdered,
   LoaderCircle,
+  Mic,
   Package,
   Paperclip,
   Plus,
@@ -1760,55 +1761,34 @@ const SMARTBAR_MOBILE_BLUE_CONTROL_STYLE: CSSProperties = {
   WebkitBackdropFilter: "blur(18px) saturate(120%)",
 };
 
-const SMARTBAR_MOBILE_GREEN_CONTROL_STYLE: CSSProperties = {
-  background:
-    "linear-gradient(180deg, rgba(52,211,153,0.99) 0%, rgba(16,185,129,0.99) 52%, rgba(5,150,105,0.99) 100%)",
-  borderColor: "rgba(209,250,229,0.82)",
+// Launcher/composer material approved in the local background stress test.
+// It deliberately preserves the impression of clear glass while keeping white
+// chrome/text legible over arbitrary restaurant-site backgrounds.
+const SMARTBAR_MOBILE_LAUNCHER_GLASS_STYLE: CSSProperties = {
+  background: "rgba(30,40,52,0.30)",
+  borderColor: "rgba(255,255,255,0.32)",
   boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -1px 0 rgba(6,95,70,0.46), 0 16px 38px rgba(5,150,105,0.26), 0 5px 14px rgba(2,6,23,0.18)",
-  backdropFilter: "blur(18px) saturate(125%)",
-  WebkitBackdropFilter: "blur(18px) saturate(125%)",
+    "inset 0 1px 0 rgba(255,255,255,0.27), inset 0 -1px 0 rgba(0,0,0,0.10), 0 11px 34px rgba(0,0,0,0.25)",
+  backdropFilter: "blur(28px) saturate(145%)",
+  WebkitBackdropFilter: "blur(28px) saturate(145%)",
 };
 
-const SMARTBAR_MOBILE_FOOTER_RED_STYLE: CSSProperties = {
-  background:
-    "linear-gradient(180deg, rgba(239,68,68,0.98) 0%, rgba(220,38,38,0.98) 52%, rgba(153,27,27,0.99) 100%)",
-  borderColor: "rgba(254,226,226,0.74)",
+const SMARTBAR_MOBILE_COMPOSER_GLASS_STYLE: CSSProperties = {
+  background: "rgba(29,39,51,0.32)",
+  borderColor: "rgba(255,255,255,0.32)",
   boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -1px 0 rgba(127,29,29,0.50), 0 16px 38px rgba(127,29,29,0.26), 0 5px 14px rgba(2,6,23,0.18)",
-  backdropFilter: "blur(18px) saturate(125%)",
-  WebkitBackdropFilter: "blur(18px) saturate(125%)",
+    "inset 0 1px 0 rgba(255,255,255,0.27), inset 0 -1px 0 rgba(0,0,0,0.10), 0 11px 34px rgba(0,0,0,0.25)",
+  backdropFilter: "blur(28px) saturate(145%)",
+  WebkitBackdropFilter: "blur(28px) saturate(145%)",
 };
 
-const SMARTBAR_MOBILE_FOOTER_GRAY_STYLE: CSSProperties = {
-  background:
-    "linear-gradient(180deg, rgba(226,232,240,0.98) 0%, rgba(203,213,225,0.98) 52%, rgba(148,163,184,0.99) 100%)",
-  borderColor: "rgba(248,250,252,0.82)",
-  boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.38), inset 0 -1px 0 rgba(71,85,105,0.42), 0 16px 38px rgba(71,85,105,0.24), 0 5px 14px rgba(2,6,23,0.16)",
-  backdropFilter: "blur(18px) saturate(120%)",
-  WebkitBackdropFilter: "blur(18px) saturate(120%)",
+const SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE: CSSProperties = {
+  background: "transparent",
+  borderColor: "transparent",
+  boxShadow: "none",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
 };
-
-function smartBarMobileFooterPolicyStyle(status: SmartBarMobileOrderStatus | null): CSSProperties {
-  if (status === "pending") return SMARTBAR_MOBILE_FOOTER_RED_STYLE;
-  if (status === "unknown") return SMARTBAR_MOBILE_FOOTER_GRAY_STYLE;
-
-  return SMARTBAR_MOBILE_BLUE_CONTROL_STYLE;
-}
-
-function smartBarMobileFooterPolicyTextClass(status: SmartBarMobileOrderStatus | null) {
-  if (status === "pending") {
-    return "!font-black text-white";
-  }
-
-  if (status === "unknown") {
-    return "!font-black text-slate-950 [text-shadow:0_1px_0_rgba(255,255,255,0.28)]";
-  }
-
-  return "text-white";
-}
-
 
 
 function smartBarMobileResultIsGeneric(
@@ -3235,7 +3215,6 @@ export default function SmartBarMobileShell({
   demoOptionCue = null,
   demoPresetEntryDraft = null,
   demoRestCompanion = null,
-  entryModeLabel = "Use phone mic or type",
   buildingLabel = "Building cart...",
   demoSubmission = null,
   demoSuppressEntryFocus = false,
@@ -3514,15 +3493,11 @@ export default function SmartBarMobileShell({
   };
 
   const cartTogglePillSize = 46;
-  const safariControlLeftGap = 8;
-  const safariControlRightGap = 8;
-  const launcherPillWidth = Math.min(
-    entryPillWidth -
-      (cartTogglePillSize * 2) -
-      safariControlLeftGap -
-      safariControlRightGap,
-    260,
-  );
+  const restLauncherPillWidth = Math.min(142, entryPillWidth);
+  // Patch 2: once SmartBar is communicating, the center caption owns the full
+  // lane between the two side controls. The resting launcher remains compact.
+  const expandedLauncherPillWidth = Math.max(120, entryPillWidth - (cartTogglePillSize * 2));
+  const launcherPillWidth = phase === "rest" ? restLauncherPillWidth : expandedLauncherPillWidth;
   const launcherPillLeft = Math.max(0, (entryPillWidth - launcherPillWidth) / 2);
   const realComposerHeight = 90;
   const entryComposerMaxHeight = Math.max(realComposerHeight, stableViewportHeight - 154 - keyboardLift);
@@ -3536,13 +3511,13 @@ export default function SmartBarMobileShell({
     return Math.min(entryComposerMaxHeight, Math.max(realComposerHeight, 54 + lineCount * 25));
   };
   const entryComposerHeight = phase === "entry"
-    ? smartBarMobileComposerHeightForDraft(entryDraft)
+    ? Math.max(132, smartBarMobileComposerHeightForDraft(entryDraft))
     : realComposerHeight;
+  const entryUnifiedShellHeight = entryComposerHeight + 58;
   const submittedPromptPreviewHeight = submittedPromptPreview.trim()
     ? smartBarMobileComposerHeightForDraft(submittedPromptPreview)
     : realComposerHeight;
   const buildPanelHeight = phase === "building_cart" ? submittedPromptPreviewHeight : realComposerHeight;
-  const entryComposerRadius = entryComposerHeight > realComposerHeight + 18 ? 30 : 999;
   const buildPanelRadius = buildPanelHeight > realComposerHeight + 18 ? 30 : 999;
   const collapsedCartPanelHeight = 90;
   const containedPanelHeightLimit = Number.isFinite(containedPanelMaxHeight)
@@ -5938,13 +5913,16 @@ export default function SmartBarMobileShell({
     }
     if (phase === "rest") {
       if (demoRestCompanion?.blank) return "";
-      return demoRestCompanion?.label || "SmartBar";
+      return demoRestCompanion?.label || "Order";
     }
     if (pickupConfirmationOpen) return "Tap X to close";
     if (closeArmed) return "Tap X again";
     if (handoffState === "handing_off") return "Sending...";
     if (handoffState === "complete") return "Sent";
-    if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : entryModeLabel;
+    // The open composer already teaches the interaction with its own
+    // "Say or type your order..." prompt. Keep the center rail quiet until
+    // there is an actionable submit state.
+    if (phase === "entry") return hasEditedEntryDraft && entryDraft.trim() ? "Tap to submit" : "";
     if (phase === "building_cart") {
       return buildingStatusLabel && buildingStatusLabel !== buildingLabel
         ? buildingStatusLabel
@@ -6006,8 +5984,8 @@ export default function SmartBarMobileShell({
     }
     if (phase === "cart" && selectedLine?.status === "options") return selectedLineRemainingOptionalReviewCount > 1 ? "Next options" : "Done";
     if (phase === "cart" && selectedLine) return "Back to cart";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red entries";
-    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Tap gray entries";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "pending") return "Tap red items";
+    if (phase === "cart" && effectiveCartGuidanceStatus === "unknown") return "Tap gray items";
     if (phase === "cart") return "Send order";
     if (checkoutReady) return restaurantCalculatedPricing ? "Ready to send" : `Ready to send - ${cartTotals.totalLabel}`;
     return restaurantCalculatedPricing
@@ -6015,12 +5993,95 @@ export default function SmartBarMobileShell({
       : `${unresolvedBlockingCount} need attention - ${cartTotals.totalLabel}`;
   })();
 
+  const companionCaptionNode = (() => {
+    const label = companionLabel;
+
+    if (label === "Tap red items") {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <span>Tap</span>
+          <span className="inline-flex h-6 items-center rounded-full border border-red-200/70 bg-red-500/92 px-2.5 text-[12px] font-black lowercase tracking-[0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_3px_8px_rgba(127,29,29,0.22)]">
+            red
+          </span>
+          <span>items</span>
+        </span>
+      );
+    }
+
+    if (label === "Tap gray items") {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <span>Tap</span>
+          <span className="inline-flex h-6 items-center rounded-full border border-white/24 bg-slate-600/88 px-2.5 text-[12px] font-black lowercase tracking-[0.01em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_3px_8px_rgba(15,23,42,0.22)]">
+            gray
+          </span>
+          <span>items</span>
+        </span>
+      );
+    }
+
+    if (/^(Building cart|Updating|Working|Sending)/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-2">
+          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" strokeWidth={2.2} />
+          <ThinkingText text={label} />
+        </span>
+      );
+    }
+
+    if (/^(Tap to submit|Next options|Continue selections)$/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <span>{label}</span>
+          <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+        </span>
+      );
+    }
+
+    if (/^(Back to cart|Back to special)$/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <ArrowLeft className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+          <span>{label}</span>
+        </span>
+      );
+    }
+
+    if (/^(Done|Done choosing|Finish included items)$/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <Check className="h-4 w-4 shrink-0" strokeWidth={2.4} />
+          <span>{label}</span>
+        </span>
+      );
+    }
+
+    if (/^(Send order|Ready to send)(?:\s|$)/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <BadgeCheck className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+          <span>{label}</span>
+        </span>
+      );
+    }
+
+    if (/^(Make a choice|Choose an item)$/i.test(label)) {
+      return (
+        <span className="inline-flex items-center justify-center gap-1.5">
+          <CircleHelp className="h-4 w-4 shrink-0" strokeWidth={2.2} />
+          <span>{label}</span>
+        </span>
+      );
+    }
+
+    return label;
+  })();
+
   const demoRestCompanionIsBlank = phase === "rest" && Boolean(demoRestCompanion?.blank);
   const demoRestCompanionShowLogo = phase === "rest"
-    ? demoRestCompanion
-      ? Boolean(demoRestCompanion.showLogo) && !demoRestCompanion.blank
-      : true
+    ? Boolean(demoRestCompanion?.showLogo) && !Boolean(demoRestCompanion?.blank)
     : false;
+  const restLauncherShowMic = phase === "rest" && !demoRestCompanion;
 
   const handleCompanionClick = () => {
     if (closeArmed) disarmClose();
@@ -6659,33 +6720,19 @@ export default function SmartBarMobileShell({
     !expandedBundleLineId &&
     !selectedLine &&
     !genericResult;
-  const genericCompanionPolicyStatus: SmartBarMobileOrderStatus | null = phase === "cart" && genericResult
-    ? /previewing|choose room|add room|tap packages|tap when done|review packages/i.test(genericResult.statusLabel || "")
-      ? "options"
-      : null
-    : null;
-  const companionPolicyStatus: SmartBarMobileOrderStatus | null = demoCompanionMessage
-    ? demoCompanionMessage.status ?? null
-    : demoMontageStage
-      ? demoMontageStage.status ?? null
-      : phase === "cart" && genericResult
-        ? genericCompanionPolicyStatus
-        : phase === "cart"
-          ? selectedLine?.status === "options" || selectedLine?.status === "unknown" || selectedLine?.status === "pending"
-            ? selectedLine.status
-            : expandedBundleLineId && expandedBundleLine
-              ? expandedBundleLine.status
-            : !selectedLine
-              ? effectiveCartGuidanceStatus
-              : null
-          : null;
-  const companionPillStyle = smartBarMobileFooterPolicyStyle(companionPolicyStatus);
-  const companionTextClass = smartBarMobileFooterPolicyTextClass(companionPolicyStatus);
+  // Patch 2A: the footer is now one continuous frosted-glass rail whenever
+  // SmartBar is expanded. Cart status changes the message, not the rail back
+  // into the legacy colored center pill.
+  const companionPillStyle = phase === "rest"
+    ? SMARTBAR_MOBILE_LAUNCHER_GLASS_STYLE
+    : SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE;
+  const companionTextClass = phase === "rest"
+    ? "text-white"
+    : "text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.62)]";
   const {
     rootTextClass,
     upperGlassClass,
     chromePillClass,
-    inputDraftCapsuleClass,
     skyEyebrowClass,
     retryInputClass,
     issuePillClass,
@@ -6904,68 +6951,105 @@ export default function SmartBarMobileShell({
         {phase === "entry" && (
           <motion.section
             key="real-entry-composer"
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.14, ease: "easeOut" }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
             className={`${demoInteractionPointerClass} fixed inset-x-0 z-[10083] flex justify-center px-0`}
             aria-hidden={demoInteractionLocked ? true : undefined}
-            style={{ bottom: 76 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
+            style={{ bottom: 12 + keyboardLift + overlayBottomLiftPx, ...smartBarAdaptiveRailStyle }}
           >
-            <div
+            <motion.div
               data-smartbar-mobile-adaptive-surface="true"
               className={upperGlassClass}
-              style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: entryPillWidth, height: entryComposerHeight, borderRadius: entryComposerRadius }}
+              style={{ ...SMARTBAR_MOBILE_COMPOSER_GLASS_STYLE }}
+              initial={{
+                width: restLauncherPillWidth,
+                height: 46,
+                borderRadius: 999,
+              }}
+              animate={{
+                width: entryPillWidth,
+                height: entryUnifiedShellHeight,
+                borderRadius: 25,
+              }}
+              exit={{
+                // Submission folds the composer down into the full-width footer rail.
+                // The cart is a separate surface and will unfold above this anchor.
+                width: entryPillWidth,
+                height: 46,
+                borderRadius: 999,
+                opacity: 1,
+              }}
+              transition={{
+                width: { duration: 0.42, ease: [0.2, 0.82, 0.2, 1] },
+                height: { duration: 0.46, ease: [0.18, 0.88, 0.28, 1] },
+                borderRadius: { duration: 0.38, ease: "easeOut" },
+                opacity: { duration: 0.14, ease: "easeOut" },
+              }}
             >
-              <div className="relative h-full px-3 py-2">
-                {demoInteractionLocked && entryFocused && !entryDraft.trim() && (
-                  <div
-                    data-smartbar-mobile-entry-ready-cursor="true"
-                    className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center"
-                    aria-hidden="true"
-                  >
-                    <span className="h-6 w-[2px] rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.92),0_0_24px_rgba(56,189,248,0.58)] animate-pulse" />
-                  </div>
-                )}
-                <textarea
-                  data-smartbar-mobile-entry-input="true"
-                  ref={entryTextareaRef}
-                  value={entryDraft}
-                  onChange={(event) => {
-                    if (demoInteractionLocked) return;
-                    setEntryDraft(event.target.value);
-                    setHasEditedEntryDraft(true);
-                  }}
-                  onFocus={() => {
-                    if (demoInteractionLocked) return;
-                    setEntryFocused(true);
-                  }}
-                  onBlur={() => setEntryFocused(false)}
-                  readOnly={demoInteractionLocked}
-                  tabIndex={demoInteractionLocked ? -1 : undefined}
-                  className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-2 text-left text-[16px] font-normal leading-5 outline-none ring-0 placeholder:text-white/40 ${
-                    demoInteractionLocked
-                      ? "text-white caret-transparent selection:bg-transparent"
-                      : "text-white caret-white selection:bg-white/24"
-                  }`}
-                  style={{
-                    caretColor: demoInteractionLocked ? "transparent" : "#fff",
-                    whiteSpace: "pre-wrap",
-                    overflowWrap: "break-word",
-                  }}
-                  placeholder=""
-                  spellCheck={false}
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                />
-              </div>
-            </div>
+              <motion.div
+                className="relative px-3 pt-3"
+                style={{ height: entryComposerHeight }}
+                initial={{ opacity: 0, y: 24, scaleY: 0.88 }}
+                animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                exit={{ opacity: 0, y: 18, scaleY: 0.92 }}
+                transition={{ delay: 0.10, duration: 0.32, ease: [0.18, 0.88, 0.28, 1] }}
+              >
+                <div className="mb-2 px-1 text-[13px] font-semibold text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.62)]">
+                  Say or type your order...
+                </div>
+                <div className="relative h-[calc(100%_-_30px)] rounded-[18px] border border-white/18 bg-slate-950/20 shadow-[inset_0_1px_12px_rgba(0,0,0,0.10)]">
+                  {demoInteractionLocked && entryFocused && !entryDraft.trim() && (
+                    <div
+                      data-smartbar-mobile-entry-ready-cursor="true"
+                      className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center"
+                      aria-hidden="true"
+                    >
+                      <span className="h-6 w-[2px] rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.92),0_0_24px_rgba(56,189,248,0.58)] animate-pulse" />
+                    </div>
+                  )}
+                  <textarea
+                    data-smartbar-mobile-entry-input="true"
+                    ref={entryTextareaRef}
+                    value={entryDraft}
+                    onChange={(event) => {
+                      if (demoInteractionLocked) return;
+                      setEntryDraft(event.target.value);
+                      setHasEditedEntryDraft(true);
+                    }}
+                    onFocus={() => {
+                      if (demoInteractionLocked) return;
+                      setEntryFocused(true);
+                    }}
+                    onBlur={() => setEntryFocused(false)}
+                    readOnly={demoInteractionLocked}
+                    tabIndex={demoInteractionLocked ? -1 : undefined}
+                    className={`relative z-[2] h-full w-full resize-none border-0 bg-transparent px-3 py-3 text-left text-[16px] font-normal leading-5 outline-none ring-0 placeholder:text-white/48 ${
+                      demoInteractionLocked
+                        ? "text-white caret-transparent selection:bg-transparent"
+                        : "text-white caret-white selection:bg-white/24"
+                    }`}
+                    style={{
+                      caretColor: demoInteractionLocked ? "transparent" : "#fff",
+                      whiteSpace: "pre-wrap",
+                      overflowWrap: "break-word",
+                      textShadow: "0 1px 3px rgba(0,0,0,0.30)",
+                    }}
+                    placeholder="I'd like..."
+                    spellCheck={false}
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
           </motion.section>
         )}
       </AnimatePresence>
 
       <AnimatePresence initial={false}>
-        {(phase === "building_cart" || (phase === "cart" && !demoCollapsedSurfaceHidden)) && (
+        {phase === "cart" && !demoCollapsedSurfaceHidden && (
           <motion.section
             key="fake-cart-surface"
             initial={{ opacity: 0 }}
@@ -6981,8 +7065,9 @@ export default function SmartBarMobileShell({
               className={upperGlassClass}
               style={{ ...SMARTBAR_MOBILE_FOG_GLASS_STYLE, width: entryPillWidth, maxHeight: adaptiveSurfaceMaxHeight }}
               initial={{
-                height: phase === "building_cart" ? buildPanelHeight : realComposerHeight,
-                borderRadius: phase === "building_cart" ? buildPanelRadius : 999,
+                // Separate cart surface: begin collapsed at the rail, then unravel upward.
+                height: 0,
+                borderRadius: 999,
               }}
               animate={{
                 height: fakeCartPanelHeight,
@@ -6991,33 +7076,6 @@ export default function SmartBarMobileShell({
               transition={fakeCartPanelTransition}
             >
               <AnimatePresence initial={false}>
-                {phase === "building_cart" && (
-                  <motion.div
-                    key="fake-building-cart-content"
-                    initial={{ opacity: 0.78 }}
-                    animate={{ opacity: 0.78 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="h-full px-3 py-2"
-                    aria-live="polite"
-                  >
-                    <div className="flex h-full items-center justify-center px-3 py-2">
-                      <div
-                        className={`${inputDraftCapsuleClass} max-w-full !rounded-[28px] !border !border-slate-500/18 !bg-white/46 !text-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.68),0_8px_18px_rgba(15,23,42,0.12)] [text-shadow:0_1px_0_rgba(255,255,255,0.64)]`}
-                        style={{
-                          maxHeight: Math.max(42, buildPanelHeight - 24),
-                          whiteSpace: "pre-wrap",
-                          overflow: "hidden",
-                          display: "block",
-                          textAlign: "left",
-                        }}
-                      >
-                        {submittedPromptPreview}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
                 {phase === "cart" && cartExpanded && selectedLine && (
                   <motion.div
                     ref={selectedDetailMeasureRef}
@@ -7893,11 +7951,6 @@ export default function SmartBarMobileShell({
                                 <div className={`min-w-[3.4rem] shrink-0 truncate text-[11px] font-black leading-none ${smartBarMobileCartRowSecondaryTextClass(line.status, handoffLocked)} ${line.status === "unknown" ? "italic" : ""}`}>
                                   - {smartBarMobileCompactRowHelper(line)}
                                 </div>
-                              ) : !demoCompactCartRows && !line.demoHideMeta && line.status !== "options" ? (
-                                <SmartBarMobileCartStatusSummary
-                                  line={line}
-                                  handoffLocked={handoffLocked}
-                                />
                               ) : null}
                             </div>
                             <div className={`flex shrink-0 items-end text-right ${demoCompactCartRows ? "flex-row gap-2" : "flex-col gap-2"}`}>
@@ -7923,12 +7976,12 @@ export default function SmartBarMobileShell({
                               {!restaurantCalculatedPricing && !line.demoHideMeta && !line.priceSuppressed && line.bundleDisplayRole !== "component" ? <div className={`${demoCompactCartRows ? "text-[13px] leading-none" : "text-sm"} font-black ${smartBarMobileCartRowPrimaryTextClass(line.status, handoffLocked)}`}>{line.price}</div> : null}
                             </div>
                           </div>
-                          {!line.demoHideMeta && !demoCompactCartRows && line.status === "options" ? (
+                          {!line.demoHideMeta && !demoCompactCartRows ? (
                             <div className="relative z-10">
                               <SmartBarMobileCartStatusSummary
                                 line={line}
                                 handoffLocked={handoffLocked}
-                                reserveRemoveSpace
+                                reserveRemoveSpace={!line.bundleDisplayRole}
                               />
                             </div>
                           ) : null}
@@ -8057,6 +8110,21 @@ export default function SmartBarMobileShell({
           style={{ width: entryPillWidth }}
         >
           <AnimatePresence initial={false}>
+            {(phase === "building_cart" || phase === "cart") && (
+              <motion.div
+                key="smartbar-expanded-footer-rail"
+                data-smartbar-mobile-footer-rail="true"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-full border"
+                style={{ ...SMARTBAR_MOBILE_LAUNCHER_GLASS_STYLE }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
+          <AnimatePresence initial={false}>
             {phase !== "rest" && handoffState !== "complete" && (
               <motion.button
                 type="button"
@@ -8065,7 +8133,11 @@ export default function SmartBarMobileShell({
                 disabled={demoInteractionLocked}
                 onClick={demoInteractionLocked ? undefined : handleClosePillClick}
                 className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} left-0`}
-                style={{ ...SMARTBAR_MOBILE_BLUE_CONTROL_STYLE, width: cartTogglePillSize, height: cartTogglePillSize }}
+                style={{
+                  ...SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE,
+                  width: cartTogglePillSize,
+                  height: cartTogglePillSize,
+                }}
                 initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.92 }}
@@ -8110,23 +8182,26 @@ export default function SmartBarMobileShell({
             disabled={demoInteractionLocked}
             onClick={demoInteractionLocked ? undefined : handleCompanionClick}
             className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} h-[46px] min-w-0 justify-center px-4`}
-            style={{ ...companionPillStyle, width: launcherPillWidth, left: launcherPillLeft }}
+            style={{
+              ...companionPillStyle,
+              width: launcherPillWidth,
+              left: launcherPillLeft,
+              transition: "width 420ms cubic-bezier(0.22, 1, 0.36, 1), left 420ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
+            }}
             aria-label={phase === "rest" ? "Open SmartBar" : companionLabel}
           >
             {phase === "rest" ? (
               <span className={`inline-flex h-8 max-w-full items-center justify-center gap-1.5 whitespace-nowrap ${demoRestCompanionIsBlank ? "px-0" : "px-4"} text-[18px] font-semibold tracking-[-0.025em] ${companionTextClass}`}>
-                {demoRestCompanionShowLogo ? (
+                {restLauncherShowMic ? (
+                  <Mic className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.2} />
+                ) : demoRestCompanionShowLogo ? (
                   <Compass className={`h-[18px] w-[18px] shrink-0 ${companionTextClass}`} strokeWidth={2.25} />
                 ) : null}
                 {companionLabel ? <span>{companionLabel}</span> : null}
               </span>
-            ) : closeArmed || phase === "building_cart" || handoffState === "handing_off" || Boolean(retryCheckingLineId) ? (
-              <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
-                <ThinkingText text={companionLabel} />
-              </span>
             ) : (
               <span className={`inline-flex h-8 max-w-full items-center justify-center whitespace-nowrap px-3 text-[16px] font-semibold tracking-[-0.015em] ${companionTextClass}`}>
-                {companionLabel}
+                {companionCaptionNode}
               </span>
             )}
           </button>
@@ -8221,6 +8296,29 @@ export default function SmartBarMobileShell({
           )}
 
           <AnimatePresence initial={false}>
+            {(phase === "entry" || phase === "building_cart") && !showCartToggle && (
+              <motion.span
+                data-smartbar-mobile-entry-adjustments="true"
+                className={`${chromePillClass} pointer-events-none right-0`}
+                style={{
+                  ...SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE,
+                  width: cartTogglePillSize,
+                  height: cartTogglePillSize,
+                }}
+                initial={{ opacity: 0, scale: 0.72 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.82 }}
+                transition={{ delay: 0.16, duration: 0.22, ease: "easeOut" }}
+                aria-hidden="true"
+              >
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.62)]">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence initial={false}>
             {showCartToggle && (
               <motion.button
                 type="button"
@@ -8232,11 +8330,9 @@ export default function SmartBarMobileShell({
                 onClick={demoInteractionLocked ? undefined : handleCartToggleClick}
                 className={`${chromePillClass} ${demoInteractionLocked ? "pointer-events-none" : ""} right-0`}
                 style={{
-                  ...(phase === "cart" && (expandedBundleLineId || selectedLine)
-                    ? SMARTBAR_MOBILE_BLUE_CONTROL_STYLE
-                    : cartToggleShowsAdd
-                      ? SMARTBAR_MOBILE_GREEN_CONTROL_STYLE
-                      : SMARTBAR_MOBILE_BLUE_CONTROL_STYLE),
+                  // Patch 2A: keep the right-side functional control inside
+                  // the same glass rail instead of rendering a separate blue/green pill.
+                  ...SMARTBAR_MOBILE_INTEGRATED_ENTRY_CONTROL_STYLE,
                   width: cartTogglePillSize,
                   height: cartTogglePillSize,
                 }}

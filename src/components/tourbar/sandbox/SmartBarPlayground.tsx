@@ -1516,7 +1516,6 @@ export default function SmartBarPlayground({
         >
           <SmartBarMobileShell
             mode="overlay"
-            introCallout={{ title: "Tap to say or type your order" }}
             sendOrderNumber={sendOrderNumber}
             demoBottomLiftPx={16}
             containedPanelMaxHeight={containedPanelMaxHeight}
