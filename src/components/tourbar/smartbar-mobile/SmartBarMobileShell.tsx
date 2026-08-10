@@ -7068,7 +7068,7 @@ export default function SmartBarMobileShell({
                 transition={{ delay: 0.10, duration: 0.32, ease: [0.18, 0.88, 0.28, 1] }}
               >
                 <div className="mb-2 px-1 text-[15px] font-bold text-white [text-shadow:0_1px_5px_rgba(0,0,0,0.78)]">
-                  Say or type your order...
+                  Use phone mic or type...
                 </div>
                 <div className="relative h-[calc(100%_-_30px)] rounded-[18px] border border-white/18 bg-slate-950/20 shadow-[inset_0_1px_12px_rgba(0,0,0,0.10)]">
                   {demoInteractionLocked && entryFocused && !entryDraft.trim() && (
