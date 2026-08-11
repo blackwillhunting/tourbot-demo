@@ -330,6 +330,13 @@ function Router() {
   }
 
   if (path === "/transactional") {
+    const isPublicSelfDriveDemo =
+      new URLSearchParams(window.location.search).get("mode") === "self_drive";
+
+    if (isPublicSelfDriveDemo) {
+      return <AppCommerce />;
+    }
+
     return (
       <ProtectedDemoRoute>
         <AppCommerce />
@@ -346,6 +353,13 @@ function Router() {
   }
 
   if (path === "/carryout") {
+    const isPublicSelfDriveDemo =
+      new URLSearchParams(window.location.search).get("mode") === "self_drive";
+
+    if (isPublicSelfDriveDemo) {
+      return <BurgerRushMobileExperience />;
+    }
+
     return (
       <ProtectedDemoRoute>
         <BurgerRushMobileExperience />
